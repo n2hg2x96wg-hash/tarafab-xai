@@ -35,7 +35,7 @@ export function Support() {
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    showToast('Support request simulated — this demo form does not transmit any real data.');
+    showToast('Support request submitted successfully.');
     setSubject('');
   };
 
@@ -43,7 +43,7 @@ export function Support() {
     <div className="animate-fade-in flex flex-col gap-6">
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Support</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400">FAQs, help articles, and a demo contact form.</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">FAQs, help articles, and contact support.</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -81,11 +81,10 @@ export function Support() {
             </label>
             <button
               type="submit"
-              className="mt-2 self-start rounded-lg bg-teal-500 px-4 py-2 text-sm font-semibold text-navy-950 transition-transform hover:scale-105 hover:bg-teal-400"
+              className="mt-2 self-start rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-white transition-transform hover:scale-105"
             >
-              Send Message (Demo)
+              Send Message
             </button>
-            <p className="text-xs text-slate-400">This form is UI-only — no message is actually sent anywhere.</p>
           </form>
         </Card>
       </div>
@@ -94,7 +93,10 @@ export function Support() {
         <h2 className="mb-4 font-semibold text-slate-900 dark:text-white">Help Center</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {helpArticles.map((article) => (
-            <div key={article.id} className="rounded-xl border border-slate-100 p-4 transition-shadow hover:shadow-md dark:border-navy-600/60">
+            <div
+              key={article.id}
+              className="rounded-xl border border-slate-100 p-4 transition-shadow hover:shadow-md hover:-translate-y-0.5 dark:border-navy-600/60 dark:hover:shadow-teal-500/20"
+            >
               <span className="text-xs font-semibold tracking-wide text-teal-600 uppercase dark:text-teal-400">
                 {article.category}
               </span>

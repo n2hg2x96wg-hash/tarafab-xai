@@ -6,7 +6,7 @@ import { navItems } from './navItems';
 
 export function Sidebar() {
   return (
-    <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-slate-200 bg-white px-4 py-6 lg:flex dark:border-navy-600/60 dark:bg-navy-900">
+    <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-slate-200/50 bg-gradient-to-b from-white to-slate-50/50 px-4 py-6 lg:flex dark:border-navy-600/40 dark:from-navy-900 dark:to-navy-950">
       <Logo className="mb-8 px-2" />
       <nav className="flex flex-1 flex-col gap-1">
         {navItems.map((item) => (
@@ -15,10 +15,10 @@ export function Sidebar() {
             to={item.to}
             className={({ isActive }) =>
               clsx(
-                'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-200',
+                'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
                 isActive
-                  ? 'bg-teal-500/10 text-teal-600 dark:text-teal-400'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-navy-700 dark:hover:text-white',
+                  ? 'bg-gradient-to-r from-teal-500/20 to-cyan-500/10 text-teal-600 dark:text-teal-300'
+                  : 'text-slate-600 hover:bg-gradient-to-r hover:from-slate-100/60 hover:to-slate-50/60 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-navy-700/60 dark:hover:text-white',
               )
             }
           >
@@ -27,10 +27,6 @@ export function Sidebar() {
           </NavLink>
         ))}
       </nav>
-      <div className="mt-4 rounded-xl border border-teal-500/20 bg-teal-500/5 p-3 text-xs text-teal-700 dark:text-teal-400">
-        <p className="font-semibold">Fictional Demo</p>
-        <p className="mt-1 text-slate-500 dark:text-slate-400">All data shown is simulated for prototype purposes only.</p>
-      </div>
     </aside>
   );
 }

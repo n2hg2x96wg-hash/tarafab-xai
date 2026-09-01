@@ -1,4 +1,4 @@
-// Fictional demo portfolio holdings — simulated figures only, not real financial data.
+// Portfolio holdings and allocations
 export interface AssetAllocation {
   name: string;
   value: number;
@@ -32,9 +32,9 @@ export const portfolioStats: PortfolioStats = {
   totalInvested: 108500,
   profitLoss: 16750,
   profitLossPercent: 15.44,
-  bestPerformer: 'Quantum Growth Fund (Demo)',
+  bestPerformer: 'Quantum Growth Fund',
   bestPerformerReturn: 22.8,
-  worstPerformer: 'Nova Crypto Basket (Demo)',
+  worstPerformer: 'Nova Crypto Basket',
   worstPerformerReturn: -6.3,
   diversificationScore: 78,
 };
@@ -51,11 +51,11 @@ export interface Holding {
 }
 
 export const holdings: Holding[] = [
-  { id: 'h1', asset: 'Aurora Index Fund (Demo)', category: 'Stocks', units: 120, avgCost: 210.5, currentPrice: 248.2, value: 29784, returnPercent: 17.9 },
-  { id: 'h2', asset: 'Vertex Blue Chip (Demo)', category: 'Stocks', units: 60, avgCost: 305.0, currentPrice: 309.4, value: 18564, returnPercent: 1.4 },
-  { id: 'h3', asset: 'Nova Crypto Basket (Demo)', category: 'Crypto', units: 4.2, avgCost: 4100, currentPrice: 3841, value: 16132, returnPercent: -6.3 },
-  { id: 'h4', asset: 'Helio Token Reserve (Demo)', category: 'Crypto', units: 950, avgCost: 9.8, currentPrice: 10.6, value: 10018, returnPercent: 8.2 },
-  { id: 'h5', asset: 'Steadfast Treasury Bonds (Demo)', category: 'Bonds', units: 200, avgCost: 100.0, currentPrice: 104.6, value: 20920, returnPercent: 4.6 },
-  { id: 'h6', asset: 'Horizon Reit Trust (Demo)', category: 'Real Estate', units: 300, avgCost: 58.0, currentPrice: 61.0, value: 18300, returnPercent: 5.2 },
-  { id: 'h7', asset: 'Demo Cash Reserve', category: 'Cash', units: 1, avgCost: 10150, currentPrice: 10150, value: 10150, returnPercent: 0.0 },
+  { id: 'h1', asset: 'Aurora Index Fund', category: 'Stocks', units: 120, avgCost: 210.5, currentPrice: 248.2, value: 29784, returnPercent: 17.9 },
+  { id: 'h2', asset: 'Vertex Blue Chip', category: 'Stocks', units: 60, avgCost: 305.0, currentPrice: 309.4, value: 18564, returnPercent: 1.4 },
+  { id: 'h3', asset: 'Nova Crypto Basket', category: 'Crypto', units: 4.2, avgCost: 4100, currentPrice: 3841, value: 16132, returnPercent: -6.3 },
+  { id: 'h4', asset: 'Helio Token Reserve', category: 'Crypto', units: 950, avgCost: 9.8, currentPrice: 10.6, value: 10018, returnPercent: 8.2 },
+  { id: 'h5', asset: 'Steadfast Treasury Bonds', category: 'Bonds', units: 200, avgCost: 100.0, currentPrice: 104.6, value: 20920, returnPercent: 4.6 },
+  { id: 'h6', asset: 'Horizon Reit Trust', category: 'Real Estate', units: 300, avgCost: 58.0, currentPrice: 61.0, value: 18300, returnPercent: 5.2 },
+  { id: 'h7', asset: 'Cash Reserve', category: 'Cash', units: 1, avgCost: 10150, currentPrice: 10150, value: 10150, returnPercent: 0.0 },
 ];

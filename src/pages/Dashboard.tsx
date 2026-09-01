@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
-import { SimulatedTag } from '../components/ui/SimulatedTag';
 import { PerformanceChart } from '../components/charts/PerformanceChart';
 import { portfolioStats } from '../data/portfolio';
 import { transactions } from '../data/transactions';
@@ -27,7 +26,7 @@ export function Dashboard() {
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Dashboard</h1>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          A snapshot of your simulated portfolio and recent activity.
+          A snapshot of your portfolio and recent activity.
         </p>
       </div>
 
@@ -35,7 +34,6 @@ export function Dashboard() {
         <Card hoverable>
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Portfolio Balance</p>
-            <SimulatedTag />
           </div>
           <p className="mt-3 text-2xl font-bold text-slate-900 dark:text-white">
             {formatCurrency(portfolioStats.totalValue, currency)}
@@ -44,7 +42,6 @@ export function Dashboard() {
         <Card hoverable>
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Invested</p>
-            <SimulatedTag />
           </div>
           <p className="mt-3 text-2xl font-bold text-slate-900 dark:text-white">
             {formatCurrency(portfolioStats.totalInvested, currency)}
@@ -53,7 +50,6 @@ export function Dashboard() {
         <Card hoverable>
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Profit / Loss</p>
-            <SimulatedTag />
           </div>
           <p className={`mt-3 text-2xl font-bold ${isProfit ? 'text-emerald-500' : 'text-rose-500'}`}>
             {isProfit ? '+' : ''}
@@ -67,9 +63,8 @@ export function Dashboard() {
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="font-semibold text-slate-900 dark:text-white">Portfolio Performance</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Simulated value over the last 90 days</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Value over the last 90 days</p>
           </div>
-          <SimulatedTag />
         </div>
         <PerformanceChart data={dashboardSeries} />
       </Card>

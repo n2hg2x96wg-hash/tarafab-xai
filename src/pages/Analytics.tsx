@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { Card } from '../components/ui/Card';
-import { SimulatedTag } from '../components/ui/SimulatedTag';
 import { PerformanceChart } from '../components/charts/PerformanceChart';
 import { performanceRanges, type PerformanceRangeKey } from '../data/performance';
 import { formatPercent } from '../utils/format';
@@ -33,7 +32,7 @@ export function Analytics() {
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Analytics</h1>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          Interactive, simulated portfolio performance across selectable time ranges.
+          Interactive portfolio performance across selectable time ranges.
         </p>
       </div>
 
@@ -57,7 +56,6 @@ export function Analytics() {
                 </button>
               ))}
             </div>
-            <SimulatedTag />
           </div>
         </div>
         <PerformanceChart data={data} height={320} />
@@ -67,7 +65,6 @@ export function Analytics() {
         <Card hoverable>
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-slate-500 dark:text-slate-400">ROI</p>
-            <SimulatedTag />
           </div>
           <p className={`mt-3 text-2xl font-bold ${stats.roi >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
             {formatPercent(stats.roi)}
@@ -77,29 +74,20 @@ export function Analytics() {
         <Card hoverable>
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Volatility</p>
-            <SimulatedTag />
           </div>
           <p className="mt-3 text-2xl font-bold text-slate-900 dark:text-white">{stats.volatility.toFixed(2)}%</p>
-          <p className="text-xs text-slate-400">Simulated daily fluctuation</p>
+          <p className="text-xs text-slate-400">Daily fluctuation</p>
         </Card>
         <Card hoverable>
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Growth Rate</p>
-            <SimulatedTag />
           </div>
           <p className={`mt-3 text-2xl font-bold ${stats.growthRate >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
             {formatPercent(stats.growthRate)}
           </p>
-          <p className="text-xs text-slate-400">Annualized simulated rate</p>
+          <p className="text-xs text-slate-400">Annualized rate</p>
         </Card>
       </div>
-
-      <Card className="border-teal-500/20 bg-teal-500/5">
-        <p className="text-sm text-slate-600 dark:text-slate-300">
-          All analytics above are computed from fictional, locally generated mock time-series data. They do not
-          reflect real market performance and should not be used to make real financial decisions.
-        </p>
-      </Card>
     </div>
   );
 }

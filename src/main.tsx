@@ -8,14 +8,17 @@ import '@fontsource/inter/800.css'
 import './index.css'
 import App from './App.tsx'
 import { AppSettingsProvider } from './context/AppSettingsContext'
+import { ClientProvider } from './context/ClientContext'
 import { ToastProvider } from './components/ui/Toast'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AppSettingsProvider>
-      <ToastProvider>
-        <App />
-      </ToastProvider>
+      <ClientProvider>
+        <ToastProvider>
+          <App />
+        </ToastProvider>
+      </ClientProvider>
     </AppSettingsProvider>
   </StrictMode>,
 )

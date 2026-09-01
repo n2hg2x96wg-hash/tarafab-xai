@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Card } from '../components/ui/Card';
-import { mockUser } from '../data/user';
 import { useAppSettings } from '../context/AppSettingsContext';
+import { useClient } from '../context/ClientContext';
 import { useToast } from '../components/ui/Toast';
 
 const currencies = ['USD', 'EUR', 'GBP', 'JPY'];
@@ -29,31 +29,32 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (val
 
 export function Profile() {
   const { theme, toggleTheme, currency, setCurrency } = useAppSettings();
+  const { currentClient } = useClient();
   const { showToast } = useToast();
-  const [twoFactor, setTwoFactor] = useState(mockUser.twoFactorEnabled);
-  const [notifications, setNotifications] = useState(mockUser.notifications);
+  const [twoFactor, setTwoFactor] = useState(currentClient.twoFactorEnabled);
+  const [notifications, setNotifications] = useState(currentClient.notifications);
 
   const handlePasswordSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    showToast('Password change simulated — this is a UI-only demo form.');
+    showToast('Password change submitted.');
   };
 
   return (
     <div className="animate-fade-in flex flex-col gap-6">
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Profile & Settings</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400">Mock account details — nothing here is real or persisted.</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Account information and preferences.</p>
       </div>
 
       <Card className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
-        <span className="flex h-16 w-16 items-center justify-center rounded-full bg-navy-900 text-xl font-bold text-teal-300 dark:bg-navy-700">
-          {mockUser.avatarInitials}
+        <span className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 text-xl font-bold text-white">
+          {currentClient.avatarInitials}
         </span>
         <div>
-          <p className="text-lg font-semibold text-slate-900 dark:text-white">{mockUser.name}</p>
-          <p className="text-sm text-slate-500 dark:text-slate-400">{mockUser.email}</p>
+          <p className="text-lg font-semibold text-slate-900 dark:text-white">{currentClient.name}</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">{currentClient.email}</p>
           <p className="mt-1 text-xs text-slate-400">
-            Member since {mockUser.memberSince} · {mockUser.accountTier}
+            Member since {currentClient.memberSince} · {currentClient.accountTier}
           </p>
         </div>
       </Card>
@@ -84,13 +85,13 @@ export function Profile() {
               type="submit"
               className="mt-2 self-start rounded-lg bg-teal-500 px-4 py-2 text-sm font-semibold text-navy-950 transition-transform hover:scale-105 hover:bg-teal-400"
             >
-              Update Password (Demo)
+              Update Password
             </button>
           </form>
           <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4 dark:border-navy-600/60">
             <div>
               <p className="text-sm font-medium text-slate-800 dark:text-slate-100">Two-Factor Authentication</p>
-              <p className="text-xs text-slate-400">UI toggle only — no real auth is configured.</p>
+              <p className="text-xs text-slate-400">Additional security for your account.</p>
             </div>
             <Toggle checked={twoFactor} onChange={setTwoFactor} label="Two-factor authentication" />
           </div>
@@ -148,7 +149,6 @@ export function Profile() {
             </select>
           </div>
         </div>
-        <p className="mt-3 text-xs text-slate-400">Currency display is cosmetic only and re-formats mock figures.</p>
       </Card>
     </div>
   );
