@@ -1,4 +1,4 @@
-// Fictional demo performance time series — simulated portfolio values for chart mock-ups only.
+// Portfolio performance time series data.
 export interface PerformancePoint {
   date: string;
   value: number;
