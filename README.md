@@ -8,6 +8,52 @@ views, investment plan cards, transaction history, analytics, and account settin
 > bank, brokerage, or crypto accounts, and does not provide real financial or investment advice. Every balance,
 > return, transaction, and chart in this app is generated from static mock data bundled with the project.
 
+## Deployment Links
+
+Choose your preferred deployment platform:
+
+### 🚀 Quick Deployment Options
+
+| Platform | Command | Status |
+| -------- | ------- | ------ |
+| **Vercel** (Recommended) | `npm run deploy:vercel` | Ready to deploy |
+| **Netlify** | `npm run deploy:netlify` | Ready to deploy |
+| **GitHub Pages** | Auto-deployed on push | [Workflow configured](.github/workflows/deploy.yml) |
+
+### Deploy to Vercel (Recommended)
+```bash
+npm run build
+npm run deploy:vercel
+```
+
+Your site will be available at: `https://tarafab-xai.vercel.app`
+
+### Deploy to Netlify
+```bash
+npm run deploy:netlify
+```
+
+Your site will be available at: `https://tarafab-xai.netlify.app`
+
+### GitHub Pages Auto-Deployment
+Push to `main` or `master` branch and the app deploys automatically:
+```bash
+git push origin main
+```
+
+Your site will be available at: `https://username.github.io/tarafab-xai`
+
+## Admin Panel
+
+Access the admin dashboard at `/admin` to manage:
+
+| Route | Feature |
+| ----- | ------- |
+| `/admin` | Dashboard overview with stats and analytics |
+| `/admin/users` | User management, search, and filtering |
+| `/admin/investments` | Investment plan configuration and returns |
+| `/admin/settings` | Platform settings, system status, and config |
+
 ## Tech stack
 
 - [React](https://react.dev/) + [Vite](https://vite.dev/) + TypeScript
@@ -48,7 +94,7 @@ src/
   data/          # Mock/fictional JSON-like data modules (user, portfolio, investments,
                  # transactions, performance time series, FAQ/help content)
   pages/         # Landing, Dashboard, Investments, Portfolio, Transactions, Analytics,
-                 # Profile, Support
+                 # Profile, Support, Admin Dashboard, Admin Users, Admin Investments, Admin Settings
   utils/         # Formatting helpers (currency, percent, date)
 ```
 
@@ -64,6 +110,10 @@ src/
 | `/analytics`      | Interactive performance chart with 1W / 1M / 3M / 1Y / All ranges and summary stats |
 | `/profile`        | Mock account info, security settings UI, notification toggles, theme & currency preferences |
 | `/support`        | FAQ accordion, demo contact form, and a mock help center                     |
+| `/admin`          | Admin dashboard with system overview and stats                               |
+| `/admin/users`    | User management and administration                                           |
+| `/admin/investments` | Investment plan configuration                                              |
+| `/admin/settings` | Platform settings and system configuration                                   |
 
 ## Disclaimer
 

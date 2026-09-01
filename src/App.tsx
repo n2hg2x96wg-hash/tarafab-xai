@@ -8,6 +8,10 @@ import { Transactions } from './pages/Transactions';
 import { Analytics } from './pages/Analytics';
 import { Profile } from './pages/Profile';
 import { Support } from './pages/Support';
+import { AdminDashboard } from './pages/AdminDashboard';
+import { AdminUsers } from './pages/AdminUsers';
+import { AdminInvestments } from './pages/AdminInvestments';
+import { AdminSettings } from './pages/AdminSettings';
 
 function App() {
   return (
@@ -22,6 +26,10 @@ function App() {
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/support" element={<Support />} />
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin/users" element={<AdminUsers />} />
+          <Route path="/admin/investments" element={<AdminInvestments />} />
+          <Route path="/admin/settings" element={<AdminSettings />} />
         </Route>
       </Routes>
     </BrowserRouter>
