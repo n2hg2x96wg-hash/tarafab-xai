@@ -1,6 +1,7 @@
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Link } from 'react-router-dom';
+import { AdminLogoutButton } from '../components/admin/AdminLogoutButton';
 
 export function AdminDashboard() {
   const stats = [
@@ -22,13 +23,16 @@ export function AdminDashboard() {
     <div className="flex-1 overflow-auto bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-2">
-            Admin Dashboard
-          </h1>
-          <p className="text-slate-600 dark:text-slate-400">
-            Manage your Tarafab.XAi demo platform
-          </p>
+        <div className="flex items-start justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-2">
+              Admin Dashboard
+            </h1>
+            <p className="text-slate-600 dark:text-slate-400">
+              Manage your Tarafab.XAi demo platform
+            </p>
+          </div>
+          <AdminLogoutButton />
         </div>
 
         {/* Stats Grid */}

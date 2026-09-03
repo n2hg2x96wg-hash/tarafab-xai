@@ -1,6 +1,7 @@
 import { Card } from '../components/ui/Card';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
+import { AdminLogoutButton } from '../components/admin/AdminLogoutButton';
 
 export function AdminSettings() {
   const [settings, setSettings] = useState({
@@ -34,12 +35,13 @@ export function AdminSettings() {
           <Link to="/admin" className="text-blue-600 hover:text-blue-700 dark:text-blue-400">
             ← Back
           </Link>
-          <div>
+          <div className="flex-1">
             <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Settings</h1>
             <p className="text-slate-600 dark:text-slate-400 mt-1">
               Platform configuration and system status
             </p>
           </div>
+          <AdminLogoutButton />
         </div>
 
         {/* System Stats */}

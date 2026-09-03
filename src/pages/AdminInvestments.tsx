@@ -2,6 +2,7 @@ import { Card } from '../components/ui/Card';
 import { Badge, type BadgeTone } from '../components/ui/Badge';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
+import { AdminLogoutButton } from '../components/admin/AdminLogoutButton';
 
 export function AdminInvestments() {
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -72,9 +73,12 @@ const getRiskColor = (risk: string): BadgeTone => {
               </p>
             </div>
           </div>
-          <button className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors">
-            + New Plan
-          </button>
+          <div className="flex items-center gap-3">
+            <button className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors">
+              + New Plan
+            </button>
+            <AdminLogoutButton />
+          </div>
         </div>
 
         {/* Investment Plans */}
