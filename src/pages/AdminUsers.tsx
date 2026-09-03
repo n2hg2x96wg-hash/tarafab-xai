@@ -2,6 +2,7 @@ import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { AdminLogoutButton } from '../components/admin/AdminLogoutButton';
 
 export function AdminUsers() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -34,6 +35,7 @@ export function AdminUsers() {
               Manage and monitor user accounts
             </p>
           </div>
+          <AdminLogoutButton />
         </div>
 
         {/* Filters */}

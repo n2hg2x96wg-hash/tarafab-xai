@@ -9,6 +9,7 @@ import './index.css'
 import App from './App.tsx'
 import { AppSettingsProvider } from './context/AppSettingsContext'
 import { ClientProvider } from './context/ClientContext'
+import { AdminAuthProvider } from './context/AdminAuthContext'
 import { ToastProvider } from './components/ui/Toast'
 
 createRoot(document.getElementById('root')!).render(
@@ -16,7 +17,9 @@ createRoot(document.getElementById('root')!).render(
     <AppSettingsProvider>
       <ClientProvider>
         <ToastProvider>
-          <App />
+          <AdminAuthProvider>
+            <App />
+          </AdminAuthProvider>
         </ToastProvider>
       </ClientProvider>
     </AppSettingsProvider>

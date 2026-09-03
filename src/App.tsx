@@ -12,12 +12,15 @@ import { AdminDashboard } from './pages/AdminDashboard';
 import { AdminUsers } from './pages/AdminUsers';
 import { AdminInvestments } from './pages/AdminInvestments';
 import { AdminSettings } from './pages/AdminSettings';
+import { AdminLogin } from './pages/AdminLogin';
+import { ProtectedAdminRoute } from './components/auth/ProtectedAdminRoute';
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Landing />} />
+        <Route path="/admin/login" element={<AdminLogin />} />
         <Route element={<AppLayout />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/investments" element={<Investments />} />
@@ -26,10 +29,12 @@ function App() {
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/support" element={<Support />} />
-          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/admin/users" element={<AdminUsers />} />
-          <Route path="/admin/investments" element={<AdminInvestments />} />
-          <Route path="/admin/settings" element={<AdminSettings />} />
+          <Route element={<ProtectedAdminRoute />}>
+            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/users" element={<AdminUsers />} />
+            <Route path="/admin/investments" element={<AdminInvestments />} />
+            <Route path="/admin/settings" element={<AdminSettings />} />
+          </Route>
         </Route>
       </Routes>
     </BrowserRouter>
