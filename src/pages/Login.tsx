@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Navigate, useLocation, useNavigate, type Location } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Logo } from '../components/layout/Logo';
-import { useAuth, testAccounts } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/ui/Toast';
 
 export function Login() {
@@ -101,30 +101,6 @@ export function Login() {
               {submitting ? 'Signing in…' : 'Sign In'}
             </button>
           </form>
-
-          <div className="mt-6 border-t border-slate-100 pt-5 dark:border-navy-600/60">
-            <p className="mb-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Test accounts
-            </p>
-            <div className="flex flex-col gap-2">
-              {testAccounts.map((account) => (
-                <button
-                  key={account.id}
-                  type="button"
-                  onClick={() => attemptLogin(account.email, account.password)}
-                  className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-2 text-left text-xs transition-colors hover:border-teal-400 hover:bg-teal-50/50 dark:border-navy-500 dark:hover:bg-navy-700/60"
-                >
-                  <span>
-                    <span className="block font-semibold text-slate-800 dark:text-slate-100">{account.name}</span>
-                    <span className="text-slate-400">
-                      {account.investorProfile} investor · {account.email}
-                    </span>
-                  </span>
-                  <span className="font-mono text-slate-400">{account.password}</span>
-                </button>
-              ))}
-            </div>
-          </div>
         </Card>
       </div>
     </div>
