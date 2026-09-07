@@ -1,14 +1,18 @@
 import { Card } from '../components/ui/Card';
-import { SimulatedTag } from '../components/ui/SimulatedTag';
 import { AllocationDonut } from '../components/charts/AllocationDonut';
 import { PerformanceChart } from '../components/charts/PerformanceChart';
-import { assetAllocations, portfolioStats } from '../data/portfolio';
-import { dashboardSeries } from '../data/performance';
+import { getPortfolioData } from '../data/portfolio';
+import { getDashboardSeries } from '../data/performance';
 import { formatCurrency, formatPercent } from '../utils/format';
 import { useAppSettings } from '../context/AppSettingsContext';
+import { useAuth } from '../context/AuthContext';
 
 export function Portfolio() {
   const { currency } = useAppSettings();
+  const { currentClient } = useAuth();
+  const clientId = currentClient?.id ?? '';
+  const { stats: portfolioStats, allocations: assetAllocations } = getPortfolioData(clientId);
+  const dashboardSeries = getDashboardSeries(clientId);
 
   const statCards = [
     { label: 'Total Value', value: formatCurrency(portfolioStats.totalValue, currency) },
@@ -22,17 +26,14 @@ export function Portfolio() {
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Portfolio</h1>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          A simulated breakdown of your demo asset allocation and performance.
+          A breakdown of your current asset allocation and performance.
         </p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {statCards.map((stat) => (
           <Card key={stat.label} hoverable>
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{stat.label}</p>
-              <SimulatedTag />
-            </div>
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{stat.label}</p>
             <p className="mt-3 truncate text-lg font-bold text-slate-900 dark:text-white">{stat.value}</p>
             {stat.sub && <p className={`text-sm font-semibold ${stat.tone}`}>{stat.sub}</p>}
           </Card>
@@ -43,7 +44,6 @@ export function Portfolio() {
         <Card>
           <div className="mb-4 flex items-center justify-between">
             <h2 className="font-semibold text-slate-900 dark:text-white">Asset Allocation</h2>
-            <SimulatedTag />
           </div>
           <AllocationDonut data={assetAllocations} />
           <ul className="mt-4 flex flex-wrap gap-3 text-xs">
@@ -59,7 +59,6 @@ export function Portfolio() {
         <Card>
           <div className="mb-4 flex items-center justify-between">
             <h2 className="font-semibold text-slate-900 dark:text-white">Performance History</h2>
-            <SimulatedTag />
           </div>
           <PerformanceChart data={dashboardSeries} />
         </Card>
@@ -68,7 +67,6 @@ export function Portfolio() {
       <Card>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-semibold text-slate-900 dark:text-white">Allocation Breakdown</h2>
-          <SimulatedTag />
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[480px] text-left text-sm">

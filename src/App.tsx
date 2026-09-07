@@ -1,6 +1,9 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { AppLayout } from './components/layout/AppLayout';
 import { Landing } from './pages/Landing';
+import { Login } from './pages/Login';
+import { Terms } from './pages/Terms';
+import { Privacy } from './pages/Privacy';
 import { Dashboard } from './pages/Dashboard';
 import { Investments } from './pages/Investments';
 import { Portfolio } from './pages/Portfolio';
@@ -13,6 +16,7 @@ import { AdminUsers } from './pages/AdminUsers';
 import { AdminInvestments } from './pages/AdminInvestments';
 import { AdminSettings } from './pages/AdminSettings';
 import { AdminLogin } from './pages/AdminLogin';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { ProtectedAdminRoute } from './components/auth/ProtectedAdminRoute';
 
 function App() {
@@ -20,15 +24,20 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Landing />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/privacy" element={<Privacy />} />
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route element={<AppLayout />}>
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/investments" element={<Investments />} />
-          <Route path="/portfolio" element={<Portfolio />} />
-          <Route path="/transactions" element={<Transactions />} />
-          <Route path="/analytics" element={<Analytics />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/support" element={<Support />} />
+          <Route element={<ProtectedRoute />}>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/investments" element={<Investments />} />
+            <Route path="/portfolio" element={<Portfolio />} />
+            <Route path="/transactions" element={<Transactions />} />
+            <Route path="/analytics" element={<Analytics />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/support" element={<Support />} />
+          </Route>
           <Route element={<ProtectedAdminRoute />}>
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/users" element={<AdminUsers />} />

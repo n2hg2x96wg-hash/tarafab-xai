@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Card } from '../components/ui/Card';
 import { PerformanceChart } from '../components/charts/PerformanceChart';
-import { performanceRanges, type PerformanceRangeKey } from '../data/performance';
+import { getPerformanceRanges, type PerformanceRangeKey } from '../data/performance';
 import { formatPercent } from '../utils/format';
+import { useAuth } from '../context/AuthContext';
 
 const rangeOptions: PerformanceRangeKey[] = ['1W', '1M', '3M', '1Y', 'All'];
 
@@ -23,7 +24,9 @@ function computeStats(values: number[]) {
 }
 
 export function Analytics() {
+  const { currentClient } = useAuth();
   const [range, setRange] = useState<PerformanceRangeKey>('3M');
+  const performanceRanges = useMemo(() => getPerformanceRanges(currentClient?.id ?? ''), [currentClient]);
   const data = performanceRanges[range];
   const stats = useMemo(() => computeStats(data.map((point) => point.value)), [data]);
 

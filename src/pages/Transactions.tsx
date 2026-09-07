@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
-import { SimulatedTag } from '../components/ui/SimulatedTag';
-import { transactions, type TransactionStatus, type TransactionType } from '../data/transactions';
+import { getTransactions, type TransactionStatus, type TransactionType } from '../data/transactions';
 import { formatCurrency, formatDate } from '../utils/format';
 import { useAppSettings } from '../context/AppSettingsContext';
+import { useAuth } from '../context/AuthContext';
 
 const statusTone = {
   Completed: 'success',
@@ -17,6 +17,8 @@ const statusOptions: Array<TransactionStatus | 'All'> = ['All', 'Completed', 'Pe
 
 export function Transactions() {
   const { currency } = useAppSettings();
+  const { currentClient } = useAuth();
+  const transactions = getTransactions(currentClient?.id ?? '');
   const [query, setQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<TransactionType | 'All'>('All');
   const [statusFilter, setStatusFilter] = useState<TransactionStatus | 'All'>('All');
@@ -28,13 +30,13 @@ export function Transactions() {
       const matchesStatus = statusFilter === 'All' || tx.status === statusFilter;
       return matchesQuery && matchesType && matchesStatus;
     });
-  }, [query, typeFilter, statusFilter]);
+  }, [query, typeFilter, statusFilter, transactions]);
 
   return (
     <div className="animate-fade-in flex flex-col gap-6">
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Transactions</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400">Mock deposits, withdrawals, investments, and returns.</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Deposits, withdrawals, investments, and returns for your account.</p>
       </div>
 
       <Card>
@@ -69,7 +71,6 @@ export function Transactions() {
                 </option>
               ))}
             </select>
-            <SimulatedTag />
           </div>
         </div>
 
