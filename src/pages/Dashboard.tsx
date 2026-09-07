@@ -2,12 +2,13 @@ import { Link } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { PerformanceChart } from '../components/charts/PerformanceChart';
-import { portfolioStats } from '../data/portfolio';
-import { transactions } from '../data/transactions';
-import { dashboardSeries } from '../data/performance';
+import { getPortfolioData } from '../data/portfolio';
+import { getTransactions } from '../data/transactions';
+import { getDashboardSeries } from '../data/performance';
 import { investmentPlans } from '../data/investments';
 import { formatCurrency, formatDate, formatPercent } from '../utils/format';
 import { useAppSettings } from '../context/AppSettingsContext';
+import { useAuth } from '../context/AuthContext';
 
 const statusTone = {
   Completed: 'success',
@@ -17,8 +18,12 @@ const statusTone = {
 
 export function Dashboard() {
   const { currency } = useAppSettings();
+  const { currentClient } = useAuth();
+  const clientId = currentClient?.id ?? '';
+  const { stats: portfolioStats } = getPortfolioData(clientId);
+  const dashboardSeries = getDashboardSeries(clientId);
   const isProfit = portfolioStats.profitLoss >= 0;
-  const recentTransactions = transactions.slice(0, 5);
+  const recentTransactions = getTransactions(clientId).slice(0, 5);
   const activityPlans = investmentPlans.slice(0, 3);
 
   return (
@@ -26,8 +31,16 @@ export function Dashboard() {
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Dashboard</h1>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          A snapshot of your portfolio and recent activity.
+          Welcome back, {currentClient?.name.split(' ')[0]}. Here's a snapshot of your portfolio and recent activity.
         </p>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge tone={currentClient?.verificationStatus === 'Verified' ? 'success' : 'warning'}>
+          {currentClient?.verificationStatus === 'Verified' ? 'Account Verified' : 'Verification Pending'}
+        </Badge>
+        <Badge tone="info">{currentClient?.accountTier} Account</Badge>
+        <Badge tone="neutral">{currentClient?.investorProfile} Investor</Badge>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

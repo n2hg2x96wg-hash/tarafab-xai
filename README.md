@@ -43,6 +43,19 @@ git push origin main
 
 Your site will be available at: `https://username.github.io/tarafab-xai`
 
+## Test Accounts
+
+Sign in at `/login` using one of the pre-configured test accounts (also listed on the sign-in page itself):
+
+| Investor Profile | Email | Password |
+| ----------------- | ----- | -------- |
+| Conservative | `jordan.ashworth@tarafab.com` | `Conserve#2024` |
+| Moderate | `sarah.mitchell@tarafab.com` | `Balanced#2024` |
+| Growth | `marcus.chen@tarafab.com` | `Growth#2024` |
+
+Each account has fully isolated portfolio holdings, transaction history, performance data, and settings — you will
+only ever see the data associated with the account you signed in with.
+
 ## Admin Panel
 
 Access the admin dashboard at `/admin` to manage:
@@ -88,13 +101,13 @@ npm run lint     # run oxlint
 src/
   components/
     charts/     # Recharts wrappers (performance area chart, allocation donut)
-    layout/      # App shell: sidebar, top bar, mobile nav, demo banner, footer
-    ui/          # Reusable UI primitives: Card, Badge, Modal, Toast, SimulatedTag
-  context/       # Theme (light/dark) and currency display settings
-  data/          # Mock/fictional JSON-like data modules (user, portfolio, investments,
+    layout/      # App shell: sidebar, top bar, mobile nav, account menu, footer
+    ui/          # Reusable UI primitives: Card, Badge, Modal, Toast
+  context/       # Auth/session, theme (light/dark), and currency display settings
+  data/          # Mock/fictional data modules (accounts, per-account portfolio, investments,
                  # transactions, performance time series, FAQ/help content)
-  pages/         # Landing, Dashboard, Investments, Portfolio, Transactions, Analytics,
-                 # Profile, Support, Admin Dashboard, Admin Users, Admin Investments, Admin Settings
+  pages/         # Landing, Login, Dashboard, Investments, Portfolio, Transactions, Analytics,
+                 # Profile, Support, Terms, Privacy, Admin Dashboard, Admin Users, Admin Investments, Admin Settings
   utils/         # Formatting helpers (currency, percent, date)
 ```
 
@@ -103,13 +116,16 @@ src/
 | Route            | Description                                                                 |
 | ----------------- | ---------------------------------------------------------------------------- |
 | `/`               | Landing page with branding, tagline, feature highlights, and CTAs            |
+| `/login`          | Secure sign-in with the pre-configured test accounts                        |
 | `/dashboard`      | Portfolio balance, invested amount, profit/loss, performance chart, recent activity |
-| `/investments`    | Investment plan cards with demo return ranges, risk badges, and a "Demo Plan" confirmation modal |
+| `/investments`    | Investment plan cards with return ranges, risk badges, and an investment confirmation modal |
 | `/portfolio`      | Asset allocation donut chart, allocation table, performance history, key stats |
-| `/transactions`   | Searchable/filterable list of mock deposits, withdrawals, investments, returns |
+| `/transactions`   | Searchable/filterable list of your account's deposits, withdrawals, investments, returns |
 | `/analytics`      | Interactive performance chart with 1W / 1M / 3M / 1Y / All ranges and summary stats |
-| `/profile`        | Mock account info, security settings UI, notification toggles, theme & currency preferences |
-| `/support`        | FAQ accordion, demo contact form, and a mock help center                     |
+| `/profile`        | Account info, security settings, identity verification, notification toggles, theme & currency preferences |
+| `/support`        | FAQ accordion, contact form, and a help center                              |
+| `/terms`          | Terms of use and simulated-data disclosures                                  |
+| `/privacy`        | Privacy policy                                                                |
 | `/admin`          | Admin dashboard with system overview and stats                               |
 | `/admin/users`    | User management and administration                                           |
 | `/admin/investments` | Investment plan configuration                                              |
@@ -122,7 +138,6 @@ Tarafab.XAi is a **fictional demo** built purely as a UI/UX prototype:
 - No real backend, database, or third-party financial integrations are used.
 - No environment secrets or API keys are required to run this project.
 - No real banking, crypto, or payment credentials are ever requested or collected.
-- All investment plans, returns, balances, and transactions are simulated and clearly labeled as such throughout
-  the interface (see the persistent "Fictional Demo / Simulation" banner and the "Simulated Data" tags next to
-  every figure).
+- All investment plans, returns, balances, and transactions are simulated. This is disclosed in the footer and in
+  the Terms of Use / Privacy Policy pages rather than cluttering the main dashboard.
 - Nothing in this application constitutes real financial advice or a real investment product.

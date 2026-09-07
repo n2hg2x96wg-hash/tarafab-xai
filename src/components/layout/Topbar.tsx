@@ -3,15 +3,13 @@ import { NavLink } from 'react-router-dom';
 import clsx from 'clsx';
 import { Logo } from './Logo';
 import { NavIcon } from './NavIcon';
-import { ClientSelector } from './ClientSelector';
+import { AccountMenu } from './AccountMenu';
 import { navItems } from './navItems';
 import { useAppSettings } from '../../context/AppSettingsContext';
-import { useClient } from '../../context/ClientContext';
 
 export function Topbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const { theme, toggleTheme } = useAppSettings();
-  const { currentClient } = useClient();
 
   return (
     <header className="sticky top-0 z-40 flex items-center justify-between border-b border-slate-200/50 bg-gradient-to-r from-white to-slate-50/50 px-4 py-3 backdrop-blur lg:px-8 dark:border-navy-600/40 dark:from-navy-900 dark:to-navy-900/50">
@@ -28,7 +26,7 @@ export function Topbar() {
       </div>
 
       <div className="flex items-center gap-2 sm:gap-3">
-        <ClientSelector />
+        <AccountMenu />
         <button
           type="button"
           onClick={toggleTheme}
@@ -45,12 +43,6 @@ export function Topbar() {
           <NavIcon name="bell" />
           <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-gradient-to-br from-teal-400 to-cyan-500" />
         </button>
-        <NavLink
-          to="/profile"
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 text-sm font-semibold text-white transition-transform hover:scale-110 dark:from-teal-500 dark:to-cyan-600"
-        >
-          {currentClient.avatarInitials}
-        </NavLink>
       </div>
 
       {menuOpen && (

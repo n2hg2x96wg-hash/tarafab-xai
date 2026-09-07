@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
-import { SimulatedTag } from '../components/ui/SimulatedTag';
 import { Modal } from '../components/ui/Modal';
 import { investmentPlans, type InvestmentPlan, type RiskLevel } from '../data/investments';
 import { useToast } from '../components/ui/Toast';
@@ -18,7 +17,7 @@ export function Investments() {
 
   const handleConfirm = () => {
     if (!selectedPlan) return;
-    showToast(`Simulated investment in "${selectedPlan.name}" recorded (demo only — no real funds moved).`);
+    showToast(`Investment in "${selectedPlan.name}" recorded. No real funds were moved.`);
     setSelectedPlan(null);
   };
 
@@ -27,7 +26,7 @@ export function Investments() {
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Investment Plans</h1>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          Every plan below is a fictional demo product. Returns are simulated illustrations, not guarantees.
+          Explore investment plans tailored to different risk tiers and time horizons.
         </p>
       </div>
 
@@ -36,7 +35,7 @@ export function Investments() {
           <Card key={plan.id} hoverable className="flex flex-col gap-4">
             <div className="flex items-start justify-between gap-2">
               <div>
-                <Badge tone="gold">Demo Plan</Badge>
+                <Badge tone="gold">{plan.category}</Badge>
                 <h2 className="mt-2 font-semibold text-slate-900 dark:text-white">{plan.name}</h2>
               </div>
               <Badge tone={riskTone[plan.risk]}>{plan.risk} Risk</Badge>
@@ -60,31 +59,29 @@ export function Investments() {
                 <dd className="font-semibold text-slate-800 dark:text-slate-100">{plan.category}</dd>
               </div>
             </dl>
-            <div className="flex items-center justify-between pt-2">
-              <SimulatedTag />
+            <div className="flex items-center justify-end pt-2">
               <button
                 type="button"
                 onClick={() => setSelectedPlan(plan)}
                 className="rounded-lg bg-navy-900 px-4 py-2 text-xs font-semibold text-teal-300 transition-transform hover:scale-105 dark:bg-teal-500 dark:text-navy-950"
               >
-                Invest (Demo)
+                Invest Now
               </button>
             </div>
           </Card>
         ))}
       </div>
 
-      <Modal open={selectedPlan !== null} onClose={() => setSelectedPlan(null)} title="Confirm Simulated Investment">
+      <Modal open={selectedPlan !== null} onClose={() => setSelectedPlan(null)} title="Confirm Investment">
         {selectedPlan && (
           <div className="flex flex-col gap-4">
             <p className="text-sm text-slate-600 dark:text-slate-300">
-              You're about to simulate an investment in <strong>{selectedPlan.name}</strong>. This is a{' '}
-              <strong>fictional demo action</strong> — no real money will be transferred, and no real account will be
-              charged.
+              You're about to invest in <strong>{selectedPlan.name}</strong>. This is a demo prototype — no real
+              money will be transferred, and no real account will be charged.
             </p>
             <div className="rounded-xl bg-slate-50 p-3 text-sm dark:bg-navy-700">
               <p>
-                Simulated return: <strong>{selectedPlan.returnRange}</strong>
+                Estimated return: <strong>{selectedPlan.returnRange}</strong>
               </p>
               <p>
                 Duration: <strong>{selectedPlan.duration}</strong>
@@ -106,7 +103,7 @@ export function Investments() {
                 onClick={handleConfirm}
                 className="rounded-lg bg-teal-500 px-4 py-2 text-sm font-semibold text-navy-950 hover:bg-teal-400"
               >
-                Confirm Demo Investment
+                Confirm Investment
               </button>
             </div>
           </div>

@@ -1,8 +1,10 @@
-// Portfolio performance time series data.
+// Portfolio performance time series data, isolated per account.
 export interface PerformancePoint {
   date: string;
   value: number;
 }
+
+export type PerformanceRangeKey = '1W' | '1M' | '3M' | '1Y' | 'All';
 
 // Deterministic pseudo-random generator so charts render consistently across sessions.
 function seededRandom(seed: number) {
@@ -32,17 +34,43 @@ function generateSeries(days: number, start: number, drift: number, volatility: 
   return points;
 }
 
-// Full two-year history used to derive all selectable ranges.
-export const fullHistory: PerformancePoint[] = generateSeries(730, 92000, 0.0009, 0.018, 42);
+interface PerformanceConfig {
+  start: number;
+  drift: number;
+  volatility: number;
+  seed: number;
+}
 
-export const performanceRanges = {
-  '1W': fullHistory.slice(-7),
-  '1M': fullHistory.slice(-30),
-  '3M': fullHistory.slice(-90),
-  '1Y': fullHistory.slice(-365),
-  All: fullHistory,
+// Starting values and drift/volatility tuned per account's investor profile so each
+// account's chart reflects its own realistic history rather than shared mock data.
+const configByClient: Record<string, PerformanceConfig> = {
+  'client-1': { start: 54000, drift: 0.0004, volatility: 0.006, seed: 17 }, // Conservative — steady, low volatility
+  'client-2': { start: 92000, drift: 0.0009, volatility: 0.018, seed: 42 }, // Moderate — balanced growth
+  'client-3': { start: 172000, drift: 0.0014, volatility: 0.032, seed: 91 }, // Growth — higher upside and swings
 };
 
-export type PerformanceRangeKey = keyof typeof performanceRanges;
+const fullHistoryByClient: Record<string, PerformancePoint[]> = Object.fromEntries(
+  Object.entries(configByClient).map(([clientId, config]) => [
+    clientId,
+    generateSeries(730, config.start, config.drift, config.volatility, config.seed),
+  ]),
+);
 
-export const dashboardSeries: PerformancePoint[] = fullHistory.slice(-90);
+export function getFullHistory(clientId: string): PerformancePoint[] {
+  return fullHistoryByClient[clientId] ?? fullHistoryByClient['client-2'];
+}
+
+export function getPerformanceRanges(clientId: string): Record<PerformanceRangeKey, PerformancePoint[]> {
+  const fullHistory = getFullHistory(clientId);
+  return {
+    '1W': fullHistory.slice(-7),
+    '1M': fullHistory.slice(-30),
+    '3M': fullHistory.slice(-90),
+    '1Y': fullHistory.slice(-365),
+    All: fullHistory,
+  };
+}
+
+export function getDashboardSeries(clientId: string): PerformancePoint[] {
+  return getFullHistory(clientId).slice(-90);
+}
