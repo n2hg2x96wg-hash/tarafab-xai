@@ -1,108 +1,106 @@
-import { useState, type FormEvent } from 'react';
-import { Navigate, useLocation, useNavigate, type Location } from 'react-router-dom';
-import { Card } from '../components/ui/Card';
-import { Logo } from '../components/layout/Logo';
+import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useToast } from '../components/ui/Toast';
 
-export function Login() {
-  const { isAuthenticated, login } = useAuth();
-  const { showToast } = useToast();
+const LoginPage = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  if (isAuthenticated) {
-    const from = (location.state as { from?: Location })?.from?.pathname ?? '/dashboard';
-    return <Navigate to={from} replace />;
-  }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
 
-  const attemptLogin = (loginEmail: string, loginPassword: string) => {
-    setError(null);
-    setSubmitting(true);
-    const success = login(loginEmail, loginPassword);
-    setSubmitting(false);
-
-    if (success) {
-      showToast('Welcome back! You have signed in successfully.');
-      const from = (location.state as { from?: Location })?.from?.pathname ?? '/dashboard';
-      navigate(from, { replace: true });
-    } else {
-      setError('Invalid email or password. Please try again.');
+    try {
+      await login(email, password, rememberMe);
+      navigate('/dashboard');
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!email.trim() || !password) {
-      setError('Please enter both email and password.');
-      return;
-    }
-    attemptLogin(email, password);
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-12 dark:bg-navy-950">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
-        <div className="mb-8 flex justify-center">
-          <Logo />
-        </div>
-        <Card className="p-8">
-          <div className="mb-6 text-center">
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Sign in to your account</h1>
-            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-              Access your portfolio, transactions, and account settings.
-            </p>
+        <div className="glass rounded-2xl p-8">
+          <div className="text-center mb-8">
+            <div className="inline-block w-12 h-12 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center mb-4">
+              <span className="text-2xl">₿</span>
+            </div>
+            <h1 className="text-2xl font-bold gradient-text">Welcome Back</h1>
+            <p className="text-slate-400 mt-2">Sign in to your account</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
-            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-              Email address
+          {error && (
+            <div className="mb-6 p-4 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Email Address</label>
               <input
-                id="login-email"
-                name="email"
                 type="email"
-                autoComplete="username"
                 value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-slate-900 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/30 dark:border-navy-500 dark:bg-navy-700 dark:text-white"
-                placeholder="you@tarafab.com"
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/10 focus:border-orange-400 focus:outline-none transition text-white placeholder-slate-500"
+                placeholder="you@example.com"
               />
-            </label>
-            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-              Password
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Password</label>
               <input
-                id="login-password"
-                name="password"
                 type="password"
-                autoComplete="current-password"
                 value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-slate-900 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/30 dark:border-navy-500 dark:bg-navy-700 dark:text-white"
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/10 focus:border-orange-400 focus:outline-none transition text-white placeholder-slate-500"
                 placeholder="••••••••"
               />
-            </label>
+            </div>
 
-            {error && (
-              <p className="rounded-lg bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-600 dark:bg-rose-900/30 dark:text-rose-400">
-                {error}
-              </p>
-            )}
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="remember"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="rounded"
+              />
+              <label htmlFor="remember" className="ml-2 text-sm text-slate-400">
+                Remember me for 30 days
+              </label>
+            </div>
 
             <button
               type="submit"
-              disabled={submitting}
-              className="mt-2 w-full rounded-lg bg-teal-500 px-6 py-2.5 text-sm font-semibold text-navy-950 transition-transform hover:scale-[1.01] hover:bg-teal-400 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={loading}
+              className="w-full py-3 rounded-lg bg-gradient-to-r from-amber-400 to-orange-500 text-white font-semibold hover:shadow-lg hover:shadow-orange-500/40 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {submitting ? 'Signing in…' : 'Sign In'}
+              {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
-        </Card>
+
+          <div className="mt-6 text-center text-sm text-slate-400">
+            Don't have an account?{' '}
+            <Link to="/register" className="text-orange-400 hover:text-orange-300">
+              Create one here
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   );
-}
+};
+
+export default LoginPage;
