@@ -1,116 +1,127 @@
-import { useMemo, useState } from 'react';
-import { Card } from '../components/ui/Card';
-import { Badge } from '../components/ui/Badge';
-import { getTransactions, type TransactionStatus, type TransactionType } from '../data/transactions';
-import { formatCurrency, formatDate } from '../utils/format';
-import { useAppSettings } from '../context/AppSettingsContext';
-import { useAuth } from '../context/AuthContext';
+import React, { useState, useEffect } from 'react';
+import { api } from '../context/ApiContext';
+import { Transaction } from '../types';
 
-const statusTone = {
-  Completed: 'success',
-  Pending: 'warning',
-  Failed: 'danger',
-} as const;
+const TransactionsPage = () => {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [filter, setFilter] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState('');
 
-const typeOptions: Array<TransactionType | 'All'> = ['All', 'Deposit', 'Withdrawal', 'Investment', 'Return'];
-const statusOptions: Array<TransactionStatus | 'All'> = ['All', 'Completed', 'Pending', 'Failed'];
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      try {
+        const params: any = { limit: 100 };
+        if (filter !== 'all') {
+          params.type = filter;
+        }
+        const response = await api.get('/api/transactions', { params });
+        setTransactions(response.data.transactions);
+      } catch (err: any) {
+        setError(err.response?.data?.error || 'Failed to load transactions');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-export function Transactions() {
-  const { currency } = useAppSettings();
-  const { currentClient } = useAuth();
-  const transactions = getTransactions(currentClient?.id ?? '');
-  const [query, setQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState<TransactionType | 'All'>('All');
-  const [statusFilter, setStatusFilter] = useState<TransactionStatus | 'All'>('All');
+    fetchTransactions();
+  }, [filter]);
 
-  const filtered = useMemo(() => {
-    return transactions.filter((tx) => {
-      const matchesQuery = tx.description.toLowerCase().includes(query.toLowerCase());
-      const matchesType = typeFilter === 'All' || tx.type === typeFilter;
-      const matchesStatus = statusFilter === 'All' || tx.status === statusFilter;
-      return matchesQuery && matchesType && matchesStatus;
-    });
-  }, [query, typeFilter, statusFilter, transactions]);
+  const filteredTransactions = transactions.filter((tx) =>
+    tx.reference?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    tx.type.includes(searchTerm.toLowerCase())
+  );
+
+  if (loading) {
+    return <div className="animate-shimmer w-full h-96 rounded-xl"></div>;
+  }
 
   return (
-    <div className="animate-fade-in flex flex-col gap-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Transactions</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400">Deposits, withdrawals, investments, and returns for your account.</p>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-3xl font-bold">Transactions</h1>
+        <p className="text-slate-400 mt-1">View your transaction history and details.</p>
       </div>
 
-      <Card>
-        <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search transactions..."
-            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none placeholder:text-slate-400 focus:border-teal-500 md:max-w-xs dark:border-navy-500 dark:bg-navy-700 dark:text-slate-100"
-          />
-          <div className="flex flex-wrap gap-2">
-            <select
-              value={typeFilter}
-              onChange={(event) => setTypeFilter(event.target.value as TransactionType | 'All')}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-teal-500 dark:border-navy-500 dark:bg-navy-700 dark:text-slate-100"
-            >
-              {typeOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option === 'All' ? 'All Types' : option}
-                </option>
-              ))}
-            </select>
-            <select
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value as TransactionStatus | 'All')}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-teal-500 dark:border-navy-500 dark:bg-navy-700 dark:text-slate-100"
-            >
-              {statusOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option === 'All' ? 'All Statuses' : option}
-                </option>
-              ))}
-            </select>
-          </div>
+      {error && (
+        <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400">
+          {error}
         </div>
+      )}
 
+      <div className="flex flex-col md:flex-row gap-4">
+        <input
+          type="text"
+          placeholder="Search transactions..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="flex-1 px-4 py-2 rounded-lg bg-white/5 border border-white/10 focus:border-orange-400 focus:outline-none text-white placeholder-slate-500"
+        />
+        <select
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 focus:border-orange-400 focus:outline-none text-white"
+        >
+          <option value="all">All Transactions</option>
+          <option value="deposit">Deposits</option>
+          <option value="withdrawal">Withdrawals</option>
+          <option value="transfer_out">Transfers Out</option>
+          <option value="transfer_in">Transfers In</option>
+        </select>
+      </div>
+
+      <div className="glass rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px] text-left text-sm">
+          <table className="w-full">
             <thead>
-              <tr className="border-b border-slate-200 text-xs text-slate-400 dark:border-navy-600/60">
-                <th className="py-2 font-medium">Date</th>
-                <th className="py-2 font-medium">Type</th>
-                <th className="py-2 font-medium">Description</th>
-                <th className="py-2 font-medium">Amount</th>
-                <th className="py-2 font-medium">Status</th>
+              <tr className="border-b border-white/10">
+                <th className="text-left py-4 px-6 text-slate-400 font-medium">Type</th>
+                <th className="text-left py-4 px-6 text-slate-400 font-medium">Amount</th>
+                <th className="text-left py-4 px-6 text-slate-400 font-medium">Fee</th>
+                <th className="text-left py-4 px-6 text-slate-400 font-medium">Status</th>
+                <th className="text-left py-4 px-6 text-slate-400 font-medium">Date</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-navy-600/60">
-              {filtered.map((tx) => (
-                <tr key={tx.id}>
-                  <td className="py-3 whitespace-nowrap text-slate-500 dark:text-slate-400">{formatDate(tx.date)}</td>
-                  <td className="py-3 text-slate-700 dark:text-slate-200">{tx.type}</td>
-                  <td className="py-3 text-slate-700 dark:text-slate-200">{tx.description}</td>
-                  <td className={`py-3 font-semibold whitespace-nowrap ${tx.amount >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                    {tx.amount >= 0 ? '+' : ''}
-                    {formatCurrency(tx.amount, currency)}
-                  </td>
-                  <td className="py-3">
-                    <Badge tone={statusTone[tx.status]}>{tx.status}</Badge>
-                  </td>
-                </tr>
-              ))}
-              {filtered.length === 0 && (
+            <tbody>
+              {filteredTransactions.length > 0 ? (
+                filteredTransactions.map((tx) => (
+                  <tr key={tx.id} className="border-b border-white/5 hover:bg-white/5 transition">
+                    <td className="py-4 px-6 capitalize">{tx.type.replace(/_/g, ' ')}</td>
+                    <td className="py-4 px-6 font-medium">
+                      <span className={tx.type.includes('transfer_out') || tx.type === 'withdrawal' ? 'text-red-400' : 'text-green-400'}>
+                        {tx.type.includes('transfer_out') || tx.type === 'withdrawal' ? '-' : '+'}
+                        ${tx.amount.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6 text-slate-400">${tx.fee.toLocaleString('en-US', { maximumFractionDigits: 2 })}</td>
+                    <td className="py-4 px-6">
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        tx.status === 'completed'
+                          ? 'bg-green-500/10 text-green-400'
+                          : tx.status === 'rejected'
+                          ? 'bg-red-500/10 text-red-400'
+                          : 'bg-yellow-500/10 text-yellow-400'
+                      }`}>
+                        {tx.status}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6 text-slate-400 text-sm">{new Date(tx.timestamp).toLocaleString()}</td>
+                  </tr>
+                ))
+              ) : (
                 <tr>
-                  <td colSpan={5} className="py-8 text-center text-slate-400">
-                    No transactions match your filters.
+                  <td colSpan={5} className="py-8 px-6 text-center text-slate-400">
+                    No transactions found
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
-      </Card>
+      </div>
     </div>
   );
-}
+};
+
+export default TransactionsPage;

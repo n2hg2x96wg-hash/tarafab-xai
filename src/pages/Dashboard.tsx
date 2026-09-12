@@ -1,141 +1,181 @@
-import { Link } from 'react-router-dom';
-import { Card } from '../components/ui/Card';
-import { Badge } from '../components/ui/Badge';
-import { PerformanceChart } from '../components/charts/PerformanceChart';
-import { getPortfolioData } from '../data/portfolio';
-import { getTransactions } from '../data/transactions';
-import { getDashboardSeries } from '../data/performance';
-import { investmentPlans } from '../data/investments';
-import { formatCurrency, formatDate, formatPercent } from '../utils/format';
-import { useAppSettings } from '../context/AppSettingsContext';
-import { useAuth } from '../context/AuthContext';
+import React, { useState, useEffect } from 'react';
+import { api } from '../context/ApiContext';
+import { Account, Transaction, DashboardData } from '../types';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-const statusTone = {
-  Completed: 'success',
-  Pending: 'warning',
-  Failed: 'danger',
-} as const;
+const DashboardPage = () => {
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-export function Dashboard() {
-  const { currency } = useAppSettings();
-  const { currentClient } = useAuth();
-  const clientId = currentClient?.id ?? '';
-  const { stats: portfolioStats } = getPortfolioData(clientId);
-  const dashboardSeries = getDashboardSeries(clientId);
-  const isProfit = portfolioStats.profitLoss >= 0;
-  const recentTransactions = getTransactions(clientId).slice(0, 5);
-  const activityPlans = investmentPlans.slice(0, 3);
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        const response = await api.get('/api/dashboard/data');
+        setDashboardData(response.data);
+      } catch (err: any) {
+        setError(err.response?.data?.error || 'Failed to load dashboard');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboard();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-shimmer w-full max-w-4xl h-96 rounded-xl"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400">
+        {error}
+      </div>
+    );
+  }
+
+  if (!dashboardData) return null;
+
+  const { account, performance, recentTransactions } = dashboardData;
+
+  // Generate mock chart data
+  const chartData = [
+    { date: '1W ago', value: account.accountBalance * 0.85 },
+    { date: '5d ago', value: account.accountBalance * 0.88 },
+    { date: '3d ago', value: account.accountBalance * 0.92 },
+    { date: '2d ago', value: account.accountBalance * 0.95 },
+    { date: 'Yesterday', value: account.accountBalance * 0.98 },
+    { date: 'Today', value: account.accountBalance },
+  ];
 
   return (
-    <div className="animate-fade-in flex flex-col gap-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Dashboard</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          Welcome back, {currentClient?.name.split(' ')[0]}. Here's a snapshot of your portfolio and recent activity.
-        </p>
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <p className="text-slate-400 mt-1">Welcome back! Here's your account overview.</p>
+        </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge tone={currentClient?.verificationStatus === 'Verified' ? 'success' : 'warning'}>
-          {currentClient?.verificationStatus === 'Verified' ? 'Account Verified' : 'Verification Pending'}
-        </Badge>
-        <Badge tone="info">{currentClient?.accountTier} Account</Badge>
-        <Badge tone="neutral">{currentClient?.investorProfile} Investor</Badge>
+      {/* Balance Cards */}
+      <div className="grid md:grid-cols-4 gap-4">
+        <div className="glass rounded-xl p-6">
+          <p className="text-slate-400 text-sm mb-2">Account Balance</p>
+          <p className="text-3xl font-bold">${account.accountBalance.toLocaleString('en-US', { maximumFractionDigits: 2 })}</p>
+          <p className="text-slate-500 text-sm mt-2">USD</p>
+        </div>
+        <div className="glass rounded-xl p-6">
+          <p className="text-slate-400 text-sm mb-2">Available</p>
+          <p className="text-3xl font-bold text-green-400">${account.availableBalance.toLocaleString('en-US', { maximumFractionDigits: 2 })}</p>
+          <p className="text-slate-500 text-sm mt-2">Ready to trade</p>
+        </div>
+        <div className="glass rounded-xl p-6">
+          <p className="text-slate-400 text-sm mb-2">Invested</p>
+          <p className="text-3xl font-bold text-blue-400">${account.investedBalance.toLocaleString('en-US', { maximumFractionDigits: 2 })}</p>
+          <p className="text-slate-500 text-sm mt-2">In holdings</p>
+        </div>
+        <div className="glass rounded-xl p-6">
+          <p className="text-slate-400 text-sm mb-2">Pending</p>
+          <p className="text-3xl font-bold text-yellow-400">${account.pendingBalance.toLocaleString('en-US', { maximumFractionDigits: 2 })}</p>
+          <p className="text-slate-500 text-sm mt-2">Awaiting confirmation</p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card hoverable>
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Portfolio Balance</p>
-          </div>
-          <p className="mt-3 text-2xl font-bold text-slate-900 dark:text-white">
-            {formatCurrency(portfolioStats.totalValue, currency)}
-          </p>
-        </Card>
-        <Card hoverable>
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Invested</p>
-          </div>
-          <p className="mt-3 text-2xl font-bold text-slate-900 dark:text-white">
-            {formatCurrency(portfolioStats.totalInvested, currency)}
-          </p>
-        </Card>
-        <Card hoverable>
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Profit / Loss</p>
-          </div>
-          <p className={`mt-3 text-2xl font-bold ${isProfit ? 'text-emerald-500' : 'text-rose-500'}`}>
-            {isProfit ? '+' : ''}
-            {formatCurrency(portfolioStats.profitLoss, currency)}{' '}
-            <span className="text-base font-semibold">({formatPercent(portfolioStats.profitLossPercent)})</span>
-          </p>
-        </Card>
-      </div>
-
-      <Card>
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h2 className="font-semibold text-slate-900 dark:text-white">Portfolio Performance</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Value over the last 90 days</p>
+      {/* Performance Section */}
+      <div className="grid md:grid-cols-3 gap-4">
+        <div className="md:col-span-2 glass rounded-xl p-6">
+          <h2 className="text-lg font-semibold mb-4">Portfolio Performance</h2>
+          <ResponsiveContainer width="100%" height={300}>
+            <AreaChart data={chartData}>
+              <defs>
+                <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#f97316" stopOpacity={0.8} />
+                  <stop offset="95%" stopColor="#f97316" stopOpacity={0.1} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+              <XAxis dataKey="date" stroke="rgba(255,255,255,0.5)" />
+              <YAxis stroke="rgba(255,255,255,0.5)" />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '8px',
+                }}
+              />
+              <Area
+                type="monotone"
+                dataKey="value"
+                stroke="#f97316"
+                fillOpacity={1}
+                fill="url(#colorValue)"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="glass rounded-xl p-6">
+          <h2 className="text-lg font-semibold mb-4">Performance</h2>
+          <div className="space-y-4">
+            <div>
+              <p className="text-slate-400 text-sm">Total Profit</p>
+              <p className={`text-2xl font-bold ${performance.totalProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                ${Math.abs(performance.totalProfit).toLocaleString('en-US', { maximumFractionDigits: 2 })}
+              </p>
+            </div>
+            <div>
+              <p className="text-slate-400 text-sm">Return %</p>
+              <p className={`text-2xl font-bold ${parseFloat(performance.profitPercentage) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {performance.profitPercentage}%
+              </p>
+            </div>
           </div>
         </div>
-        <PerformanceChart data={dashboardSeries} />
-      </Card>
+      </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-semibold text-slate-900 dark:text-white">Recent Transactions</h2>
-            <Link to="/transactions" className="text-xs font-semibold text-teal-600 hover:underline dark:text-teal-400">
-              View all
-            </Link>
-          </div>
-          <ul className="flex flex-col divide-y divide-slate-100 dark:divide-navy-600/60">
-            {recentTransactions.map((tx) => (
-              <li key={tx.id} className="flex items-center justify-between gap-3 py-3">
-                <div>
-                  <p className="text-sm font-medium text-slate-800 dark:text-slate-100">{tx.description}</p>
-                  <p className="text-xs text-slate-400">
-                    {formatDate(tx.date)} · {tx.type}
-                  </p>
-                </div>
-                <div className="flex flex-col items-end gap-1">
-                  <span className={`text-sm font-semibold ${tx.amount >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                    {tx.amount >= 0 ? '+' : ''}
-                    {formatCurrency(tx.amount, currency)}
-                  </span>
-                  <Badge tone={statusTone[tx.status]}>{tx.status}</Badge>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </Card>
-
-        <Card>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-semibold text-slate-900 dark:text-white">Investment Activity</h2>
-            <Link to="/investments" className="text-xs font-semibold text-teal-600 hover:underline dark:text-teal-400">
-              Explore plans
-            </Link>
-          </div>
-          <ul className="flex flex-col gap-3">
-            {activityPlans.map((plan) => (
-              <li
-                key={plan.id}
-                className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 p-3 dark:border-navy-600/60"
-              >
-                <div>
-                  <p className="text-sm font-medium text-slate-800 dark:text-slate-100">{plan.name}</p>
-                  <p className="text-xs text-slate-400">{plan.returnRange}</p>
-                </div>
-                <Badge tone={plan.risk === 'Low' ? 'success' : plan.risk === 'Medium' ? 'warning' : 'danger'}>
-                  {plan.risk} Risk
-                </Badge>
-              </li>
-            ))}
-          </ul>
-        </Card>
+      {/* Recent Transactions */}
+      <div className="glass rounded-xl p-6">
+        <h2 className="text-lg font-semibold mb-4">Recent Transactions</h2>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-white/10">
+                <th className="text-left py-3 px-4 text-slate-400 font-medium">Type</th>
+                <th className="text-left py-3 px-4 text-slate-400 font-medium">Amount</th>
+                <th className="text-left py-3 px-4 text-slate-400 font-medium">Status</th>
+                <th className="text-left py-3 px-4 text-slate-400 font-medium">Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recentTransactions.map((tx) => (
+                <tr key={tx.id} className="border-b border-white/5 hover:bg-white/5 transition">
+                  <td className="py-3 px-4 capitalize">{tx.type.replace('_', ' ')}</td>
+                  <td className="py-3 px-4 font-medium">${tx.amount.toLocaleString('en-US', { maximumFractionDigits: 2 })}</td>
+                  <td className="py-3 px-4">
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      tx.status === 'completed'
+                        ? 'bg-green-500/10 text-green-400'
+                        : tx.status === 'failed'
+                        ? 'bg-red-500/10 text-red-400'
+                        : 'bg-yellow-500/10 text-yellow-400'
+                    }`}>
+                      {tx.status}
+                    </span>
+                  </td>
+                  <td className="py-3 px-4 text-slate-400 text-sm">{new Date(tx.timestamp).toLocaleDateString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
-}
+};
+
+export default DashboardPage;

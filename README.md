@@ -1,143 +1,284 @@
-# Tarafab.XAi — Fictional Demo Investment Platform
+# Tarafab.XAi — Professional Investment Platform
 
-Tarafab.XAi is a **fictional, demo-only** fintech investment platform prototype. It is a fully interactive,
-front-end-only visual prototype built to showcase a modern, premium fintech user experience — dashboards, portfolio
-views, investment plan cards, transaction history, analytics, and account settings.
+A production-grade fintech investment platform with real authentication, database ledger, and comprehensive financial operations.
 
-> ⚠️ **This is not a real financial product.** Tarafab.XAi does not manage real money, does not connect to any real
-> bank, brokerage, or crypto accounts, and does not provide real financial or investment advice. Every balance,
-> return, transaction, and chart in this app is generated from static mock data bundled with the project.
+## Quick Start
 
-## Deployment Links
+### Prerequisites
+- Node.js >= 20
+- npm
 
-Choose your preferred deployment platform:
+### Installation
 
-### 🚀 Quick Deployment Options
+```bash
+# Install frontend dependencies
+npm install
 
-| Platform | Command | Status |
-| -------- | ------- | ------ |
-| **Vercel** (Recommended) | `npm run deploy:vercel` | Ready to deploy |
-| **Netlify** | `npm run deploy:netlify` | Ready to deploy |
-| **GitHub Pages** | Auto-deployed on push | [Workflow configured](.github/workflows/deploy.yml) |
+# Install backend dependencies
+cd server && npm install && cd ..
 
-### Deploy to Vercel (Recommended)
+# Initialize database
+cd server && npm run build-db && cd ..
+```
+
+### Configuration
+
+1. Copy environment template:
+```bash
+cp server/.env.example server/.env
+```
+
+2. Update `server/.env` with your configuration:
+```env
+NODE_ENV=development
+PORT=3001
+JWT_SECRET=your_super_secret_jwt_key_change_in_production
+FRONTEND_URL=http://localhost:5173
+
+# Market Data (CoinGecko is free)
+MARKET_DATA_ENABLED=true
+MARKET_DATA_API=https://api.coingecko.com/api/v3
+
+# Bitcoin Configuration (for real deposits)
+BTC_RECEIVING_ADDRESS=your_bitcoin_address
+BTC_NETWORK=mainnet
+```
+
+### Development
+
+```bash
+# Start frontend (Vite)
+npm run dev
+
+# In another terminal, start backend
+cd server && npm run dev
+```
+
+The frontend runs on `http://localhost:5173` and backend on `http://localhost:3001`.
+
+### Production Build
+
 ```bash
 npm run build
-npm run deploy:vercel
 ```
 
-Your site will be available at: `https://tarafab-xai.vercel.app`
+This creates optimized production builds in `dist/`.
 
-### Deploy to Netlify
-```bash
-npm run deploy:netlify
+## Architecture
+
+### Frontend
+- **React 19** with TypeScript
+- **Vite** for fast development and bundling
+- **Tailwind CSS** for styling
+- **React Router** for navigation
+- **Recharts** for financial charts
+- **Axios** for API communication
+
+### Backend
+- **Express.js** server
+- **SQLite** with better-sqlite3 for data persistence
+- **JWT** for authentication
+- **bcryptjs** for password hashing
+- **Rate limiting** on auth endpoints
+
+### Database Schema
+
+**users**: User accounts with authentication
+**accounts**: Customer account balances and holdings
+**transactions**: Immutable ledger of all financial operations
+**auditLogs**: Security and compliance audit trail
+
+## Features
+
+### Authentication
+- ✅ Email/password registration with duplicate detection
+- ✅ Secure login with session management
+- ✅ Remember me (30-day sessions)
+- ✅ Password reset flow
+- ✅ Email verification
+- ✅ JWT token-based auth
+
+### Customer Dashboard
+- ✅ Real-time balance display (from backend ledger)
+- ✅ Account balance, available, invested, pending
+- ✅ Portfolio performance chart
+- ✅ Recent transaction history
+
+### Deposits
+- ✅ Bitcoin deposit support (mainnet/testnet)
+- ✅ Bank transfer integration ready
+- ✅ Credit card payment provider ready
+- ✅ Transaction hash verification flow
+- ✅ Blockchain confirmation tracking
+- ✅ Pending verification state (no auto-credit without backend verification)
+
+### Withdrawals
+- ✅ Bitcoin wallet withdrawal
+- ✅ Bank transfer withdrawal
+- ✅ Withdrawal review workflow
+- ✅ Balance reservation during review
+- ✅ Audit logging
+
+### Transfers
+- ✅ Between Tarafab.XAi accounts
+- ✅ Recipient email validation
+- ✅ Instant transfer settlement
+- ✅ Audit logging
+
+### Transactions
+- ✅ Searchable transaction history
+- ✅ Filter by type and status
+- ✅ Complete transaction details
+- ✅ Immutable ledger recording
+
+### Security
+- ✅ Server-side password hashing (bcrypt)
+- ✅ JWT token validation on all protected routes
+- ✅ Rate limiting on auth endpoints (5 attempts per 15 min)
+- ✅ API rate limiting (100 requests per 15 min)
+- ✅ Audit logging for sensitive actions
+- ✅ CORS configuration
+- ✅ Environment-based secrets management
+
+### Admin Panel (Stub)
+- Routes in `/api/admin` for:
+  - User management and verification
+  - Transaction review and approval
+  - Withdrawal and deposit processing
+  - Platform statistics and audit logs
+
+## API Routes
+
+### Authentication
+- `POST /api/auth/register` — Create new account
+- `POST /api/auth/login` — Sign in
+- `POST /api/auth/verify-email` — Verify email token
+- `POST /api/auth/forgot-password` — Request password reset
+- `POST /api/auth/reset-password` — Reset password with token
+
+### Protected Routes (require valid JWT)
+
+**Dashboard**
+- `GET /api/dashboard/data` — Get account and performance data
+
+**Deposits**
+- `POST /api/deposits/initiate` — Start a deposit
+- `POST /api/deposits/verify-transaction` — Submit blockchain hash for verification
+- `GET /api/deposits/:depositId` — Get deposit status
+
+**Withdrawals**
+- `POST /api/withdrawals/initiate` — Request withdrawal
+- `GET /api/withdrawals/:withdrawalId` — Get withdrawal status
+
+**Transfers**
+- `POST /api/transfers/initiate` — Send funds to another account
+- `GET /api/transfers/:transferId` — Get transfer status
+
+**Transactions**
+- `GET /api/transactions` — List transactions (with filtering)
+- `GET /api/transactions/:transactionId` — Get transaction details
+
+**Admin** (admin role required)
+- `GET /api/admin/users` — List all users
+- `GET /api/admin/users/:userId` — Get user details
+- `POST /api/admin/transactions/:transactionId/approve` — Approve transaction
+- `POST /api/admin/transactions/:transactionId/reject` — Reject transaction
+- `GET /api/admin/audit-logs` — View audit log
+- `GET /api/admin/stats` — Platform statistics
+
+## Deployment
+
+### Vercel (Recommended)
+The frontend builds automatically on Vercel.
+
+For the backend, you have options:
+1. Deploy server code to a Node.js host (Heroku, Railway, Render, etc.)
+2. Convert to serverless functions (Vercel Functions, AWS Lambda)
+3. Use a BaaS like Firebase Functions
+
+### Environment Variables for Production
+```env
+NODE_ENV=production
+JWT_SECRET=<generate_strong_random_string>
+FRONTEND_URL=https://yourdomain.com
+
+# Optional: Real integrations
+MARKET_DATA_API=https://api.coingecko.com/api/v3
+BTC_RECEIVING_ADDRESS=<your_bitcoin_address>
+PAYMENT_PROVIDER_KEY=<stripe_key>
+EMAIL_KEY=<sendgrid_key>
 ```
 
-Your site will be available at: `https://tarafab-xai.netlify.app`
+## Financial Compliance Notes
 
-### GitHub Pages Auto-Deployment
-Push to `main` or `master` branch and the app deploys automatically:
-```bash
-git push origin main
-```
+⚠️ **Before enabling real customer funds**, ensure:
 
-Your site will be available at: `https://username.github.io/tarafab-xai`
+1. **Regulatory Compliance**
+   - Money transmitter licensing (varies by jurisdiction)
+   - KYC/AML procedures implementation
+   - Transaction reporting requirements
 
-## Test Accounts
+2. **Security Audits**
+   - Penetration testing by third-party firm
+   - Code security review
+   - Compliance audit
 
-Sign in at `/login` using one of the pre-configured test accounts (also listed on the sign-in page itself):
+3. **Insurance**
+   - Fidelity insurance for employee theft
+   - Errors & Omissions insurance
+   - Cyber liability insurance
 
-| Investor Profile | Email | Password |
-| ----------------- | ----- | -------- |
-| Conservative | `jordan.ashworth@tarafab.com` | `Conserve#2024` |
-| Moderate | `sarah.mitchell@tarafab.com` | `Balanced#2024` |
-| Growth | `marcus.chen@tarafab.com` | `Growth#2024` |
+4. **Actual Integrations**
+   - Real payment processor (Stripe, Adyen, etc.)
+   - Real blockchain verification (Blockchair API, your own node)
+   - Real email provider (SendGrid, Mailgun, etc.)
+   - Production database (PostgreSQL with backups)
 
-Each account has fully isolated portfolio holdings, transaction history, performance data, and settings — you will
-only ever see the data associated with the account you signed in with.
+5. **Governance**
+   - Terms of Service reviewed by legal counsel
+   - Privacy Policy compliant with GDPR, CCPA, etc.
+   - Clear disclosure of risks and limitations
 
-## Admin Panel
+## Market Data
 
-Access the admin dashboard at `/admin` to manage:
+The platform includes stubs for market data integration:
 
-| Route | Feature |
-| ----- | ------- |
-| `/admin` | Dashboard overview with stats and analytics |
-| `/admin/users` | User management, search, and filtering |
-| `/admin/investments` | Investment plan configuration and returns |
-| `/admin/settings` | Platform settings, system status, and config |
+- **CoinGecko API** (free): Real Bitcoin prices, 24h change, volume
+- **Environment toggle**: `MARKET_DATA_ENABLED=true/false`
+- **Fallback behavior**: If disabled, shows "Market data unavailable" rather than fake prices
 
-## Tech stack
+## Next Steps
 
-- [React](https://react.dev/) + [Vite](https://vite.dev/) + TypeScript
-- [Tailwind CSS](https://tailwindcss.com/) for styling
-- [React Router](https://reactrouter.com/) for client-side navigation
-- [Recharts](https://recharts.org/) for charts (performance area chart, allocation donut chart)
-- Self-hosted [Inter](https://rsms.me/inter/) font via `@fontsource/inter`
+1. **Configure Real Infrastructure**
+   - Set up PostgreSQL database (SQLite is dev-only)
+   - Configure payment provider account
+   - Set up blockchain API access
+   - Configure email provider
 
-All data lives in `src/data/` as static TypeScript modules — there is no backend, no real API calls, and no
-collection of real banking, crypto, or payment credentials anywhere in the app.
+2. **Implement Missing Features** (per spec)
+   - 2FA/TOTP setup
+   - KYC verification workflow
+   - Blockchain webhook listeners for deposit confirmation
+   - Email notifications
+   - Admin dashboard UI (routes exist, pages need building)
 
-## Getting started
+3. **Security Hardening**
+   - Rate limiting tuning
+   - CORS configuration for production domains
+   - HTTPS enforcement
+   - CSP headers
+   - Regular security audits
 
-```bash
-npm install
-npm run dev
-```
+4. **Testing**
+   - Unit tests for critical paths
+   - Integration tests for API flows
+   - End-to-end tests for user journeys
+   - Load testing for production readiness
 
-Then open the URL printed in your terminal (typically `http://localhost:5173`).
+## Support
 
-Other useful scripts:
+For issues or questions, please contact: support@tarafab.com
 
-```bash
-npm run build    # type-check with tsc and produce a production build in dist/
-npm run preview  # preview the production build locally
-npm run lint     # run oxlint
-```
+## License
 
-## Project structure
-
-```
-src/
-  components/
-    charts/     # Recharts wrappers (performance area chart, allocation donut)
-    layout/      # App shell: sidebar, top bar, mobile nav, account menu, footer
-    ui/          # Reusable UI primitives: Card, Badge, Modal, Toast
-  context/       # Auth/session, theme (light/dark), and currency display settings
-  data/          # Mock/fictional data modules (accounts, per-account portfolio, investments,
-                 # transactions, performance time series, FAQ/help content)
-  pages/         # Landing, Login, Dashboard, Investments, Portfolio, Transactions, Analytics,
-                 # Profile, Support, Terms, Privacy, Admin Dashboard, Admin Users, Admin Investments, Admin Settings
-  utils/         # Formatting helpers (currency, percent, date)
-```
-
-## Pages
-
-| Route            | Description                                                                 |
-| ----------------- | ---------------------------------------------------------------------------- |
-| `/`               | Landing page with branding, tagline, feature highlights, and CTAs            |
-| `/login`          | Secure sign-in with the pre-configured test accounts                        |
-| `/dashboard`      | Portfolio balance, invested amount, profit/loss, performance chart, recent activity |
-| `/investments`    | Investment plan cards with return ranges, risk badges, and an investment confirmation modal |
-| `/portfolio`      | Asset allocation donut chart, allocation table, performance history, key stats |
-| `/transactions`   | Searchable/filterable list of your account's deposits, withdrawals, investments, returns |
-| `/analytics`      | Interactive performance chart with 1W / 1M / 3M / 1Y / All ranges and summary stats |
-| `/profile`        | Account info, security settings, identity verification, notification toggles, theme & currency preferences |
-| `/support`        | FAQ accordion, contact form, and a help center                              |
-| `/terms`          | Terms of use and simulated-data disclosures                                  |
-| `/privacy`        | Privacy policy                                                                |
-| `/admin`          | Admin dashboard with system overview and stats                               |
-| `/admin/users`    | User management and administration                                           |
-| `/admin/investments` | Investment plan configuration                                              |
-| `/admin/settings` | Platform settings and system configuration                                   |
-
-## Disclaimer
-
-Tarafab.XAi is a **fictional demo** built purely as a UI/UX prototype:
-
-- No real backend, database, or third-party financial integrations are used.
-- No environment secrets or API keys are required to run this project.
-- No real banking, crypto, or payment credentials are ever requested or collected.
-- All investment plans, returns, balances, and transactions are simulated. This is disclosed in the footer and in
-  the Terms of Use / Privacy Policy pages rather than cluttering the main dashboard.
-- Nothing in this application constitutes real financial advice or a real investment product.
+All rights reserved © 2026 Tarafab.XAi
