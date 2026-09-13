@@ -1,18 +1,23 @@
 import jwt from 'jsonwebtoken';
 
-export function verifyToken(req, res, next) {
-  const token = req.headers.authorization?.replace('Bearer ', '');
+const jwtSecret = process.env.JWT_SECRET;
+if (!jwtSecret || jwtSecret.length < 32) {
+  throw new Error('JWT_SECRET must be configured with at least 32 characters');
+}
 
-  if (!token) {
-    return res.status(401).json({ error: 'Unauthorized: No token provided' });
+export function verifyToken(req, res, next) {
+  const header = req.headers.authorization || '';
+  const [scheme, token] = header.split(' ');
+
+  if (scheme !== 'Bearer' || !token) {
+    return res.status(401).json({ error: 'Unauthorized: Bearer token required' });
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
+    req.user = jwt.verify(token, jwtSecret);
     next();
   } catch (error) {
-    return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+    return res.status(401).json({ error: 'Unauthorized: Invalid or expired token' });
   }
 }
 
