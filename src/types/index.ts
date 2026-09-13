@@ -28,7 +28,7 @@ export interface DashboardData {
   performance: {
     totalProfit: number;
     profitPercentage: string;
-  };
+  } | null;
   recentTransactions: Transaction[];
 }
 
