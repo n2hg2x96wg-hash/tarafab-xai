@@ -6,60 +6,73 @@ const router = express.Router();
 router.post('/initiate', (req, res) => {
   const { method, amount, address, network } = req.body;
   const userId = req.user.userId;
+  const parsedAmount = Number(amount);
 
-  if (!method || !amount || parseFloat(amount) <= 0 || !address) {
+  if (!method || !Number.isFinite(parsedAmount) || parsedAmount <= 0 || !address) {
     return res.status(400).json({ error: 'Invalid withdrawal parameters' });
   }
 
   try {
-    // Get user account
-    const account = global.db.prepare('SELECT * FROM accounts WHERE userId = ?').get(userId);
+    const createWithdrawal = global.db.transaction(() => {
+      const account = global.db.prepare('SELECT * FROM accounts WHERE userId = ?').get(userId);
 
-    if (!account || parseFloat(account.availableBalance) < parseFloat(amount)) {
-      return res.status(400).json({ error: 'Insufficient available balance' });
-    }
+      if (!account || Number(account.availableBalance) < parsedAmount) {
+        const error = new Error('Insufficient available balance');
+        error.code = 'INSUFFICIENT_BALANCE';
+        throw error;
+      }
 
-    // Create withdrawal transaction
-    const result = global.db
-      .prepare(
-        'INSERT INTO transactions (userId, type, method, amount, address, network, status, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-      )
-      .run(
-        userId,
-        'withdrawal',
+      const timestamp = new Date().toISOString();
+      const withdrawalResult = global.db
+        .prepare(
+          'INSERT INTO transactions (userId, type, method, amount, address, network, status, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+        )
+        .run(
+          userId,
+          'withdrawal',
+          method,
+          parsedAmount,
+          address,
+          network || 'mainnet',
+          'pending_review',
+          timestamp
+        );
+
+      const newAvailable = Number(account.availableBalance) - parsedAmount;
+      const newPending = Number(account.pendingBalance) + parsedAmount;
+
+      global.db
+        .prepare('UPDATE accounts SET availableBalance = ?, pendingBalance = ?, updatedAt = ? WHERE userId = ?')
+        .run(newAvailable, newPending, timestamp, userId);
+
+      global.db
+        .prepare('INSERT INTO auditLogs (userId, action, details, timestamp) VALUES (?, ?, ?, ?)')
+        .run(
+          userId,
+          'withdrawal_initiated',
+          JSON.stringify({ method, amount: parsedAmount, address, network: network || 'mainnet' }),
+          timestamp
+        );
+
+      return {
+        withdrawalId: withdrawalResult.lastInsertRowid,
+        status: 'pending_review',
+        amount: parsedAmount,
         method,
-        amount,
-        address,
-        network || 'mainnet',
-        'pending_review',
-        new Date().toISOString()
-      );
+      };
+    });
 
-    // Deduct from available balance (reserved)
-    const newAvailable = parseFloat(account.availableBalance) - parseFloat(amount);
-    const newPending = parseFloat(account.pendingBalance) + parseFloat(amount);
-
-    global.db
-      .prepare('UPDATE accounts SET availableBalance = ?, pendingBalance = ? WHERE userId = ?')
-      .run(newAvailable, newPending, userId);
-
-    global.db
-      .prepare('INSERT INTO auditLogs (userId, action, details, timestamp) VALUES (?, ?, ?, ?)')
-      .run(
-        userId,
-        'withdrawal_initiated',
-        JSON.stringify({ method, amount, address, network }),
-        new Date().toISOString()
-      );
+    const withdrawal = createWithdrawal();
 
     res.status(201).json({
-      withdrawalId: result.lastInsertRowid,
-      status: 'pending_review',
-      amount: parseFloat(amount),
-      method,
+      ...withdrawal,
       message: 'Withdrawal request submitted for review',
     });
   } catch (error) {
+    if (error?.code === 'INSUFFICIENT_BALANCE') {
+      return res.status(400).json({ error: error.message });
+    }
+
     console.error('Withdrawal error:', error);
     res.status(500).json({ error: 'Failed to initiate withdrawal' });
   }
