@@ -4,12 +4,19 @@ import bcryptjs from 'bcryptjs';
 
 const router = express.Router();
 
+const jwtSecret = process.env.JWT_SECRET;
+if (!jwtSecret || jwtSecret.length < 32) {
+  throw new Error('JWT_SECRET must be configured with at least 32 characters');
+}
+
+const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
+
 // Register
 router.post('/register', (req, res) => {
   const { fullName, email, password, confirmPassword, termsAccepted } = req.body;
+  const normalizedEmail = normalizeEmail(email);
 
-  // Validation
-  if (!fullName || !email || !password) {
+  if (!fullName || !normalizedEmail || !password) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
@@ -25,41 +32,44 @@ router.post('/register', (req, res) => {
     return res.status(400).json({ error: 'Password must be at least 8 characters' });
   }
 
-  // Check if email already exists
-  const existingUser = global.db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+  const existingUser = global.db.prepare('SELECT id FROM users WHERE email = ?').get(normalizedEmail);
   if (existingUser) {
     return res.status(409).json({ error: 'Email already registered' });
   }
 
   try {
-    // Hash password
-    const hashedPassword = bcryptjs.hashSync(password, 10);
+    const hashedPassword = bcryptjs.hashSync(password, 12);
+    const now = new Date().toISOString();
 
-    // Create user
-    const result = global.db
-      .prepare(
-        'INSERT INTO users (fullName, email, passwordHash, emailVerified, role, createdAt) VALUES (?, ?, ?, ?, ?, ?)'
-      )
-      .run(fullName, email, hashedPassword, 1, 'customer', new Date().toISOString());
+    const createAccount = global.db.transaction(() => {
+      const result = global.db
+        .prepare(
+          'INSERT INTO users (fullName, email, passwordHash, emailVerified, role, createdAt, updatedAt) VALUES (?, ?, ?, 0, ?, ?, ?)'
+        )
+        .run(String(fullName).trim(), normalizedEmail, hashedPassword, 'customer', now, now);
 
-    // Create associated account
-    global.db
-      .prepare(
-        'INSERT INTO accounts (userId, accountBalance, availableBalance, investedBalance, pendingBalance, createdAt) VALUES (?, ?, ?, ?, ?, ?)'
-      )
-      .run(result.lastInsertRowid, 0, 0, 0, 0, new Date().toISOString());
+      global.db
+        .prepare(
+          'INSERT INTO accounts (userId, accountBalance, availableBalance, investedBalance, pendingBalance, createdAt, updatedAt) VALUES (?, 0, 0, 0, 0, ?, ?)'
+        )
+        .run(result.lastInsertRowid, now, now);
 
-    // Create verification token (in real app, send via email)
+      return Number(result.lastInsertRowid);
+    });
+
+    const userId = createAccount();
     const verificationToken = jwt.sign(
-      { userId: result.lastInsertRowid, type: 'email-verification' },
-      process.env.JWT_SECRET,
+      { userId, type: 'email-verification' },
+      jwtSecret,
       { expiresIn: '24h' }
     );
 
+    // A real deployment should deliver this token through the configured email provider.
+    // It is never returned outside development because doing so would weaken verification.
     res.status(201).json({
-      message: 'Account created successfully',
-      userId: result.lastInsertRowid,
-      verificationToken, // In production, this would be sent via email
+      message: 'Account created. Please verify your email before signing in.',
+      userId,
+      verificationToken: process.env.NODE_ENV === 'development' ? verificationToken : undefined,
     });
   } catch (error) {
     console.error('Registration error:', error);
@@ -70,24 +80,23 @@ router.post('/register', (req, res) => {
 // Login
 router.post('/login', (req, res) => {
   const { email, password, rememberMe } = req.body;
+  const normalizedEmail = normalizeEmail(email);
 
-  if (!email || !password) {
+  if (!normalizedEmail || !password) {
     return res.status(400).json({ error: 'Email and password required' });
   }
 
   try {
-    const user = global.db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+    const user = global.db.prepare('SELECT * FROM users WHERE email = ?').get(normalizedEmail);
 
-    if (!user) {
+    if (!user || !bcryptjs.compareSync(password, user.passwordHash)) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    const passwordValid = bcryptjs.compareSync(password, user.passwordHash);
-    if (!passwordValid) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+    if (!user.emailVerified) {
+      return res.status(403).json({ error: 'Please verify your email before signing in', code: 'EMAIL_NOT_VERIFIED' });
     }
 
-    // Generate JWT
     const expiresIn = rememberMe ? '30d' : '24h';
     const token = jwt.sign(
       {
@@ -96,16 +105,13 @@ router.post('/login', (req, res) => {
         fullName: user.fullName,
         role: user.role,
       },
-      process.env.JWT_SECRET,
+      jwtSecret,
       { expiresIn }
     );
 
-    // Log login audit
     global.db
-      .prepare(
-        'INSERT INTO auditLogs (userId, action, details, timestamp) VALUES (?, ?, ?, ?)'
-      )
-      .run(user.id, 'login', JSON.stringify({ email, rememberMe }), new Date().toISOString());
+      .prepare('INSERT INTO auditLogs (userId, action, details, timestamp) VALUES (?, ?, ?, ?)')
+      .run(user.id, 'login', JSON.stringify({ rememberMe: Boolean(rememberMe) }), new Date().toISOString());
 
     res.json({
       token,
@@ -131,13 +137,19 @@ router.post('/verify-email', (req, res) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, jwtSecret);
 
-    if (decoded.type !== 'email-verification') {
+    if (decoded.type !== 'email-verification' || !decoded.userId) {
       return res.status(400).json({ error: 'Invalid token type' });
     }
 
-    global.db.prepare('UPDATE users SET emailVerified = 1 WHERE id = ?').run(decoded.userId);
+    const result = global.db
+      .prepare('UPDATE users SET emailVerified = 1, updatedAt = ? WHERE id = ?')
+      .run(new Date().toISOString(), decoded.userId);
+
+    if (result.changes !== 1) {
+      return res.status(404).json({ error: 'Account not found' });
+    }
 
     res.json({ message: 'Email verified successfully' });
   } catch (error) {
@@ -147,33 +159,33 @@ router.post('/verify-email', (req, res) => {
 
 // Request password reset
 router.post('/forgot-password', (req, res) => {
-  const { email } = req.body;
+  const normalizedEmail = normalizeEmail(req.body.email);
 
-  if (!email) {
+  if (!normalizedEmail) {
     return res.status(400).json({ error: 'Email required' });
   }
 
   try {
-    const user = global.db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+    const user = global.db.prepare('SELECT id FROM users WHERE email = ?').get(normalizedEmail);
 
+    // Always return the same response so account existence is not disclosed.
     if (!user) {
-      // Don't reveal if email exists
-      return res.json({ message: 'If email exists, password reset link has been sent' });
+      return res.json({ message: 'If the email exists, a password reset link has been sent' });
     }
 
     const resetToken = jwt.sign(
       { userId: user.id, type: 'password-reset' },
-      process.env.JWT_SECRET,
+      jwtSecret,
       { expiresIn: '1h' }
     );
 
-    // In production, send resetToken via email
-    // For now, return it (development only)
+    // A production email provider must deliver this token. Never expose it in production.
     res.json({
-      message: 'Password reset token sent',
+      message: 'If the email exists, a password reset link has been sent',
       resetToken: process.env.NODE_ENV === 'development' ? resetToken : undefined,
     });
   } catch (error) {
+    console.error('Password reset request error:', error);
     res.status(500).json({ error: 'Password reset failed' });
   }
 });
@@ -195,14 +207,24 @@ router.post('/reset-password', (req, res) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, jwtSecret);
 
-    if (decoded.type !== 'password-reset') {
+    if (decoded.type !== 'password-reset' || !decoded.userId) {
       return res.status(400).json({ error: 'Invalid token type' });
     }
 
-    const hashedPassword = bcryptjs.hashSync(newPassword, 10);
-    global.db.prepare('UPDATE users SET passwordHash = ? WHERE id = ?').run(hashedPassword, decoded.userId);
+    const hashedPassword = bcryptjs.hashSync(newPassword, 12);
+    const result = global.db
+      .prepare('UPDATE users SET passwordHash = ?, updatedAt = ? WHERE id = ?')
+      .run(hashedPassword, new Date().toISOString(), decoded.userId);
+
+    if (result.changes !== 1) {
+      return res.status(400).json({ error: 'Account not found' });
+    }
+
+    global.db
+      .prepare('INSERT INTO auditLogs (userId, action, details, timestamp) VALUES (?, ?, ?, ?)')
+      .run(decoded.userId, 'password_reset', '{}', new Date().toISOString());
 
     res.json({ message: 'Password reset successfully' });
   } catch (error) {
