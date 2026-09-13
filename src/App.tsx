@@ -1,4 +1,3 @@
-import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Layout } from './components/Layout';
@@ -10,6 +9,7 @@ import TransactionsPage from './pages/Transactions';
 import DepositsPage from './pages/Deposits';
 import WithdrawalsPage from './pages/Withdrawals';
 import TransfersPage from './pages/Transfers';
+import { Profile } from './pages/Profile';
 import TermsPage from './pages/Terms';
 import PrivacyPage from './pages/Privacy';
 
@@ -23,7 +23,6 @@ function AppRoutes() {
       <Route path="/register" element={<Layout><RegisterPage /></Layout>} />
       <Route path="/terms" element={<Layout><TermsPage /></Layout>} />
       <Route path="/privacy" element={<Layout><PrivacyPage /></Layout>} />
-      
       {isAuthenticated ? (
         <>
           <Route path="/dashboard" element={<Layout><DashboardPage /></Layout>} />
@@ -31,6 +30,7 @@ function AppRoutes() {
           <Route path="/deposits" element={<Layout><DepositsPage /></Layout>} />
           <Route path="/withdrawals" element={<Layout><WithdrawalsPage /></Layout>} />
           <Route path="/transfers" element={<Layout><TransfersPage /></Layout>} />
+          <Route path="/profile" element={<Layout><Profile /></Layout>} />
         </>
       ) : (
         <Route path="*" element={<Navigate to="/" />} />
