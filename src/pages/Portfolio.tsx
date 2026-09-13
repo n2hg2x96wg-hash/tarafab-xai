@@ -1,100 +1,34 @@
 import { Card } from '../components/ui/Card';
-import { AllocationDonut } from '../components/charts/AllocationDonut';
-import { PerformanceChart } from '../components/charts/PerformanceChart';
-import { getPortfolioData } from '../data/portfolio';
-import { getDashboardSeries } from '../data/performance';
-import { formatCurrency, formatPercent } from '../utils/format';
-import { useAppSettings } from '../context/AppSettingsContext';
-import { useAuth } from '../context/AuthContext';
 
 export function Portfolio() {
-  const { currency } = useAppSettings();
-  const { currentClient } = useAuth();
-  const clientId = currentClient?.id ?? '';
-  const { stats: portfolioStats, allocations: assetAllocations } = getPortfolioData(clientId);
-  const dashboardSeries = getDashboardSeries(clientId);
-
-  const statCards = [
-    { label: 'Total Value', value: formatCurrency(portfolioStats.totalValue, currency) },
-    { label: 'Best Performer', value: portfolioStats.bestPerformer, sub: formatPercent(portfolioStats.bestPerformerReturn), tone: 'text-emerald-500' },
-    { label: 'Worst Performer', value: portfolioStats.worstPerformer, sub: formatPercent(portfolioStats.worstPerformerReturn), tone: 'text-rose-500' },
-    { label: 'Diversification Score', value: `${portfolioStats.diversificationScore}/100` },
-  ];
-
   return (
     <div className="animate-fade-in flex flex-col gap-6">
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Portfolio</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          A breakdown of your current asset allocation and performance.
-        </p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Your verified asset positions and performance will appear here.</p>
       </div>
-
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {statCards.map((stat) => (
-          <Card key={stat.label} hoverable>
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{stat.label}</p>
-            <p className="mt-3 truncate text-lg font-bold text-slate-900 dark:text-white">{stat.value}</p>
-            {stat.sub && <p className={`text-sm font-semibold ${stat.tone}`}>{stat.sub}</p>}
+        {['Total Value', 'Best Performer', 'Worst Performer', 'Diversification Score'].map((label) => (
+          <Card key={label} hoverable>
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p>
+            <p className="mt-3 text-lg font-bold text-slate-400">—</p>
+            <p className="text-xs text-slate-400">Awaiting verified portfolio data</p>
           </Card>
         ))}
       </div>
-
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-semibold text-slate-900 dark:text-white">Asset Allocation</h2>
-          </div>
-          <AllocationDonut data={assetAllocations} />
-          <ul className="mt-4 flex flex-wrap gap-3 text-xs">
-            {assetAllocations.map((asset) => (
-              <li key={asset.name} className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: asset.color }} />
-                {asset.name}
-              </li>
-            ))}
-          </ul>
+          <h2 className="font-semibold text-slate-900 dark:text-white">Asset Allocation</h2>
+          <div className="flex min-h-[260px] items-center justify-center text-center text-sm text-slate-500 dark:text-slate-400">No verified asset allocation is available yet.</div>
         </Card>
-
         <Card>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-semibold text-slate-900 dark:text-white">Performance History</h2>
-          </div>
-          <PerformanceChart data={dashboardSeries} />
+          <h2 className="font-semibold text-slate-900 dark:text-white">Performance History</h2>
+          <div className="flex min-h-[260px] items-center justify-center text-center text-sm text-slate-500 dark:text-slate-400">Performance history will appear after verified portfolio activity is recorded.</div>
         </Card>
       </div>
-
       <Card>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-semibold text-slate-900 dark:text-white">Allocation Breakdown</h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[480px] text-left text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 text-xs text-slate-400 dark:border-navy-600/60">
-                <th className="py-2 font-medium">Asset Class</th>
-                <th className="py-2 font-medium">Value</th>
-                <th className="py-2 font-medium">Allocation</th>
-                <th className="py-2 font-medium">24h Change</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-navy-600/60">
-              {assetAllocations.map((asset) => (
-                <tr key={asset.name}>
-                  <td className="py-3 font-medium text-slate-800 dark:text-slate-100">
-                    <span className="mr-2 inline-block h-2.5 w-2.5 rounded-full align-middle" style={{ backgroundColor: asset.color }} />
-                    {asset.name}
-                  </td>
-                  <td className="py-3 text-slate-600 dark:text-slate-300">{formatCurrency(asset.value, currency)}</td>
-                  <td className="py-3 text-slate-600 dark:text-slate-300">{asset.percentage.toFixed(1)}%</td>
-                  <td className={`py-3 font-medium ${asset.change24h > 0 ? 'text-emerald-500' : asset.change24h < 0 ? 'text-rose-500' : 'text-slate-400'}`}>
-                    {formatPercent(asset.change24h)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <h2 className="mb-4 font-semibold text-slate-900 dark:text-white">Allocation Breakdown</h2>
+        <div className="flex min-h-[120px] items-center justify-center text-sm text-slate-500 dark:text-slate-400">No verified portfolio positions to display.</div>
       </Card>
     </div>
   );

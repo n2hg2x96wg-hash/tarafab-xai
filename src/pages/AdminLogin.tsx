@@ -9,8 +9,7 @@ export function AdminLogin() {
   const { showToast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
-
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -20,26 +19,23 @@ export function AdminLogin() {
     return <Navigate to={from} replace />;
   }
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
-
-    if (!username.trim() || !password) {
-      setError('Please enter both username and password.');
+    if (!email.trim() || !password) {
+      setError('Please enter your email and password.');
       return;
     }
-
     setSubmitting(true);
-    const success = login(username, password);
+    const success = await login(email, password);
     setSubmitting(false);
-
     if (success) {
-      showToast('Welcome back! Login successful.');
+      showToast('Admin login successful.');
       const from = (location.state as { from?: Location })?.from?.pathname ?? '/admin';
       navigate(from, { replace: true });
     } else {
-      setError('Invalid username or password.');
-      showToast('Login failed: invalid credentials.');
+      setError('Admin access was not authorized.');
+      showToast('Login failed. Check your credentials and admin access.');
     }
   };
 
@@ -51,69 +47,23 @@ export function AdminLogin() {
             <span className="text-2xl">🔒</span>
           </div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Admin Login</h1>
-          <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-            Sign in to access the Tarafab.XAi admin panel
-          </p>
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">Sign in with an authorized admin account.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5" noValidate>
           <div>
-            <label
-              htmlFor="admin-username"
-              className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300"
-            >
-              Username
-            </label>
-            <input
-              id="admin-username"
-              name="username"
-              type="text"
-              autoComplete="username"
-              value={username}
-              onChange={(event) => setUsername(event.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
-              placeholder="admin"
-            />
+            <label htmlFor="admin-email" className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Email</label>
+            <input id="admin-email" name="email" type="email" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:border-slate-600 dark:bg-slate-800 dark:text-white" placeholder="admin@example.com" />
           </div>
-
           <div>
-            <label
-              htmlFor="admin-password"
-              className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300"
-            >
-              Password
-            </label>
-            <input
-              id="admin-password"
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
-              placeholder="••••••••"
-            />
+            <label htmlFor="admin-password" className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Password</label>
+            <input id="admin-password" name="password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:border-slate-600 dark:bg-slate-800 dark:text-white" placeholder="••••••••" />
           </div>
-
-          {error && (
-            <p className="rounded-lg bg-red-50 px-4 py-2.5 text-sm font-medium text-red-600 dark:bg-red-900/30 dark:text-red-400">
-              {error}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full rounded-lg bg-blue-600 px-6 py-2.5 font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-          >
+          {error && <p className="rounded-lg bg-red-50 px-4 py-2.5 text-sm font-medium text-red-600 dark:bg-red-900/30 dark:text-red-400">{error}</p>}
+          <button type="submit" disabled={submitting} className="w-full rounded-lg bg-blue-600 px-6 py-2.5 font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
             {submitting ? 'Signing in…' : 'Sign In'}
           </button>
         </form>
-
-        <p className="mt-6 text-center text-xs text-slate-500 dark:text-slate-500">
-          Demo credentials: <span className="font-mono">admin</span> /{' '}
-          <span className="font-mono">congratulations2005@</span>
-        </p>
       </Card>
     </div>
   );

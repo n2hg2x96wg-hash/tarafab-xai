@@ -1,11 +1,8 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
+import api from './ApiContext';
 
 const ADMIN_SESSION_KEY = 'tarafab-xai-admin-session';
-const SESSION_DURATION_MS = 8 * 60 * 60 * 1000; // 8 hours
-
-// Demo credentials only — not suitable for a real production admin panel.
-const ADMIN_USERNAME = 'admin';
-const ADMIN_PASSWORD = 'congratulations2005@';
+const SESSION_DURATION_MS = 8 * 60 * 60 * 1000;
 
 interface AdminSession {
   authenticated: true;
@@ -16,7 +13,7 @@ interface AdminSession {
 interface AdminAuthContextValue {
   isAuthenticated: boolean;
   username: string | null;
-  login: (username: string, password: string) => boolean;
+  login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
 }
 
@@ -42,34 +39,39 @@ function readSession(): AdminSession | null {
 export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<AdminSession | null>(() => readSession());
 
-  const login = (username: string, password: string): boolean => {
-    if (username.trim() === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-      const newSession: AdminSession = {
+  const login = async (email: string, password: string): Promise<boolean> => {
+    try {
+      const response = await api.post('/api/auth/login', {
+        email: email.trim().toLowerCase(),
+        password,
+        rememberMe: false,
+      });
+
+      const { token, user } = response.data ?? {};
+      if (!token || user?.role !== 'admin') return false;
+
+      localStorage.setItem('token', token);
+      const nextSession: AdminSession = {
         authenticated: true,
-        username: ADMIN_USERNAME,
+        username: user.email,
         expiresAt: Date.now() + SESSION_DURATION_MS,
       };
-      window.localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(newSession));
-      setSession(newSession);
+      localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(nextSession));
+      setSession(nextSession);
       return true;
+    } catch {
+      return false;
     }
-    return false;
   };
 
   const logout = () => {
     window.localStorage.removeItem(ADMIN_SESSION_KEY);
+    window.localStorage.removeItem('token');
     setSession(null);
   };
 
   return (
-    <AdminAuthContext.Provider
-      value={{
-        isAuthenticated: session !== null,
-        username: session?.username ?? null,
-        login,
-        logout,
-      }}
-    >
+    <AdminAuthContext.Provider value={{ isAuthenticated: session !== null, username: session?.username ?? null, login, logout }}>
       {children}
     </AdminAuthContext.Provider>
   );
@@ -77,8 +79,6 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
 
 export function useAdminAuth(): AdminAuthContextValue {
   const ctx = useContext(AdminAuthContext);
-  if (!ctx) {
-    throw new Error('useAdminAuth must be used within an AdminAuthProvider');
-  }
+  if (!ctx) throw new Error('useAdminAuth must be used within an AdminAuthProvider');
   return ctx;
 }
