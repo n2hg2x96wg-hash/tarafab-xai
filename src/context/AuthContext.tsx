@@ -17,18 +17,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
 
-  // Load token from localStorage on mount
   useEffect(() => {
     const savedToken = localStorage.getItem('token');
-    if (savedToken) {
-      setToken(savedToken);
-    }
+    if (!savedToken) return;
+
+    setToken(savedToken);
+    axios.defaults.headers.common['Authorization'] = `Bearer ${savedToken}`;
   }, []);
 
   const login = useCallback(async (email: string, password: string, rememberMe = false) => {
     try {
       const response = await axios.post('/api/auth/login', {
-        email,
+        email: email.trim().toLowerCase(),
         password,
         rememberMe,
       });
@@ -36,9 +36,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setToken(response.data.token);
       setUser(response.data.user);
       localStorage.setItem('token', response.data.token);
-
       axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
     } catch (error: any) {
+      const code = error.response?.data?.code;
+      if (code === 'EMAIL_NOT_VERIFIED') {
+        throw new Error('Please verify your email before signing in.');
+      }
       throw new Error(error.response?.data?.error || 'Login failed');
     }
   }, []);
@@ -46,19 +49,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = useCallback(async (fullName: string, email: string, password: string, confirmPassword: string) => {
     try {
       const response = await axios.post('/api/auth/register', {
-        fullName,
-        email,
+        fullName: fullName.trim(),
+        email: email.trim().toLowerCase(),
         password,
         confirmPassword,
         termsAccepted: true,
       });
 
-      setToken(response.data.token);
-      setUser({ id: response.data.userId, fullName, email, role: 'customer' });
-      localStorage.setItem('token', response.data.token);
+      // New accounts are verified before a session is established.
+      setToken(null);
+      setUser(null);
+      localStorage.removeItem('token');
+      delete axios.defaults.headers.common['Authorization'];
 
-      axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+      if (response.data.verificationToken) {
+        // Development-only verification support; production delivery is handled by email infrastructure.
+        throw new Error(`ACCOUNT_CREATED:${response.data.verificationToken}`);
+      }
+
+      throw new Error('ACCOUNT_CREATED');
     } catch (error: any) {
+      if (error.message?.startsWith('ACCOUNT_CREATED')) throw error;
       throw new Error(error.response?.data?.error || 'Registration failed');
     }
   }, []);
@@ -86,8 +97,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
   return context;
 }
