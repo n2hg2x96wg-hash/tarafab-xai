@@ -1,5 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { AdminAuthProvider } from './context/AdminAuthContext';
+import { ToastProvider } from './components/ui/Toast';
+import { ProtectedAdminRoute } from './components/auth/ProtectedAdminRoute';
 import { Layout } from './components/Layout';
 import LandingPage from './pages/Landing';
 import LoginPage from './pages/Login';
@@ -12,6 +15,11 @@ import TransfersPage from './pages/Transfers';
 import { Profile } from './pages/Profile';
 import TermsPage from './pages/Terms';
 import PrivacyPage from './pages/Privacy';
+import { AdminLogin } from './pages/AdminLogin';
+import { AdminDashboard } from './pages/AdminDashboard';
+import { AdminUsers } from './pages/AdminUsers';
+import { AdminInvestments } from './pages/AdminInvestments';
+import { AdminSettings } from './pages/AdminSettings';
 
 function AppRoutes() {
   const { isAuthenticated } = useAuth();
@@ -23,6 +31,15 @@ function AppRoutes() {
       <Route path="/register" element={<Layout><RegisterPage /></Layout>} />
       <Route path="/terms" element={<Layout><TermsPage /></Layout>} />
       <Route path="/privacy" element={<Layout><PrivacyPage /></Layout>} />
+
+      <Route path="/admin/login" element={<AdminLogin />} />
+      <Route element={<ProtectedAdminRoute />}>
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin/users" element={<AdminUsers />} />
+        <Route path="/admin/investments" element={<AdminInvestments />} />
+        <Route path="/admin/settings" element={<AdminSettings />} />
+      </Route>
+
       {isAuthenticated ? (
         <>
           <Route path="/dashboard" element={<Layout><DashboardPage /></Layout>} />
@@ -42,9 +59,13 @@ function AppRoutes() {
 export default function App() {
   return (
     <Router>
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
+      <ToastProvider>
+        <AdminAuthProvider>
+          <AuthProvider>
+            <AppRoutes />
+          </AuthProvider>
+        </AdminAuthProvider>
+      </ToastProvider>
     </Router>
   );
 }
