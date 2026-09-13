@@ -3,14 +3,13 @@ import { verifyAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Admin middleware
 router.use(verifyAdmin);
 
 // Get all users
 router.get('/users', (req, res) => {
   try {
     const users = global.db
-      .prepare('SELECT id, fullName, email, role, emailVerified, createdAt FROM users')
+      .prepare('SELECT id, fullName, email, role, emailVerified, createdAt FROM users ORDER BY createdAt DESC')
       .all();
 
     res.json({ users });
@@ -54,6 +53,60 @@ router.get('/users/:userId', (req, res) => {
   }
 });
 
+// Edit non-financial user account fields from the admin panel.
+// Email changes are intentionally excluded because email is an authentication identifier.
+router.patch('/users/:userId', (req, res) => {
+  const { userId } = req.params;
+  const { fullName, emailVerified } = req.body;
+
+  try {
+    const existing = global.db
+      .prepare('SELECT id, fullName, email, role, emailVerified, createdAt FROM users WHERE id = ?')
+      .get(userId);
+
+    if (!existing) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const nextName = typeof fullName === 'string' ? fullName.trim() : existing.fullName;
+    if (!nextName || nextName.length > 120) {
+      return res.status(400).json({ error: 'Full name must be between 1 and 120 characters' });
+    }
+
+    const nextVerified = typeof emailVerified === 'boolean'
+      ? (emailVerified ? 1 : 0)
+      : existing.emailVerified;
+
+    global.db
+      .prepare('UPDATE users SET fullName = ?, emailVerified = ? WHERE id = ?')
+      .run(nextName, nextVerified, userId);
+
+    global.db
+      .prepare('INSERT INTO auditLogs (userId, action, details, timestamp) VALUES (?, ?, ?, ?)')
+      .run(
+        req.user.userId,
+        'admin_user_updated',
+        JSON.stringify({
+          targetUserId: userId,
+          changed: {
+            fullName: nextName !== existing.fullName,
+            emailVerified: nextVerified !== existing.emailVerified,
+          },
+        }),
+        new Date().toISOString()
+      );
+
+    const updated = global.db
+      .prepare('SELECT id, fullName, email, role, emailVerified, createdAt FROM users WHERE id = ?')
+      .get(userId);
+
+    res.json({ user: updated });
+  } catch (error) {
+    console.error('Admin user update error:', error);
+    res.status(500).json({ error: 'Failed to update user' });
+  }
+});
+
 // Update transaction status (approve/reject/complete)
 router.post('/transactions/:transactionId/approve', (req, res) => {
   const { transactionId } = req.params;
@@ -71,10 +124,8 @@ router.post('/transactions/:transactionId/approve', (req, res) => {
       return res.status(400).json({ error: 'Transaction already completed' });
     }
 
-    // Update transaction status
     global.db.prepare('UPDATE transactions SET status = ? WHERE id = ?').run('completed', transactionId);
 
-    // Handle balance updates based on transaction type
     if (transaction.type === 'deposit') {
       const account = global.db
         .prepare('SELECT * FROM accounts WHERE userId = ?')
@@ -87,7 +138,6 @@ router.post('/transactions/:transactionId/approve', (req, res) => {
         .run(newBalance, newAvailable, transaction.userId);
     }
 
-    // Log admin action
     global.db
       .prepare('INSERT INTO auditLogs (userId, action, details, timestamp) VALUES (?, ?, ?, ?)')
       .run(
@@ -118,12 +168,10 @@ router.post('/transactions/:transactionId/reject', (req, res) => {
       return res.status(404).json({ error: 'Transaction not found' });
     }
 
-    // Update transaction
     global.db
       .prepare('UPDATE transactions SET status = ?, notes = ? WHERE id = ?')
       .run('rejected', reason || '', transactionId);
 
-    // Refund if withdrawal
     if (transaction.type === 'withdrawal') {
       const account = global.db
         .prepare('SELECT * FROM accounts WHERE userId = ?')
