@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
+import api from './ApiContext';
 
 const ADMIN_SESSION_KEY = 'tarafab-xai-admin-session';
 const SESSION_DURATION_MS = 8 * 60 * 60 * 1000;
@@ -12,7 +13,7 @@ interface AdminSession {
 interface AdminAuthContextValue {
   isAuthenticated: boolean;
   username: string | null;
-  login: (username: string, password: string) => boolean;
+  login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
 }
 
@@ -38,14 +39,34 @@ function readSession(): AdminSession | null {
 export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<AdminSession | null>(() => readSession());
 
-  const login = (_username: string, _password: string): boolean => {
-    // Admin authentication must be performed by the protected backend.
-    // Client-side credentials are intentionally not accepted as an authorization boundary.
-    return false;
+  const login = async (email: string, password: string): Promise<boolean> => {
+    try {
+      const response = await api.post('/api/auth/login', {
+        email: email.trim().toLowerCase(),
+        password,
+        rememberMe: false,
+      });
+
+      const { token, user } = response.data ?? {};
+      if (!token || user?.role !== 'admin') return false;
+
+      localStorage.setItem('token', token);
+      const nextSession: AdminSession = {
+        authenticated: true,
+        username: user.email,
+        expiresAt: Date.now() + SESSION_DURATION_MS,
+      };
+      localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(nextSession));
+      setSession(nextSession);
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   const logout = () => {
     window.localStorage.removeItem(ADMIN_SESSION_KEY);
+    window.localStorage.removeItem('token');
     setSession(null);
   };
 
