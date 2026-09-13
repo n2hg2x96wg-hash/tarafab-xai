@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import axios from 'axios';
-import { User } from '../types';
+import type { User } from '../types';
 
 interface AuthContextType {
   user: User | null;
@@ -13,7 +13,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
 
@@ -56,14 +56,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         termsAccepted: true,
       });
 
-      // New accounts are verified before a session is established.
       setToken(null);
       setUser(null);
       localStorage.removeItem('token');
       delete axios.defaults.headers.common['Authorization'];
 
       if (response.data.verificationToken) {
-        // Development-only verification support; production delivery is handled by email infrastructure.
         throw new Error(`ACCOUNT_CREATED:${response.data.verificationToken}`);
       }
 
