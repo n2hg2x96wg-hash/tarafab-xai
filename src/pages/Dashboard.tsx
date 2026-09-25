@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { api } from '../context/ApiContext';
+import { isSupabaseConfigured } from '../lib/supabase';
+import { getSupabaseDashboard } from '../lib/supabaseData';
 import type { DashboardData } from '../types';
 
 const ranges = ['7D', '30D', '90D'] as const;
@@ -15,11 +17,18 @@ const DashboardPage = () => {
 
   useEffect(() => {
     const fetchDashboard = async () => {
-      try { const response = await api.get('/api/dashboard/data'); setDashboardData(response.data); }
-      catch (err: any) { setError(err.response?.data?.error || 'Failed to load dashboard'); }
-      finally { setLoading(false); }
+      try {
+        const data = isSupabaseConfigured
+          ? await getSupabaseDashboard()
+          : (await api.get('/api/dashboard/data')).data;
+        setDashboardData(data);
+      } catch (err: any) {
+        setError(err.response?.data?.error || err.message || 'Failed to load dashboard');
+      } finally {
+        setLoading(false);
+      }
     };
-    fetchDashboard();
+    void fetchDashboard();
   }, []);
 
   const money = (value: number) => `$${value.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
