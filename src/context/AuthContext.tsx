@@ -33,11 +33,11 @@ function getEmailRedirectUrl() {
   return new URL(`${basePath.replace(/\/$/, '')}/login`, window.location.origin).toString();
 }
 
-function mapSupabaseUser(supabaseUser: { id: string; email?: string; user_metadata?: Record<string, unknown> }): User {
-  const email = supabaseUser.email?.trim().toLowerCase() || '';
+function mapSupabaseUser(supabaseUser: { id: string; email?: string; user_metadata?: Record<string, unknown> } | null): User {
+  const email = supabaseUser?.email?.trim().toLowerCase() || '';
   const fullName = String(
-    supabaseUser.user_metadata?.full_name
-      || supabaseUser.user_metadata?.name
+    supabaseUser?.user_metadata?.full_name
+      || supabaseUser?.user_metadata?.name
       || email.split('@')[0]
       || 'Account holder',
   );
