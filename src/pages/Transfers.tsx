@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { api } from '../context/ApiContext';
 
+const MAX_TRANSFER_AMOUNT = 1_000_000;
+
 const TransfersPage = () => {
   const [recipientEmail, setRecipientEmail] = useState('');
   const [amount, setAmount] = useState('');
@@ -12,8 +14,8 @@ const TransfersPage = () => {
     e.preventDefault();
     const numericAmount = Number(amount);
 
-    if (!recipientEmail.trim() || !Number.isFinite(numericAmount) || numericAmount <= 0) {
-      setError('Enter a valid recipient email and a positive amount.');
+    if (!recipientEmail.trim() || !Number.isFinite(numericAmount) || numericAmount <= 0 || numericAmount > MAX_TRANSFER_AMOUNT || Math.round(numericAmount * 100) !== numericAmount * 100) {
+      setError('Enter a valid recipient email and an amount up to $1,000,000 with no more than 2 decimal places.');
       return;
     }
 
@@ -57,7 +59,8 @@ const TransfersPage = () => {
 
           <div>
             <label htmlFor="transfer-amount" className="block text-sm font-medium mb-2">Amount (USD)</label>
-            <div className="flex items-center"><span className="text-lg font-medium mr-2">$</span><input id="transfer-amount" required min="0.01" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" step="0.01" inputMode="decimal" className="flex-1 px-4 py-2 rounded-lg bg-white/5 border border-white/10 focus:border-orange-400 focus:outline-none text-white placeholder-slate-500" /></div>
+            <div className="flex items-center"><span className="text-lg font-medium mr-2">$</span><input id="transfer-amount" required min="0.01" max={MAX_TRANSFER_AMOUNT} type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" step="0.01" inputMode="decimal" className="flex-1 px-4 py-2 rounded-lg bg-white/5 border border-white/10 focus:border-orange-400 focus:outline-none text-white placeholder-slate-500" /></div>
+            <p className="text-xs text-slate-500 mt-1">Maximum request: $1,000,000.00. Final approval is server-side.</p>
           </div>
 
           <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-200 text-sm">Transfers are subject to recipient checks, available-balance validation, fraud controls, and server-side ledger settlement. Fees and timing depend on the configured backend policy; no transfer is considered complete from this screen alone.</div>
