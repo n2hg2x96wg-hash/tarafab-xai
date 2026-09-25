@@ -5,15 +5,17 @@ import { useAuth } from '../context/AuthContext';
 
 const currencies = ['USD', 'EUR', 'GBP', 'JPY'];
 
-function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (value: boolean) => void; label: string }) {
+function Toggle({ checked, onChange, label, disabled = false }: { checked: boolean; onChange: (value: boolean) => void; label: string; disabled?: boolean }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
       aria-label={label}
+      aria-disabled={disabled}
+      disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200 ${
+      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${
         checked ? 'bg-teal-500' : 'bg-slate-300 dark:bg-navy-600'
       }`}
     >
@@ -77,13 +79,14 @@ export function Profile() {
               <p className="text-sm font-medium text-slate-800 dark:text-slate-100">Two-Factor Authentication</p>
               <p className="text-xs text-slate-400">Available when a verified 2FA provider is configured.</p>
             </div>
-            <Toggle checked={false} onChange={() => undefined} label="Two-factor authentication unavailable" />
+            <Toggle checked={false} disabled onChange={() => undefined} label="Two-factor authentication unavailable" />
           </div>
           <p className="mt-3 text-xs text-amber-600 dark:text-amber-400">2FA is currently unavailable because no real TOTP or authentication provider is connected. No simulated codes are accepted.</p>
         </Card>
 
         <Card>
           <h2 className="mb-4 font-semibold text-slate-900 dark:text-white">Notification Preferences</h2>
+          <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">These controls apply to this session only until notification preferences are connected to a persistent backend setting.</p>
           <ul className="flex flex-col gap-4">
             {(
               [
