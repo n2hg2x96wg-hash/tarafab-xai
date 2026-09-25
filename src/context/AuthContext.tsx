@@ -13,16 +13,27 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const TOKEN_KEY = 'token';
+
+function clearStoredToken() {
+  localStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(TOKEN_KEY);
+}
+
+function applyToken(token: string) {
+  axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
 
   useEffect(() => {
-    const savedToken = localStorage.getItem('token');
+    const savedToken = localStorage.getItem(TOKEN_KEY) ?? sessionStorage.getItem(TOKEN_KEY);
     if (!savedToken) return;
 
     setToken(savedToken);
-    axios.defaults.headers.common['Authorization'] = `Bearer ${savedToken}`;
+    applyToken(savedToken);
   }, []);
 
   const login = useCallback(async (email: string, password: string, rememberMe = false) => {
@@ -33,10 +44,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         rememberMe,
       });
 
-      setToken(response.data.token);
+      const nextToken = response.data.token as string;
+      setToken(nextToken);
       setUser(response.data.user);
-      localStorage.setItem('token', response.data.token);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+      clearStoredToken();
+      (rememberMe ? localStorage : sessionStorage).setItem(TOKEN_KEY, nextToken);
+      applyToken(nextToken);
     } catch (error: any) {
       const code = error.response?.data?.code;
       if (code === 'EMAIL_NOT_VERIFIED') {
@@ -58,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setToken(null);
       setUser(null);
-      localStorage.removeItem('token');
+      clearStoredToken();
       delete axios.defaults.headers.common['Authorization'];
 
       if (response.data.verificationToken) {
@@ -75,7 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     setUser(null);
     setToken(null);
-    localStorage.removeItem('token');
+    clearStoredToken();
     delete axios.defaults.headers.common['Authorization'];
   }, []);
 
