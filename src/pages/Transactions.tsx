@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../context/ApiContext';
+import { isSupabaseConfigured } from '../lib/supabase';
+import { getSupabaseTransactions } from '../lib/supabaseData';
 import type { Transaction } from '../types';
 
 const TransactionsPage = () => {
@@ -14,17 +16,17 @@ const TransactionsPage = () => {
       setLoading(true);
       setError('');
       try {
-        const params: Record<string, string | number> = { limit: 100 };
-        if (filter !== 'all') params.type = filter;
-        const response = await api.get('/api/transactions', { params });
-        setTransactions(response.data.transactions);
+        const nextTransactions = isSupabaseConfigured
+          ? await getSupabaseTransactions(filter)
+          : (await api.get('/api/transactions', { params: { limit: 100, ...(filter !== 'all' ? { type: filter } : {}) } })).data.transactions;
+        setTransactions(nextTransactions);
       } catch (err: any) {
-        setError(err.response?.data?.error || 'Failed to load transactions');
+        setError(err.response?.data?.error || err.message || 'Failed to load transactions');
       } finally {
         setLoading(false);
       }
     };
-    fetchTransactions();
+    void fetchTransactions();
   }, [filter]);
 
   const filteredTransactions = transactions.filter((tx) => {
