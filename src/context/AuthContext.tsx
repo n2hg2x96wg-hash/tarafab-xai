@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import axios from 'axios';
 import type { User } from '../types';
+import { isSupabaseConfigured, supabase } from '../lib/supabase';
 
 interface AuthContextType {
   user: User | null;
@@ -12,7 +13,6 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
 const TOKEN_KEY = 'token';
 
 function clearStoredToken() {
@@ -21,7 +21,28 @@ function clearStoredToken() {
 }
 
 function applyToken(token: string) {
-  axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  axios.defaults.headers.common.Authorization = `Bearer ${token}`;
+}
+
+function clearAppliedToken() {
+  delete axios.defaults.headers.common.Authorization;
+}
+
+function mapSupabaseUser(supabaseUser: { id: string; email?: string; user_metadata?: Record<string, unknown> }): User {
+  const email = supabaseUser.email?.trim().toLowerCase() || '';
+  const fullName = String(
+    supabaseUser.user_metadata?.full_name
+      || supabaseUser.user_metadata?.name
+      || email.split('@')[0]
+      || 'Account holder',
+  );
+
+  return {
+    id: 0,
+    fullName,
+    email,
+    role: 'customer',
+  };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -29,21 +50,79 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
 
   useEffect(() => {
-    const savedToken = localStorage.getItem(TOKEN_KEY) ?? sessionStorage.getItem(TOKEN_KEY);
-    if (!savedToken) return;
+    let mounted = true;
 
-    setToken(savedToken);
-    applyToken(savedToken);
+    const restoreSession = async () => {
+      if (isSupabaseConfigured && supabase) {
+        const { data } = await supabase.auth.getSession();
+        if (!mounted) return;
+        const session = data.session;
+        if (session) {
+          setToken(session.access_token);
+          setUser(mapSupabaseUser(session.user));
+          applyToken(session.access_token);
+        }
+        return;
+      }
+
+      const savedToken = localStorage.getItem(TOKEN_KEY) ?? sessionStorage.getItem(TOKEN_KEY);
+      if (savedToken && mounted) {
+        setToken(savedToken);
+        applyToken(savedToken);
+      }
+    };
+
+    void restoreSession();
+
+    if (!isSupabaseConfigured || !supabase) return () => { mounted = false; };
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
+      if (session) {
+        setToken(session.access_token);
+        setUser(mapSupabaseUser(session.user));
+        applyToken(session.access_token);
+      } else {
+        setToken(null);
+        setUser(null);
+        clearStoredToken();
+        clearAppliedToken();
+      }
+    });
+
+    return () => {
+      mounted = false;
+      listener.subscription.unsubscribe();
+    };
   }, []);
 
   const login = useCallback(async (email: string, password: string, rememberMe = false) => {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password,
+      });
+      if (error || !data.session) {
+        throw new Error(error?.message || 'Login failed');
+      }
+
+      const nextToken = data.session.access_token;
+      setToken(nextToken);
+      setUser(mapSupabaseUser(data.user));
+      applyToken(nextToken);
+      clearStoredToken();
+      (rememberMe ? localStorage : sessionStorage).setItem(TOKEN_KEY, nextToken);
+      return;
+    }
+
     try {
       const response = await axios.post('/api/auth/login', {
-        email: email.trim().toLowerCase(),
+        email: normalizedEmail,
         password,
         rememberMe,
       });
-
       const nextToken = response.data.token as string;
       setToken(nextToken);
       setUser(response.data.user);
@@ -60,6 +139,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const register = useCallback(async (fullName: string, email: string, password: string, confirmPassword: string, termsAccepted: boolean) => {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim().toLowerCase(),
+        password,
+        options: {
+          data: { full_name: fullName.trim() },
+          emailRedirectTo: `${window.location.origin}/login`,
+        },
+      });
+      if (error) throw new Error(error.message);
+      if (data.session) {
+        setToken(data.session.access_token);
+        setUser(mapSupabaseUser(data.user));
+        applyToken(data.session.access_token);
+      }
+      return;
+    }
+
     try {
       const response = await axios.post('/api/auth/register', {
         fullName: fullName.trim(),
@@ -72,12 +169,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setToken(null);
       setUser(null);
       clearStoredToken();
-      delete axios.defaults.headers.common['Authorization'];
+      clearAppliedToken();
 
       if (response.data.verificationToken) {
         throw new Error(`ACCOUNT_CREATED:${response.data.verificationToken}`);
       }
-
       throw new Error('ACCOUNT_CREATED');
     } catch (error: any) {
       if (error.message?.startsWith('ACCOUNT_CREATED')) throw error;
@@ -86,10 +182,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
+    if (isSupabaseConfigured && supabase) void supabase.auth.signOut();
     setUser(null);
     setToken(null);
     clearStoredToken();
-    delete axios.defaults.headers.common['Authorization'];
+    clearAppliedToken();
   }, []);
 
   return (
