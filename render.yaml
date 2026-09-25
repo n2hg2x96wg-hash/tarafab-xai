@@ -14,8 +14,8 @@ services:
       - key: FRONTEND_URL
         sync: false
       - key: DATABASE_URL
-        value: /opt/render/project/src/data/tarafab.db
+        value: /opt/render/project/src/server/data/tarafab.db
     disk:
       name: tarafab-data
-      mountPath: /opt/render/project/src/data
+      mountPath: /opt/render/project/src/server/data
       sizeGB: 1
