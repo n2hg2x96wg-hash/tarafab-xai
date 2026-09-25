@@ -6,7 +6,7 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
-  register: (fullName: string, email: string, password: string, confirmPassword: string) => Promise<void>;
+  register: (fullName: string, email: string, password: string, confirmPassword: string, termsAccepted: boolean) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -59,14 +59,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const register = useCallback(async (fullName: string, email: string, password: string, confirmPassword: string) => {
+  const register = useCallback(async (fullName: string, email: string, password: string, confirmPassword: string, termsAccepted: boolean) => {
     try {
       const response = await axios.post('/api/auth/register', {
         fullName: fullName.trim(),
         email: email.trim().toLowerCase(),
         password,
         confirmPassword,
-        termsAccepted: true,
+        termsAccepted,
       });
 
       setToken(null);
