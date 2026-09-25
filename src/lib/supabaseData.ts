@@ -8,7 +8,7 @@ function requireSupabase() {
 
 function mapTransaction(row: Record<string, unknown>): Transaction {
   return {
-    id: String(row.id) as unknown as number,
+    id: String(row.id),
     type: row.type as Transaction['type'],
     amount: Number(row.amount),
     fee: Number(row.fee ?? 0),
