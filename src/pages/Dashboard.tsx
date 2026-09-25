@@ -25,9 +25,23 @@ const DashboardPage = () => {
   const money = (value: number) => `$${value.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
   const activityData = useMemo(() => {
     if (!dashboardData) return [];
-    const transactions = [...dashboardData.recentTransactions].sort((a,b)=>new Date(a.timestamp).getTime()-new Date(b.timestamp).getTime());
+    const days = Number(range.replace('D', ''));
+    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+    const transactions = dashboardData.recentTransactions
+      .filter(tx => tx.status === 'completed' && new Date(tx.timestamp).getTime() >= cutoff)
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
     let running = dashboardData.account.availableBalance;
-    return transactions.slice(-8).map(tx => { const incoming=tx.type==='deposit'||tx.type==='transfer_in'||tx.type==='return'; if(tx.status==='completed') running += incoming ? tx.amount : -tx.amount; return {date:new Date(tx.timestamp).toLocaleDateString(undefined,{month:'short',day:'numeric'}),value:Math.max(0,running)}; });
+    const points = [{ date: 'Current', value: Math.max(0, running) }];
+    for (const tx of transactions) {
+      const incoming = tx.type === 'deposit' || tx.type === 'transfer_in' || tx.type === 'return';
+      running += incoming ? -tx.amount : tx.amount;
+      points.push({
+        date: new Date(tx.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+        value: Math.max(0, running),
+      });
+    }
+    return points.reverse();
   }, [dashboardData, range]);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="w-full max-w-6xl space-y-5 px-6"><div className="skeleton h-12 w-72 rounded-2xl" /><div className="grid md:grid-cols-4 gap-4">{[1,2,3,4].map(i=><div key={i} className="skeleton h-40 rounded-3xl" />)}</div><div className="skeleton h-96 rounded-3xl" /></div></div>;
