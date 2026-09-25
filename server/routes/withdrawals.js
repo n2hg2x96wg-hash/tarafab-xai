@@ -2,20 +2,34 @@ import express from 'express';
 
 const router = express.Router();
 const SUPPORTED_METHODS = new Set(['bitcoin', 'bank_transfer']);
+const MAX_WITHDRAWAL_AMOUNT = 1_000_000;
+const SUPPORTED_BITCOIN_NETWORKS = new Set(['mainnet', 'testnet']);
 
 function validText(value, maxLength = 256) {
   return typeof value === 'string' && value.trim().length > 0 && value.trim().length <= maxLength;
 }
 
-// Initiate withdrawal
+function validAmount(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed)
+    && parsed > 0
+    && parsed <= MAX_WITHDRAWAL_AMOUNT
+    && Number.isInteger(Math.round(parsed * 100));
+}
+
+// Initiate withdrawal. Funds are reserved immediately and remain pending until an authorized backend process reviews it.
 router.post('/initiate', (req, res) => {
   const { method, amount, address, network } = req.body;
   const userId = req.user.userId;
   const parsedAmount = Number(amount);
   const normalizedAddress = typeof address === 'string' ? address.trim() : '';
-  const normalizedNetwork = typeof network === 'string' && network.trim() ? network.trim() : 'mainnet';
+  const normalizedNetwork = typeof network === 'string' && network.trim() ? network.trim().toLowerCase() : 'mainnet';
 
-  if (!SUPPORTED_METHODS.has(method) || !Number.isFinite(parsedAmount) || parsedAmount <= 0 || !validText(normalizedAddress) || !validText(normalizedNetwork, 64)) {
+  if (!SUPPORTED_METHODS.has(method)
+    || !validAmount(parsedAmount)
+    || !validText(normalizedAddress)
+    || !validText(normalizedNetwork, 64)
+    || (method === 'bitcoin' && !SUPPORTED_BITCOIN_NETWORKS.has(normalizedNetwork))) {
     return res.status(400).json({ error: 'Invalid withdrawal parameters' });
   }
 
