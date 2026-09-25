@@ -26,8 +26,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
       <nav className="glass border-b border-white/10 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <Link to="/dashboard" className="flex items-center space-x-2">
+          <div className="flex items-center justify-between gap-4">
+            <Link to="/dashboard" className="flex items-center space-x-2 shrink-0">
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
                 <span className="text-white font-bold">₿</span>
               </div>
@@ -49,14 +49,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </Link>
             </div>
 
-            <div className="flex items-center space-x-4">
-              <div className="text-sm">
+            <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+              <div className="text-right text-sm min-w-0 hidden sm:block">
                 <p className="text-slate-400">Signed in as</p>
-                <p className="font-medium text-white">{user?.fullName}</p>
+                <p className="font-medium text-white truncate max-w-[180px]">{user?.fullName}</p>
               </div>
               <button
                 onClick={handleLogout}
-                className="px-4 py-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition"
+                className="px-3 sm:px-4 py-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition text-sm whitespace-nowrap"
               >
                 Logout
               </button>
@@ -71,7 +71,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       <footer className="border-t border-white/10 mt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="grid grid-cols-4 gap-8 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
             <div>
               <h4 className="font-semibold mb-4">Product</h4>
               <ul className="space-y-2 text-sm text-slate-400">
