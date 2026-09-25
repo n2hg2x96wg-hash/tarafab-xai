@@ -28,6 +28,11 @@ function clearAppliedToken() {
   delete axios.defaults.headers.common.Authorization;
 }
 
+function getEmailRedirectUrl() {
+  const basePath = import.meta.env.BASE_URL || '/';
+  return new URL(`${basePath.replace(/\/$/, '')}/login`, window.location.origin).toString();
+}
+
 function mapSupabaseUser(supabaseUser: { id: string; email?: string; user_metadata?: Record<string, unknown> }): User {
   const email = supabaseUser.email?.trim().toLowerCase() || '';
   const fullName = String(
@@ -105,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password,
       });
       if (error || !data.session) {
-        throw new Error(error?.message || 'Login failed');
+        throw new Error(error?.message || 'Login failed. Confirm your email address before signing in.');
       }
 
       const nextToken = data.session.access_token;
@@ -139,13 +144,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const register = useCallback(async (fullName: string, email: string, password: string, confirmPassword: string, termsAccepted: boolean) => {
+    const normalizedName = fullName.trim();
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (normalizedName.length < 2) throw new Error('Please enter your full name.');
+    if (password.length < 8) throw new Error('Password must be at least 8 characters.');
+    if (password !== confirmPassword) throw new Error('Passwords do not match.');
+    if (!termsAccepted) throw new Error('Please accept the Terms of Service and Privacy Policy.');
+
     if (isSupabaseConfigured && supabase) {
       const { data, error } = await supabase.auth.signUp({
-        email: email.trim().toLowerCase(),
+        email: normalizedEmail,
         password,
         options: {
-          data: { full_name: fullName.trim() },
-          emailRedirectTo: `${window.location.origin}/login`,
+          data: { full_name: normalizedName },
+          emailRedirectTo: getEmailRedirectUrl(),
         },
       });
       if (error) throw new Error(error.message);
@@ -159,8 +172,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       const response = await axios.post('/api/auth/register', {
-        fullName: fullName.trim(),
-        email: email.trim().toLowerCase(),
+        fullName: normalizedName,
+        email: normalizedEmail,
         password,
         confirmPassword,
         termsAccepted,
