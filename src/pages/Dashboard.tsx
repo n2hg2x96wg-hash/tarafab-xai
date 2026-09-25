@@ -34,8 +34,9 @@ const DashboardPage = () => {
     let running = dashboardData.account.availableBalance;
     const points = [{ date: 'Current', value: Math.max(0, running) }];
     for (const tx of transactions) {
-      const incoming = tx.type === 'deposit' || tx.type === 'transfer_in' || tx.type === 'return';
-      running += incoming ? -tx.amount : tx.amount;
+      const amount = Math.abs(Number(tx.amount));
+      const signedIncoming = tx.type === 'deposit' || tx.type === 'transfer_in' || (tx.type === 'return' && Number(tx.amount) >= 0);
+      running += signedIncoming ? -amount : amount;
       points.push({
         date: new Date(tx.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
         value: Math.max(0, running),
@@ -45,7 +46,7 @@ const DashboardPage = () => {
   }, [dashboardData, range]);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="w-full max-w-6xl space-y-5 px-6"><div className="skeleton h-12 w-72 rounded-2xl" /><div className="grid md:grid-cols-4 gap-4">{[1,2,3,4].map(i=><div key={i} className="skeleton h-40 rounded-3xl" />)}</div><div className="skeleton h-96 rounded-3xl" /></div></div>;
-  if (error) return <div className="glass rounded-3xl p-7 border border-rose-500/30 text-rose-300">{error}</div>;
+  if (error) return <div role="alert" className="glass rounded-3xl p-7 border border-rose-500/30 text-rose-300">{error}</div>;
   if (!dashboardData) return null;
 
   const { account, performance, recentTransactions } = dashboardData;
@@ -58,11 +59,11 @@ const DashboardPage = () => {
 
   return <div className="space-y-7 pb-12 animate-page-in">
     <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
-      <div><div className="flex items-center gap-2 text-[10px] uppercase tracking-[.22em] text-cyan-300 mb-3"><span className="live-dot" /> System live</div><h1 className="text-4xl md:text-5xl font-bold tracking-[-.03em]">Command center.</h1><p className="text-slate-400 mt-2 max-w-xl">Your account overview, recorded activity and controls—designed as one live workspace.</p></div>
+      <div><div className="flex items-center gap-2 text-[10px] uppercase tracking-[.22em] text-cyan-300 mb-3"><span className="live-dot" /> Account connected</div><h1 className="text-4xl md:text-5xl font-bold tracking-[-.03em]">Command center.</h1><p className="text-slate-400 mt-2 max-w-xl">Your account overview, recorded activity and controls—designed as one workspace.</p></div>
       <div className="flex gap-3"><Link to="/deposits" className="action-button primary">Add funds <span>↗</span></Link><Link to="/transfers" className="action-button">Transfer <span>→</span></Link></div>
     </div>
 
-    <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">{stats.map(([label,value,note,gradient,icon],index)=><div key={label} className="glass stat-card rounded-3xl p-5 animate-stagger" style={{animationDelay:`${index*90}ms`}}><div className="flex items-center justify-between"><div className={`w-10 h-10 rounded-2xl bg-gradient-to-br ${gradient} bg-opacity-20 flex items-center justify-center text-white text-lg shadow-lg`}>{icon}</div><span className="text-[9px] tracking-[.15em] text-slate-600">LIVE</span></div><p className="text-slate-400 text-xs uppercase tracking-wider mt-7">{label}</p><p className="text-2xl md:text-[28px] font-bold tracking-tight mt-1">{money(Number(value))}</p><p className="text-slate-500 text-xs mt-2">{note}</p></div>)}</div>
+    <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">{stats.map(([label,value,note,gradient,icon],index)=><div key={label} className="glass stat-card rounded-3xl p-5 animate-stagger" style={{animationDelay:`${index*90}ms`}}><div className="flex items-center justify-between"><div className={`w-10 h-10 rounded-2xl bg-gradient-to-br ${gradient} bg-opacity-20 flex items-center justify-center text-white text-lg shadow-lg`}>{icon}</div><span className="text-[9px] tracking-[.15em] text-slate-600">ACCOUNT</span></div><p className="text-slate-400 text-xs uppercase tracking-wider mt-7">{label}</p><p className="text-2xl md:text-[28px] font-bold tracking-tight mt-1">{money(Number(value))}</p><p className="text-slate-500 text-xs mt-2">{note}</p></div>)}</div>
 
     <div className="grid xl:grid-cols-[1.7fr_.75fr] gap-5">
       <section className="glass rounded-3xl p-5 md:p-7 chart-shell">
