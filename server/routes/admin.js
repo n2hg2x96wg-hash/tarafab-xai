@@ -87,23 +87,43 @@ router.post('/transactions/:transactionId/approve', (req, res) => {
       const account = global.db.prepare('SELECT * FROM accounts WHERE userId = ?').get(transaction.userId);
       if (!account) return { error: 'Account not found', status: 404 };
 
+      const timestamp = new Date().toISOString();
+
       if (transaction.type === 'deposit') {
         global.db.prepare('UPDATE accounts SET accountBalance = accountBalance + ?, availableBalance = availableBalance + ?, updatedAt = ? WHERE userId = ?')
-          .run(amount, amount, new Date().toISOString(), transaction.userId);
+          .run(amount, amount, timestamp, transaction.userId);
       }
 
       if (transaction.type === 'withdrawal') {
         const pending = Number(account.pendingBalance);
         if (!Number.isFinite(pending) || pending < amount) return { error: 'Insufficient reserved withdrawal balance', status: 409 };
         global.db.prepare('UPDATE accounts SET pendingBalance = pendingBalance - ?, updatedAt = ? WHERE userId = ?')
-          .run(amount, new Date().toISOString(), transaction.userId);
+          .run(amount, timestamp, transaction.userId);
+      }
+
+      if (transaction.type === 'transfer_out') {
+        if (!transaction.recipientId || transaction.recipientId === transaction.userId) return { error: 'Transfer recipient is invalid', status: 409 };
+
+        const senderPending = Number(account.pendingBalance);
+        if (!Number.isFinite(senderPending) || senderPending < amount) return { error: 'Insufficient reserved transfer balance', status: 409 };
+
+        const recipientAccount = global.db.prepare('SELECT * FROM accounts WHERE userId = ?').get(transaction.recipientId);
+        if (!recipientAccount) return { error: 'Recipient account not found', status: 409 };
+
+        global.db.prepare('UPDATE accounts SET pendingBalance = pendingBalance - ?, updatedAt = ? WHERE userId = ?')
+          .run(amount, timestamp, transaction.userId);
+        global.db.prepare('UPDATE accounts SET accountBalance = accountBalance + ?, availableBalance = availableBalance + ?, updatedAt = ? WHERE userId = ?')
+          .run(amount, amount, timestamp, transaction.recipientId);
+
+        global.db.prepare('INSERT INTO transactions (userId, type, method, amount, fee, asset, recipientId, reference, status, notes, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+          .run(transaction.recipientId, 'transfer_in', 'internal_transfer', amount, 0, transaction.asset || 'USD', transaction.userId, `TRANSFER-IN-${transaction.id}`, 'completed', `Settled from transfer ${transaction.id}`, timestamp);
       }
 
       const updated = global.db.prepare("UPDATE transactions SET status = 'completed' WHERE id = ? AND status IN ('pending', 'pending_verification', 'pending_review')").run(transactionId);
       if (updated.changes !== 1) return { error: 'Transaction changed before approval; please refresh and retry', status: 409 };
 
       global.db.prepare('INSERT INTO auditLogs (userId, action, details, timestamp) VALUES (?, ?, ?, ?)').run(
-        req.user.userId, 'transaction_approved', JSON.stringify({ transactionId, originalStatus: transaction.status, type: transaction.type, amount }), new Date().toISOString()
+        req.user.userId, 'transaction_approved', JSON.stringify({ transactionId, originalStatus: transaction.status, type: transaction.type, amount }), timestamp
       );
       return { message: 'Transaction approved', status: 'completed' };
     })();
@@ -130,11 +150,11 @@ router.post('/transactions/:transactionId/reject', (req, res) => {
       const amount = Number(transaction.amount);
       if (!Number.isFinite(amount) || amount <= 0) return { error: 'Invalid transaction amount', status: 400 };
 
-      if (transaction.type === 'withdrawal') {
+      if (transaction.type === 'withdrawal' || transaction.type === 'transfer_out') {
         const account = global.db.prepare('SELECT * FROM accounts WHERE userId = ?').get(transaction.userId);
         if (!account) return { error: 'Account not found', status: 404 };
         const pending = Number(account.pendingBalance);
-        if (!Number.isFinite(pending) || pending < amount) return { error: 'Reserved withdrawal balance is inconsistent', status: 409 };
+        if (!Number.isFinite(pending) || pending < amount) return { error: 'Reserved balance is inconsistent', status: 409 };
         global.db.prepare('UPDATE accounts SET availableBalance = availableBalance + ?, pendingBalance = pendingBalance - ?, updatedAt = ? WHERE userId = ?')
           .run(amount, amount, new Date().toISOString(), transaction.userId);
       }
