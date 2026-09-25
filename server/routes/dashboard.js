@@ -10,7 +10,7 @@ router.get('/data', (req, res) => {
     if (!account) return res.status(404).json({ error: 'Account not found' });
 
     const recentTransactions = global.db
-      .prepare('SELECT * FROM transactions WHERE userId = ? ORDER BY timestamp DESC LIMIT 10')
+      .prepare('SELECT * FROM transactions WHERE userId = ? ORDER BY timestamp DESC LIMIT 1000')
       .all(userId);
 
     res.json({
