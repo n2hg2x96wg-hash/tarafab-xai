@@ -1,11 +1,30 @@
 import express from 'express';
 
 const router = express.Router();
+const MAX_PAGE_SIZE = 100;
+const ALLOWED_TYPES = new Set(['deposit', 'withdrawal', 'transfer_out', 'transfer_in', 'investment', 'fee', 'return']);
+const ALLOWED_STATUSES = new Set(['pending', 'pending_review', 'pending_verification', 'pending_blockchain_confirmation', 'confirmed', 'completed', 'failed', 'rejected', 'cancelled']);
 
-// Get user transactions
+function parsePageValue(value, fallback, max) {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0) return fallback;
+  return Math.min(parsed, max);
+}
+
+// Get only the authenticated user's transactions.
 router.get('/', (req, res) => {
   const userId = req.user.userId;
-  const { type, status, limit = 50, offset = 0 } = req.query;
+  const { type, status } = req.query;
+  const limit = parsePageValue(req.query.limit, 50, MAX_PAGE_SIZE);
+  const offset = parsePageValue(req.query.offset, 0, Number.MAX_SAFE_INTEGER);
+
+  if (type && !ALLOWED_TYPES.has(type)) {
+    return res.status(400).json({ error: 'Unsupported transaction type' });
+  }
+
+  if (status && !ALLOWED_STATUSES.has(status)) {
+    return res.status(400).json({ error: 'Unsupported transaction status' });
+  }
 
   try {
     let query = 'SELECT * FROM transactions WHERE userId = ?';
@@ -21,8 +40,8 @@ router.get('/', (req, res) => {
       params.push(status);
     }
 
-    query += ' ORDER BY timestamp DESC LIMIT ? OFFSET ?';
-    params.push(parseInt(limit), parseInt(offset));
+    query += ' ORDER BY timestamp DESC, id DESC LIMIT ? OFFSET ?';
+    params.push(limit, offset);
 
     const transactions = global.db.prepare(query).all(...params);
 
@@ -34,23 +53,23 @@ router.get('/', (req, res) => {
     if (status) countParams.push(status);
     const total = global.db.prepare(countQuery).get(...countParams).count;
 
-    res.json({
-      transactions: transactions.map((t) => ({
-        ...t,
-        amount: parseFloat(t.amount),
-        fee: parseFloat(t.fee || 0),
+    return res.json({
+      transactions: transactions.map((transaction) => ({
+        ...transaction,
+        amount: Number(transaction.amount),
+        fee: Number(transaction.fee || 0),
       })),
       total,
-      limit: parseInt(limit),
-      offset: parseInt(offset),
+      limit,
+      offset,
     });
   } catch (error) {
     console.error('Transactions error:', error);
-    res.status(500).json({ error: 'Failed to fetch transactions' });
+    return res.status(500).json({ error: 'Failed to fetch transactions' });
   }
 });
 
-// Get transaction details
+// Get transaction details for the authenticated user only.
 router.get('/:transactionId', (req, res) => {
   const { transactionId } = req.params;
   const userId = req.user.userId;
@@ -64,13 +83,13 @@ router.get('/:transactionId', (req, res) => {
       return res.status(404).json({ error: 'Transaction not found' });
     }
 
-    res.json({
+    return res.json({
       ...transaction,
-      amount: parseFloat(transaction.amount),
-      fee: parseFloat(transaction.fee || 0),
+      amount: Number(transaction.amount),
+      fee: Number(transaction.fee || 0),
     });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch transaction' });
+    return res.status(500).json({ error: 'Failed to fetch transaction' });
   }
 });
 
