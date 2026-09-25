@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: tarafab-xai-api
+    runtime: node
+    rootDir: server
+    buildCommand: npm install --omit=dev
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: DATABASE_URL
+        value: /opt/render/project/src/data/tarafab.db
+    disk:
+      name: tarafab-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
