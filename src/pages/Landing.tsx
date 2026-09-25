@@ -19,8 +19,16 @@ const LandingPage = () => {
   useEffect(() => {
     const onScroll = () => setScrollY(window.scrollY);
     window.addEventListener('scroll', onScroll, { passive: true });
-    const timer = window.setInterval(() => setActiveFeature((v) => (v + 1) % features.length), 3600);
-    return () => { window.removeEventListener('scroll', onScroll); window.clearInterval(timer); };
+
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const timer = prefersReducedMotion
+      ? undefined
+      : window.setInterval(() => setActiveFeature((v) => (v + 1) % features.length), 3600);
+
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      if (timer !== undefined) window.clearInterval(timer);
+    };
   }, []);
 
   if (isAuthenticated) return <Navigate to="/dashboard" />;
