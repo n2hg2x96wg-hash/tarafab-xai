@@ -6,6 +6,7 @@ const RegisterPage = () => {
   const navigate = useNavigate();
   const { register } = useAuth();
   const [formData, setFormData] = useState({ fullName: '', email: '', password: '', confirmPassword: '' });
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [error, setError] = useState('');
   const [created, setCreated] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -23,9 +24,13 @@ const RegisterPage = () => {
       setError('Passwords do not match.');
       return;
     }
+    if (!termsAccepted) {
+      setError('Please accept the Terms of Service and Privacy Policy to continue.');
+      return;
+    }
     setLoading(true);
     try {
-      await register(formData.fullName, formData.email, formData.password, formData.confirmPassword);
+      await register(formData.fullName, formData.email, formData.password, formData.confirmPassword, termsAccepted);
       setCreated(true);
     } catch (err: any) {
       setError(err?.message || 'Unable to create your account. Please try again.');
@@ -75,7 +80,10 @@ const RegisterPage = () => {
                 <div className="animate-stagger-4"><label className="block text-sm font-medium mb-2" htmlFor="email">Email Address</label><input id="email" type="email" name="email" value={formData.email} onChange={handleChange} required autoComplete="email" className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/10 focus:outline-none transition duration-300 text-white placeholder-slate-500 hover:bg-white/[0.07]" placeholder="you@example.com" /></div>
                 <div className="animate-stagger-5"><label className="block text-sm font-medium mb-2" htmlFor="password">Password</label><div className="relative"><input id="password" type={showPassword ? 'text' : 'password'} name="password" value={formData.password} onChange={handleChange} required minLength={8} autoComplete="new-password" className="w-full px-4 py-3 pr-20 rounded-xl bg-white/5 border border-white/10 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/10 focus:outline-none transition duration-300 text-white placeholder-slate-500 hover:bg-white/[0.07]" placeholder="••••••••" /><button type="button" onClick={() => setShowPassword((current) => !current)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-orange-300 transition">{showPassword ? 'Hide' : 'Show'}</button></div><p className="text-xs text-slate-500 mt-1">{strength}</p></div>
                 <div className="animate-stagger-5"><label className="block text-sm font-medium mb-2" htmlFor="confirmPassword">Confirm Password</label><div className="relative"><input id="confirmPassword" type={showConfirmPassword ? 'text' : 'password'} name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} required minLength={8} autoComplete="new-password" className="w-full px-4 py-3 pr-20 rounded-xl bg-white/5 border border-white/10 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/10 focus:outline-none transition duration-300 text-white placeholder-slate-500 hover:bg-white/[0.07]" placeholder="••••••••" /><button type="button" onClick={() => setShowConfirmPassword((current) => !current)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-orange-300 transition">{showConfirmPassword ? 'Hide' : 'Show'}</button></div></div>
-                <div className="text-xs leading-5 text-slate-400 animate-stagger-5">By registering, you agree to our <Link to="/terms" className="text-orange-400 hover:text-orange-300 transition">Terms of Service</Link> and <Link to="/privacy" className="text-orange-400 hover:text-orange-300 transition">Privacy Policy</Link>.</div>
+                <label className="flex items-start gap-3 text-xs leading-5 text-slate-400 animate-stagger-5">
+                  <input type="checkbox" checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} required className="mt-1 accent-orange-500" />
+                  <span> I agree to the <Link to="/terms" className="text-orange-400 hover:text-orange-300 transition">Terms of Service</Link> and <Link to="/privacy" className="text-orange-400 hover:text-orange-300 transition">Privacy Policy</Link>.</span>
+                </label>
                 <button type="submit" disabled={loading} className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 text-white font-semibold hover:shadow-xl hover:shadow-orange-500/30 hover:-translate-y-0.5 transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 animate-stagger-5">{loading ? <span className="inline-flex items-center gap-2"><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />Creating account...</span> : 'Create Account'}</button>
               </form>
               <div className="mt-7 pt-6 border-t border-white/10 text-center text-sm text-slate-400 animate-stagger-5">Already have an account? <Link to="/login" className="text-orange-400 hover:text-orange-300 transition">Sign in here</Link></div>
