@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { getSupabaseEnv } from '@/lib/supabase/env'
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
 const MAX_SIZE = 5 * 1024 * 1024 // 5MB
 
 export async function POST(request: NextRequest) {
-  const url = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '')
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  const { url, anonKey, serviceKey } = getSupabaseEnv()
   if (!url || (!serviceKey && !anonKey)) return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 })
 
   const authHeader = request.headers.get('authorization') || ''

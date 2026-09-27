@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { getSupabaseEnv } from '@/lib/supabase/env'
 
 export async function GET(request: NextRequest) {
-  const url = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '')
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  const { url, anonKey: key } = getSupabaseEnv()
   if (!url || !key) return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 })
 
   const authHeader = request.headers.get('authorization') || ''

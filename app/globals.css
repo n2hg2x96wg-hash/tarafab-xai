@@ -143,14 +143,19 @@ body {
   100% { background-position: 200% 0; }
 }
 
-/* Scroll reveal */
+/* Scroll reveal — content visible by default, animated only when JS observer runs */
 .reveal {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.reveal.reveal-init {
   opacity: 0;
   transform: translateY(30px);
   transition: opacity 0.6s ease, transform 0.6s ease;
 }
 
-.reveal.visible {
+.reveal.reveal-init.visible {
   opacity: 1;
   transform: translateY(0);
 }
@@ -215,7 +220,7 @@ input:-webkit-autofill:active {
     transition-duration: 0.01ms !important;
   }
 
-  .reveal {
+  .reveal, .reveal.reveal-init {
     opacity: 1;
     transform: none;
   }

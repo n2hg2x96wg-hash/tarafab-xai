@@ -40,12 +40,21 @@ export default function SignUpPage() {
     if (password.length < 8) { setError('Password must be at least 8 characters.'); return }
     if (!agreed) { setError('Please accept the terms to continue.'); return }
 
+    const cleanEmail = email.replace(/[^\x20-\x7E]/g, '')
+    const cleanPassword = password.replace(/[^\x20-\x7E]/g, '')
+    const cleanName = fullName.trim()
+
+    if (cleanPassword !== password) {
+      setError('Password contains unsupported characters. Please use only standard characters.')
+      return
+    }
+
     setLoading(true)
     try {
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, fullName }),
+        body: JSON.stringify({ email: cleanEmail, password: cleanPassword, fullName: cleanName }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Sign up failed'); return }
@@ -55,8 +64,13 @@ export default function SignUpPage() {
         await supabase.auth.setSession({ access_token: data.access_token, refresh_token: data.refresh_token })
         router.push('/dashboard')
       }
-    } catch {
-      setError('A network error occurred. Please try again.')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (msg.includes('ByteString')) {
+        setError('An encoding error occurred. Please ensure your password and email contain only standard characters, then try again.')
+      } else {
+        setError('A network error occurred. Please try again.')
+      }
     } finally {
       setLoading(false)
     }
