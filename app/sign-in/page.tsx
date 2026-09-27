@@ -23,7 +23,7 @@ export default function SignInPage() {
       if (authError) {
         if (authError.message.includes('Invalid login')) setError('Incorrect email or password.')
         else if (authError.message.includes('Email not confirmed')) setError('Please verify your email before signing in.')
-        else setError(authError.message)
+        else setError(`${authError.name}|${authError.message}|${(authError as any).status}|${(authError as any).code}`)
         return
       }
       if (data.session) {
