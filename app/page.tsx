@@ -209,6 +209,7 @@ export default function LandingPage() {
             <Link href="/sign-up" className="text-fg-muted hover:text-fg">Open an account</Link>
             <a href="#security" className="text-fg-muted hover:text-fg">Security</a>
             <Link href="/forgot-password" className="text-fg-muted hover:text-fg">Reset password</Link>
+            <a href="#faq" className="text-fg-muted hover:text-fg">FAQ</a>
           </nav>
         </div>
         <p className="mt-10 pt-6 border-t border-ink-700 text-xs text-fg-faint">&copy; {new Date().getFullYear()} Tarafab.XAi</p>
