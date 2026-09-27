@@ -10,8 +10,8 @@ let _client: ReturnType<typeof createSupabaseClient> | null = null
 
 export const createClient = () => {
   if (!_client) {
-    const cleanUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '').replace(/[^\x20-\x7E]/g, '')
-    const cleanKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').replace(/[^\x20-\x7E]/g, '')
+    const cleanUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '').replace(/[^\x20-\x7E]/g, '') || 'https://placeholder.supabase.co'
+    const cleanKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').replace(/[^\x20-\x7E]/g, '') || 'placeholder-key'
     _client = createSupabaseClient(cleanUrl, cleanKey, { auth: { storage: safeStorage } })
   }
   return _client
