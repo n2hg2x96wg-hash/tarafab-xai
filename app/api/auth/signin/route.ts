@@ -1,18 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(
-  (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, ''),
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
-
 export async function POST(request: NextRequest) {
+  const url = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '')
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+
+  if (!url || !key) {
+    return NextResponse.json({ error: `Missing env: url=${!!url} key=${!!key}` }, { status: 500 })
+  }
+
   try {
     const { email, password } = await request.json()
     if (!email || !password) {
       return NextResponse.json({ error: 'Email and password required' }, { status: 400 })
     }
 
+    const supabase = createClient(url, key)
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
@@ -32,6 +35,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ role })
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)
-    return NextResponse.json({ error: msg }, { status: 500 })
+    return NextResponse.json({ error: `[${url.slice(0, 30)}] ${msg}` }, { status: 500 })
   }
 }
