@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, ''),
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 export async function POST(request: NextRequest) {
   try {
@@ -8,11 +13,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email and password required' }, { status: 400 })
     }
 
-    const supabase = createClient()
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
-      return NextResponse.json({ error: error.message, code: error.status }, { status: 401 })
+      return NextResponse.json({ error: error.message }, { status: 401 })
     }
 
     let role = 'customer'
@@ -25,7 +29,7 @@ export async function POST(request: NextRequest) {
       role = profile?.role || 'customer'
     }
 
-    return NextResponse.json({ role, userId: data.session?.user.id })
+    return NextResponse.json({ role })
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)
     return NextResponse.json({ error: msg }, { status: 500 })
