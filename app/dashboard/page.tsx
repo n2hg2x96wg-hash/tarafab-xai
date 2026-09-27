@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { BitcoinMarketCard } from '@/components/BitcoinMarket'
 import { FormError, Spinner } from '@/components/AuthShell'
 import { TrustBar } from '@/components/LandingExtras'
+import { TradingStatusCard } from '@/components/TradingStatus'
 import {
   IconAlert, IconArrowDown, IconArrowUp, IconChart, IconCheck, IconClose, IconCopy, IconGrid,
   IconInfo, IconList, IconLogOut, IconMail, IconMenu, IconSwap, IconUser, Logo,
@@ -19,6 +20,9 @@ interface Account {
   invested_balance: number
   pending_balance: number
   profit_balance?: number
+  trading_status?: 'active' | 'inactive' | null
+  trading_strategy_name?: string | null
+  trading_status_updated_at?: string | null
 }
 
 interface UserInfo {
@@ -254,6 +258,12 @@ function OverviewTab({ name, account, txs, go }: { name: string; account: Accoun
       <div>
         <p className="text-fg-muted text-sm">Signed in as {name}</p>
       </div>
+
+      <TradingStatusCard
+        status={account?.trading_status}
+        strategyName={account?.trading_strategy_name}
+        updatedAt={account?.trading_status_updated_at}
+      />
 
       <TrustBar />
 

@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 
     const { data: account } = await supabase
       .from('accounts')
-      .select('account_balance, available_balance, invested_balance, pending_balance, profit_balance')
+      .select('account_balance, available_balance, invested_balance, pending_balance, profit_balance, trading_status, trading_strategy_name, trading_status_updated_at')
       .eq('user_id', user.id)
       .single()
 
@@ -45,6 +45,9 @@ export async function GET(request: NextRequest) {
         invested_balance: 0,
         pending_balance: 0,
         profit_balance: 0,
+        trading_status: null,
+        trading_strategy_name: null,
+        trading_status_updated_at: null,
       },
     })
   } catch (e: unknown) {
