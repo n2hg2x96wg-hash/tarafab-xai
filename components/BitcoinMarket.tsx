@@ -24,32 +24,6 @@ function Skeleton({ className = '' }: { className?: string }) {
   return <div className={`skeleton h-6 ${className}`} />
 }
 
-function PriceSparkline({ positive }: { positive: boolean }) {
-  const color = positive ? '#10b981' : '#ef4444'
-  const points = positive
-    ? '0,40 15,35 30,38 45,28 60,32 75,20 90,15 105,10 120,5'
-    : '0,10 15,15 30,12 45,22 60,18 75,30 90,35 105,38 120,40'
-
-  return (
-    <svg width="120" height="45" viewBox="0 0 120 45" className="opacity-70">
-      <defs>
-        <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.3" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <polyline
-        points={points}
-        fill="none"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
 export function BitcoinMarketCard() {
   const [data, setData] = useState<MarketData>({
     price: 0, change24h: 0, high24h: 0, low24h: 0, volume24h: 0,
@@ -134,12 +108,7 @@ export function BitcoinMarketCard() {
         )}
       </div>
 
-      {/* Sparkline */}
-      {data.status === 'live' && (
-        <div className="mb-6">
-          <PriceSparkline positive={isPositive} />
-        </div>
-      )}
+      <div className="mb-6" />
 
       {/* Stats grid */}
       <div className="grid grid-cols-2 gap-3">

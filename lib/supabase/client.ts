@@ -1,4 +1,5 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import { resolveAnonKey, resolveSupabaseUrl } from './env'
 
 const safeStorage = {
   getItem: (key: string) => { try { return localStorage.getItem(key) } catch { return null } },
@@ -10,9 +11,9 @@ let _client: ReturnType<typeof createSupabaseClient> | null = null
 
 export const createClient = () => {
   if (!_client) {
-    const cleanUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '').replace(/[^\x20-\x7E]/g, '') || 'https://placeholder.supabase.co'
-    const cleanKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').replace(/[^\x20-\x7E]/g, '') || 'placeholder-key'
-    _client = createSupabaseClient(cleanUrl, cleanKey, { auth: { storage: safeStorage } })
+    const url = resolveSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL)
+    const key = resolveAnonKey(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+    _client = createSupabaseClient(url, key, { auth: { storage: safeStorage } })
   }
   return _client
 }

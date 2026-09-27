@@ -237,3 +237,47 @@ input:-webkit-autofill:active {
   transform: translateY(0);
   transition: opacity 0.2s ease, transform 0.2s ease;
 }
+
+/* ── Live market motion ── */
+@keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.animate-marquee { animation: marquee 40s linear infinite; }
+.marquee-mask { mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+
+@keyframes flashUp { 0% { text-shadow: 0 0 24px rgba(16,185,129,.9); } 100% { text-shadow: none; } }
+@keyframes flashDown { 0% { text-shadow: 0 0 24px rgba(239,68,68,.9); } 100% { text-shadow: none; } }
+.price-flash-up { animation: flashUp .7s ease-out; }
+.price-flash-down { animation: flashDown .7s ease-out; }
+
+@keyframes coinSpin { 0%, 70% { transform: rotateY(0); } 100% { transform: rotateY(360deg); } }
+.coin-3d { animation: coinSpin 5s ease-in-out infinite; transform-style: preserve-3d; }
+
+@keyframes aurora { 0%, 100% { transform: translate(0,0) scale(1); opacity: .8; } 50% { transform: translate(10px,-14px) scale(1.06); opacity: 1; } }
+.animate-aurora { animation: aurora 9s ease-in-out infinite; }
+
+@keyframes shine { 0% { transform: translateX(-120%) skewX(-20deg); } 60%, 100% { transform: translateX(220%) skewX(-20deg); } }
+.shine-sweep::before { content: ''; position: absolute; top: 0; bottom: 0; width: 40%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.06), transparent); animation: shine 6s ease-in-out infinite; }
+
+@keyframes tradeIn { from { opacity: 0; transform: translateX(-12px); background: rgba(124,58,237,.18); } to { opacity: 1; transform: none; background: transparent; } }
+.trade-row { animation: tradeIn .45s ease-out; border-radius: 6px; }
+
+@keyframes blockIn { from { opacity: 0; transform: translateY(14px) scale(.96); } to { opacity: 1; transform: none; } }
+.block-cube { animation: blockIn .5s ease-out both; transition: transform .2s ease; }
+.block-cube:hover { transform: translateY(-3px); }
+@keyframes blockGlow { 0% { box-shadow: 0 0 0 0 rgba(251,146,60,.8); } 100% { box-shadow: 0 0 0 18px rgba(251,146,60,0); } }
+.block-new { animation: blockIn .5s ease-out both, blockGlow 1.4s ease-out 3; }
+
+@keyframes pingSlow { 0% { transform: scale(1); opacity: .8; } 100% { transform: scale(3); opacity: 0; } }
+.animate-ping-slow { animation: pingSlow 1.8s cubic-bezier(0,0,.2,1) infinite; transform-box: fill-box; transform-origin: center; }
+
+@keyframes drawLine { from { stroke-dasharray: 2000; stroke-dashoffset: 2000; } to { stroke-dasharray: 2000; stroke-dashoffset: 0; } }
+.draw-line { animation: drawLine 2s ease-out; }
+
+@keyframes orbit { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.orbit-ring { animation: orbit 30s linear infinite; }
+.orbit-ring-rev { animation: orbit 45s linear infinite reverse; }
+
+@keyframes gridMove { from { background-position: 0 0; } to { background-position: 0 60px; } }
+.grid-floor { background-image: linear-gradient(rgba(139,92,246,.25) 1px, transparent 1px), linear-gradient(90deg, rgba(139,92,246,.25) 1px, transparent 1px); background-size: 60px 60px; transform: perspective(500px) rotateX(60deg); animation: gridMove 4s linear infinite; mask-image: linear-gradient(to top, #000, transparent 80%); -webkit-mask-image: linear-gradient(to top, #000, transparent 80%); }
+
+@keyframes gradientShift { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+.animated-gradient-text { background: linear-gradient(90deg, #a78bfa, #60a5fa, #f59e0b, #a78bfa); background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; animation: gradientShift 8s ease infinite; }

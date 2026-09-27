@@ -6,20 +6,20 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Navbar from '@/components/Navbar'
 import { BitcoinMarketCard, BitcoinNetworkCard } from '@/components/BitcoinMarket'
+import { HeroLivePanel, LatestBlocks, LiveTickerBar, useLiveMarket } from '@/components/LiveCrypto'
 
-function useReveal() {
+function useReveal(ready: boolean) {
   useEffect(() => {
+    if (!ready) return
     const elements = document.querySelectorAll('.reveal')
     elements.forEach(el => el.classList.add('reveal-init'))
-    requestAnimationFrame(() => {
-      const observer = new IntersectionObserver(
-        (entries) => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible') }),
-        { threshold: 0.08, rootMargin: '0px 0px -40px 0px' }
-      )
-      elements.forEach(el => observer.observe(el))
-    })
-    return () => {}
-  }, [])
+    const observer = new IntersectionObserver(
+      (entries) => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible') }),
+      { threshold: 0.08, rootMargin: '0px 0px -40px 0px' }
+    )
+    const raf = requestAnimationFrame(() => elements.forEach(el => observer.observe(el)))
+    return () => { cancelAnimationFrame(raf); observer.disconnect() }
+  }, [ready])
 }
 
 function Counter({ target, prefix = '', suffix = '' }: { target: number; prefix?: string; suffix?: string }) {
@@ -81,7 +81,8 @@ export default function LandingPage() {
   const [loading, setLoading] = useState(true)
   const router = useRouter()
   const supabase = createClient()
-  useReveal()
+  const market = useLiveMarket()
+  useReveal(!loading)
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -111,33 +112,44 @@ export default function LandingPage() {
       <Navbar />
 
       {/* ── HERO ── */}
-      <section className="relative min-h-screen flex items-center justify-center pt-20 pb-16 px-4">
+      <section className="relative min-h-screen pt-16 pb-16 overflow-hidden">
         <div aria-hidden className="absolute inset-0 pointer-events-none select-none overflow-hidden">
-          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[900px] h-[600px] bg-violet-600/[0.08] rounded-full blur-3xl" />
-          <div className="absolute top-1/2 left-1/4 w-[400px] h-[400px] bg-blue-600/[0.06] rounded-full blur-3xl animate-pulse-slow" />
-          <div className="absolute bottom-1/4 right-1/4 w-[300px] h-[300px] bg-violet-500/[0.05] rounded-full blur-2xl animate-float" />
-          <div className="absolute inset-0 opacity-[0.02]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
+          <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[1100px] h-[700px] bg-violet-600/[0.14] rounded-full blur-3xl animate-aurora" />
+          <div className="absolute top-1/3 -left-40 w-[500px] h-[500px] bg-blue-600/[0.10] rounded-full blur-3xl animate-pulse-slow" />
+          <div className="absolute top-1/4 -right-32 w-[480px] h-[480px] bg-orange-500/[0.10] rounded-full blur-3xl animate-float" />
+          <div className="absolute top-[18%] right-[8%] w-[520px] h-[520px] rounded-full border border-violet-500/10 orbit-ring hidden lg:block">
+            <span className="absolute -top-1.5 left-1/2 w-3 h-3 rounded-full bg-orange-400 shadow-[0_0_16px_rgba(251,146,60,.9)]" />
+          </div>
+          <div className="absolute top-[24%] right-[13%] w-[380px] h-[380px] rounded-full border border-blue-400/10 orbit-ring-rev hidden lg:block">
+            <span className="absolute top-1/2 -right-1 w-2 h-2 rounded-full bg-violet-400 shadow-[0_0_12px_rgba(167,139,250,.9)]" />
+          </div>
+          <div className="absolute bottom-0 left-[-25%] right-[-25%] h-[45%] grid-floor opacity-40" />
         </div>
 
-        <div className="relative max-w-6xl mx-auto text-center">
+        <div className="relative pt-4">
+          <LiveTickerBar quotes={market.quotes} />
+        </div>
+
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 pt-12 lg:pt-20 grid lg:grid-cols-2 gap-12 lg:gap-10 items-center">
+        <div className="text-center lg:text-left">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-300 text-xs font-medium mb-8 animate-fade-in">
             <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse" />
-            Institutional-grade platform — live
+            Live Bitcoin markets, streaming now
           </div>
 
-          <h1 className="text-5xl sm:text-7xl lg:text-8xl font-black tracking-tight mb-4 animate-slide-up">
-            <span className="text-white">TARAFAB</span><span className="text-violet-400">.XAi</span>
+          <h1 className="text-5xl sm:text-7xl font-black tracking-tight mb-4 animate-slide-up">
+            <span className="text-white">TARAFAB</span><span className="animated-gradient-text">.XAi</span>
           </h1>
 
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-6 animate-slide-up">
-            Invest with <span className="gradient-text">Clarity.</span>
+            Invest with <span className="animated-gradient-text">Clarity.</span>
           </h2>
 
-          <p className="text-lg sm:text-xl text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">
+          <p className="text-lg sm:text-xl text-slate-400 max-w-xl mx-auto lg:mx-0 mb-10 leading-relaxed">
             Real-time settlement, transparent reporting, and institutional-grade custody. Built for serious investors who demand more.
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
+          <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 mb-12">
             <Link href="/sign-up" className="w-full sm:w-auto px-10 py-4 text-base font-semibold text-white bg-gradient-to-r from-violet-600 to-blue-500 rounded-xl hover:opacity-90 transition-all duration-200 shadow-[0_0_30px_rgba(124,58,237,0.35)] hover:shadow-[0_0_50px_rgba(124,58,237,0.5)] hover:-translate-y-0.5">
               Open Account
             </Link>
@@ -146,18 +158,23 @@ export default function LandingPage() {
             </Link>
           </div>
 
-          <div className="flex flex-wrap justify-center gap-10 pt-8 border-t border-white/[0.06]">
+          <div className="flex flex-wrap justify-center lg:justify-start gap-10 pt-8 border-t border-white/[0.06]">
             {[
-              { value: 99, suffix: '.9%', label: 'Platform uptime' },
               { value: 256, suffix: '-bit', label: 'Encryption standard' },
               { value: 24, suffix: '/7', label: 'Account access' },
+              { value: 100, suffix: '%', label: 'Deposits reviewed' },
             ].map(({ value, suffix, label }) => (
-              <div key={label} className="text-center">
+              <div key={label} className="text-center lg:text-left">
                 <div className="text-3xl font-bold text-white"><Counter target={value} suffix={suffix} /></div>
                 <div className="text-xs text-slate-500 mt-1">{label}</div>
               </div>
             ))}
           </div>
+        </div>
+
+        <div className="animate-slide-up">
+          <HeroLivePanel {...market} />
+        </div>
         </div>
       </section>
 
@@ -170,14 +187,17 @@ export default function LandingPage() {
               Live BTC/USD chart
             </div>
             <h2 className="text-3xl font-bold text-white mb-2">Bitcoin Market</h2>
-            <p className="text-slate-400 text-sm">Real-time price action from Binance via TradingView</p>
+            <p className="text-slate-400 text-sm">Real-time price action via TradingView</p>
           </div>
           <div className="reveal glass rounded-2xl overflow-hidden border border-white/[0.06] mb-6" style={{ minHeight: '520px' }}>
             <TradingViewWidget />
           </div>
-          <div className="reveal grid lg:grid-cols-2 gap-6">
+          <div className="reveal grid lg:grid-cols-2 gap-6 mb-6">
             <BitcoinMarketCard />
             <BitcoinNetworkCard />
+          </div>
+          <div className="reveal">
+            <LatestBlocks />
           </div>
         </div>
       </section>
