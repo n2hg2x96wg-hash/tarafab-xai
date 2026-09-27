@@ -11,7 +11,7 @@
     "server:dev": "cd server && npm run dev",
     "server:build-db": "cd server && npm run build-db",
     "dev:full": "concurrently \"npm run dev\" \"npm run server:dev\"",
-    "build": "tsc -b && vite build",
+    "build": "next build",
     "lint": "oxlint",
     "preview": "vite preview",
     "deploy:vercel": "vercel",
