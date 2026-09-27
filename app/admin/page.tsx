@@ -34,7 +34,7 @@ export default function AdminPage() {
   const checkAdmin = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/sign-in'); return }
-    const { data: profile } = await supabase.from('profiles').select('role, full_name').eq('id', user.id).single() as { data: { role?: string; full_name?: string } | null }
+    const { data: profile } = await (supabase.from('profiles') as any).select('role, full_name').eq('id', user.id).single() as { data: { role?: string; full_name?: string } | null }
     if (profile?.role !== 'admin') { router.push('/dashboard'); return }
     setAdminName(profile?.full_name || 'Admin')
     fetchClients()
@@ -42,8 +42,7 @@ export default function AdminPage() {
 
   const fetchClients = async () => {
     setLoading(true)
-    const { data } = await supabase
-      .from('profiles')
+    const { data } = await (supabase.from('profiles') as any)
       .select('id, full_name, role, created_at, accounts(account_balance, available_balance, invested_balance, pending_balance)')
       .order('created_at', { ascending: false }) as { data: Client[] | null }
     setClients(data || [])

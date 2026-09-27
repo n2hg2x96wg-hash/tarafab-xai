@@ -41,11 +41,11 @@ export default function EditClientPage() {
   const checkAdminAndLoad = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/sign-in'); return }
-    const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single() as { data: { role?: string } | null }
+    const { data: me } = await (supabase.from('profiles') as any).select('role').eq('id', user.id).single() as { data: { role?: string } | null }
     if (me?.role !== 'admin') { router.push('/dashboard'); return }
 
-    const { data: profileData } = await supabase.from('profiles').select('id, full_name, role, created_at').eq('id', clientId).single() as { data: Profile | null }
-    const { data: accountData } = await supabase.from('accounts').select('*').eq('user_id', clientId).single() as { data: Account | null }
+    const { data: profileData } = await (supabase.from('profiles') as any).select('id, full_name, role, created_at').eq('id', clientId).single() as { data: Profile | null }
+    const { data: accountData } = await (supabase.from('accounts') as any).select('*').eq('user_id', clientId).single() as { data: Account | null }
 
     setProfile(profileData)
     setAccount(accountData)
@@ -86,7 +86,7 @@ export default function EditClientPage() {
 
     // Log the adjustment
     const { data: { user } } = await supabase.auth.getUser()
-    await supabase.from('audit_logs').insert({
+    await (supabase.from('audit_logs') as any).insert({
       user_id: user?.id,
       action: 'admin_balance_update',
       details: {
