@@ -32,9 +32,13 @@ export async function POST(request: NextRequest) {
       role = profile?.role || 'customer'
     }
 
-    return NextResponse.json({ role })
+    return NextResponse.json({
+      role,
+      access_token: data.session?.access_token,
+      refresh_token: data.session?.refresh_token,
+    })
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)
-    return NextResponse.json({ error: `[${url.slice(0, 30)}] ${msg}` }, { status: 500 })
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }

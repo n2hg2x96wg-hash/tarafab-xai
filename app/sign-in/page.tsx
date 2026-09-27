@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 
 export default function SignInPage() {
   const [email, setEmail] = useState('')
@@ -11,6 +12,7 @@ export default function SignInPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
+  const supabase = createClient()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -34,9 +36,13 @@ export default function SignInPage() {
         }
         return
       }
+      // Restore the session in the browser so protected pages stay logged in
+      if (data.access_token && data.refresh_token) {
+        await supabase.auth.setSession({ access_token: data.access_token, refresh_token: data.refresh_token })
+      }
       if (data.role === 'admin') router.push('/admin')
       else router.push('/dashboard')
-    } catch (e: unknown) {
+    } catch {
       setError('A network error occurred. Please try again.')
     } finally {
       setLoading(false)
@@ -45,12 +51,10 @@ export default function SignInPage() {
 
   return (
     <div className="min-h-screen bg-[#080810] flex flex-col">
-      {/* Background */}
       <div aria-hidden className="fixed inset-0 pointer-events-none">
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-violet-600/[0.07] rounded-full blur-3xl" />
       </div>
 
-      {/* Header */}
       <header className="relative z-10 py-6 px-4 sm:px-6">
         <Link href="/" className="inline-flex items-center gap-2 group">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-600 to-blue-500 flex items-center justify-center text-sm font-bold">₿</div>
