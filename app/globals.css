@@ -173,6 +173,18 @@ body {
   background: rgba(124, 58, 237, 0.5);
 }
 
+/* Override browser autofill yellow */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px rgba(255,255,255,0.04) inset !important;
+  -webkit-text-fill-color: #f8fafc !important;
+  caret-color: #f8fafc;
+  border-color: rgba(124, 58, 237, 0.3) !important;
+  transition: background-color 9999s ease-in-out 0s;
+}
+
 /* Input styles */
 .input-field {
   background: rgba(255, 255, 255, 0.04);

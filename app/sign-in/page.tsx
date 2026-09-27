@@ -27,7 +27,7 @@ export default function SignInPage() {
         return
       }
       if (data.session) {
-        const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.session.user.id).single()
+        const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.session.user.id).single() as { data: { role?: string } | null }
         if (profile?.role === 'admin') router.push('/admin')
         else router.push('/dashboard')
       }
