@@ -34,18 +34,49 @@ export default function TransactionsPage() {
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
   const [filterType, setFilterType] = useState('')
+  const [reviewingId, setReviewingId] = useState<string | null>(null)
+  const [reviewAction, setReviewAction] = useState<'approve' | 'reject' | null>(null)
+  const [reviewReason, setReviewReason] = useState('')
+  const [reviewLoading, setReviewLoading] = useState(false)
+  const [reviewError, setReviewError] = useState('')
 
-  useEffect(() => {
-    const fetch = async () => {
-      const { data } = await (supabase.from('transactions') as any)
-        .select('id, user_id, type, method, amount, fee, status, notes, created_at, profiles(full_name)')
-        .order('created_at', { ascending: false })
-        .limit(200) as { data: Tx[] | null }
-      setTxs(data || [])
-      setLoading(false)
+  const fetchTxs = async () => {
+    const { data } = await (supabase.from('transactions') as any)
+      .select('id, user_id, type, method, amount, fee, status, notes, created_at, profiles(full_name)')
+      .order('created_at', { ascending: false })
+      .limit(200) as { data: Tx[] | null }
+    setTxs(data || [])
+    setLoading(false)
+  }
+
+  useEffect(() => { fetchTxs() }, [])
+
+  const handleReview = async () => {
+    if (!reviewingId || !reviewAction) return
+    setReviewLoading(true)
+    setReviewError('')
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) { setReviewError('Not authenticated'); return }
+      const res = await fetch('/api/admin/review-deposit', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transaction_id: reviewingId, action: reviewAction, reason: reviewReason.trim() || undefined }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setReviewError(data.error || 'Failed'); return }
+      setReviewingId(null)
+      setReviewAction(null)
+      setReviewReason('')
+      fetchTxs()
+    } catch {
+      setReviewError('Network error')
+    } finally {
+      setReviewLoading(false)
     }
-    fetch()
-  }, [])
+  }
+
+  const isPending = (status: string) => ['pending_review', 'pending'].includes(status)
 
   const filtered = txs.filter(tx => {
     const name = tx.profiles?.full_name?.toLowerCase() || ''
@@ -60,6 +91,48 @@ export default function TransactionsPage() {
 
   return (
     <AdminLayout title="Transactions" subtitle="All platform transactions">
+      {/* Review Modal */}
+      {reviewingId && reviewAction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={() => { setReviewingId(null); setReviewAction(null) }}>
+          <div className="glass rounded-2xl p-6 border border-white/[0.08] max-w-md w-full" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-white mb-1">
+              {reviewAction === 'approve' ? 'Approve Deposit' : 'Reject Deposit'}
+            </h3>
+            <p className="text-slate-400 text-sm mb-4">
+              {reviewAction === 'approve'
+                ? 'This will mark the deposit as completed and credit the client\'s balance.'
+                : 'This will reject the deposit. The client\'s balance will not change.'}
+            </p>
+            {reviewError && (
+              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm mb-4">{reviewError}</div>
+            )}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-slate-300 mb-2">Reason (optional)</label>
+              <textarea
+                value={reviewReason} onChange={e => setReviewReason(e.target.value)}
+                placeholder={reviewAction === 'approve' ? 'e.g. Receipt verified' : 'e.g. Invalid receipt'}
+                rows={3} className="input-field resize-none text-sm" disabled={reviewLoading}
+              />
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => { setReviewingId(null); setReviewAction(null) }} className="flex-1 py-2.5 text-sm font-medium text-slate-300 border border-white/[0.1] rounded-xl hover:bg-white/[0.04] transition-all" disabled={reviewLoading}>
+                Cancel
+              </button>
+              <button onClick={handleReview} disabled={reviewLoading}
+                className={`flex-1 py-2.5 text-sm font-semibold text-white rounded-xl transition-all flex items-center justify-center gap-2 ${
+                  reviewAction === 'approve'
+                    ? 'bg-emerald-600 hover:bg-emerald-500'
+                    : 'bg-red-600 hover:bg-red-500'
+                } disabled:opacity-50`}
+              >
+                {reviewLoading && <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                {reviewAction === 'approve' ? 'Approve & Credit' : 'Reject'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 mb-5">
         <input
@@ -93,7 +166,7 @@ export default function TransactionsPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-white/[0.06]">
-                    {['Client', 'Type', 'Amount', 'Fee', 'Status', 'Notes', 'Date'].map(h => (
+                    {['Client', 'Type', 'Amount', 'Fee', 'Status', 'Notes', 'Date', 'Actions'].map(h => (
                       <th key={h} className="px-5 py-3 text-left text-xs text-slate-500 font-medium">{h}</th>
                     ))}
                   </tr>
@@ -124,6 +197,22 @@ export default function TransactionsPage() {
                       <td className="px-5 py-4 text-xs text-slate-500 whitespace-nowrap">
                         {new Date(tx.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </td>
+                      <td className="px-5 py-4">
+                        {isPending(tx.status) && tx.type === 'deposit' ? (
+                          <div className="flex gap-1.5">
+                            <button onClick={() => { setReviewingId(tx.id); setReviewAction('approve'); setReviewError('') }}
+                              className="px-2.5 py-1 text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg hover:bg-emerald-500/20 transition-all">
+                              Approve
+                            </button>
+                            <button onClick={() => { setReviewingId(tx.id); setReviewAction('reject'); setReviewError('') }}
+                              className="px-2.5 py-1 text-[10px] font-semibold text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg hover:bg-red-500/20 transition-all">
+                              Reject
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-slate-600 text-[10px]">—</span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -150,6 +239,18 @@ export default function TransactionsPage() {
                   <p className="text-[10px] text-slate-600 mt-1">
                     {new Date(tx.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
                   </p>
+                  {isPending(tx.status) && tx.type === 'deposit' && (
+                    <div className="flex gap-2 mt-3">
+                      <button onClick={() => { setReviewingId(tx.id); setReviewAction('approve'); setReviewError('') }}
+                        className="flex-1 py-2 text-xs font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg hover:bg-emerald-500/20 transition-all">
+                        Approve
+                      </button>
+                      <button onClick={() => { setReviewingId(tx.id); setReviewAction('reject'); setReviewError('') }}
+                        className="flex-1 py-2 text-xs font-semibold text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg hover:bg-red-500/20 transition-all">
+                        Reject
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

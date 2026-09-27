@@ -426,7 +426,13 @@ function DepositTab({ token, onSuccess }: { token: string; onSuccess: () => void
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState<{ reference: string } | null>(null)
+  const [copied, setCopied] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  const BTC_ADDRESS = 'bc1qvpwmdln4nm6xa2k9q26l84pg4ud0uuqzk83053'
+  const copyAddress = () => {
+    navigator.clipboard.writeText(BTC_ADDRESS).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) }).catch(() => {})
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -497,7 +503,28 @@ function DepositTab({ token, onSuccess }: { token: string; onSuccess: () => void
         <span className="text-violet-400 text-lg flex-shrink-0 mt-0.5">ℹ</span>
         <div>
           <p className="text-violet-300 text-sm font-medium">How deposits work</p>
-          <p className="text-slate-400 text-xs mt-1">Submit your deposit details and upload a receipt. An admin will review and approve your deposit within 24 hours.</p>
+          <p className="text-slate-400 text-xs mt-1">Send Bitcoin to the address below, then submit your deposit details with a receipt. An admin will review and approve your deposit within 24 hours.</p>
+        </div>
+      </div>
+
+      {/* BTC Deposit Address */}
+      <div className="glass rounded-2xl p-6 border border-orange-500/20 text-center">
+        <div className="flex items-center justify-center gap-2 mb-4">
+          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-xs font-bold">₿</div>
+          <h3 className="font-semibold text-white">Send Bitcoin Here</h3>
+        </div>
+        <div className="w-48 h-48 mx-auto mb-4 bg-white rounded-xl p-2 flex items-center justify-center">
+          <img src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=bitcoin:${BTC_ADDRESS}`} alt="BTC QR Code" className="w-full h-full" />
+        </div>
+        <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] mb-3">
+          <p className="text-[10px] text-slate-500 mb-1.5">BTC Deposit Address</p>
+          <p className="text-white font-mono text-xs break-all select-all leading-relaxed">{BTC_ADDRESS}</p>
+        </div>
+        <button onClick={copyAddress} className="px-4 py-2 text-xs font-medium text-violet-300 bg-violet-500/10 border border-violet-500/20 rounded-lg hover:bg-violet-500/20 transition-all">
+          {copied ? '✓ Copied!' : 'Copy Address'}
+        </button>
+        <div className="mt-4 p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
+          <p className="text-[10px] text-yellow-400 font-medium">⚠ Only send BTC (Bitcoin) to this address. Other assets sent here will be permanently lost.</p>
         </div>
       </div>
 
