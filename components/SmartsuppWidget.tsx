@@ -3,11 +3,12 @@
 import { usePathname } from 'next/navigation'
 import Script from 'next/script'
 
-// Admin-only live chat. Renders nothing on the client-facing site
-// (landing, sign-in/up, dashboard) — only under /admin routes.
+// Client-facing live chat. Renders on the landing page, sign-in/up, and
+// dashboard — hidden under /admin, since support chat is for clients
+// reaching out, not for the admin's own panel.
 export default function SmartsuppWidget() {
   const pathname = usePathname()
-  if (!pathname?.startsWith('/admin')) return null
+  if (pathname?.startsWith('/admin')) return null
 
   return (
     <>
