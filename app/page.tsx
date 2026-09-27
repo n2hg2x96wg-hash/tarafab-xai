@@ -8,6 +8,7 @@ import Navbar from '@/components/Navbar'
 import { BitcoinMarketCard } from '@/components/BitcoinMarket'
 import { HeroLivePanel, LatestBlocks, LiveTickerBar, useLiveMarket } from '@/components/LiveCrypto'
 import { IconCheck, Logo } from '@/components/Icons'
+import { FaqSection, HistorySection, NetworkSection, Reveal } from '@/components/LandingExtras'
 
 function TradingViewWidget() {
   const ref = useRef<HTMLDivElement>(null)
@@ -116,34 +117,38 @@ export default function LandingPage() {
       {/* Markets */}
       <section id="markets" className="scroll-mt-16 border-b border-ink-700">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 lg:py-20">
-          <div className="mb-8 max-w-2xl">
+          <Reveal><div className="mb-8 max-w-2xl">
             <h2 className="text-3xl font-semibold tracking-tight text-fg">Markets</h2>
             <p className="mt-3 text-fg-muted">The same live data you will see in your dashboard. Nothing on this page is simulated.</p>
-          </div>
+          </div></Reveal>
 
-          <div className="panel overflow-hidden mb-4">
+          <Reveal><div className="panel overflow-hidden mb-4">
             <div className="flex items-center justify-between px-4 h-11 border-b border-ink-700 text-[13px]">
               <span className="text-fg">BTC/USD</span>
               <span className="text-fg-faint">Chart by TradingView</span>
             </div>
             <TradingViewWidget />
-          </div>
+          </div></Reveal>
 
           <div className="grid lg:grid-cols-[1fr_2fr] gap-4">
-            <BitcoinMarketCard />
-            <LatestBlocks />
+            <Reveal className="h-full"><BitcoinMarketCard /></Reveal>
+            <Reveal delay={100}><LatestBlocks /></Reveal>
           </div>
         </div>
       </section>
 
+      <HistorySection price={market.quotes['BTC-USD']?.price} />
+
+      <NetworkSection />
+
       {/* How it works */}
       <section id="how-it-works" className="scroll-mt-16 border-b border-ink-700">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 lg:py-20">
-          <div className="mb-10 max-w-2xl">
+          <Reveal><div className="mb-10 max-w-2xl">
             <h2 className="text-3xl font-semibold tracking-tight text-fg">How deposits work</h2>
             <p className="mt-3 text-fg-muted">A deposit is never credited automatically. Each one is checked by a person first.</p>
-          </div>
-          <ol className="grid sm:grid-cols-2 lg:grid-cols-4 gap-px bg-ink-700 border border-ink-700 rounded-lg overflow-hidden">
+          </div></Reveal>
+          <Reveal><ol className="grid sm:grid-cols-2 lg:grid-cols-4 gap-px bg-ink-700 border border-ink-700 rounded-lg overflow-hidden">
             {steps.map((s, i) => (
               <li key={s.title} className="bg-ink-950 p-6">
                 <div className="text-[13px] text-accent font-medium tabular-nums mb-3">Step {i + 1}</div>
@@ -151,31 +156,33 @@ export default function LandingPage() {
                 <p className="text-[15px] text-fg-muted leading-relaxed">{s.body}</p>
               </li>
             ))}
-          </ol>
+          </ol></Reveal>
         </div>
       </section>
 
       {/* Security */}
       <section id="security" className="scroll-mt-16 border-b border-ink-700">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 lg:py-20 grid lg:grid-cols-[1fr_1.4fr] gap-10">
-          <div>
+          <Reveal>
             <h2 className="text-3xl font-semibold tracking-tight text-fg">How your account is protected</h2>
             <p className="mt-3 text-fg-muted">What the platform does today, stated plainly.</p>
-          </div>
-          <ul className="divide-y divide-ink-700 border-y border-ink-700">
+          </Reveal>
+          <Reveal delay={100}><ul className="divide-y divide-ink-700 border-y border-ink-700">
             {safeguards.map(item => (
               <li key={item} className="flex gap-3 py-4">
                 <IconCheck className="shrink-0 mt-0.5 text-accent" />
                 <span className="text-[15px] text-fg-muted leading-relaxed">{item}</span>
               </li>
             ))}
-          </ul>
+          </ul></Reveal>
         </div>
       </section>
 
+      <FaqSection />
+
       {/* Closing */}
       <section className="border-b border-ink-700">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <Reveal><div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
             <h2 className="text-2xl font-semibold tracking-tight text-fg">Open an account</h2>
             <p className="mt-2 text-fg-muted">All you need is an email address and a password.</p>
@@ -184,7 +191,7 @@ export default function LandingPage() {
             <Link href="/sign-up" className="btn btn-solid">Open an account</Link>
             <Link href="/sign-in" className="btn btn-outline">Sign in</Link>
           </div>
-        </div>
+        </div></Reveal>
       </section>
 
       <footer className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
