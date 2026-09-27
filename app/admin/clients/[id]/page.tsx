@@ -73,8 +73,8 @@ export default function EditClientPage() {
       updated_at: new Date().toISOString(),
     }
 
-    const { error: updateError } = await supabase
-      .from('accounts')
+    const { error: updateError } = await (supabase
+      .from('accounts') as any)
       .update(updates)
       .eq('user_id', clientId)
 
