@@ -55,8 +55,8 @@ export default function TransactionsPage() {
     return matchSearch && matchStatus && matchType
   })
 
-  const allStatuses = [...new Set(txs.map(t => t.status))].sort()
-  const allTypes = [...new Set(txs.map(t => t.type))].sort()
+  const allStatuses = Array.from(new Set(txs.map(t => t.status))).sort()
+  const allTypes = Array.from(new Set(txs.map(t => t.type))).sort()
 
   return (
     <AdminLayout title="Transactions" subtitle="All platform transactions">
