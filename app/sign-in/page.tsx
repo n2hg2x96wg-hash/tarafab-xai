@@ -62,6 +62,7 @@ export default function SignInPage() {
           </div>
 
           <div className="glass rounded-2xl p-8 border border-white/[0.08]">
+            <p className="text-[10px] text-slate-600 mb-4 font-mono break-all">url: {process.env.NEXT_PUBLIC_SUPABASE_URL?.slice(0,40)}</p>
             <form onSubmit={handleSubmit} className="space-y-5">
               {error && (
                 <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-start gap-2">
