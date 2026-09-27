@@ -31,8 +31,9 @@ export default function SignInPage() {
         if (profile?.role === 'admin') router.push('/admin')
         else router.push('/dashboard')
       }
-    } catch {
-      setError('A network error occurred. Please try again.')
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? `${e.name}: ${e.message}` : String(e)
+      setError(msg || 'A network error occurred. Please try again.')
     } finally {
       setLoading(false)
     }
