@@ -42,15 +42,17 @@ export default function SignUpPage() {
 
     setLoading(true)
     try {
-      const { data, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { full_name: fullName } },
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, fullName }),
       })
-      if (authError) { setError(authError.message); return }
-      if (data.user && !data.session) {
+      const data = await res.json()
+      if (!res.ok) { setError(data.error || 'Sign up failed'); return }
+      if (data.needsVerification) {
         setSuccess(true)
-      } else if (data.session) {
+      } else if (data.access_token && data.refresh_token) {
+        await supabase.auth.setSession({ access_token: data.access_token, refresh_token: data.refresh_token })
         router.push('/dashboard')
       }
     } catch {
