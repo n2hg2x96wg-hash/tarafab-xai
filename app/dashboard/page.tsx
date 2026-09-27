@@ -44,6 +44,7 @@ interface Tx {
   reference: string | null
   notes: string | null
   address?: string | null
+  direction?: 'credit' | 'debit' | null
   created_at: string
 }
 
@@ -106,6 +107,18 @@ function fmt(n: number) {
 
 function initialsOf(name: string) {
   return name.split(/\s+/).filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() || 'U'
+}
+
+// Client-facing wording only — the transaction type in the database is
+// unchanged. A credit to the profit balance reads as "Profit", any other
+// credit as "Return", and a deduction keeps the neutral "Adjustment" so a
+// balance being reduced is never presented as a gain.
+function txLabel(tx: Tx) {
+  if (tx.type === 'adjustment') {
+    if (tx.direction === 'credit') return tx.method === 'profit_balance' ? 'Profit' : 'Return'
+    return 'Adjustment'
+  }
+  return tx.type.replace(/_/g, ' ')
 }
 
 function TxIcon({ type }: { type: string }) {
@@ -295,7 +308,7 @@ function OverviewTab({ name, account, txs, go }: { name: string; account: Accoun
         <div className="xl:col-span-2 panel overflow-hidden">
           <div className="flex items-center justify-between px-4 h-11 border-b border-ink-700 text-[13px]">
             <span className="text-fg">BTC/USD</span>
-            <span className="text-fg-faint">Chart by TradingView</span>
+            <span className="text-fg-faint">Live price</span>
           </div>
           <TradingViewChart height={400} />
         </div>
@@ -322,7 +335,7 @@ function OverviewTab({ name, account, txs, go }: { name: string; account: Accoun
                 <div className="flex items-center gap-3 min-w-0">
                   <TxIcon type={tx.type} />
                   <div className="min-w-0">
-                    <p className="text-sm text-fg capitalize">{tx.type.replace(/_/g, ' ')}</p>
+                    <p className="text-sm text-fg capitalize">{txLabel(tx)}</p>
                     <p className="text-xs text-fg-faint">{new Date(tx.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
                   </div>
                 </div>
@@ -346,7 +359,7 @@ function MarketsTab() {
       <div className="panel overflow-hidden">
         <div className="flex items-center justify-between px-4 h-11 border-b border-ink-700 text-[13px]">
           <span className="text-fg">BTC/USD</span>
-          <span className="text-fg-faint">Chart by TradingView</span>
+          <span className="text-fg-faint">Live price</span>
         </div>
         <TradingViewChart height={520} />
       </div>
@@ -358,8 +371,9 @@ function MarketsTab() {
 /* Transactions */
 function TransactionsTab({ txs }: { txs: Tx[] }) {
   const [filter, setFilter] = useState('')
-  const filtered = filter ? txs.filter(t => t.type === filter) : txs
-  const types = Array.from(new Set(txs.map(t => t.type)))
+  // Filter on the client-facing label so the tabs match the rows they show.
+  const filtered = filter ? txs.filter(t => txLabel(t) === filter) : txs
+  const types = Array.from(new Set(txs.map(txLabel)))
 
   return (
     <div className="space-y-4">
@@ -397,8 +411,8 @@ function TransactionsTab({ txs }: { txs: Tx[] }) {
                   {filtered.map(tx => (
                     <tr key={tx.id} className="hover:bg-ink-850 transition-colors">
                       <td className="px-5 py-3.5">
-                        <span className="text-fg capitalize">{tx.type.replace(/_/g, ' ')}</span>
-                        {tx.method && <p className="text-xs text-fg-faint capitalize">{tx.method.replace(/_/g, ' ')}</p>}
+                        <span className="text-fg capitalize">{txLabel(tx)}</span>
+                        {tx.method && tx.type !== 'adjustment' && <p className="text-xs text-fg-faint capitalize">{tx.method.replace(/_/g, ' ')}</p>}
                       </td>
                       <td className="px-5 py-3.5 text-right text-fg tabular-nums">${fmt(tx.amount)}</td>
                       <td className="px-5 py-3.5 text-right text-fg-muted tabular-nums">{tx.fee ? `$${fmt(tx.fee)}` : '-'}</td>
@@ -417,7 +431,7 @@ function TransactionsTab({ txs }: { txs: Tx[] }) {
                 <li key={tx.id} className="p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-sm text-fg capitalize">{tx.type.replace(/_/g, ' ')}</p>
+                      <p className="text-sm text-fg capitalize">{txLabel(tx)}</p>
                       <p className="text-xs text-fg-faint">{new Date(tx.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</p>
                       {tx.reference && <p className="text-xs text-fg-faint font-mono mt-1">{tx.reference}</p>}
                     </div>

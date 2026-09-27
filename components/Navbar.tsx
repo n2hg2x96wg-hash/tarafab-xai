@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { IconClose, IconMenu, Logo } from '@/components/Icons'
 
 const navLinks = [
+  { label: 'Platform', href: '#platform' },
   { label: 'Markets', href: '#markets' },
   { label: 'How it works', href: '#how-it-works' },
   { label: 'Security', href: '#security' },

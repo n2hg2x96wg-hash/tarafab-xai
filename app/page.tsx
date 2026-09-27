@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import Navbar from '@/components/Navbar'
 import { BitcoinMarketCard } from '@/components/BitcoinMarket'
 import { HeroLivePanel, LatestBlocks, LiveTickerBar, useLiveMarket } from '@/components/LiveCrypto'
-import { IconCheck, Logo } from '@/components/Icons'
+import { IconArrowDown, IconChart, IconCheck, IconGrid, IconList, IconLock, Logo } from '@/components/Icons'
 import { FaqSection, HistorySection, NetworkSection, Reveal, TrustBar } from '@/components/LandingExtras'
 
 function TradingViewWidget() {
@@ -62,11 +62,44 @@ const steps = [
   },
 ]
 
+const capabilities = [
+  {
+    icon: IconChart,
+    title: 'Portfolio growth',
+    body: 'Follow how your portfolio changes over time. Your balances, profit balance and account history are laid out so you can see exactly what moved and when.',
+  },
+  {
+    icon: IconGrid,
+    title: 'Market intelligence',
+    body: 'Live Bitcoin pricing, 24-hour and long-range price history, network activity and block data, so you can follow the market that affects your holdings.',
+  },
+  {
+    icon: IconList,
+    title: 'Investment management',
+    body: 'Review your positions and account activity in one place, including the current status of any strategy running on your account.',
+  },
+  {
+    icon: IconArrowDown,
+    title: 'Bitcoin deposits',
+    body: 'Fund your account in Bitcoin using your deposit address and QR code, then follow the deposit from submitted, through review, to approved.',
+  },
+  {
+    icon: IconCheck,
+    title: 'Transparent reporting',
+    body: 'Every balance, deposit, withdrawal and transaction is listed with its reference and status. Nothing is hidden behind a summary figure.',
+  },
+  {
+    icon: IconLock,
+    title: 'Secure account access',
+    body: 'Your account is protected by authenticated sign-in, and you can only ever see your own balances and transaction records.',
+  },
+]
+
 const safeguards = [
   'You can only see your own balances and transactions. This is enforced by the database, not just the app.',
   'Balances cannot be changed from a client account. They change only when a deposit or withdrawal is approved.',
   'Every deposit approval and rejection is written to an audit log, with the reviewer and any reason they gave.',
-  'Passwords are handled by Supabase Auth and are never stored in plain text.',
+  'Passwords are encrypted and never stored in readable form.',
   'The whole site is served over HTTPS.',
 ]
 
@@ -96,10 +129,10 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 lg:py-20 grid lg:grid-cols-[1.1fr_1fr] gap-12 items-center">
           <div>
             <h1 className="text-[40px] sm:text-5xl lg:text-[56px] leading-[1.05] font-semibold tracking-tight text-fg">
-              Deposit Bitcoin.<br />Track every dollar.
+              Invest with clarity.<br />Track every move.
             </h1>
             <p className="mt-6 text-lg text-fg-muted leading-relaxed max-w-xl">
-              A transparent way to hold and track Bitcoin: send BTC to your deposit address, upload the transfer receipt, and follow it from pending to approved. Every balance change is reviewed, logged, and visible to you — nothing happens behind the scenes.
+              Manage your digital-asset portfolio, follow the market, review your investment performance and monitor every account movement from a single dashboard. Fund your account in Bitcoin, withdraw when you choose, and see every balance change with the record behind it.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row gap-3">
               <Link href="/sign-up" className="btn btn-solid">Open an account</Link>
@@ -117,6 +150,27 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* What the platform does */}
+      <section id="platform" className="scroll-mt-16 border-b border-ink-700">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 lg:py-20">
+          <Reveal><div className="mb-10 max-w-2xl">
+            <h2 className="text-3xl font-semibold tracking-tight text-fg">Everything in one account</h2>
+            <p className="mt-3 text-fg-muted">Your portfolio, the market it moves with, and a full record of every transaction.</p>
+          </div></Reveal>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-px bg-ink-700 border border-ink-700 rounded-lg overflow-hidden">
+            {capabilities.map(({ icon: Icon, title, body }, i) => (
+              <Reveal key={title} delay={i * 60}>
+                <div className="bg-ink-950 p-6 h-full">
+                  <Icon className="text-accent mb-4" width={20} height={20} />
+                  <h3 className="text-[17px] font-semibold text-fg mb-2">{title}</h3>
+                  <p className="text-[15px] text-fg-muted leading-relaxed">{body}</p>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Markets */}
       <section id="markets" className="scroll-mt-16 border-b border-ink-700">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 lg:py-20">
@@ -128,7 +182,7 @@ export default function LandingPage() {
           <Reveal><div className="panel overflow-hidden mb-4">
             <div className="flex items-center justify-between px-4 h-11 border-b border-ink-700 text-[13px]">
               <span className="text-fg">BTC/USD</span>
-              <span className="text-fg-faint">Chart by TradingView</span>
+              <span className="text-fg-faint">Live price</span>
             </div>
             <TradingViewWidget />
           </div></Reveal>
@@ -202,10 +256,11 @@ export default function LandingPage() {
           <div>
             <Logo />
             <p className="mt-3 text-[13px] text-fg-faint max-w-sm">
-              Market data from Coinbase, CoinGecko, mempool.space and TradingView. Investing in Bitcoin carries risk, including loss of the money you deposit.
+              Market data is provided for information only. Investing in digital assets carries risk, including loss of the money you deposit.
             </p>
           </div>
           <nav className="grid grid-cols-2 gap-x-12 gap-y-2 text-sm">
+            <a href="#platform" className="text-fg-muted hover:text-fg">Platform</a>
             <a href="#markets" className="text-fg-muted hover:text-fg">Markets</a>
             <Link href="/sign-in" className="text-fg-muted hover:text-fg">Sign in</Link>
             <a href="#how-it-works" className="text-fg-muted hover:text-fg">How it works</a>

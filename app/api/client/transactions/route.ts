@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
 
     const { data: transactions, error: txErr } = await supabase
       .from('transactions')
-      .select('id, type, method, amount, fee, status, reference, notes, address, created_at')
+      .select('id, type, method, amount, fee, status, reference, notes, address, direction, created_at')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(100)

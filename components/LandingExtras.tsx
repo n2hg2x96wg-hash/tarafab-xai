@@ -149,7 +149,7 @@ function PriceHistory() {
           </div>
         )}
       </div>
-      <p className="text-[11px] text-fg-faint mt-3">Source: CoinGecko. Hover or drag across the chart to see the price on a given date.</p>
+      <p className="text-[11px] text-fg-faint mt-3">Hover or drag across the chart to see the price on a given date.</p>
     </div>
   )
 }
@@ -281,7 +281,7 @@ function NetworkFacts() {
   return (
     <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
       <Reveal className="h-full">
-        <FactCard title="Next halving" source="Block height from mempool.space. Date assumes 10-minute blocks.">
+        <FactCard title="Next halving" source="Estimated from the current block height, assuming 10-minute blocks.">
           {!loaded.chain ? <Loading /> : blocksLeft === undefined ? <Unavailable /> : (
             <>
               <div className="text-3xl font-semibold text-fg tabular-nums">{blocksLeft.toLocaleString()}</div>
@@ -297,7 +297,7 @@ function NetworkFacts() {
       </Reveal>
 
       <Reveal delay={80} className="h-full">
-        <FactCard title="Bitcoin supply" source="Circulating supply from CoinGecko. The 21 million limit is set by the protocol.">
+        <FactCard title="Bitcoin supply" source="The 21 million limit is set by the Bitcoin protocol.">
           {!loaded.supply ? <Loading /> : !f.circulating ? <Unavailable /> : (
             <>
               <div className="text-3xl font-semibold text-fg tabular-nums">{(f.circulating / 1e6).toFixed(2)}M</div>
@@ -310,7 +310,7 @@ function NetworkFacts() {
       </Reveal>
 
       <Reveal delay={160} className="h-full">
-        <FactCard title="All-time high" source="Source: CoinGecko.">
+        <FactCard title="All-time high" source="Highest price reached to date.">
           {!loaded.supply ? <Loading /> : !f.ath ? <Unavailable /> : (
             <>
               <div className="text-3xl font-semibold text-fg tabular-nums">{usd(f.ath, 0)}</div>
@@ -326,7 +326,7 @@ function NetworkFacts() {
       </Reveal>
 
       <Reveal delay={240} className="h-full">
-        <FactCard title="Network activity" source="Source: mempool.space. Refreshes every minute.">
+        <FactCard title="Network activity" source="Refreshes every minute.">
           {!loaded.chain ? <Loading /> : f.mempoolCount === undefined && f.diffProgress === undefined ? <Unavailable /> : (
             <dl className="space-y-4">
               {f.mempoolCount !== undefined && (
@@ -441,7 +441,7 @@ export function TrustBar({ marketStatus }: { marketStatus?: 'connecting' | 'live
     { label: liveFeed ? 'Live market data' : 'Market data', sub: liveFeed ? 'Streaming now' : 'Refreshing' },
     { label: 'Manual review', sub: 'Every deposit checked' },
     { label: 'Full audit trail', sub: 'Every balance change logged' },
-    { label: 'Bank-grade auth', sub: 'Supabase Auth · HTTPS' },
+    { label: 'Secure access', sub: 'Encrypted sign-in' },
   ]
   return (
     <div className="flex flex-wrap gap-x-8 gap-y-3 py-5 border-y border-ink-700">

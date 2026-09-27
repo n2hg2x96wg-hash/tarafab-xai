@@ -85,7 +85,7 @@ export function BitcoinMarketCard() {
           </div>
         ))}
       </dl>
-      <p className="text-[11px] text-fg-faint mt-4">Source: CoinGecko. Refreshes every 60 seconds.</p>
+      <p className="text-[11px] text-fg-faint mt-4">Refreshes every 60 seconds.</p>
     </div>
   )
 }

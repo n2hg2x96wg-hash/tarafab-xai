@@ -241,7 +241,7 @@ export function HeroLivePanel({ quotes, trades, status }: ReturnType<typeof useL
           ))}
         </div>
       </div>
-      <p className="text-[11px] text-fg-faint mt-3">Prices and trades from Coinbase Exchange. 24h chart from CoinGecko.</p>
+      <p className="text-[11px] text-fg-faint mt-3">Live market prices and trade activity.</p>
     </div>
   )
 }
@@ -335,7 +335,7 @@ export function LatestBlocks() {
           </div>
         ))}
       </div>
-      <p className="text-[11px] text-fg-faint mt-4">Source: mempool.space</p>
+      <p className="text-[11px] text-fg-faint mt-4">Updated continuously from the Bitcoin network.</p>
     </div>
   )
 }
