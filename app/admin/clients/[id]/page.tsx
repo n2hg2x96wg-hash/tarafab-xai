@@ -13,6 +13,9 @@ type Account = {
   invested_balance: number
   pending_balance: number
   profit_balance: number
+  trading_status: 'active' | 'inactive' | null
+  trading_strategy_name: string | null
+  trading_status_updated_at: string | null
 }
 
 type Profile = {
@@ -64,6 +67,11 @@ export default function ClientDetailPage() {
   const [editError, setEditError] = useState('')
   const [editSuccess, setEditSuccess] = useState('')
 
+  const [tradingForm, setTradingForm] = useState({ trading_status: 'inactive', trading_strategy_name: '' })
+  const [tradingSaving, setTradingSaving] = useState(false)
+  const [tradingError, setTradingError] = useState('')
+  const [tradingSuccess, setTradingSuccess] = useState('')
+
   const [adjustForm, setAdjustForm] = useState<AdjustForm>({
     field: 'account_balance',
     operation: 'credit',
@@ -100,6 +108,12 @@ export default function ClientDetailPage() {
       })
     }
     setAccount(accountData)
+    if (accountData) {
+      setTradingForm({
+        trading_status: accountData.trading_status || 'inactive',
+        trading_strategy_name: accountData.trading_strategy_name || '',
+      })
+    }
     setTransactions(txData || [])
     setLoading(false)
   }
@@ -124,6 +138,33 @@ export default function ClientDetailPage() {
       setEditError('Network error. Please try again.')
     } finally {
       setEditSaving(false)
+    }
+  }
+
+  const handleTradingSave = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setTradingError('')
+    setTradingSuccess('')
+    setTradingSaving(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/admin/set-trading-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+        body: JSON.stringify({
+          user_id: clientId,
+          trading_status: tradingForm.trading_status,
+          trading_strategy_name: tradingForm.trading_strategy_name,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setTradingError(data.error || 'Could not save trading status'); return }
+      setTradingSuccess('Trading status saved.')
+      await load()
+    } catch {
+      setTradingError('Network error. Please try again.')
+    } finally {
+      setTradingSaving(false)
     }
   }
 
@@ -420,6 +461,58 @@ export default function ClientDetailPage() {
           </div>
           <button type="submit" disabled={editSaving} className="w-full py-3 text-sm font-semibold text-black bg-[#F7931A] hover:bg-[#FFA73D] rounded-xl disabled:opacity-50 transition-colors">
             {editSaving ? 'Saving…' : 'Save Changes'}
+          </button>
+        </form>
+      )}
+
+      {/* Trading status (separate save — different backend field) */}
+      {tab === 'edit' && (
+        <form onSubmit={handleTradingSave} className="glass rounded-2xl p-5 sm:p-6 border border-white/[0.08] max-w-lg space-y-4 mt-5">
+          <div>
+            <h2 className="text-sm font-semibold text-white mb-1">Trading Status</h2>
+            <p className="text-xs text-slate-500">
+              Controls the &ldquo;Trading Active / Inactive&rdquo; indicator this client sees on their dashboard. There is no automated trading engine yet — only turn this on if trading is genuinely happening on this account. Every change is recorded in the audit log.
+            </p>
+          </div>
+          {tradingSuccess && <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm">{tradingSuccess}</div>}
+          {tradingError && <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">{tradingError}</div>}
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1.5">Status shown to client</label>
+            <div className="flex gap-2">
+              {(['inactive', 'active'] as const).map(s => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setTradingForm(f => ({ ...f, trading_status: s }))}
+                  disabled={tradingSaving}
+                  className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all border ${tradingForm.trading_status === s
+                    ? s === 'active' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : 'bg-slate-700/40 text-slate-300 border-white/[0.1]'
+                    : 'text-slate-500 border-white/[0.06] hover:text-white hover:border-white/20'}`}
+                >
+                  {s === 'active' ? 'Active' : 'Inactive'}
+                </button>
+              ))}
+            </div>
+          </div>
+          {tradingForm.trading_status === 'active' && (
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1.5">Strategy name (shown to client)</label>
+              <input
+                value={tradingForm.trading_strategy_name}
+                onChange={e => setTradingForm(f => ({ ...f, trading_strategy_name: e.target.value }))}
+                placeholder="e.g. Momentum Scanner"
+                className="input-field text-sm"
+                disabled={tradingSaving}
+              />
+            </div>
+          )}
+          {account?.trading_status_updated_at && (
+            <p className="text-xs text-slate-600">
+              Last changed {new Date(account.trading_status_updated_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+            </p>
+          )}
+          <button type="submit" disabled={tradingSaving} className="w-full py-3 text-sm font-semibold text-black bg-[#F7931A] hover:bg-[#FFA73D] rounded-xl disabled:opacity-50 transition-colors">
+            {tradingSaving ? 'Saving…' : 'Save Trading Status'}
           </button>
         </form>
       )}
