@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 
 export default function SignInPage() {
   const [email, setEmail] = useState('')
@@ -12,28 +11,33 @@ export default function SignInPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
-  const supabase = createClient()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setLoading(true)
     try {
-      const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password })
-      if (authError) {
-        if (authError.message.includes('Invalid login')) setError('Incorrect email or password.')
-        else if (authError.message.includes('Email not confirmed')) setError('Please verify your email before signing in.')
-        else setError(`${authError.name}|${authError.message}|${(authError as any).status}|${(authError as any).code}`)
+      const res = await fetch('/api/auth/signin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        const msg: string = data.error || 'Sign in failed'
+        if (msg.toLowerCase().includes('invalid') || msg.toLowerCase().includes('credentials')) {
+          setError('Incorrect email or password.')
+        } else if (msg.toLowerCase().includes('email not confirmed')) {
+          setError('Please verify your email before signing in.')
+        } else {
+          setError(msg)
+        }
         return
       }
-      if (data.session) {
-        const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.session.user.id).single() as { data: { role?: string } | null }
-        if (profile?.role === 'admin') router.push('/admin')
-        else router.push('/dashboard')
-      }
+      if (data.role === 'admin') router.push('/admin')
+      else router.push('/dashboard')
     } catch (e: unknown) {
-      const msg = e instanceof Error ? `${e.name}: ${e.message}` : String(e)
-      setError(msg || 'A network error occurred. Please try again.')
+      setError('A network error occurred. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -62,7 +66,6 @@ export default function SignInPage() {
           </div>
 
           <div className="glass rounded-2xl p-8 border border-white/[0.08]">
-            <p className="text-[10px] text-slate-600 mb-4 font-mono break-all">url: {process.env.NEXT_PUBLIC_SUPABASE_URL?.slice(0,40)}</p>
             <form onSubmit={handleSubmit} className="space-y-5">
               {error && (
                 <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-start gap-2">
