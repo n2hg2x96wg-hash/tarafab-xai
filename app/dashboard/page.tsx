@@ -7,6 +7,7 @@ import type { ComponentType, SVGProps } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { BitcoinMarketCard } from '@/components/BitcoinMarket'
 import { FormError, Spinner } from '@/components/AuthShell'
+import { TrustBar } from '@/components/LandingExtras'
 import {
   IconAlert, IconArrowDown, IconArrowUp, IconChart, IconCheck, IconClose, IconCopy, IconGrid,
   IconInfo, IconList, IconLogOut, IconMail, IconMenu, IconSwap, IconUser, Logo,
@@ -253,6 +254,8 @@ function OverviewTab({ name, account, txs, go }: { name: string; account: Accoun
       <div>
         <p className="text-fg-muted text-sm">Signed in as {name}</p>
       </div>
+
+      <TrustBar />
 
       <dl className="grid grid-cols-2 lg:grid-cols-5 gap-px bg-ink-700 border border-ink-700 rounded-lg overflow-hidden">
         {[

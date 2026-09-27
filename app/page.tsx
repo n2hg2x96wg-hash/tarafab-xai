@@ -8,7 +8,7 @@ import Navbar from '@/components/Navbar'
 import { BitcoinMarketCard } from '@/components/BitcoinMarket'
 import { HeroLivePanel, LatestBlocks, LiveTickerBar, useLiveMarket } from '@/components/LiveCrypto'
 import { IconCheck, Logo } from '@/components/Icons'
-import { FaqSection, HistorySection, NetworkSection, Reveal } from '@/components/LandingExtras'
+import { FaqSection, HistorySection, NetworkSection, Reveal, TrustBar } from '@/components/LandingExtras'
 
 function TradingViewWidget() {
   const ref = useRef<HTMLDivElement>(null)
@@ -99,7 +99,7 @@ export default function LandingPage() {
               Deposit Bitcoin.<br />Track every dollar.
             </h1>
             <p className="mt-6 text-lg text-fg-muted leading-relaxed max-w-xl">
-              Send BTC to your deposit address, upload the transfer receipt, and follow it from pending to approved. Your balance and full transaction history are in one dashboard.
+              A transparent way to hold and track Bitcoin: send BTC to your deposit address, upload the transfer receipt, and follow it from pending to approved. Every balance change is reviewed, logged, and visible to you — nothing happens behind the scenes.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row gap-3">
               <Link href="/sign-up" className="btn btn-solid">Open an account</Link>
@@ -108,6 +108,9 @@ export default function LandingPage() {
             <p className="mt-6 text-[13px] text-fg-faint max-w-md">
               Bitcoin prices move quickly and can fall. We do not promise returns.
             </p>
+            <div className="mt-10">
+              <TrustBar marketStatus={market.status} />
+            </div>
           </div>
 
           <HeroLivePanel {...market} />

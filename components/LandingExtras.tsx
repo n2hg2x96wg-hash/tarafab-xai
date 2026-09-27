@@ -431,3 +431,32 @@ export function FaqSection() {
     </section>
   )
 }
+
+/* Trust bar: every claim here is true and checkable — no invented activity,
+   no promised returns. Legitimacy comes from verifiability, not from
+   claiming automation that doesn't exist. */
+export function TrustBar({ marketStatus }: { marketStatus?: 'connecting' | 'live' | 'polling' | 'error' }) {
+  const liveFeed = marketStatus === 'live' || marketStatus === 'polling'
+  const items: { label: string; sub: string }[] = [
+    { label: liveFeed ? 'Live market data' : 'Market data', sub: liveFeed ? 'Streaming now' : 'Refreshing' },
+    { label: 'Manual review', sub: 'Every deposit checked' },
+    { label: 'Full audit trail', sub: 'Every balance change logged' },
+    { label: 'Bank-grade auth', sub: 'Supabase Auth · HTTPS' },
+  ]
+  return (
+    <div className="flex flex-wrap gap-x-8 gap-y-3 py-5 border-y border-ink-700">
+      {items.map(item => (
+        <div key={item.label} className="flex items-center gap-2.5">
+          <span className="relative flex h-2 w-2 shrink-0">
+            <span className={`absolute inline-flex h-full w-full rounded-full ${liveFeed ? 'bg-emerald-400 animate-ping opacity-60' : 'bg-fg-faint'}`} />
+            <span className={`relative inline-flex h-2 w-2 rounded-full ${liveFeed ? 'bg-emerald-400' : 'bg-fg-faint'}`} />
+          </span>
+          <div className="leading-tight">
+            <div className="text-[13px] font-medium text-fg">{item.label}</div>
+            <div className="text-[11px] text-fg-faint">{item.sub}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
