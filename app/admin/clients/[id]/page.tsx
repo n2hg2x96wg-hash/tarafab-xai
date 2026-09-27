@@ -12,6 +12,7 @@ type Account = {
   available_balance: number
   invested_balance: number
   pending_balance: number
+  profit_balance: number
 }
 
 type Profile = {
@@ -19,6 +20,8 @@ type Profile = {
   full_name: string | null
   role: string
   created_at: string
+  account_status: string
+  verification_status: string
 }
 
 type Transaction = {
@@ -31,7 +34,7 @@ type Transaction = {
 }
 
 type AdjustForm = {
-  field: 'account_balance' | 'available_balance' | 'invested_balance' | 'pending_balance'
+  field: 'account_balance' | 'available_balance' | 'invested_balance' | 'pending_balance' | 'profit_balance'
   operation: 'credit' | 'debit' | 'set'
   amount: string
   reason: string
@@ -42,6 +45,7 @@ const FIELD_LABELS = {
   available_balance: 'Available Balance',
   invested_balance: 'Invested Balance',
   pending_balance: 'Pending Balance',
+  profit_balance: 'Profit Balance',
 }
 
 export default function ClientDetailPage() {
@@ -54,7 +58,11 @@ export default function ClientDetailPage() {
   const [account, setAccount] = useState<Account | null>(null)
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<'overview' | 'adjust' | 'history'>('overview')
+  const [tab, setTab] = useState<'overview' | 'adjust' | 'edit' | 'history'>('overview')
+  const [editForm, setEditForm] = useState({ full_name: '', account_status: 'active', verification_status: 'unverified' })
+  const [editSaving, setEditSaving] = useState(false)
+  const [editError, setEditError] = useState('')
+  const [editSuccess, setEditSuccess] = useState('')
 
   const [adjustForm, setAdjustForm] = useState<AdjustForm>({
     field: 'account_balance',
@@ -74,7 +82,7 @@ export default function ClientDetailPage() {
   const load = async () => {
     setLoading(true)
     const { data: profileData } = await (supabase.from('profiles') as any)
-      .select('id, full_name, role, created_at').eq('id', clientId).single() as { data: Profile | null }
+      .select('id, full_name, role, created_at, account_status, verification_status').eq('id', clientId).single() as { data: Profile | null }
     const { data: accountData } = await (supabase.from('accounts') as any)
       .select('*').eq('user_id', clientId).single() as { data: Account | null }
     const { data: txData } = await (supabase.from('transactions') as any)
@@ -84,9 +92,39 @@ export default function ClientDetailPage() {
       .limit(20) as { data: Transaction[] | null }
 
     setProfile(profileData)
+    if (profileData) {
+      setEditForm({
+        full_name: profileData.full_name || '',
+        account_status: profileData.account_status || 'active',
+        verification_status: profileData.verification_status || 'unverified',
+      })
+    }
     setAccount(accountData)
     setTransactions(txData || [])
     setLoading(false)
+  }
+
+  const handleEditSave = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setEditError('')
+    setEditSuccess('')
+    setEditSaving(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/admin/update-client', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+        body: JSON.stringify({ user_id: clientId, ...editForm }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setEditError(data.error || 'Could not save changes'); return }
+      setEditSuccess('Client details saved.')
+      await load()
+    } catch {
+      setEditError('Network error. Please try again.')
+    } finally {
+      setEditSaving(false)
+    }
   }
 
   const computeNewValue = () => {
@@ -191,20 +229,24 @@ export default function ClientDetailPage() {
             {profile.role}
           </span>
         </div>
-        <p className="text-xs text-slate-600 mt-4">
+        <div className="flex flex-wrap gap-2 mt-4">
+          <span className={`text-[10px] px-2 py-1 rounded-md border capitalize ${profile.account_status === 'suspended' ? 'text-red-400 border-red-500/30' : 'text-emerald-400 border-emerald-500/30'}`}>{profile.account_status}</span>
+          <span className="text-[10px] px-2 py-1 rounded-md border capitalize text-slate-300 border-white/[0.1]">{profile.verification_status}</span>
+        </div>
+        <p className="text-xs text-slate-600 mt-3">
           Member since {new Date(profile.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
         </p>
       </div>
 
       {/* Tabs */}
       <div className="flex gap-1 mb-5 bg-white/[0.03] p-1 rounded-xl border border-white/[0.06] w-fit">
-        {(['overview', 'adjust', 'history'] as const).map(t => (
+        {(['overview', 'adjust', 'edit', 'history'] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${tab === t ? 'bg-violet-600/20 text-violet-300 border border-violet-500/20' : 'text-slate-500 hover:text-white'}`}
           >
-            {t === 'overview' ? 'Overview' : t === 'adjust' ? 'Adjust Balance' : 'History'}
+            {t === 'overview' ? 'Overview' : t === 'adjust' ? 'Adjust Balance' : t === 'edit' ? 'Edit Details' : 'History'}
           </button>
         ))}
       </div>
@@ -213,12 +255,13 @@ export default function ClientDetailPage() {
       {tab === 'overview' && (
         <div>
           {account ? (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-5">
               {[
                 { label: 'Account Balance', value: account.account_balance },
                 { label: 'Available', value: account.available_balance },
                 { label: 'Invested', value: account.invested_balance },
                 { label: 'Pending', value: account.pending_balance },
+                { label: 'Profit', value: account.profit_balance },
               ].map(item => (
                 <div key={item.label} className="glass rounded-xl p-4 border border-white/[0.08]">
                   <p className="text-[10px] text-slate-500 mb-1">{item.label}</p>
@@ -342,6 +385,43 @@ export default function ClientDetailPage() {
             ) : 'Review & Confirm'}
           </button>
         </div>
+      )}
+
+      {/* Edit tab */}
+      {tab === 'edit' && (
+        <form onSubmit={handleEditSave} className="glass rounded-2xl p-5 sm:p-6 border border-white/[0.08] max-w-lg space-y-4">
+          <div>
+            <h2 className="text-sm font-semibold text-white mb-1">Client Details</h2>
+            <p className="text-xs text-slate-500">Changes are recorded in the audit log. Suspended clients cannot request withdrawals.</p>
+          </div>
+          {editSuccess && <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm">{editSuccess}</div>}
+          {editError && <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">{editError}</div>}
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1.5">Full name</label>
+            <input value={editForm.full_name} onChange={e => setEditForm(f => ({ ...f, full_name: e.target.value }))} className="input-field text-sm" disabled={editSaving} />
+          </div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1.5">Account status</label>
+              <select value={editForm.account_status} onChange={e => setEditForm(f => ({ ...f, account_status: e.target.value }))} className="input-field text-sm" disabled={editSaving}>
+                <option value="active">Active</option>
+                <option value="suspended">Suspended</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1.5">Verification</label>
+              <select value={editForm.verification_status} onChange={e => setEditForm(f => ({ ...f, verification_status: e.target.value }))} className="input-field text-sm" disabled={editSaving}>
+                <option value="unverified">Unverified</option>
+                <option value="pending">Pending</option>
+                <option value="verified">Verified</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            </div>
+          </div>
+          <button type="submit" disabled={editSaving} className="w-full py-3 text-sm font-semibold text-black bg-[#F7931A] hover:bg-[#FFA73D] rounded-xl disabled:opacity-50 transition-colors">
+            {editSaving ? 'Saving…' : 'Save Changes'}
+          </button>
+        </form>
       )}
 
       {/* History tab */}

@@ -17,6 +17,7 @@ interface Account {
   available_balance: number
   invested_balance: number
   pending_balance: number
+  profit_balance?: number
 }
 
 interface UserInfo {
@@ -37,11 +38,12 @@ interface Tx {
   status: string
   reference: string | null
   notes: string | null
+  address?: string | null
   created_at: string
 }
 
 const BTC_ADDRESS = 'bc1qvpwmdln4nm6xa2k9q26l84pg4ud0uuqzk83053'
-const SUPPORT_EMAIL = 'support@tarafab.com'
+const SUPPORT_EMAIL = 'tarafab.support@gmail.com'
 
 function TradingViewChart({ height }: { height: number }) {
   const ref = useRef<HTMLDivElement>(null)
@@ -225,7 +227,7 @@ export default function DashboardPage() {
           {activeNav === 'markets' && <MarketsTab />}
           {activeNav === 'transactions' && <TransactionsTab txs={txs} />}
           {activeNav === 'deposit' && <DepositTab token={token} onSuccess={() => fetchData(token)} />}
-          {activeNav === 'withdraw' && <WithdrawTab account={account} />}
+          {activeNav === 'withdraw' && <WithdrawTab account={account} txs={txs} token={token} onSuccess={() => fetchData(token)} />}
           {activeNav === 'profile' && <ProfileTab user={user} account={account} />}
         </main>
       </div>
@@ -252,14 +254,15 @@ function OverviewTab({ name, account, txs, go }: { name: string; account: Accoun
         <p className="text-fg-muted text-sm">Signed in as {name}</p>
       </div>
 
-      <dl className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-ink-700 border border-ink-700 rounded-lg overflow-hidden">
+      <dl className="grid grid-cols-2 lg:grid-cols-5 gap-px bg-ink-700 border border-ink-700 rounded-lg overflow-hidden">
         {[
           ['Account balance', account?.account_balance ?? 0],
           ['Available', account?.available_balance ?? 0],
+          ['Profit', account?.profit_balance ?? 0],
           ['Invested', account?.invested_balance ?? 0],
           ['Pending', account?.pending_balance ?? 0],
-        ].map(([label, value]) => (
-          <div key={label as string} className="bg-ink-900 p-4 sm:p-5">
+        ].map(([label, value], i) => (
+          <div key={label as string} className={`bg-ink-900 p-4 sm:p-5 ${i === 0 ? 'col-span-2 lg:col-span-1' : ''}`}>
             <dt className="text-[13px] text-fg-faint">{label}</dt>
             <dd className="mt-1.5 text-lg sm:text-2xl font-semibold text-fg tabular-nums">${fmt(value as number)}</dd>
           </div>
@@ -570,33 +573,176 @@ function DepositTab({ token, onSuccess }: { token: string; onSuccess: () => void
 }
 
 /* Withdraw */
-function WithdrawTab({ account }: { account: Account | null }) {
+const OPEN_STATUSES = ['pending_review', 'pending', 'requested', 'under_review']
+const SOURCES = [
+  { id: 'available_balance', label: 'Available balance' },
+  { id: 'profit_balance', label: 'Profit balance' },
+] as const
+type Source = typeof SOURCES[number]['id']
+
+function WithdrawTab({ account, txs, token, onSuccess }: { account: Account | null; txs: Tx[]; token: string; onSuccess: () => void }) {
+  const [source, setSource] = useState<Source>('available_balance')
+  const [amount, setAmount] = useState('')
+  const [address, setAddress] = useState('')
+  const [notes, setNotes] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+  const [done, setDone] = useState<string | null>(null)
+
+  const withdrawals = txs.filter(t => t.type === 'withdrawal')
+  const reserved = (src: Source) => withdrawals.filter(t => t.method === src && OPEN_STATUSES.includes(t.status)).reduce((s, t) => s + Number(t.amount), 0)
+  const balanceOf = (src: Source) => Number((src === 'profit_balance' ? account?.profit_balance : account?.available_balance) ?? 0)
+  const withdrawable = (src: Source) => Math.max(0, Math.round((balanceOf(src) - reserved(src)) * 100) / 100)
+  const max = withdrawable(source)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    const amt = Math.round(parseFloat(amount) * 100) / 100
+    if (!amt || amt <= 0) { setError('Enter the amount you want to withdraw.'); return }
+    if (amt > max) { setError(`You can withdraw up to $${fmt(max)} from this balance.`); return }
+    if (!/^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,87}$/.test(address.trim())) { setError('Enter a valid Bitcoin address. It starts with bc1, 1 or 3.'); return }
+
+    setSubmitting(true)
+    try {
+      const res = await fetch('/api/client/withdraw', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: amt, source, address: address.trim(), notes: notes.trim() || undefined }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error || 'The request could not be submitted.'); return }
+      setDone(data.withdrawal?.reference || '')
+      setAmount('')
+      setNotes('')
+      onSuccess()
+    } catch {
+      setError('Could not reach the server. Check your connection and try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   return (
-    <div className="max-w-lg space-y-4">
-      <div className="panel p-5 sm:p-6">
-        <h3 className="text-[15px] font-semibold text-fg mb-4">Your balances</h3>
-        <dl className="divide-y divide-ink-700">
-          {[
-            ['Account balance', account?.account_balance ?? 0],
-            ['Available to withdraw', account?.available_balance ?? 0],
-            ['Pending', account?.pending_balance ?? 0],
-          ].map(([label, value]) => (
-            <div key={label as string} className="flex items-center justify-between py-3">
-              <dt className="text-sm text-fg-muted">{label}</dt>
-              <dd className="text-sm font-medium text-fg tabular-nums">${fmt(value as number)}</dd>
+    <div className="grid lg:grid-cols-[1fr_1.2fr] gap-4 items-start">
+      <div className="space-y-4">
+        <div className="panel p-5 sm:p-6">
+          <h3 className="text-[15px] font-semibold text-fg mb-4">What you can withdraw</h3>
+          <dl className="divide-y divide-ink-700">
+            {SOURCES.map(s => (
+              <div key={s.id} className="py-3">
+                <div className="flex items-center justify-between">
+                  <dt className="text-sm text-fg-muted">{s.label}</dt>
+                  <dd className="text-sm font-medium text-fg tabular-nums">${fmt(balanceOf(s.id))}</dd>
+                </div>
+                {reserved(s.id) > 0 && (
+                  <p className="text-xs text-fg-faint mt-1">${fmt(reserved(s.id))} is in pending requests, so ${fmt(withdrawable(s.id))} can be requested now.</p>
+                )}
+              </div>
+            ))}
+            <div className="flex items-center justify-between py-3">
+              <dt className="text-sm text-fg-muted">Account balance</dt>
+              <dd className="text-sm text-fg-muted tabular-nums">${fmt(account?.account_balance ?? 0)}</dd>
             </div>
-          ))}
-        </dl>
+          </dl>
+        </div>
+
+        <div className="panel p-5 sm:p-6">
+          <h3 className="text-[15px] font-semibold text-fg mb-2">How withdrawals work</h3>
+          <ol className="space-y-2 text-sm text-fg-muted list-decimal pl-5">
+            <li>Choose the balance, the amount and your Bitcoin address.</li>
+            <li>The request shows as pending. Your balance does not change yet.</li>
+            <li>Our team reviews it. Once approved, the amount is deducted and sent to your address.</li>
+            <li>If it is declined, nothing is deducted and you can see the reason in your history.</li>
+          </ol>
+        </div>
+
+        <div className="panel p-5 sm:p-6">
+          <h3 className="text-[15px] font-semibold text-fg mb-2">Need help?</h3>
+          <p className="text-sm text-fg-muted mb-4">Questions about a withdrawal or your account? Email our support team and include your reference number if you have one.</p>
+          <a href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Account support')}`} className="btn btn-outline w-full sm:w-auto">
+            <IconMail width={17} height={17} />{SUPPORT_EMAIL}
+          </a>
+        </div>
       </div>
 
-      <div className="panel p-5 sm:p-6">
-        <h3 className="text-[15px] font-semibold text-fg mb-2">Request a withdrawal</h3>
-        <p className="text-sm text-fg-muted mb-5">
-          Withdrawals are handled by our support team. Email us from the address on your account with the amount and the Bitcoin address you want the funds sent to.
-        </p>
-        <a href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Withdrawal request')}`} className="btn btn-solid">
-          <IconMail width={17} height={17} />Email {SUPPORT_EMAIL}
-        </a>
+      <div className="space-y-4 order-first lg:order-none">
+        <div className="panel p-5 sm:p-6">
+          <h3 className="text-[15px] font-semibold text-fg">Request a withdrawal</h3>
+          <p className="text-[13px] text-fg-faint mt-1 mb-5">Paid out in Bitcoin to the address you enter.</p>
+
+          {done !== null && (
+            <div role="status" className="flex gap-2.5 p-3 mb-5 rounded-md border border-emerald-500/30 bg-emerald-500/[0.06] text-sm text-emerald-300">
+              <IconCheck className="shrink-0 mt-px" width={16} height={16} />
+              <span>Request submitted{done ? ` (reference ${done})` : ''}. It is now pending review.</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+            {error && <FormError message={error} />}
+
+            <fieldset>
+              <legend className="field-label">Withdraw from</legend>
+              <div className="grid grid-cols-2 gap-2">
+                {SOURCES.map(s => (
+                  <label key={s.id} className={`cursor-pointer rounded-md border px-3 py-2.5 transition-colors ${source === s.id ? 'border-accent bg-ink-850' : 'border-ink-600 hover:border-fg-faint'}`}>
+                    <input type="radio" name="source" value={s.id} checked={source === s.id} onChange={() => { setSource(s.id); setError('') }} className="sr-only" />
+                    <span className="block text-sm text-fg">{s.label.replace(' balance', '')}</span>
+                    <span className="block text-xs text-fg-faint tabular-nums">${fmt(withdrawable(s.id))} available</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label htmlFor="w-amount" className="field-label !mb-0">Amount (USD)</label>
+                <button type="button" onClick={() => setAmount(max > 0 ? max.toFixed(2) : '')} className="text-[13px] text-fg-muted hover:text-fg disabled:opacity-40" disabled={max <= 0}>Max</button>
+              </div>
+              <input id="w-amount" type="number" inputMode="decimal" step="0.01" min="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className="field tabular-nums" disabled={submitting} />
+            </div>
+
+            <div>
+              <label htmlFor="w-address" className="field-label">Your Bitcoin (BTC) address</label>
+              <input id="w-address" type="text" value={address} onChange={e => setAddress(e.target.value)} placeholder="bc1..." autoComplete="off" spellCheck={false} className="field font-mono text-[13px]" disabled={submitting} />
+              <p className="text-xs text-fg-faint mt-1.5">Double-check it. Bitcoin sent to a wrong address cannot be recovered.</p>
+            </div>
+
+            <div>
+              <label htmlFor="w-notes" className="field-label">Notes (optional)</label>
+              <textarea id="w-notes" value={notes} onChange={e => setNotes(e.target.value)} rows={2} className="field resize-none" disabled={submitting} />
+            </div>
+
+            <button type="submit" disabled={submitting || max <= 0} className="btn btn-solid w-full">
+              {submitting ? <><Spinner />Submitting</> : max <= 0 ? 'Nothing available to withdraw' : 'Submit withdrawal request'}
+            </button>
+          </form>
+        </div>
+
+        <div className="panel">
+          <div className="px-5 h-14 flex items-center border-b border-ink-700">
+            <h3 className="text-[15px] font-semibold text-fg">Your withdrawal requests</h3>
+          </div>
+          {withdrawals.length === 0 ? (
+            <EmptyState title="No withdrawal requests yet" />
+          ) : (
+            <ul className="divide-y divide-ink-700">
+              {withdrawals.map(w => (
+                <li key={w.id} className="px-5 py-3.5 flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm text-fg">{w.method === 'profit_balance' ? 'From profit' : 'From available'}</p>
+                    <p className="text-xs text-fg-faint">{new Date(w.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}{w.reference ? ` · ${w.reference}` : ''}</p>
+                    {w.address && <p className="text-xs text-fg-faint font-mono truncate max-w-[220px]">{w.address}</p>}
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-medium text-fg tabular-nums mb-1">${fmt(w.amount)}</p>
+                    <StatusTag status={w.status} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -610,6 +756,7 @@ function ProfileTab({ user, account }: { user: UserInfo | null; account: Account
     ['Email confirmed', user?.email_confirmed === undefined ? 'Unknown' : user.email_confirmed ? 'Yes' : 'No'],
     ['Member since', user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'Unknown'],
     ['Account balance', `$${fmt(account?.account_balance ?? 0)}`],
+    ['Profit balance', `$${fmt(account?.profit_balance ?? 0)}`],
   ]
   return (
     <div className="max-w-lg space-y-4">

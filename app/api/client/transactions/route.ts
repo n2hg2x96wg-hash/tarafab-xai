@@ -11,13 +11,16 @@ export async function GET(request: NextRequest) {
   if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
-    const supabase = createClient(url, key)
+    const supabase = createClient(url, key, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    })
     const { data: { user }, error: authErr } = await supabase.auth.getUser(token)
     if (authErr || !user) return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
 
     const { data: transactions, error: txErr } = await supabase
       .from('transactions')
-      .select('id, type, method, amount, fee, status, reference, notes, created_at')
+      .select('id, type, method, amount, fee, status, reference, notes, address, created_at')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(100)

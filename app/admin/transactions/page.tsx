@@ -13,6 +13,8 @@ type Tx = {
   fee: number | null
   status: string
   notes: string | null
+  reference: string | null
+  address: string | null
   created_at: string
   profiles: { full_name: string | null } | null
 }
@@ -42,7 +44,7 @@ export default function TransactionsPage() {
 
   const fetchTxs = async () => {
     const { data } = await (supabase.from('transactions') as any)
-      .select('id, user_id, type, method, amount, fee, status, notes, created_at, profiles(full_name)')
+      .select('id, user_id, type, method, amount, fee, status, notes, reference, address, created_at, profiles(full_name)')
       .order('created_at', { ascending: false })
       .limit(200) as { data: Tx[] | null }
     setTxs(data || [])
@@ -76,7 +78,30 @@ export default function TransactionsPage() {
     }
   }
 
-  const isPending = (status: string) => ['pending_review', 'pending'].includes(status)
+  const isPending = (status: string) => ['pending_review', 'pending', 'requested', 'under_review'].includes(status)
+  const canReview = (tx: Tx) => isPending(tx.status) && (tx.type === 'deposit' || tx.type === 'withdrawal')
+  const reviewingTx = txs.find(t => t.id === reviewingId)
+  const reviewNoun = reviewingTx?.type === 'withdrawal' ? 'Withdrawal' : 'Deposit'
+  const receiptPath = (notes: string | null) => notes?.match(/receipt:([0-9a-f-]{36}\/[\w.-]+)/i)?.[1] || null
+  const [receiptError, setReceiptError] = useState('')
+
+  const openReceipt = async (path: string) => {
+    setReceiptError('')
+    const win = window.open('', '_blank')
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch(`/api/admin/receipt-url?path=${encodeURIComponent(path)}`, { headers: { Authorization: `Bearer ${session?.access_token || ''}` } })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Could not open receipt')
+      if (win) win.location.href = data.url
+      else window.location.href = data.url
+    } catch (e) {
+      win?.close()
+      setReceiptError(e instanceof Error ? e.message : 'Could not open receipt')
+    }
+  }
+
+  const sourceLabel = (tx: Tx) => tx.type === 'withdrawal' ? (tx.method === 'profit_balance' ? 'From profit balance' : 'From available balance') : tx.method
 
   const filtered = txs.filter(tx => {
     const name = tx.profiles?.full_name?.toLowerCase() || ''
@@ -96,12 +121,16 @@ export default function TransactionsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={() => { setReviewingId(null); setReviewAction(null) }}>
           <div className="glass rounded-2xl p-6 border border-white/[0.08] max-w-md w-full" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-white mb-1">
-              {reviewAction === 'approve' ? 'Approve Deposit' : 'Reject Deposit'}
+              {reviewAction === 'approve' ? `Approve ${reviewNoun}` : `Reject ${reviewNoun}`}
             </h3>
             <p className="text-slate-400 text-sm mb-4">
-              {reviewAction === 'approve'
-                ? 'This will mark the deposit as completed and credit the client\'s balance.'
-                : 'This will reject the deposit. The client\'s balance will not change.'}
+              {reviewingTx?.type === 'withdrawal'
+                ? reviewAction === 'approve'
+                  ? `This deducts $${Number(reviewingTx.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })} from the client's ${reviewingTx.method === 'profit_balance' ? 'profit' : 'available'} balance. Send the Bitcoin to ${reviewingTx.address || 'their address'} yourself.`
+                  : 'This declines the withdrawal. Nothing is deducted from the client\'s balance.'
+                : reviewAction === 'approve'
+                  ? 'This will mark the deposit as completed and credit the client\'s balance.'
+                  : 'This will reject the deposit. The client\'s balance will not change.'}
             </p>
             {reviewError && (
               <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm mb-4">{reviewError}</div>
@@ -126,11 +155,15 @@ export default function TransactionsPage() {
                 } disabled:opacity-50`}
               >
                 {reviewLoading && <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-                {reviewAction === 'approve' ? 'Approve & Credit' : 'Reject'}
+                {reviewAction === 'approve' ? (reviewingTx?.type === 'withdrawal' ? 'Approve & Deduct' : 'Approve & Credit') : 'Reject'}
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {receiptError && (
+        <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm mb-4">{receiptError}</div>
       )}
 
       {/* Filters */}
@@ -180,7 +213,11 @@ export default function TransactionsPage() {
                       </td>
                       <td className="px-5 py-4">
                         <span className="text-xs text-slate-300 capitalize">{tx.type.replace(/_/g, ' ')}</span>
-                        {tx.method && <p className="text-[10px] text-slate-600 mt-0.5">{tx.method}</p>}
+                        {tx.method && <p className="text-[10px] text-slate-600 mt-0.5">{sourceLabel(tx)}</p>}
+                        {tx.address && <p className="text-[10px] text-slate-400 mt-0.5 font-mono break-all max-w-[180px] select-all">{tx.address}</p>}
+                        {receiptPath(tx.notes) && (
+                          <button onClick={() => openReceipt(receiptPath(tx.notes)!)} className="mt-1 text-[10px] font-medium text-sky-400 hover:text-sky-300 underline underline-offset-2">View receipt</button>
+                        )}
                       </td>
                       <td className="px-5 py-4 text-sm font-medium text-white">
                         ${(tx.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
@@ -198,7 +235,7 @@ export default function TransactionsPage() {
                         {new Date(tx.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </td>
                       <td className="px-5 py-4">
-                        {isPending(tx.status) && tx.type === 'deposit' ? (
+                        {canReview(tx) ? (
                           <div className="flex gap-1.5">
                             <button onClick={() => { setReviewingId(tx.id); setReviewAction('approve'); setReviewError('') }}
                               className="px-2.5 py-1 text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg hover:bg-emerald-500/20 transition-all">
@@ -235,11 +272,16 @@ export default function TransactionsPage() {
                       </span>
                     </div>
                   </div>
+                  {tx.method && <p className="text-[11px] text-slate-500">{sourceLabel(tx)}</p>}
+                  {tx.address && <p className="text-[11px] text-slate-400 font-mono break-all select-all">{tx.address}</p>}
                   {tx.notes && <p className="text-xs text-slate-500 truncate">{tx.notes}</p>}
+                  {receiptPath(tx.notes) && (
+                    <button onClick={() => openReceipt(receiptPath(tx.notes)!)} className="mt-1 text-xs font-medium text-sky-400 hover:text-sky-300 underline underline-offset-2">View receipt</button>
+                  )}
                   <p className="text-[10px] text-slate-600 mt-1">
                     {new Date(tx.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
                   </p>
-                  {isPending(tx.status) && tx.type === 'deposit' && (
+                  {canReview(tx) && (
                     <div className="flex gap-2 mt-3">
                       <button onClick={() => { setReviewingId(tx.id); setReviewAction('approve'); setReviewError('') }}
                         className="flex-1 py-2 text-xs font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg hover:bg-emerald-500/20 transition-all">

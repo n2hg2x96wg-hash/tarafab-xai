@@ -11,7 +11,10 @@ export async function GET(request: NextRequest) {
   if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
-    const supabase = createClient(url, key)
+    const supabase = createClient(url, key, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    })
     const { data: { user }, error: authErr } = await supabase.auth.getUser(token)
     if (authErr || !user) return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
 
@@ -23,7 +26,7 @@ export async function GET(request: NextRequest) {
 
     const { data: account } = await supabase
       .from('accounts')
-      .select('account_balance, available_balance, invested_balance, pending_balance')
+      .select('account_balance, available_balance, invested_balance, pending_balance, profit_balance')
       .eq('user_id', user.id)
       .single()
 
@@ -41,6 +44,7 @@ export async function GET(request: NextRequest) {
         available_balance: 0,
         invested_balance: 0,
         pending_balance: 0,
+        profit_balance: 0,
       },
     })
   } catch (e: unknown) {

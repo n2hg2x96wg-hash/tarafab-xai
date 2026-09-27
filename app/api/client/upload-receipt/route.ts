@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
       ? createClient(url, serviceKey)
       : createClient(url, anonKey, { global: { headers: { Authorization: `Bearer ${token}` } } })
 
-    const ext = file.name.split('.').pop() || 'bin'
+    const ext = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'application/pdf': 'pdf' } as Record<string, string>)[file.type]
     const filePath = `${user.id}/${Date.now()}.${ext}`
 
     const buffer = Buffer.from(await file.arrayBuffer())

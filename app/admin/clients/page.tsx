@@ -15,6 +15,7 @@ type Client = {
     available_balance: number
     invested_balance: number
     pending_balance: number
+    profit_balance: number
   } | null
 }
 
@@ -28,7 +29,7 @@ export default function ClientsPage() {
   useEffect(() => {
     const fetch = async () => {
       const { data } = await (supabase.from('profiles') as any)
-        .select('id, full_name, role, created_at, accounts(account_balance, available_balance, invested_balance, pending_balance)')
+        .select('id, full_name, role, created_at, accounts(account_balance, available_balance, invested_balance, pending_balance, profit_balance)')
         .order('created_at', { ascending: false }) as { data: Client[] | null }
       setClients(data || [])
       setLoading(false)
@@ -82,7 +83,7 @@ export default function ClientsPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-white/[0.06]">
-                    {['Name / ID', 'Role', 'Account Balance', 'Available', 'Invested', 'Pending', 'Joined', ''].map(h => (
+                    {['Name / ID', 'Role', 'Account Balance', 'Available', 'Profit', 'Invested', 'Pending', 'Joined', ''].map(h => (
                       <th key={h} className="px-5 py-3 text-left text-xs text-slate-500 font-medium">{h}</th>
                     ))}
                   </tr>
@@ -104,6 +105,9 @@ export default function ClientsPage() {
                       </td>
                       <td className="px-5 py-4 text-sm text-slate-300">
                         {client.accounts ? `$${(client.accounts.available_balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : <span className="text-slate-600">—</span>}
+                      </td>
+                      <td className="px-5 py-4 text-sm text-slate-300">
+                        {client.accounts ? `$${(client.accounts.profit_balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : <span className="text-slate-600">—</span>}
                       </td>
                       <td className="px-5 py-4 text-sm text-slate-300">
                         {client.accounts ? `$${(client.accounts.invested_balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : <span className="text-slate-600">—</span>}
@@ -149,6 +153,7 @@ export default function ClientsPage() {
                       {[
                         { label: 'Account', value: client.accounts.account_balance },
                         { label: 'Available', value: client.accounts.available_balance },
+                        { label: 'Profit', value: client.accounts.profit_balance },
                         { label: 'Invested', value: client.accounts.invested_balance },
                         { label: 'Pending', value: client.accounts.pending_balance },
                       ].map(item => (
