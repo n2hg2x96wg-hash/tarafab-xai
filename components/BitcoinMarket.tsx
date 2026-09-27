@@ -8,215 +8,84 @@ interface MarketData {
   high24h: number
   low24h: number
   volume24h: number
+  marketCap: number
   lastUpdated: string
-  status: 'live' | 'loading' | 'error'
 }
 
-interface NetworkData {
-  blockHeight: number | null
-  networkStatus: string
-  feeEstimate: string
-  lastUpdated: string
-  status: 'live' | 'loading' | 'error'
-}
+type Status = 'loading' | 'live' | 'error'
 
-function Skeleton({ className = '' }: { className?: string }) {
-  return <div className={`skeleton h-6 ${className}`} />
-}
+const usd = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+const compact = (n: number) =>
+  n >= 1e12 ? `$${(n / 1e12).toFixed(2)}T` : n >= 1e9 ? `$${(n / 1e9).toFixed(2)}B` : `$${(n / 1e6).toFixed(2)}M`
 
 export function BitcoinMarketCard() {
-  const [data, setData] = useState<MarketData>({
-    price: 0, change24h: 0, high24h: 0, low24h: 0, volume24h: 0,
-    lastUpdated: '', status: 'loading',
-  })
+  const [data, setData] = useState<MarketData | null>(null)
+  const [status, setStatus] = useState<Status>('loading')
 
-  const fetchMarketData = useCallback(async () => {
+  const load = useCallback(async () => {
     try {
-      const res = await fetch(
-        'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true&include_high_24h=true&include_low_24h=true&include_last_updated_at=true',
-        { next: { revalidate: 60 } }
-      )
-      if (!res.ok) throw new Error('API error')
-      const json = await res.json()
-      const btc = json.bitcoin
+      const res = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=bitcoin')
+      if (!res.ok) throw new Error()
+      const [btc] = await res.json()
+      if (!btc) throw new Error()
       setData({
-        price: btc.usd,
-        change24h: btc.usd_24h_change,
-        high24h: btc.usd_24h_high ?? 0,
-        low24h: btc.usd_24h_low ?? 0,
-        volume24h: btc.usd_24h_vol,
-        lastUpdated: new Date(btc.last_updated_at * 1000).toLocaleTimeString(),
-        status: 'live',
+        price: btc.current_price,
+        change24h: btc.price_change_percentage_24h ?? 0,
+        high24h: btc.high_24h,
+        low24h: btc.low_24h,
+        volume24h: btc.total_volume,
+        marketCap: btc.market_cap,
+        lastUpdated: new Date(btc.last_updated).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
       })
+      setStatus('live')
     } catch {
-      setData(prev => ({ ...prev, status: 'error', lastUpdated: new Date().toLocaleTimeString() }))
+      setStatus(s => (s === 'live' ? s : 'error'))
     }
   }, [])
 
   useEffect(() => {
-    fetchMarketData()
-    const interval = setInterval(fetchMarketData, 60_000)
-    return () => clearInterval(interval)
-  }, [fetchMarketData])
+    load()
+    const t = setInterval(load, 60_000)
+    return () => clearInterval(t)
+  }, [load])
 
-  const isPositive = data.change24h >= 0
-  const formatUSD = (n: number) => n > 0 ? `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'
-  const formatVol = (n: number) => n > 1e9 ? `$${(n / 1e9).toFixed(2)}B` : n > 1e6 ? `$${(n / 1e6).toFixed(2)}M` : '—'
+  const stats: [string, string | null][] = [
+    ['24h high', data ? usd(data.high24h) : null],
+    ['24h low', data ? usd(data.low24h) : null],
+    ['24h volume', data ? compact(data.volume24h) : null],
+    ['Market cap', data ? compact(data.marketCap) : null],
+  ]
 
   return (
-    <div className="glass glass-hover rounded-2xl p-6 relative overflow-hidden">
-      {/* BTC badge */}
-      <div className="flex items-start justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-lg font-bold shadow-[0_0_20px_rgba(251,146,60,0.3)]">
-            ₿
-          </div>
-          <div>
-            <div className="font-semibold text-white">Bitcoin</div>
-            <div className="text-xs text-slate-500">BTC / USD</div>
-          </div>
+    <div className="panel p-5 sm:p-6">
+      <div className="flex items-start justify-between gap-4 mb-5">
+        <div>
+          <h3 className="text-[15px] font-semibold text-fg">Bitcoin market</h3>
+          <p className="text-[13px] text-fg-faint mt-1">
+            {status === 'error' && !data ? 'Market data is unavailable right now.' : data ? `Updated ${data.lastUpdated}` : 'Loading'}
+          </p>
         </div>
-        <div className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
-          data.status === 'live'
-            ? isPositive
-              ? 'bg-emerald-500/15 text-emerald-400'
-              : 'bg-red-500/15 text-red-400'
-            : 'bg-slate-500/15 text-slate-400'
-        }`}>
-          {data.status === 'loading' ? (
-            '···'
-          ) : data.status === 'error' ? (
-            '⚠ Unavailable'
-          ) : (
-            <>
-              {isPositive ? '▲' : '▼'} {Math.abs(data.change24h).toFixed(2)}%
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Price */}
-      <div className="mb-4">
-        {data.status === 'loading' ? (
-          <Skeleton className="w-48 h-10 mb-1" />
-        ) : data.status === 'error' ? (
-          <div className="text-slate-500 text-lg">Market data temporarily unavailable</div>
-        ) : (
-          <div className="text-4xl font-bold tracking-tight text-white">
-            {formatUSD(data.price)}
+        {data && (
+          <div className="text-right">
+            <div className="text-xl font-semibold text-fg tabular-nums">{usd(data.price)}</div>
+            <div className={`text-[13px] tabular-nums ${data.change24h >= 0 ? 'price-up' : 'price-down'}`}>
+              {data.change24h >= 0 ? '+' : '-'}{Math.abs(data.change24h).toFixed(2)}% (24h)
+            </div>
           </div>
         )}
       </div>
 
-      <div className="mb-6" />
-
-      {/* Stats grid */}
-      <div className="grid grid-cols-2 gap-3">
-        {[
-          { label: '24h High', value: data.status === 'live' ? formatUSD(data.high24h) : null },
-          { label: '24h Low', value: data.status === 'live' ? formatUSD(data.low24h) : null },
-          { label: '24h Volume', value: data.status === 'live' ? formatVol(data.volume24h) : null },
-          { label: 'Last Updated', value: data.status === 'live' ? data.lastUpdated : null },
-        ].map(({ label, value }) => (
-          <div key={label} className="bg-white/[0.03] rounded-xl p-3 border border-white/[0.05]">
-            <div className="text-xs text-slate-500 mb-1">{label}</div>
-            {value === null ? (
-              <Skeleton className="w-20 h-4" />
-            ) : (
-              <div className="text-sm font-semibold text-white">{value}</div>
-            )}
+      <dl className="grid grid-cols-2 gap-px bg-ink-700 border border-ink-700 rounded-md overflow-hidden">
+        {stats.map(([label, value]) => (
+          <div key={label} className="bg-ink-900 p-3">
+            <dt className="text-xs text-fg-faint mb-1">{label}</dt>
+            <dd className="text-sm font-medium text-fg tabular-nums">
+              {value ?? (status === 'error' ? 'Unavailable' : <span className="skeleton inline-block w-20 h-4 align-middle" />)}
+            </dd>
           </div>
         ))}
-      </div>
-
-      <p className="text-xs text-slate-600 mt-4">Market data provided by CoinGecko</p>
-    </div>
-  )
-}
-
-export function BitcoinNetworkCard() {
-  const [data, setData] = useState<NetworkData>({
-    blockHeight: null, networkStatus: 'Loading…',
-    feeEstimate: '—', lastUpdated: '—', status: 'loading',
-  })
-
-  const fetchNetwork = useCallback(async () => {
-    try {
-      const [blockRes, feeRes] = await Promise.all([
-        fetch('https://blockstream.info/api/blocks/tip/height'),
-        fetch('https://blockstream.info/api/fee-estimates'),
-      ])
-      if (!blockRes.ok) throw new Error()
-      const height = await blockRes.text()
-      let fee = '—'
-      if (feeRes.ok) {
-        const fees: Record<string, number> = await feeRes.json()
-        const target6 = fees['6']
-        if (target6) fee = `~${Math.round(target6)} sat/vB`
-      }
-      setData({
-        blockHeight: parseInt(height, 10),
-        networkStatus: 'Operational',
-        feeEstimate: fee,
-        lastUpdated: new Date().toLocaleTimeString(),
-        status: 'live',
-      })
-    } catch {
-      setData(prev => ({ ...prev, status: 'error', lastUpdated: new Date().toLocaleTimeString() }))
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchNetwork()
-    const interval = setInterval(fetchNetwork, 120_000)
-    return () => clearInterval(interval)
-  }, [fetchNetwork])
-
-  const stats = [
-    { label: 'Network Status', value: data.status === 'live' ? data.networkStatus : null, icon: '●', color: data.status === 'live' ? 'text-emerald-400' : 'text-slate-500' },
-    { label: 'Latest Block', value: data.blockHeight !== null ? `#${data.blockHeight.toLocaleString()}` : null, icon: '⬡' },
-    { label: 'Est. Block Time', value: data.status === 'live' ? '~10 min' : null, icon: '⏱' },
-    { label: 'Fee Estimate', value: data.status === 'live' ? data.feeEstimate : null, icon: '⛽' },
-  ]
-
-  return (
-    <div className="glass glass-hover rounded-2xl p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h3 className="font-semibold text-white">Bitcoin Network</h3>
-          <p className="text-xs text-slate-500 mt-0.5">Live blockchain data</p>
-        </div>
-        <div className={`w-2 h-2 rounded-full ${
-          data.status === 'loading' ? 'bg-yellow-400 animate-pulse' :
-          data.status === 'live' ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'
-        }`} />
-      </div>
-
-      {data.status === 'error' && (
-        <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-          Network data temporarily unavailable
-        </div>
-      )}
-
-      <div className="space-y-3">
-        {stats.map(({ label, value, icon, color }) => (
-          <div key={label} className="flex items-center justify-between py-2.5 border-b border-white/[0.04] last:border-0">
-            <div className="flex items-center gap-2 text-slate-400 text-sm">
-              <span className={`text-xs ${color ?? 'text-slate-500'}`}>{icon}</span>
-              {label}
-            </div>
-            {value === null ? (
-              <Skeleton className="w-24 h-4" />
-            ) : (
-              <span className="text-sm font-semibold text-white">{value}</span>
-            )}
-          </div>
-        ))}
-      </div>
-
-      <p className="text-xs text-slate-600 mt-4">
-        Network data via Blockstream API · Updated {data.lastUpdated}
-      </p>
+      </dl>
+      <p className="text-[11px] text-fg-faint mt-4">Source: CoinGecko. Refreshes every 60 seconds.</p>
     </div>
   )
 }

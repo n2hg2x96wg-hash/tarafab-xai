@@ -1,335 +1,210 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Navbar from '@/components/Navbar'
-import { BitcoinMarketCard, BitcoinNetworkCard } from '@/components/BitcoinMarket'
+import { BitcoinMarketCard } from '@/components/BitcoinMarket'
 import { HeroLivePanel, LatestBlocks, LiveTickerBar, useLiveMarket } from '@/components/LiveCrypto'
-
-function useReveal(ready: boolean) {
-  useEffect(() => {
-    if (!ready) return
-    const elements = document.querySelectorAll('.reveal')
-    elements.forEach(el => el.classList.add('reveal-init'))
-    const observer = new IntersectionObserver(
-      (entries) => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible') }),
-      { threshold: 0.08, rootMargin: '0px 0px -40px 0px' }
-    )
-    const raf = requestAnimationFrame(() => elements.forEach(el => observer.observe(el)))
-    return () => { cancelAnimationFrame(raf); observer.disconnect() }
-  }, [ready])
-}
-
-function Counter({ target, prefix = '', suffix = '' }: { target: number; prefix?: string; suffix?: string }) {
-  const [count, setCount] = useState(0)
-  const ref = useRef<HTMLSpanElement>(null)
-  useEffect(() => {
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) {
-        observer.disconnect()
-        let start = 0
-        const step = target / (1500 / 16)
-        const timer = setInterval(() => {
-          start += step
-          if (start >= target) { setCount(target); clearInterval(timer) }
-          else setCount(Math.floor(start))
-        }, 16)
-      }
-    }, { threshold: 0.5 })
-    if (ref.current) observer.observe(ref.current)
-    return () => observer.disconnect()
-  }, [target])
-  return <span ref={ref}>{prefix}{count.toLocaleString()}{suffix}</span>
-}
+import { IconCheck, Logo } from '@/components/Icons'
 
 function TradingViewWidget() {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    if (!ref.current) return
+    const el = ref.current
+    if (!el) return
     const script = document.createElement('script')
     script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js'
     script.async = true
     script.innerHTML = JSON.stringify({
       autosize: true,
-      symbol: 'BINANCE:BTCUSDT',
-      interval: 'D',
+      symbol: 'COINBASE:BTCUSD',
+      interval: '60',
       timezone: 'Etc/UTC',
       theme: 'dark',
       style: '1',
       locale: 'en',
-      backgroundColor: 'rgba(8, 8, 16, 0)',
+      backgroundColor: 'rgba(15, 18, 22, 1)',
       gridColor: 'rgba(255, 255, 255, 0.04)',
-      hide_top_toolbar: false,
-      hide_legend: false,
+      hide_side_toolbar: true,
+      allow_symbol_change: false,
       save_image: false,
       calendar: false,
-      hide_volume: false,
     })
-    ref.current.appendChild(script)
-    return () => { if (ref.current) ref.current.innerHTML = '' }
+    el.appendChild(script)
+    return () => { el.innerHTML = '<div class="tradingview-widget-container__widget" style="height:100%;width:100%"></div>' }
   }, [])
   return (
-    <div className="tradingview-widget-container" ref={ref} style={{ height: '500px', width: '100%' }}>
-      <div className="tradingview-widget-container__widget" style={{ height: 'calc(100% - 32px)', width: '100%' }} />
+    <div className="tradingview-widget-container h-[420px] sm:h-[480px]" ref={ref}>
+      <div className="tradingview-widget-container__widget" style={{ height: '100%', width: '100%' }} />
     </div>
   )
 }
 
+const steps = [
+  {
+    title: 'Create an account',
+    body: 'Sign up with your name, email and a password. Your dashboard shows your balances and history from the first login.',
+  },
+  {
+    title: 'Send Bitcoin',
+    body: 'Your dashboard shows the Bitcoin deposit address and a QR code. Send BTC from any wallet or exchange.',
+  },
+  {
+    title: 'Upload your receipt',
+    body: 'Submit the amount and a screenshot or PDF of the transfer (JPG, PNG, WEBP or PDF, up to 5 MB).',
+  },
+  {
+    title: 'We review and credit it',
+    body: 'The deposit shows as pending until our team checks it. Your balance changes only after it is approved.',
+  },
+]
+
+const safeguards = [
+  'You can only see your own balances and transactions. This is enforced by the database, not just the app.',
+  'Balances cannot be changed from a client account. They change only when a deposit or withdrawal is approved.',
+  'Every deposit approval and rejection is written to an audit log, with the reviewer and any reason they gave.',
+  'Passwords are handled by Supabase Auth and are never stored in plain text.',
+  'The whole site is served over HTTPS.',
+]
+
 export default function LandingPage() {
-  const [loading, setLoading] = useState(true)
   const router = useRouter()
-  const supabase = createClient()
   const market = useLiveMarket()
-  useReveal(!loading)
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session) {
-          const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single() as { data: { role?: string } | null }
-          if (profile?.role === 'admin') { router.push('/admin'); return }
-          router.push('/dashboard'); return
-        }
-      } catch { /* continue */ }
-      setLoading(false)
-    }
-    checkAuth()
-  }, [router, supabase])
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#080810] flex items-center justify-center">
-        <div className="w-10 h-10 rounded-full border-2 border-violet-500/30 border-t-violet-500 animate-spin" />
-      </div>
-    )
-  }
+    const supabase = createClient()
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session) return
+      const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single() as { data: { role?: string } | null }
+      router.replace(profile?.role === 'admin' ? '/admin' : '/dashboard')
+    }).catch(() => {})
+  }, [router])
 
   return (
-    <div className="min-h-screen bg-[#080810] overflow-x-hidden">
+    <div className="site min-h-screen bg-ink-950 text-fg">
       <Navbar />
 
-      {/* ── HERO ── */}
-      <section className="relative min-h-screen pt-16 pb-16 overflow-hidden">
-        <div aria-hidden className="absolute inset-0 pointer-events-none select-none overflow-hidden">
-          <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[1100px] h-[700px] bg-violet-600/[0.14] rounded-full blur-3xl animate-aurora" />
-          <div className="absolute top-1/3 -left-40 w-[500px] h-[500px] bg-blue-600/[0.10] rounded-full blur-3xl animate-pulse-slow" />
-          <div className="absolute top-1/4 -right-32 w-[480px] h-[480px] bg-orange-500/[0.10] rounded-full blur-3xl animate-float" />
-          <div className="absolute top-[18%] right-[8%] w-[520px] h-[520px] rounded-full border border-violet-500/10 orbit-ring hidden lg:block">
-            <span className="absolute -top-1.5 left-1/2 w-3 h-3 rounded-full bg-orange-400 shadow-[0_0_16px_rgba(251,146,60,.9)]" />
-          </div>
-          <div className="absolute top-[24%] right-[13%] w-[380px] h-[380px] rounded-full border border-blue-400/10 orbit-ring-rev hidden lg:block">
-            <span className="absolute top-1/2 -right-1 w-2 h-2 rounded-full bg-violet-400 shadow-[0_0_12px_rgba(167,139,250,.9)]" />
-          </div>
-          <div className="absolute bottom-0 left-[-25%] right-[-25%] h-[45%] grid-floor opacity-40" />
-        </div>
+      <div className="pt-16">
+        <LiveTickerBar quotes={market.quotes} />
+      </div>
 
-        <div className="relative pt-4">
-          <LiveTickerBar quotes={market.quotes} />
-        </div>
-
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 pt-12 lg:pt-20 grid lg:grid-cols-2 gap-12 lg:gap-10 items-center">
-        <div className="text-center lg:text-left">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-300 text-xs font-medium mb-8 animate-fade-in">
-            <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse" />
-            Live Bitcoin markets, streaming now
+      {/* Hero */}
+      <section className="border-b border-ink-700">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 lg:py-20 grid lg:grid-cols-[1.1fr_1fr] gap-12 items-center">
+          <div>
+            <h1 className="text-[40px] sm:text-5xl lg:text-[56px] leading-[1.05] font-semibold tracking-tight text-fg">
+              Deposit Bitcoin.<br />Track every dollar.
+            </h1>
+            <p className="mt-6 text-lg text-fg-muted leading-relaxed max-w-xl">
+              Send BTC to your deposit address, upload the transfer receipt, and follow it from pending to approved. Your balance and full transaction history are in one dashboard.
+            </p>
+            <div className="mt-8 flex flex-col sm:flex-row gap-3">
+              <Link href="/sign-up" className="btn btn-solid">Open an account</Link>
+              <Link href="/sign-in" className="btn btn-outline">Sign in</Link>
+            </div>
+            <p className="mt-6 text-[13px] text-fg-faint max-w-md">
+              Bitcoin prices move quickly and can fall. We do not promise returns.
+            </p>
           </div>
 
-          <h1 className="text-5xl sm:text-7xl font-black tracking-tight mb-4 animate-slide-up">
-            <span className="text-white">TARAFAB</span><span className="animated-gradient-text">.XAi</span>
-          </h1>
-
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-6 animate-slide-up">
-            Invest with <span className="animated-gradient-text">Clarity.</span>
-          </h2>
-
-          <p className="text-lg sm:text-xl text-slate-400 max-w-xl mx-auto lg:mx-0 mb-10 leading-relaxed">
-            Real-time settlement, transparent reporting, and institutional-grade custody. Built for serious investors who demand more.
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 mb-12">
-            <Link href="/sign-up" className="w-full sm:w-auto px-10 py-4 text-base font-semibold text-white bg-gradient-to-r from-violet-600 to-blue-500 rounded-xl hover:opacity-90 transition-all duration-200 shadow-[0_0_30px_rgba(124,58,237,0.35)] hover:shadow-[0_0_50px_rgba(124,58,237,0.5)] hover:-translate-y-0.5">
-              Open Account
-            </Link>
-            <Link href="/sign-in" className="w-full sm:w-auto px-10 py-4 text-base font-medium text-slate-300 hover:text-white border border-white/[0.12] hover:border-violet-500/40 rounded-xl transition-all duration-200 hover:bg-violet-500/[0.06]">
-              Sign In →
-            </Link>
-          </div>
-
-          <div className="flex flex-wrap justify-center lg:justify-start gap-10 pt-8 border-t border-white/[0.06]">
-            {[
-              { value: 256, suffix: '-bit', label: 'Encryption standard' },
-              { value: 24, suffix: '/7', label: 'Account access' },
-              { value: 100, suffix: '%', label: 'Deposits reviewed' },
-            ].map(({ value, suffix, label }) => (
-              <div key={label} className="text-center lg:text-left">
-                <div className="text-3xl font-bold text-white"><Counter target={value} suffix={suffix} /></div>
-                <div className="text-xs text-slate-500 mt-1">{label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="animate-slide-up">
           <HeroLivePanel {...market} />
-        </div>
         </div>
       </section>
 
-      {/* ── LIVE CHART ── */}
-      <section id="markets" className="py-16 px-4 sm:px-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="reveal text-center mb-8">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-300 text-xs font-medium mb-4">
-              <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
-              Live BTC/USD chart
-            </div>
-            <h2 className="text-3xl font-bold text-white mb-2">Bitcoin Market</h2>
-            <p className="text-slate-400 text-sm">Real-time price action via TradingView</p>
+      {/* Markets */}
+      <section id="markets" className="scroll-mt-16 border-b border-ink-700">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 lg:py-20">
+          <div className="mb-8 max-w-2xl">
+            <h2 className="text-3xl font-semibold tracking-tight text-fg">Markets</h2>
+            <p className="mt-3 text-fg-muted">The same live data you will see in your dashboard. Nothing on this page is simulated.</p>
           </div>
-          <div className="reveal glass rounded-2xl overflow-hidden border border-white/[0.06] mb-6" style={{ minHeight: '520px' }}>
+
+          <div className="panel overflow-hidden mb-4">
+            <div className="flex items-center justify-between px-4 h-11 border-b border-ink-700 text-[13px]">
+              <span className="text-fg">BTC/USD</span>
+              <span className="text-fg-faint">Chart by TradingView</span>
+            </div>
             <TradingViewWidget />
           </div>
-          <div className="reveal grid lg:grid-cols-2 gap-6 mb-6">
+
+          <div className="grid lg:grid-cols-[1fr_2fr] gap-4">
             <BitcoinMarketCard />
-            <BitcoinNetworkCard />
-          </div>
-          <div className="reveal">
             <LatestBlocks />
           </div>
         </div>
       </section>
 
-      {/* ── PLATFORM FEATURES ── */}
-      <section id="platform" className="py-20 px-4 sm:px-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="reveal text-center mb-14">
-            <h2 className="text-4xl font-bold text-white mb-4">Built for serious investors</h2>
-            <p className="text-slate-400 max-w-xl mx-auto">Every feature designed around transparency, security, and real performance.</p>
+      {/* How it works */}
+      <section id="how-it-works" className="scroll-mt-16 border-b border-ink-700">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 lg:py-20">
+          <div className="mb-10 max-w-2xl">
+            <h2 className="text-3xl font-semibold tracking-tight text-fg">How deposits work</h2>
+            <p className="mt-3 text-fg-muted">A deposit is never credited automatically. Each one is checked by a person first.</p>
           </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {[
-              { icon: '🔐', title: 'Secure Authentication', desc: 'Multi-layer authentication and encrypted session management protect every account.', color: 'from-violet-500/20 to-transparent' },
-              { icon: '⚡', title: 'Real-time Settlement', desc: 'Transactions complete with full transparency and real-time network confirmation.', color: 'from-blue-500/20 to-transparent' },
-              { icon: '₿', title: 'Bitcoin Native', desc: 'Dedicated Bitcoin deposit, tracking, and portfolio management built in.', color: 'from-orange-500/20 to-transparent' },
-              { icon: '📊', title: 'Live Market Data', desc: 'Real BTC/USD pricing, candlestick charts, and network stats from verified sources.', color: 'from-emerald-500/20 to-transparent' },
-              { icon: '📋', title: 'Transparent Reporting', desc: 'Every transaction is logged, audited, and visible in your dashboard history.', color: 'from-pink-500/20 to-transparent' },
-              { icon: '🔒', title: 'Data Encryption', desc: 'All data encrypted at rest and in transit using industry-standard protocols.', color: 'from-cyan-500/20 to-transparent' },
-            ].map(({ icon, title, desc, color }) => (
-              <div key={title} className="reveal glass glass-hover rounded-2xl p-6 group">
-                <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${color} border border-white/[0.08] flex items-center justify-center text-xl mb-5 group-hover:scale-110 transition-transform duration-200`}>
-                  {icon}
-                </div>
-                <h3 className="font-semibold text-white mb-2">{title}</h3>
-                <p className="text-slate-400 text-sm leading-relaxed">{desc}</p>
-              </div>
+          <ol className="grid sm:grid-cols-2 lg:grid-cols-4 gap-px bg-ink-700 border border-ink-700 rounded-lg overflow-hidden">
+            {steps.map((s, i) => (
+              <li key={s.title} className="bg-ink-950 p-6">
+                <div className="text-[13px] text-accent font-medium tabular-nums mb-3">Step {i + 1}</div>
+                <h3 className="text-[17px] font-semibold text-fg mb-2">{s.title}</h3>
+                <p className="text-[15px] text-fg-muted leading-relaxed">{s.body}</p>
+              </li>
             ))}
-          </div>
+          </ol>
         </div>
       </section>
 
-      {/* ── HOW IT WORKS ── */}
-      <section className="py-20 px-4 sm:px-6 bg-gradient-to-b from-transparent via-violet-950/10 to-transparent">
-        <div className="max-w-4xl mx-auto">
-          <div className="reveal text-center mb-14">
-            <h2 className="text-4xl font-bold text-white mb-4">How it works</h2>
-            <p className="text-slate-400">Get started in minutes</p>
+      {/* Security */}
+      <section id="security" className="scroll-mt-16 border-b border-ink-700">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 lg:py-20 grid lg:grid-cols-[1fr_1.4fr] gap-10">
+          <div>
+            <h2 className="text-3xl font-semibold tracking-tight text-fg">How your account is protected</h2>
+            <p className="mt-3 text-fg-muted">What the platform does today, stated plainly.</p>
           </div>
-          <div className="grid sm:grid-cols-3 gap-6">
-            {[
-              { step: '01', title: 'Create Account', desc: 'Sign up with your email and verify your identity to activate your account.' },
-              { step: '02', title: 'Deposit Bitcoin', desc: 'Send BTC to your assigned deposit address. Funds appear after network confirmation.' },
-              { step: '03', title: 'Track & Manage', desc: 'Monitor your portfolio, view live markets, and manage your Bitcoin position.' },
-            ].map(({ step, title, desc }) => (
-              <div key={step} className="reveal glass rounded-2xl p-6 text-center relative overflow-hidden group hover:-translate-y-1 transition-transform">
-                <div className="text-6xl font-black text-violet-500/10 absolute top-3 right-4 select-none">{step}</div>
-                <div className="w-10 h-10 rounded-full bg-violet-500/20 border border-violet-500/30 flex items-center justify-center text-sm font-bold text-violet-300 mx-auto mb-4 relative z-10">{step}</div>
-                <h3 className="font-semibold text-white mb-2 relative z-10">{title}</h3>
-                <p className="text-slate-400 text-sm leading-relaxed relative z-10">{desc}</p>
-              </div>
+          <ul className="divide-y divide-ink-700 border-y border-ink-700">
+            {safeguards.map(item => (
+              <li key={item} className="flex gap-3 py-4">
+                <IconCheck className="shrink-0 mt-0.5 text-accent" />
+                <span className="text-[15px] text-fg-muted leading-relaxed">{item}</span>
+              </li>
             ))}
+          </ul>
+        </div>
+      </section>
+
+      {/* Closing */}
+      <section className="border-b border-ink-700">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div>
+            <h2 className="text-2xl font-semibold tracking-tight text-fg">Open an account</h2>
+            <p className="mt-2 text-fg-muted">All you need is an email address and a password.</p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Link href="/sign-up" className="btn btn-solid">Open an account</Link>
+            <Link href="/sign-in" className="btn btn-outline">Sign in</Link>
           </div>
         </div>
       </section>
 
-      {/* ── SECURITY ── */}
-      <section id="security" className="py-20 px-4 sm:px-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="reveal glass rounded-3xl p-8 sm:p-12 border border-violet-500/10 shadow-[0_0_80px_rgba(124,58,237,0.1)]">
-            <div className="text-center mb-10">
-              <div className="w-14 h-14 mx-auto mb-5 rounded-2xl bg-gradient-to-br from-violet-600/30 to-blue-500/30 border border-violet-500/20 flex items-center justify-center text-2xl">🛡️</div>
-              <h2 className="text-3xl font-bold text-white mb-3">Security & Trust</h2>
-              <p className="text-slate-400 max-w-md mx-auto text-sm leading-relaxed">We are transparent about what our platform provides. No inflated promises — only real capabilities.</p>
-            </div>
-            <div className="grid sm:grid-cols-2 gap-3">
-              {[
-                '✓ Secure authentication via Supabase',
-                '✓ Transparent transaction records',
-                '✓ Real-time market data from verified sources',
-                '✓ Account activity monitoring',
-                '✓ Data encryption in transit and at rest',
-                '✗ No guaranteed returns or risk-free claims',
-              ].map((item) => (
-                <div key={item} className={`flex items-start gap-3 p-3.5 rounded-xl ${item.startsWith('✗') ? 'bg-red-500/[0.06] border border-red-500/10' : 'bg-white/[0.03] border border-white/[0.05]'}`}>
-                  <span className={`text-sm flex-shrink-0 font-bold ${item.startsWith('✗') ? 'text-red-400' : 'text-emerald-400'}`}>{item[0]}</span>
-                  <span className="text-slate-300 text-sm">{item.slice(2)}</span>
-                </div>
-              ))}
-            </div>
+      <footer className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+        <div className="flex flex-col md:flex-row justify-between gap-8">
+          <div>
+            <Logo />
+            <p className="mt-3 text-[13px] text-fg-faint max-w-sm">
+              Market data from Coinbase, CoinGecko, mempool.space and TradingView. Investing in Bitcoin carries risk, including loss of the money you deposit.
+            </p>
           </div>
+          <nav className="grid grid-cols-2 gap-x-12 gap-y-2 text-sm">
+            <a href="#markets" className="text-fg-muted hover:text-fg">Markets</a>
+            <Link href="/sign-in" className="text-fg-muted hover:text-fg">Sign in</Link>
+            <a href="#how-it-works" className="text-fg-muted hover:text-fg">How it works</a>
+            <Link href="/sign-up" className="text-fg-muted hover:text-fg">Open an account</Link>
+            <a href="#security" className="text-fg-muted hover:text-fg">Security</a>
+            <Link href="/forgot-password" className="text-fg-muted hover:text-fg">Reset password</Link>
+          </nav>
         </div>
-      </section>
-
-      {/* ── CTA ── */}
-      <section className="py-24 px-4 sm:px-6 text-center">
-        <div className="max-w-3xl mx-auto reveal">
-          <h2 className="text-4xl sm:text-5xl font-bold text-white mb-6">Ready to get started?</h2>
-          <p className="text-slate-400 text-lg mb-10">Open your account in minutes and invest with full clarity.</p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/sign-up" className="px-10 py-4 text-base font-semibold text-white bg-gradient-to-r from-violet-600 to-blue-500 rounded-xl hover:opacity-90 transition-all shadow-[0_0_30px_rgba(124,58,237,0.35)] hover:-translate-y-0.5">
-              Open Account
-            </Link>
-            <Link href="/sign-in" className="px-10 py-4 text-base font-medium text-slate-300 hover:text-white border border-white/[0.12] hover:border-violet-500/40 rounded-xl transition-all">
-              Already have an account?
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* ── FOOTER ── */}
-      <footer className="border-t border-white/[0.06] py-12 px-4 sm:px-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 mb-10">
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-600 to-blue-500 flex items-center justify-center text-xs font-bold">₿</div>
-                <span className="font-bold text-white">Tarafab<span className="text-violet-400">.XAi</span></span>
-              </div>
-              <p className="text-slate-500 text-xs leading-relaxed">Transparent investment management with real-time settlement.</p>
-            </div>
-            {[
-              { heading: 'Platform', links: [{ label: 'Markets', href: '#markets' }, { label: 'Bitcoin', href: '#bitcoin' }, { label: 'Security', href: '#security' }] },
-              { heading: 'Account', links: [{ label: 'Sign In', href: '/sign-in' }, { label: 'Open Account', href: '/sign-up' }, { label: 'Dashboard', href: '/dashboard' }] },
-              { heading: 'Legal', links: [{ label: 'Privacy', href: '#' }, { label: 'Terms', href: '#' }, { label: 'Risk Disclosure', href: '#' }] },
-            ].map(({ heading, links }) => (
-              <div key={heading}>
-                <h4 className="text-sm font-semibold text-white mb-3">{heading}</h4>
-                <ul className="space-y-2">
-                  {links.map(({ label, href }) => (
-                    <li key={label}><Link href={href} className="text-slate-500 hover:text-slate-300 text-sm transition-colors">{label}</Link></li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-          <div className="pt-6 border-t border-white/[0.06] flex flex-col sm:flex-row items-center justify-between gap-3">
-            <p className="text-slate-600 text-xs">© 2026 Tarafab.XAi. All rights reserved.</p>
-            <p className="text-slate-700 text-xs">Investment involves risk. Past performance is not indicative of future results.</p>
-          </div>
-        </div>
-        <Link href="/staff-login" className="text-[#080810] text-xs select-none">·</Link>
+        <p className="mt-10 pt-6 border-t border-ink-700 text-xs text-fg-faint">&copy; {new Date().getFullYear()} Tarafab.XAi</p>
       </footer>
     </div>
   )

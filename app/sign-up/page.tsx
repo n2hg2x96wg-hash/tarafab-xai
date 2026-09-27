@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { AuthShell, FormError, Spinner } from '@/components/AuthShell'
 
 function passwordStrength(pw: string): { score: number; label: string; color: string } {
   let score = 0
@@ -13,8 +14,8 @@ function passwordStrength(pw: string): { score: number; label: string; color: st
   if (/[0-9]/.test(pw)) score++
   if (/[^A-Za-z0-9]/.test(pw)) score++
   if (score <= 1) return { score, label: 'Weak', color: 'bg-red-500' }
-  if (score <= 3) return { score, label: 'Fair', color: 'bg-yellow-500' }
-  if (score === 4) return { score, label: 'Good', color: 'bg-blue-500' }
+  if (score <= 3) return { score, label: 'Fair', color: 'bg-amber-500' }
+  if (score === 4) return { score, label: 'Good', color: 'bg-emerald-600' }
   return { score, label: 'Strong', color: 'bg-emerald-500' }
 }
 
@@ -31,21 +32,20 @@ export default function SignUpPage() {
   const router = useRouter()
   const supabase = createClient()
   const strength = passwordStrength(password)
+  const mismatch = confirmPassword.length > 0 && confirmPassword !== password
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
 
-    if (password !== confirmPassword) { setError('Passwords do not match.'); return }
+    if (!fullName.trim()) { setError('Please enter your full name.'); return }
     if (password.length < 8) { setError('Password must be at least 8 characters.'); return }
-    if (!agreed) { setError('Please accept the terms to continue.'); return }
+    if (password !== confirmPassword) { setError('The two passwords do not match.'); return }
+    if (!agreed) { setError('Please tick the box to confirm you have read how deposits work.'); return }
 
-    const cleanEmail = email.replace(/[^\x20-\x7E]/g, '')
-    const cleanPassword = password.replace(/[^\x20-\x7E]/g, '')
-    const cleanName = fullName.trim()
-
-    if (cleanPassword !== password) {
-      setError('Password contains unsupported characters. Please use only standard characters.')
+    const cleanEmail = email.trim().replace(/[^\x20-\x7E]/g, '')
+    if (password.replace(/[^\x20-\x7E]/g, '') !== password) {
+      setError('Your password contains characters we cannot accept. Use letters, numbers and standard symbols.')
       return
     }
 
@@ -54,23 +54,22 @@ export default function SignUpPage() {
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: cleanEmail, password: cleanPassword, fullName: cleanName }),
+        body: JSON.stringify({ email: cleanEmail, password, fullName: fullName.trim() }),
       })
       const data = await res.json()
-      if (!res.ok) { setError(data.error || 'Sign up failed'); return }
+      if (!res.ok) {
+        const msg: string = data.error || 'Sign up failed'
+        setError(msg.toLowerCase().includes('already registered') ? 'An account with this email already exists. Try signing in instead.' : msg)
+        return
+      }
       if (data.needsVerification) {
         setSuccess(true)
       } else if (data.access_token && data.refresh_token) {
         await supabase.auth.setSession({ access_token: data.access_token, refresh_token: data.refresh_token })
         router.push('/dashboard')
       }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err)
-      if (msg.includes('ByteString')) {
-        setError('An encoding error occurred. Please ensure your password and email contain only standard characters, then try again.')
-      } else {
-        setError('A network error occurred. Please try again.')
-      }
+    } catch {
+      setError('Could not reach the server. Check your connection and try again.')
     } finally {
       setLoading(false)
     }
@@ -78,177 +77,75 @@ export default function SignUpPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-[#080810] flex items-center justify-center px-4">
-        <div className="glass rounded-2xl p-10 max-w-md w-full text-center border border-emerald-500/20">
-          <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-3xl">✓</div>
-          <h2 className="text-2xl font-bold text-white mb-3">Account created!</h2>
-          <p className="text-slate-400 mb-6">
-            We&apos;ve sent a verification link to <span className="text-white font-medium">{email}</span>.
-            Please check your inbox and verify your email to activate your account.
-          </p>
-          <Link href="/sign-in" className="inline-block px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-violet-600 to-blue-500 rounded-xl hover:opacity-90 transition-all">
-            Go to Sign In
-          </Link>
-        </div>
-      </div>
+      <AuthShell title="Check your email" subtitle={`We sent a confirmation link to ${email.trim()}.`}>
+        <p className="text-[15px] text-fg-muted leading-relaxed">
+          Open the link in that email to confirm your address, then sign in. If it has not arrived after a few minutes, check your spam folder.
+        </p>
+        <Link href="/sign-in" className="btn btn-solid w-full mt-6">Go to sign in</Link>
+      </AuthShell>
     )
   }
 
   return (
-    <div className="min-h-screen bg-[#080810] flex flex-col">
-      <div aria-hidden className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-violet-600/[0.07] rounded-full blur-3xl" />
-      </div>
+    <AuthShell
+      title="Open an account"
+      subtitle="You will use this email and password to sign in."
+      footer={<>Already have an account? <Link href="/sign-in" className="text-fg underline underline-offset-4 hover:text-accent">Sign in</Link></>}
+    >
+      <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+        {error && <FormError message={error} />}
 
-      <header className="relative z-10 py-6 px-4 sm:px-6">
-        <Link href="/" className="inline-flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-600 to-blue-500 flex items-center justify-center text-sm font-bold">₿</div>
-          <span className="font-bold text-white">Tarafab<span className="text-violet-400">.XAi</span></span>
-        </Link>
-      </header>
+        <div>
+          <label htmlFor="name" className="field-label">Full name</label>
+          <input id="name" type="text" value={fullName} onChange={e => setFullName(e.target.value)} required autoComplete="name" className="field" disabled={loading} />
+        </div>
 
-      <div className="relative z-10 flex-1 flex items-center justify-center px-4 py-8">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-white mb-2">Create your account</h1>
-            <p className="text-slate-400 text-sm">Join Tarafab.XAi and invest with clarity</p>
+        <div>
+          <label htmlFor="email" className="field-label">Email</label>
+          <input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" className="field" disabled={loading} />
+        </div>
+
+        <div>
+          <label htmlFor="password" className="field-label">Password</label>
+          <div className="relative">
+            <input id="password" type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} required autoComplete="new-password" className="field pr-16" disabled={loading} aria-describedby="pw-help" />
+            <button type="button" onClick={() => setShowPassword(s => !s)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[13px] text-fg-muted hover:text-fg" aria-label={showPassword ? 'Hide password' : 'Show password'}>
+              {showPassword ? 'Hide' : 'Show'}
+            </button>
           </div>
-
-          <div className="glass rounded-2xl p-8 border border-white/[0.08]">
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {error && (
-                <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-start gap-2">
-                  <span className="flex-shrink-0">⚠</span>
-                  <span>{error}</span>
+          <div id="pw-help" className="mt-2">
+            {password ? (
+              <div className="flex items-center gap-3">
+                <div className="flex gap-1 flex-1">
+                  {[1, 2, 3, 4, 5].map(i => (
+                    <div key={i} className={`h-1 flex-1 rounded-sm transition-colors ${i <= strength.score ? strength.color : 'bg-ink-700'}`} />
+                  ))}
                 </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Full name</label>
-                <input
-                  type="text"
-                  value={fullName}
-                  onChange={e => setFullName(e.target.value)}
-                  required
-                  autoComplete="name"
-                  placeholder="John Doe"
-                  className="input-field"
-                  disabled={loading}
-                />
+                <span className="text-xs text-fg-muted w-12 text-right">{strength.label}</span>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Email address</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                  placeholder="you@example.com"
-                  className="input-field"
-                  disabled={loading}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Password</label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    required
-                    autoComplete="new-password"
-                    placeholder="Min. 8 characters"
-                    className="input-field pr-12"
-                    disabled={loading}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-sm transition-colors"
-                    tabIndex={-1}
-                  >
-                    {showPassword ? 'Hide' : 'Show'}
-                  </button>
-                </div>
-                {password && (
-                  <div className="mt-2">
-                    <div className="flex gap-1 mb-1">
-                      {[1, 2, 3, 4, 5].map(i => (
-                        <div key={i} className={`h-1 flex-1 rounded-full transition-all duration-300 ${i <= strength.score ? strength.color : 'bg-white/10'}`} />
-                      ))}
-                    </div>
-                    <p className="text-xs text-slate-500">{strength.label} password</p>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Confirm password</label>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={confirmPassword}
-                  onChange={e => setConfirmPassword(e.target.value)}
-                  required
-                  autoComplete="new-password"
-                  placeholder="Repeat your password"
-                  className={`input-field ${confirmPassword && confirmPassword !== password ? 'border-red-500/50' : ''}`}
-                  disabled={loading}
-                />
-                {confirmPassword && confirmPassword !== password && (
-                  <p className="text-xs text-red-400 mt-1">Passwords do not match</p>
-                )}
-              </div>
-
-              <label className="flex items-start gap-3 cursor-pointer group">
-                <div className="relative mt-0.5">
-                  <input
-                    type="checkbox"
-                    checked={agreed}
-                    onChange={e => setAgreed(e.target.checked)}
-                    className="sr-only"
-                  />
-                  <div className={`w-5 h-5 rounded border transition-all ${agreed ? 'bg-violet-600 border-violet-600' : 'border-white/20 bg-white/[0.04] group-hover:border-violet-500/40'}`}>
-                    {agreed && <svg className="w-5 h-5 text-white p-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
-                  </div>
-                </div>
-                <span className="text-sm text-slate-400 leading-relaxed">
-                  I agree to the{' '}
-                  <Link href="#" className="text-violet-400 hover:text-violet-300 transition-colors">Terms of Service</Link>
-                  {' '}and{' '}
-                  <Link href="#" className="text-violet-400 hover:text-violet-300 transition-colors">Privacy Policy</Link>
-                </span>
-              </label>
-
-              <button
-                type="submit"
-                disabled={loading || !agreed}
-                className="w-full py-3.5 text-sm font-semibold text-white bg-gradient-to-r from-violet-600 to-blue-500 rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_0_20px_rgba(124,58,237,0.3)] flex items-center justify-center gap-2"
-              >
-                {loading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Creating account…
-                  </>
-                ) : (
-                  'Create Account'
-                )}
-              </button>
-            </form>
-
-            <div className="mt-6 text-center">
-              <p className="text-slate-500 text-sm">
-                Already have an account?{' '}
-                <Link href="/sign-in" className="text-violet-400 hover:text-violet-300 font-medium transition-colors">
-                  Sign in
-                </Link>
-              </p>
-            </div>
+            ) : (
+              <p className="text-xs text-fg-faint">At least 8 characters.</p>
+            )}
           </div>
         </div>
-      </div>
-    </div>
+
+        <div>
+          <label htmlFor="confirm" className="field-label">Confirm password</label>
+          <input id="confirm" type={showPassword ? 'text' : 'password'} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required autoComplete="new-password" className={`field ${mismatch ? 'field-error' : ''}`} disabled={loading} />
+          {mismatch && <p className="text-xs text-red-400 mt-1.5">Passwords do not match.</p>}
+        </div>
+
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} className="mt-0.5 w-4 h-4 shrink-0 accent-[#F7931A]" />
+          <span className="text-sm text-fg-muted leading-relaxed">
+            I understand that deposits are credited only after review, and that the value of Bitcoin can go down as well as up.
+          </span>
+        </label>
+
+        <button type="submit" disabled={loading} className="btn btn-solid w-full">
+          {loading ? <><Spinner />Creating account</> : 'Create account'}
+        </button>
+      </form>
+    </AuthShell>
   )
 }

@@ -3,8 +3,14 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import type { ComponentType, SVGProps } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { BitcoinMarketCard } from '@/components/BitcoinMarket'
+import { FormError, Spinner } from '@/components/AuthShell'
+import {
+  IconAlert, IconArrowDown, IconArrowUp, IconChart, IconCheck, IconClose, IconCopy, IconGrid,
+  IconInfo, IconList, IconLogOut, IconMail, IconMenu, IconSwap, IconUser, Logo,
+} from '@/components/Icons'
 
 interface Account {
   account_balance: number
@@ -18,6 +24,8 @@ interface UserInfo {
   email: string
   full_name: string | null
   role: string
+  email_confirmed?: boolean
+  created_at?: string
 }
 
 interface Tx {
@@ -32,51 +40,74 @@ interface Tx {
   created_at: string
 }
 
-function TradingViewChart() {
+const BTC_ADDRESS = 'bc1qvpwmdln4nm6xa2k9q26l84pg4ud0uuqzk83053'
+const SUPPORT_EMAIL = 'support@tarafab.com'
+
+function TradingViewChart({ height }: { height: number }) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    if (!ref.current) return
-    ref.current.innerHTML = ''
+    const el = ref.current
+    if (!el) return
     const script = document.createElement('script')
     script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js'
     script.async = true
     script.innerHTML = JSON.stringify({
-      autosize: true, symbol: 'BINANCE:BTCUSDT', interval: '60', timezone: 'Etc/UTC',
-      theme: 'dark', style: '1', locale: 'en', backgroundColor: 'rgba(8, 8, 16, 0)',
-      gridColor: 'rgba(255, 255, 255, 0.03)', hide_top_toolbar: false, hide_legend: false,
+      autosize: true, symbol: 'COINBASE:BTCUSD', interval: '60', timezone: 'Etc/UTC',
+      theme: 'dark', style: '1', locale: 'en', backgroundColor: 'rgba(15, 18, 22, 1)',
+      gridColor: 'rgba(255, 255, 255, 0.04)', hide_side_toolbar: true, allow_symbol_change: false,
       save_image: false, calendar: false,
     })
-    ref.current.appendChild(script)
-    return () => { if (ref.current) ref.current.innerHTML = '' }
+    el.appendChild(script)
+    return () => { el.innerHTML = '<div class="tradingview-widget-container__widget" style="height:100%;width:100%"></div>' }
   }, [])
   return (
-    <div className="tradingview-widget-container" ref={ref} style={{ height: '100%', width: '100%', minHeight: '420px' }}>
-      <div className="tradingview-widget-container__widget" style={{ height: 'calc(100% - 32px)', width: '100%' }} />
+    <div className="tradingview-widget-container" ref={ref} style={{ height }}>
+      <div className="tradingview-widget-container__widget" style={{ height: '100%', width: '100%' }} />
     </div>
   )
 }
 
 const STATUS_STYLE: Record<string, string> = {
-  completed: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-  rejected: 'bg-red-500/10 text-red-400 border-red-500/20',
-  failed: 'bg-red-500/10 text-red-400 border-red-500/20',
-  pending: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
-  pending_review: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
-  pending_verification: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
-  pending_blockchain_confirmation: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+  completed: 'text-emerald-400 border-emerald-500/30',
+  approved: 'text-emerald-400 border-emerald-500/30',
+  rejected: 'text-red-400 border-red-500/30',
+  failed: 'text-red-400 border-red-500/30',
+  pending: 'text-amber-400 border-amber-500/30',
+  pending_review: 'text-amber-400 border-amber-500/30',
+  pending_verification: 'text-amber-400 border-amber-500/30',
+  pending_blockchain_confirmation: 'text-sky-400 border-sky-500/30',
 }
 
-const navItems = [
-  { icon: '⊞', label: 'Overview', id: 'overview' },
-  { icon: '₿', label: 'Markets', id: 'markets' },
-  { icon: '📋', label: 'Transactions', id: 'transactions' },
-  { icon: '↓', label: 'Deposit', id: 'deposit' },
-  { icon: '↑', label: 'Withdraw', id: 'withdraw' },
-  { icon: '👤', label: 'Profile', id: 'profile' },
+function StatusTag({ status }: { status: string }) {
+  const label = status.replace(/_/g, ' ')
+  return <span className={`tag capitalize ${STATUS_STYLE[status] || 'text-fg-muted border-ink-600'}`}>{label}</span>
+}
+
+type Icon = ComponentType<SVGProps<SVGSVGElement>>
+const navItems: { icon: Icon; label: string; id: string }[] = [
+  { icon: IconGrid, label: 'Overview', id: 'overview' },
+  { icon: IconChart, label: 'Markets', id: 'markets' },
+  { icon: IconList, label: 'Transactions', id: 'transactions' },
+  { icon: IconArrowDown, label: 'Deposit', id: 'deposit' },
+  { icon: IconArrowUp, label: 'Withdraw', id: 'withdraw' },
+  { icon: IconUser, label: 'Profile', id: 'profile' },
 ]
 
 function fmt(n: number) {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function initialsOf(name: string) {
+  return name.split(/\s+/).filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() || 'U'
+}
+
+function TxIcon({ type }: { type: string }) {
+  const I = type === 'deposit' ? IconArrowDown : type === 'withdrawal' ? IconArrowUp : IconSwap
+  return (
+    <span className="w-8 h-8 rounded-md bg-ink-800 border border-ink-700 flex items-center justify-center text-fg-muted shrink-0">
+      <I width={16} height={16} />
+    </span>
+  )
 }
 
 export default function DashboardPage() {
@@ -125,86 +156,72 @@ export default function DashboardPage() {
     router.push('/')
   }
 
+  const go = (id: string) => { setActiveNav(id); setSidebarOpen(false); window.scrollTo({ top: 0 }) }
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#080810] flex items-center justify-center">
-        <div className="w-10 h-10 rounded-full border-2 border-violet-500/30 border-t-violet-500 animate-spin" />
+      <div className="site min-h-screen bg-ink-950 flex items-center justify-center text-fg-muted">
+        <Spinner />
       </div>
     )
   }
 
-  const displayName = user?.full_name ?? user?.email?.split('@')[0] ?? 'User'
-  const initials = displayName.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase()
+  const displayName = user?.full_name || user?.email?.split('@')[0] || 'there'
+  const initials = initialsOf(displayName)
+  const current = navItems.find(n => n.id === activeNav)
 
   return (
-    <div className="min-h-screen bg-[#080810] flex overflow-hidden">
-      {/* Sidebar */}
-      <aside className={`fixed lg:static inset-y-0 left-0 z-40 w-64 flex-shrink-0 bg-[#0a0a14] border-r border-white/[0.06] flex flex-col transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
-        <div className="h-16 flex items-center px-5 border-b border-white/[0.06]">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-600 to-blue-500 flex items-center justify-center text-sm font-bold shadow-[0_0_20px_rgba(124,58,237,0.4)]">₿</div>
-            <span className="font-bold text-white">Tarafab<span className="text-violet-400">.XAi</span></span>
-          </Link>
+    <div className="site min-h-screen bg-ink-950 text-fg lg:flex">
+      <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-ink-900 border-r border-ink-700 flex flex-col transition-transform duration-200 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="h-16 flex items-center justify-between px-5 border-b border-ink-700">
+          <Link href="/" aria-label="Tarafab.XAi home"><Logo /></Link>
+          <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1 text-fg-muted hover:text-fg" aria-label="Close menu"><IconClose /></button>
         </div>
-        <div className="px-4 py-4 border-b border-white/[0.06]">
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.04]">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-600 to-blue-500 flex items-center justify-center text-sm font-bold flex-shrink-0">{initials}</div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-white truncate">{displayName}</p>
-              <p className="text-xs text-slate-500 truncate">{user?.email}</p>
-            </div>
-          </div>
-        </div>
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {navItems.map(({ icon, label, id }) => (
+        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+          {navItems.map(({ icon: I, label, id }) => (
             <button
               key={id}
-              onClick={() => { setActiveNav(id); setSidebarOpen(false) }}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 text-left ${
-                activeNav === id
-                  ? 'bg-violet-500/15 text-violet-300 border border-violet-500/20'
-                  : 'text-slate-400 hover:text-white hover:bg-white/[0.05]'
+              onClick={() => go(id)}
+              className={`w-full flex items-center gap-3 px-3 h-10 rounded-md text-sm transition-colors text-left ${
+                activeNav === id ? 'bg-ink-800 text-fg font-medium' : 'text-fg-muted hover:text-fg hover:bg-ink-850'
               }`}
+              aria-current={activeNav === id ? 'page' : undefined}
             >
-              <span className="text-base w-5 text-center">{icon}</span>
+              <I width={17} height={17} className={activeNav === id ? 'text-accent' : ''} />
               {label}
             </button>
           ))}
         </nav>
-        <div className="px-3 py-4 border-t border-white/[0.06]">
-          <button onClick={handleSignOut} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-500/[0.08] transition-all">
-            <span className="text-base w-5 text-center">→</span>Sign Out
+        <div className="p-3 border-t border-ink-700">
+          <div className="flex items-center gap-3 px-2 py-2 mb-1">
+            <span className="w-8 h-8 rounded-md bg-ink-800 border border-ink-700 flex items-center justify-center text-xs font-semibold text-fg shrink-0">{initials}</span>
+            <div className="min-w-0">
+              <p className="text-sm text-fg truncate">{displayName}</p>
+              <p className="text-xs text-fg-faint truncate">{user?.email}</p>
+            </div>
+          </div>
+          <button onClick={handleSignOut} className="w-full flex items-center gap-3 px-3 h-10 rounded-md text-sm text-fg-muted hover:text-fg hover:bg-ink-850 transition-colors">
+            <IconLogOut width={17} height={17} />Sign out
           </button>
         </div>
       </aside>
 
       {sidebarOpen && <div className="fixed inset-0 z-30 bg-black/60 lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
-      {/* Main */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="h-16 flex items-center justify-between px-4 sm:px-6 border-b border-white/[0.06] bg-[#080810]/90 backdrop-blur-xl flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 text-slate-400 hover:text-white rounded-lg hover:bg-white/[0.06]">
-              <div className="space-y-1"><div className="w-5 h-0.5 bg-current" /><div className="w-5 h-0.5 bg-current" /><div className="w-5 h-0.5 bg-current" /></div>
-            </button>
-            <div>
-              <h1 className="text-sm font-semibold text-white capitalize">{navItems.find(n => n.id === activeNav)?.label ?? 'Dashboard'}</h1>
-              <p className="text-xs text-slate-500 hidden sm:block">Welcome back, {displayName.split(' ')[0]}</p>
-            </div>
+      <div className="flex-1 min-w-0">
+        <header className="sticky top-0 z-20 h-16 flex items-center justify-between gap-4 px-4 sm:px-6 border-b border-ink-700 bg-ink-950">
+          <div className="flex items-center gap-3 min-w-0">
+            <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-1 -ml-1 text-fg-muted hover:text-fg" aria-label="Open menu"><IconMenu width={22} height={22} /></button>
+            <h1 className="text-[15px] font-semibold text-fg truncate">{current?.label ?? 'Dashboard'}</h1>
           </div>
-          <div className="hidden md:flex items-center gap-4 text-xs">
-            <div className="px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06]">
-              <span className="text-slate-500">Balance: </span>
-              <span className="text-white font-semibold">${fmt(account?.account_balance ?? 0)}</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-600 to-blue-500 flex items-center justify-center text-xs font-bold">{initials}</div>
+          <div className="text-right">
+            <div className="text-[11px] text-fg-faint leading-none mb-1">Account balance</div>
+            <div className="text-sm font-semibold text-fg tabular-nums leading-none">${fmt(account?.account_balance ?? 0)}</div>
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-          {activeNav === 'overview' && <OverviewTab account={account} txs={txs} setActiveNav={setActiveNav} />}
+        <main className="p-4 sm:p-6 max-w-6xl">
+          {activeNav === 'overview' && <OverviewTab name={displayName} account={account} txs={txs} go={go} />}
           {activeNav === 'markets' && <MarketsTab />}
           {activeNav === 'transactions' && <TransactionsTab txs={txs} />}
           {activeNav === 'deposit' && <DepositTab token={token} onSuccess={() => fetchData(token)} />}
@@ -216,118 +233,113 @@ export default function DashboardPage() {
   )
 }
 
-/* ─── OVERVIEW ─── */
-function OverviewTab({ account, txs, setActiveNav }: { account: Account | null; txs: Tx[]; setActiveNav: (id: string) => void }) {
+function EmptyState({ title, body }: { title: string; body?: string }) {
+  return (
+    <div className="px-6 py-12 text-center">
+      <p className="text-sm text-fg">{title}</p>
+      {body && <p className="text-[13px] text-fg-faint mt-1">{body}</p>}
+    </div>
+  )
+}
+
+/* Overview */
+function OverviewTab({ name, account, txs, go }: { name: string; account: Account | null; txs: Tx[]; go: (id: string) => void }) {
   const recentTxs = txs.slice(0, 5)
+  const pendingCount = txs.filter(t => t.status.startsWith('pending')).length
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div>
+        <p className="text-fg-muted text-sm">Signed in as {name}</p>
+      </div>
+
+      <dl className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-ink-700 border border-ink-700 rounded-lg overflow-hidden">
         {[
-          { label: 'Account Balance', value: `$${fmt(account?.account_balance ?? 0)}`, icon: '💰', gradient: 'from-violet-500/20 to-violet-500/5' },
-          { label: 'Available', value: `$${fmt(account?.available_balance ?? 0)}`, icon: '💵', gradient: 'from-emerald-500/20 to-emerald-500/5' },
-          { label: 'Invested', value: `$${fmt(account?.invested_balance ?? 0)}`, icon: '📈', gradient: 'from-blue-500/20 to-blue-500/5' },
-          { label: 'Pending', value: `$${fmt(account?.pending_balance ?? 0)}`, icon: '⏳', gradient: 'from-yellow-500/20 to-yellow-500/5' },
-        ].map(({ label, value, icon, gradient }) => (
-          <div key={label} className="glass rounded-2xl p-4 sm:p-5 border border-white/[0.06] hover:border-violet-500/20 transition-all group">
-            <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${gradient} border border-white/[0.06] flex items-center justify-center text-base mb-3 group-hover:scale-110 transition-transform`}>{icon}</div>
-            <p className="text-xs text-slate-500 mb-1">{label}</p>
-            <p className="text-sm sm:text-lg font-bold text-white leading-tight">{value}</p>
+          ['Account balance', account?.account_balance ?? 0],
+          ['Available', account?.available_balance ?? 0],
+          ['Invested', account?.invested_balance ?? 0],
+          ['Pending', account?.pending_balance ?? 0],
+        ].map(([label, value]) => (
+          <div key={label as string} className="bg-ink-900 p-4 sm:p-5">
+            <dt className="text-[13px] text-fg-faint">{label}</dt>
+            <dd className="mt-1.5 text-lg sm:text-2xl font-semibold text-fg tabular-nums">${fmt(value as number)}</dd>
           </div>
         ))}
-      </div>
+      </dl>
 
-      <div className="grid xl:grid-cols-3 gap-6">
-        <div className="xl:col-span-2 glass rounded-2xl border border-white/[0.06] overflow-hidden" style={{ minHeight: '460px' }}>
-          <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
-            <div className="flex items-center gap-3">
-              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-xs font-bold">₿</div>
-              <div>
-                <p className="text-sm font-semibold text-white">Bitcoin / USDT</p>
-                <p className="text-xs text-slate-500">BTC/USDT</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />LIVE
-            </div>
+      {pendingCount > 0 && (
+        <div className="flex gap-3 p-4 rounded-md border border-amber-500/30 bg-amber-500/[0.05] text-sm">
+          <IconInfo className="shrink-0 text-amber-400 mt-px" width={17} height={17} />
+          <p className="text-fg-muted">
+            You have {pendingCount} transaction{pendingCount === 1 ? '' : 's'} waiting for review. Your balance updates once {pendingCount === 1 ? 'it is' : 'they are'} approved.
+          </p>
+        </div>
+      )}
+
+      <div className="grid xl:grid-cols-3 gap-4">
+        <div className="xl:col-span-2 panel overflow-hidden">
+          <div className="flex items-center justify-between px-4 h-11 border-b border-ink-700 text-[13px]">
+            <span className="text-fg">BTC/USD</span>
+            <span className="text-fg-faint">Chart by TradingView</span>
           </div>
-          <TradingViewChart />
+          <TradingViewChart height={400} />
         </div>
 
-        <div className="glass rounded-2xl border border-white/[0.06] p-5 flex flex-col">
-          <h3 className="font-semibold text-white text-sm mb-4">Quick Actions</h3>
-          <div className="space-y-3 flex-1">
-            <button onClick={() => setActiveNav('deposit')} className="w-full py-3 text-sm font-semibold text-white bg-gradient-to-r from-violet-600 to-blue-500 rounded-xl hover:opacity-90 transition-all shadow-[0_0_15px_rgba(124,58,237,0.3)]">
-              Deposit Funds
-            </button>
-            <button onClick={() => setActiveNav('withdraw')} className="w-full py-3 text-sm font-medium text-slate-300 border border-white/[0.1] rounded-xl hover:border-violet-500/30 hover:bg-violet-500/[0.06] transition-all">
-              Request Withdrawal
-            </button>
-            <button onClick={() => setActiveNav('transactions')} className="w-full py-3 text-sm font-medium text-slate-300 border border-white/[0.1] rounded-xl hover:border-violet-500/30 hover:bg-violet-500/[0.06] transition-all">
-              View Transactions
-            </button>
-          </div>
+        <div className="panel p-5 flex flex-col gap-3">
+          <h3 className="text-[15px] font-semibold text-fg mb-1">Actions</h3>
+          <button onClick={() => go('deposit')} className="btn btn-solid w-full">Deposit Bitcoin</button>
+          <button onClick={() => go('withdraw')} className="btn btn-outline w-full">Request a withdrawal</button>
+          <button onClick={() => go('transactions')} className="btn btn-outline w-full">View all transactions</button>
         </div>
       </div>
 
-      <div className="glass rounded-2xl border border-white/[0.06]">
-        <div className="flex items-center justify-between p-5 border-b border-white/[0.06]">
-          <h3 className="font-semibold text-white text-sm">Recent Transactions</h3>
-          {txs.length > 0 && (
-            <button onClick={() => setActiveNav('transactions')} className="text-xs text-violet-400 hover:text-violet-300 transition-colors">View all</button>
-          )}
+      <div className="panel">
+        <div className="flex items-center justify-between px-5 h-14 border-b border-ink-700">
+          <h3 className="text-[15px] font-semibold text-fg">Recent transactions</h3>
+          {txs.length > 0 && <button onClick={() => go('transactions')} className="text-[13px] text-fg-muted hover:text-fg">View all</button>}
         </div>
         {recentTxs.length === 0 ? (
-          <div className="p-12 text-center">
-            <div className="w-10 h-10 mx-auto mb-3 rounded-full bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-xl">📋</div>
-            <p className="text-slate-400 text-sm">No transactions yet</p>
-            <p className="text-slate-600 text-xs mt-1">Make a deposit to get started</p>
-          </div>
+          <EmptyState title="No transactions yet" body="Your deposits and withdrawals will appear here." />
         ) : (
-          <div className="divide-y divide-white/[0.04]">
+          <ul className="divide-y divide-ink-700">
             {recentTxs.map(tx => (
-              <div key={tx.id} className="flex items-center justify-between p-4 hover:bg-white/[0.02] transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm ${tx.type === 'deposit' ? 'bg-emerald-500/10 text-emerald-400' : tx.type === 'withdrawal' ? 'bg-red-500/10 text-red-400' : 'bg-blue-500/10 text-blue-400'}`}>
-                    {tx.type === 'deposit' ? '↓' : tx.type === 'withdrawal' ? '↑' : '↔'}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-white capitalize">{tx.type.replace(/_/g, ' ')}</p>
-                    <p className="text-xs text-slate-500">{new Date(tx.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
+              <li key={tx.id} className="flex items-center justify-between gap-4 px-5 py-3.5">
+                <div className="flex items-center gap-3 min-w-0">
+                  <TxIcon type={tx.type} />
+                  <div className="min-w-0">
+                    <p className="text-sm text-fg capitalize">{tx.type.replace(/_/g, ' ')}</p>
+                    <p className="text-xs text-fg-faint">{new Date(tx.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-white">${fmt(tx.amount)}</p>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium capitalize ${STATUS_STYLE[tx.status] || 'bg-slate-800 text-slate-400 border-white/[0.06]'}`}>
-                    {tx.status.replace(/_/g, ' ')}
-                  </span>
+                <div className="text-right shrink-0">
+                  <p className="text-sm font-medium text-fg tabular-nums mb-1">${fmt(tx.amount)}</p>
+                  <StatusTag status={tx.status} />
                 </div>
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
       </div>
     </div>
   )
 }
 
-/* ─── MARKETS ─── */
+/* Markets */
 function MarketsTab() {
   return (
-    <div className="space-y-6">
-      <div className="glass rounded-2xl border border-white/[0.06] overflow-hidden" style={{ minHeight: '600px' }}>
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.06]">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-sm font-semibold text-white">Live Markets</span>
-          <span className="text-xs text-slate-500">BTC/USDT · Real-time</span>
+    <div className="space-y-4">
+      <div className="panel overflow-hidden">
+        <div className="flex items-center justify-between px-4 h-11 border-b border-ink-700 text-[13px]">
+          <span className="text-fg">BTC/USD</span>
+          <span className="text-fg-faint">Chart by TradingView</span>
         </div>
-        <TradingViewChart />
+        <TradingViewChart height={520} />
       </div>
       <BitcoinMarketCard />
     </div>
   )
 }
 
-/* ─── TRANSACTIONS ─── */
+/* Transactions */
 function TransactionsTab({ txs }: { txs: Tx[] }) {
   const [filter, setFilter] = useState('')
   const filtered = filter ? txs.filter(t => t.type === filter) : txs
@@ -335,50 +347,48 @@ function TransactionsTab({ txs }: { txs: Tx[] }) {
 
   return (
     <div className="space-y-4">
-      {types.length > 0 && (
-        <div className="flex gap-2 flex-wrap">
-          <button onClick={() => setFilter('')} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${!filter ? 'bg-violet-600 text-white' : 'bg-white/[0.04] text-slate-400 hover:text-white border border-white/[0.06]'}`}>All</button>
-          {types.map(t => (
-            <button key={t} onClick={() => setFilter(t)} className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-all ${filter === t ? 'bg-violet-600 text-white' : 'bg-white/[0.04] text-slate-400 hover:text-white border border-white/[0.06]'}`}>
-              {t.replace(/_/g, ' ')}
+      {types.length > 1 && (
+        <div className="inline-flex border border-ink-700 rounded-md overflow-hidden text-[13px]" role="tablist">
+          {['', ...types].map(t => (
+            <button
+              key={t || 'all'}
+              onClick={() => setFilter(t)}
+              role="tab"
+              aria-selected={filter === t}
+              className={`px-3.5 h-9 capitalize border-r border-ink-700 last:border-r-0 transition-colors ${filter === t ? 'bg-ink-800 text-fg' : 'text-fg-muted hover:text-fg'}`}
+            >
+              {t ? t.replace(/_/g, ' ') : 'All'}
             </button>
           ))}
         </div>
       )}
 
-      <div className="glass rounded-2xl border border-white/[0.06]">
+      <div className="panel overflow-hidden">
         {filtered.length === 0 ? (
-          <div className="p-12 text-center">
-            <div className="w-10 h-10 mx-auto mb-3 rounded-full bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-xl">📋</div>
-            <p className="text-slate-400 text-sm">No transactions found</p>
-          </div>
+          <EmptyState title="No transactions yet" body="Once you submit a deposit, it will show up here with its status." />
         ) : (
           <>
-            <div className="hidden sm:block overflow-x-auto">
-              <table className="w-full">
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-white/[0.06]">
+                  <tr className="border-b border-ink-700 text-left text-xs text-fg-faint">
                     {['Type', 'Amount', 'Fee', 'Status', 'Reference', 'Date'].map(h => (
-                      <th key={h} className="px-5 py-3 text-left text-xs text-slate-500 font-medium">{h}</th>
+                      <th key={h} className={`px-5 py-3 font-medium ${h === 'Amount' || h === 'Fee' ? 'text-right' : ''}`}>{h}</th>
                     ))}
                   </tr>
                 </thead>
-                <tbody>
-                  {filtered.map((tx, i) => (
-                    <tr key={tx.id} className={`border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors ${i % 2 === 1 ? 'bg-white/[0.01]' : ''}`}>
-                      <td className="px-5 py-4">
-                        <span className="text-xs text-slate-300 capitalize">{tx.type.replace(/_/g, ' ')}</span>
-                        {tx.method && <p className="text-[10px] text-slate-600 mt-0.5">{tx.method}</p>}
+                <tbody className="divide-y divide-ink-700">
+                  {filtered.map(tx => (
+                    <tr key={tx.id} className="hover:bg-ink-850 transition-colors">
+                      <td className="px-5 py-3.5">
+                        <span className="text-fg capitalize">{tx.type.replace(/_/g, ' ')}</span>
+                        {tx.method && <p className="text-xs text-fg-faint capitalize">{tx.method.replace(/_/g, ' ')}</p>}
                       </td>
-                      <td className="px-5 py-4 text-sm font-medium text-white">${fmt(tx.amount)}</td>
-                      <td className="px-5 py-4 text-xs text-slate-400">{tx.fee ? `$${fmt(tx.fee)}` : '—'}</td>
-                      <td className="px-5 py-4">
-                        <span className={`text-[10px] px-2 py-1 rounded-full border font-medium capitalize ${STATUS_STYLE[tx.status] || 'bg-slate-800 text-slate-400 border-white/[0.06]'}`}>
-                          {tx.status.replace(/_/g, ' ')}
-                        </span>
-                      </td>
-                      <td className="px-5 py-4 text-xs text-slate-500 font-mono">{tx.reference || '—'}</td>
-                      <td className="px-5 py-4 text-xs text-slate-500 whitespace-nowrap">
+                      <td className="px-5 py-3.5 text-right text-fg tabular-nums">${fmt(tx.amount)}</td>
+                      <td className="px-5 py-3.5 text-right text-fg-muted tabular-nums">{tx.fee ? `$${fmt(tx.fee)}` : '-'}</td>
+                      <td className="px-5 py-3.5"><StatusTag status={tx.status} /></td>
+                      <td className="px-5 py-3.5 text-xs text-fg-muted font-mono">{tx.reference || '-'}</td>
+                      <td className="px-5 py-3.5 text-fg-muted whitespace-nowrap">
                         {new Date(tx.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </td>
                     </tr>
@@ -386,41 +396,37 @@ function TransactionsTab({ txs }: { txs: Tx[] }) {
                 </tbody>
               </table>
             </div>
-            <div className="sm:hidden divide-y divide-white/[0.04]">
+            <ul className="md:hidden divide-y divide-ink-700">
               {filtered.map(tx => (
-                <div key={tx.id} className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div>
-                      <p className="text-sm font-medium text-white capitalize">{tx.type.replace(/_/g, ' ')}</p>
-                      <p className="text-xs text-slate-500">{tx.method || ''}</p>
+                <li key={tx.id} className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm text-fg capitalize">{tx.type.replace(/_/g, ' ')}</p>
+                      <p className="text-xs text-fg-faint">{new Date(tx.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</p>
+                      {tx.reference && <p className="text-xs text-fg-faint font-mono mt-1">{tx.reference}</p>}
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-bold text-white">${fmt(tx.amount)}</p>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium capitalize ${STATUS_STYLE[tx.status] || 'bg-slate-800 text-slate-400 border-white/[0.06]'}`}>
-                        {tx.status.replace(/_/g, ' ')}
-                      </span>
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-medium text-fg tabular-nums mb-1">${fmt(tx.amount)}</p>
+                      <StatusTag status={tx.status} />
                     </div>
                   </div>
-                  <p className="text-[10px] text-slate-600">{new Date(tx.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</p>
-                </div>
+                </li>
               ))}
+            </ul>
+            <div className="px-5 py-3 border-t border-ink-700 text-xs text-fg-faint">
+              {filtered.length} transaction{filtered.length !== 1 ? 's' : ''}
             </div>
           </>
-        )}
-        {filtered.length > 0 && (
-          <div className="px-5 py-3 border-t border-white/[0.06] text-xs text-slate-600">
-            Showing {filtered.length} transaction{filtered.length !== 1 ? 's' : ''}
-          </div>
         )}
       </div>
     </div>
   )
 }
 
-/* ─── DEPOSIT ─── */
+/* Deposit */
 function DepositTab({ token, onSuccess }: { token: string; onSuccess: () => void }) {
   const [amount, setAmount] = useState('')
-  const [method, setMethod] = useState('bank_transfer')
+  const [method, setMethod] = useState('bitcoin')
   const [notes, setNotes] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -429,7 +435,6 @@ function DepositTab({ token, onSuccess }: { token: string; onSuccess: () => void
   const [copied, setCopied] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const BTC_ADDRESS = 'bc1qvpwmdln4nm6xa2k9q26l84pg4ud0uuqzk83053'
   const copyAddress = () => {
     navigator.clipboard.writeText(BTC_ADDRESS).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) }).catch(() => {})
   }
@@ -438,7 +443,7 @@ function DepositTab({ token, onSuccess }: { token: string; onSuccess: () => void
     e.preventDefault()
     setError('')
     const amt = parseFloat(amount)
-    if (!amt || amt <= 0) { setError('Enter a valid amount'); return }
+    if (!amt || amt <= 0) { setError('Enter the amount you sent, in US dollars.'); return }
 
     setSubmitting(true)
     try {
@@ -452,7 +457,7 @@ function DepositTab({ token, onSuccess }: { token: string; onSuccess: () => void
           body: fd,
         })
         const upData = await upRes.json()
-        if (!upRes.ok) { setError(upData.error || 'Upload failed'); return }
+        if (!upRes.ok) { setError(upData.error || 'The receipt could not be uploaded.'); return }
         receiptPath = upData.path
       }
 
@@ -462,7 +467,7 @@ function DepositTab({ token, onSuccess }: { token: string; onSuccess: () => void
         body: JSON.stringify({ amount: amt, method, receipt_path: receiptPath, notes: notes.trim() || undefined }),
       })
       const data = await res.json()
-      if (!res.ok) { setError(data.error || 'Deposit request failed'); return }
+      if (!res.ok) { setError(data.error || 'The deposit could not be submitted.'); return }
 
       setSuccess({ reference: data.deposit?.reference || '' })
       setAmount('')
@@ -471,7 +476,7 @@ function DepositTab({ token, onSuccess }: { token: string; onSuccess: () => void
       if (fileRef.current) fileRef.current.value = ''
       onSuccess()
     } catch {
-      setError('Network error. Please try again.')
+      setError('Could not reach the server. Check your connection and try again.')
     } finally {
       setSubmitting(false)
     }
@@ -479,114 +484,84 @@ function DepositTab({ token, onSuccess }: { token: string; onSuccess: () => void
 
   if (success) {
     return (
-      <div className="max-w-lg mx-auto">
-        <div className="glass rounded-2xl p-8 border border-emerald-500/20 text-center">
-          <div className="w-14 h-14 mx-auto mb-5 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-2xl">✓</div>
-          <h3 className="text-xl font-bold text-white mb-2">Deposit Submitted</h3>
-          <p className="text-slate-400 text-sm mb-4">Your deposit request has been submitted for review.</p>
-          <div className="p-4 rounded-xl bg-white/[0.03] border border-white/[0.06] mb-6">
-            <p className="text-xs text-slate-500 mb-1">Reference</p>
-            <p className="text-white font-mono font-semibold">{success.reference}</p>
-          </div>
-          <p className="text-xs text-slate-500 mb-6">An admin will review and approve your deposit. You will see the funds reflected in your balance once approved.</p>
-          <button onClick={() => setSuccess(null)} className="px-6 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-violet-600 to-blue-500 rounded-xl hover:opacity-90 transition-all">
-            Submit Another
-          </button>
+      <div className="max-w-lg">
+        <div className="panel p-6 sm:p-8">
+          <span className="w-10 h-10 rounded-md border border-emerald-500/30 text-emerald-400 flex items-center justify-center mb-5"><IconCheck /></span>
+          <h3 className="text-xl font-semibold text-fg mb-2">Deposit submitted</h3>
+          <p className="text-[15px] text-fg-muted mb-5">It is now pending review. Your balance will update once it is approved, and you can follow its status under Transactions.</p>
+          {success.reference && (
+            <div className="p-4 rounded-md bg-ink-850 border border-ink-700 mb-6">
+              <p className="text-xs text-fg-faint mb-1">Reference</p>
+              <p className="text-fg font-mono">{success.reference}</p>
+            </div>
+          )}
+          <button onClick={() => setSuccess(null)} className="btn btn-outline">Submit another deposit</button>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="max-w-lg mx-auto space-y-6">
-      <div className="p-4 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-start gap-3">
-        <span className="text-violet-400 text-lg flex-shrink-0 mt-0.5">ℹ</span>
-        <div>
-          <p className="text-violet-300 text-sm font-medium">How deposits work</p>
-          <p className="text-slate-400 text-xs mt-1">Send Bitcoin to the address below, then submit your deposit details with a receipt. An admin will review and approve your deposit within 24 hours.</p>
+    <div className="grid lg:grid-cols-2 gap-4 items-start">
+      <div className="panel p-5 sm:p-6">
+        <h3 className="text-[15px] font-semibold text-fg">1. Send Bitcoin to this address</h3>
+        <p className="text-[13px] text-fg-faint mt-1 mb-5">Scan the code with your wallet, or copy the address.</p>
+        <div className="w-44 h-44 mx-auto sm:mx-0 mb-5 bg-white rounded-md p-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={`https://api.qrserver.com/v1/create-qr-code/?size=176x176&data=bitcoin:${BTC_ADDRESS}`} alt="QR code for the Bitcoin deposit address" className="w-full h-full" />
+        </div>
+        <label className="field-label">Bitcoin (BTC) address</label>
+        <div className="flex gap-2">
+          <div className="flex-1 min-w-0 px-3 py-2.5 rounded-md bg-ink-950 border border-ink-600 font-mono text-[13px] text-fg break-all select-all">{BTC_ADDRESS}</div>
+          <button onClick={copyAddress} className="btn btn-outline btn-sm !h-auto shrink-0" aria-label="Copy address">
+            {copied ? <><IconCheck width={15} height={15} />Copied</> : <><IconCopy width={15} height={15} />Copy</>}
+          </button>
+        </div>
+        <div className="flex gap-2.5 mt-5 p-3 rounded-md border border-amber-500/30 bg-amber-500/[0.05] text-[13px] text-fg-muted">
+          <IconAlert className="shrink-0 text-amber-400 mt-px" width={16} height={16} />
+          <span>Send only Bitcoin on the Bitcoin network to this address. Other coins or networks sent here cannot be recovered.</span>
         </div>
       </div>
 
-      {/* BTC Deposit Address */}
-      <div className="glass rounded-2xl p-6 border border-orange-500/20 text-center">
-        <div className="flex items-center justify-center gap-2 mb-4">
-          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-xs font-bold">₿</div>
-          <h3 className="font-semibold text-white">Send Bitcoin Here</h3>
-        </div>
-        <div className="w-48 h-48 mx-auto mb-4 bg-white rounded-xl p-2 flex items-center justify-center">
-          <img src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=bitcoin:${BTC_ADDRESS}`} alt="BTC QR Code" className="w-full h-full" />
-        </div>
-        <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] mb-3">
-          <p className="text-[10px] text-slate-500 mb-1.5">BTC Deposit Address</p>
-          <p className="text-white font-mono text-xs break-all select-all leading-relaxed">{BTC_ADDRESS}</p>
-        </div>
-        <button onClick={copyAddress} className="px-4 py-2 text-xs font-medium text-violet-300 bg-violet-500/10 border border-violet-500/20 rounded-lg hover:bg-violet-500/20 transition-all">
-          {copied ? '✓ Copied!' : 'Copy Address'}
-        </button>
-        <div className="mt-4 p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
-          <p className="text-[10px] text-yellow-400 font-medium">⚠ Only send BTC (Bitcoin) to this address. Other assets sent here will be permanently lost.</p>
-        </div>
-      </div>
-
-      <div className="glass rounded-2xl p-6 border border-white/[0.06]">
-        <h3 className="font-semibold text-white mb-5">New Deposit Request</h3>
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {error && (
-            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-start gap-2">
-              <span className="flex-shrink-0">⚠</span><span>{error}</span>
-            </div>
-          )}
+      <div className="panel p-5 sm:p-6">
+        <h3 className="text-[15px] font-semibold text-fg">2. Tell us about the transfer</h3>
+        <p className="text-[13px] text-fg-faint mt-1 mb-5">Submitting this does not change your balance. It is credited after our team checks it.</p>
+        <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+          {error && <FormError message={error} />}
 
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Amount (USD)</label>
-            <input
-              type="number" step="0.01" min="0.01" value={amount}
-              onChange={e => setAmount(e.target.value)}
-              placeholder="0.00" required className="input-field" disabled={submitting}
-            />
+            <label htmlFor="amount" className="field-label">Amount sent (USD)</label>
+            <input id="amount" type="number" inputMode="decimal" step="0.01" min="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" required className="field tabular-nums" disabled={submitting} />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Deposit Method</label>
-            <select value={method} onChange={e => setMethod(e.target.value)} className="input-field" disabled={submitting}>
-              <option value="bank_transfer">Bank Transfer</option>
-              <option value="wire_transfer">Wire Transfer</option>
-              <option value="crypto">Cryptocurrency</option>
-              <option value="cash">Cash Deposit</option>
+            <label htmlFor="method" className="field-label">Payment method</label>
+            <select id="method" value={method} onChange={e => setMethod(e.target.value)} className="field" disabled={submitting}>
+              <option value="bitcoin">Bitcoin (BTC)</option>
+              <option value="bank_transfer">Bank transfer</option>
+              <option value="wire_transfer">Wire transfer</option>
               <option value="other">Other</option>
             </select>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Receipt / Proof of Payment</label>
-            <div className="relative">
-              <input
-                ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf"
-                onChange={e => setFile(e.target.files?.[0] || null)}
-                className="input-field text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-violet-600/20 file:text-violet-300 file:text-xs file:font-medium file:cursor-pointer"
-                disabled={submitting}
-              />
-            </div>
-            <p className="text-xs text-slate-600 mt-1">JPG, PNG, WEBP, or PDF — max 5MB</p>
-            {file && <p className="text-xs text-emerald-400 mt-1">Selected: {file.name}</p>}
+            <label htmlFor="receipt" className="field-label">Receipt or screenshot</label>
+            <input
+              id="receipt" ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf"
+              onChange={e => setFile(e.target.files?.[0] || null)}
+              className="block w-full text-sm text-fg-muted file:mr-3 file:h-9 file:px-3 file:rounded-md file:border file:border-ink-600 file:bg-ink-850 file:text-fg file:text-[13px] file:font-medium file:cursor-pointer hover:file:bg-ink-800"
+              disabled={submitting}
+            />
+            <p className="text-xs text-fg-faint mt-1.5">JPG, PNG, WEBP or PDF. Maximum 5 MB. Include the transaction ID if you have it.</p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Notes (optional)</label>
-            <textarea
-              value={notes} onChange={e => setNotes(e.target.value)}
-              placeholder="Any additional details..." rows={3}
-              className="input-field resize-none" disabled={submitting}
-            />
+            <label htmlFor="notes" className="field-label">Notes (optional)</label>
+            <textarea id="notes" value={notes} onChange={e => setNotes(e.target.value)} placeholder="For example, the transaction ID or the wallet you sent from" rows={3} className="field resize-none" disabled={submitting} />
           </div>
 
-          <button
-            type="submit" disabled={submitting}
-            className="w-full py-3.5 text-sm font-semibold text-white bg-gradient-to-r from-violet-600 to-blue-500 rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_0_20px_rgba(124,58,237,0.3)] flex items-center justify-center gap-2"
-          >
-            {submitting ? (
-              <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Submitting...</>
-            ) : 'Submit Deposit Request'}
+          <button type="submit" disabled={submitting} className="btn btn-solid w-full">
+            {submitting ? <><Spinner />Submitting</> : 'Submit deposit for review'}
           </button>
         </form>
       </div>
@@ -594,91 +569,66 @@ function DepositTab({ token, onSuccess }: { token: string; onSuccess: () => void
   )
 }
 
-/* ─── WITHDRAW ─── */
+/* Withdraw */
 function WithdrawTab({ account }: { account: Account | null }) {
   return (
-    <div className="max-w-lg mx-auto space-y-6">
-      <div className="p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/20 flex items-start gap-3">
-        <span className="text-yellow-400 text-lg flex-shrink-0 mt-0.5">⚠</span>
-        <div>
-          <p className="text-yellow-300 text-sm font-medium">Withdrawals</p>
-          <p className="text-slate-400 text-xs mt-1">To request a withdrawal, please contact support. Withdrawal requests are processed within 1-3 business days.</p>
-        </div>
-      </div>
-
-      <div className="glass rounded-2xl p-6 border border-white/[0.06]">
-        <h3 className="font-semibold text-white mb-4">Account Summary</h3>
-        <div className="space-y-3">
+    <div className="max-w-lg space-y-4">
+      <div className="panel p-5 sm:p-6">
+        <h3 className="text-[15px] font-semibold text-fg mb-4">Your balances</h3>
+        <dl className="divide-y divide-ink-700">
           {[
-            ['Account Balance', `$${fmt(account?.account_balance ?? 0)}`],
-            ['Available for Withdrawal', `$${fmt(account?.available_balance ?? 0)}`],
-            ['Pending', `$${fmt(account?.pending_balance ?? 0)}`],
+            ['Account balance', account?.account_balance ?? 0],
+            ['Available to withdraw', account?.available_balance ?? 0],
+            ['Pending', account?.pending_balance ?? 0],
           ].map(([label, value]) => (
-            <div key={label} className="flex items-center justify-between py-2.5 border-b border-white/[0.04] last:border-0">
-              <span className="text-slate-400 text-sm">{label}</span>
-              <span className="text-white text-sm font-semibold">{value}</span>
+            <div key={label as string} className="flex items-center justify-between py-3">
+              <dt className="text-sm text-fg-muted">{label}</dt>
+              <dd className="text-sm font-medium text-fg tabular-nums">${fmt(value as number)}</dd>
             </div>
           ))}
-        </div>
+        </dl>
       </div>
 
-      <div className="glass rounded-2xl p-6 border border-white/[0.06] text-center">
-        <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-2xl">📧</div>
-        <h3 className="text-white font-semibold mb-2">Contact Support</h3>
-        <p className="text-slate-400 text-sm mb-4">Please reach out to our support team to initiate a withdrawal request.</p>
-        <a href="mailto:support@tarafab.com" className="inline-block px-6 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-violet-600 to-blue-500 rounded-xl hover:opacity-90 transition-all">
-          Email Support
+      <div className="panel p-5 sm:p-6">
+        <h3 className="text-[15px] font-semibold text-fg mb-2">Request a withdrawal</h3>
+        <p className="text-sm text-fg-muted mb-5">
+          Withdrawals are handled by our support team. Email us from the address on your account with the amount and the Bitcoin address you want the funds sent to.
+        </p>
+        <a href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Withdrawal request')}`} className="btn btn-solid">
+          <IconMail width={17} height={17} />Email {SUPPORT_EMAIL}
         </a>
       </div>
     </div>
   )
 }
 
-/* ─── PROFILE ─── */
+/* Profile */
 function ProfileTab({ user, account }: { user: UserInfo | null; account: Account | null }) {
+  const rows: [string, string][] = [
+    ['Full name', user?.full_name || 'Not set'],
+    ['Email', user?.email || 'Not set'],
+    ['Email confirmed', user?.email_confirmed === undefined ? 'Unknown' : user.email_confirmed ? 'Yes' : 'No'],
+    ['Member since', user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'Unknown'],
+    ['Account balance', `$${fmt(account?.account_balance ?? 0)}`],
+  ]
   return (
-    <div className="max-w-lg mx-auto space-y-6">
-      <div className="glass rounded-2xl p-6 border border-white/[0.06]">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="w-14 h-14 rounded-full bg-gradient-to-br from-violet-600 to-blue-500 flex items-center justify-center text-lg font-bold">
-            {(user?.full_name ?? user?.email ?? 'U').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
-          </div>
-          <div>
-            <h3 className="text-lg font-bold text-white">{user?.full_name || 'Unknown'}</h3>
-            <p className="text-sm text-slate-400">{user?.email}</p>
-          </div>
-        </div>
-        <div className="space-y-3">
-          {[
-            ['Full Name', user?.full_name || '—'],
-            ['Email', user?.email || '—'],
-            ['Account Type', 'Client'],
-            ['Account Balance', `$${fmt(account?.account_balance ?? 0)}`],
-          ].map(([label, value]) => (
-            <div key={label} className="flex items-center justify-between py-2.5 border-b border-white/[0.04] last:border-0">
-              <span className="text-slate-500 text-sm">{label}</span>
-              <span className="text-white text-sm font-medium">{value}</span>
+    <div className="max-w-lg space-y-4">
+      <div className="panel p-5 sm:p-6">
+        <h3 className="text-[15px] font-semibold text-fg mb-4">Account details</h3>
+        <dl className="divide-y divide-ink-700">
+          {rows.map(([label, value]) => (
+            <div key={label} className="flex items-center justify-between gap-4 py-3">
+              <dt className="text-sm text-fg-muted">{label}</dt>
+              <dd className="text-sm text-fg text-right truncate">{value}</dd>
             </div>
           ))}
-        </div>
+        </dl>
       </div>
 
-      <div className="glass rounded-2xl p-6 border border-white/[0.06]">
-        <h3 className="font-semibold text-white mb-4 text-sm">Security</h3>
-        <div className="grid sm:grid-cols-2 gap-3">
-          {[
-            { label: 'Email', status: 'Verified', icon: '✉', color: 'text-emerald-400' },
-            { label: 'Password', status: 'Set', icon: '🔑', color: 'text-emerald-400' },
-          ].map(({ label, status, icon, color }) => (
-            <div key={label} className="flex items-center gap-3 p-4 rounded-xl bg-white/[0.03] border border-white/[0.05]">
-              <span className={`text-xl ${color}`}>{icon}</span>
-              <div>
-                <p className="text-sm font-medium text-white">{label}</p>
-                <p className={`text-xs ${color}`}>{status}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+      <div className="panel p-5 sm:p-6">
+        <h3 className="text-[15px] font-semibold text-fg mb-2">Password</h3>
+        <p className="text-sm text-fg-muted mb-5">We will email you a link to choose a new password.</p>
+        <Link href="/forgot-password" className="btn btn-outline">Change password</Link>
       </div>
     </div>
   )

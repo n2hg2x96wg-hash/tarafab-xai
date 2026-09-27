@@ -2,8 +2,8 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Tarafab.XAi — Invest with Clarity',
-  description: 'Real-time settlement, transparent reporting, and institutional-grade custody.',
+  title: 'Tarafab.XAi | Bitcoin deposits and account tracking',
+  description: 'Deposit Bitcoin, upload your transfer receipt, and track your balance and transaction history in one dashboard.',
   icons: {
     icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="80" font-size="80">₿</text></svg>',
   },

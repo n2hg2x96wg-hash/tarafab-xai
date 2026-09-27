@@ -4,10 +4,10 @@ import { useEffect, useRef, useState } from 'react'
 
 type Product = 'BTC-USD' | 'ETH-USD' | 'SOL-USD'
 const PRODUCTS: Product[] = ['BTC-USD', 'ETH-USD', 'SOL-USD']
-const LABELS: Record<Product, { name: string; icon: string; color: string }> = {
-  'BTC-USD': { name: 'Bitcoin', icon: '₿', color: 'from-orange-400 to-orange-600' },
-  'ETH-USD': { name: 'Ethereum', icon: 'Ξ', color: 'from-indigo-400 to-violet-600' },
-  'SOL-USD': { name: 'Solana', icon: '◎', color: 'from-emerald-400 to-fuchsia-500' },
+const LABELS: Record<Product, string> = {
+  'BTC-USD': 'Bitcoin',
+  'ETH-USD': 'Ethereum',
+  'SOL-USD': 'Solana',
 }
 
 export interface Quote { price: number; open24h: number; dir: 'up' | 'down' | null }
@@ -112,51 +112,53 @@ export function useLiveMarket() {
   return { quotes, trades, status }
 }
 
+
 function pctChange(q?: Quote) {
   if (!q || !q.open24h) return null
   return ((q.price - q.open24h) / q.open24h) * 100
 }
 
-function FlashPrice({ quote, className = '' }: { quote?: Quote; className?: string }) {
-  const [flash, setFlash] = useState<'up' | 'down' | null>(null)
+function Change({ value, className = '' }: { value: number | null; className?: string }) {
+  if (value === null) return null
+  const up = value >= 0
+  return (
+    <span className={`tabular-nums font-medium ${up ? 'price-up' : 'price-down'} ${className}`}>
+      {up ? '+' : '-'}{Math.abs(value).toFixed(2)}%
+    </span>
+  )
+}
+
+// Colors the price briefly when a new trade moves it, then settles back.
+function TickPrice({ quote, className = '' }: { quote?: Quote; className?: string }) {
+  const [dir, setDir] = useState<'up' | 'down' | null>(null)
   const last = useRef<number | undefined>(undefined)
   useEffect(() => {
     if (!quote) return
-    if (last.current !== undefined && last.current !== quote.price) {
-      setFlash(quote.price > last.current ? 'up' : 'down')
-      const t = setTimeout(() => setFlash(null), 700)
-      last.current = quote.price
-      return () => clearTimeout(t)
-    }
+    const prev = last.current
     last.current = quote.price
+    if (prev === undefined || prev === quote.price) return
+    setDir(quote.price > prev ? 'up' : 'down')
+    const t = setTimeout(() => setDir(null), 900)
+    return () => clearTimeout(t)
   }, [quote])
-  if (!quote) return <span className={`inline-block skeleton h-[1em] w-40 align-middle ${className}`} />
-  return (
-    <span className={`tabular-nums transition-colors duration-300 ${flash === 'up' ? 'text-emerald-400 price-flash-up' : flash === 'down' ? 'text-red-400 price-flash-down' : ''} ${className}`}>
-      {usd(quote.price)}
-    </span>
-  )
+  if (!quote) return <span className={`inline-block skeleton h-[0.9em] w-44 align-middle ${className}`} />
+  return <span className={`tabular-nums price-tick ${dir === 'up' ? 'price-up' : dir === 'down' ? 'price-down' : ''} ${className}`}>{usd(quote.price)}</span>
 }
 
 export function LiveTickerBar({ quotes }: { quotes: Partial<Record<Product, Quote>> }) {
   const items = PRODUCTS.map(p => {
     const q = quotes[p]
-    const ch = pctChange(q)
     return (
-      <div key={p} className="flex items-center gap-2.5 px-6 shrink-0">
-        <span className={`w-5 h-5 rounded-full bg-gradient-to-br ${LABELS[p].color} flex items-center justify-center text-[10px] font-bold`}>{LABELS[p].icon}</span>
-        <span className="text-slate-400 text-xs font-medium">{p.replace('-', '/')}</span>
-        <span className="text-white text-xs font-semibold tabular-nums">{q ? usd(q.price) : '—'}</span>
-        {ch !== null && (
-          <span className={`text-[11px] font-semibold tabular-nums ${ch >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {ch >= 0 ? '▲' : '▼'} {Math.abs(ch).toFixed(2)}%
-          </span>
-        )}
+      <div key={p} className="flex items-center gap-3 px-8 shrink-0 text-[13px]">
+        <span className="text-fg-muted">{LABELS[p]}</span>
+        <span className="text-fg-faint">{p.replace('-USD', '')}</span>
+        {q ? <span className="text-fg font-medium tabular-nums">{usd(q.price)}</span> : <span className="skeleton inline-block w-20 h-3" />}
+        <Change value={pctChange(q)} />
       </div>
     )
   })
   return (
-    <div className="relative overflow-hidden border-y border-white/[0.06] bg-black/30 backdrop-blur-sm py-2.5 marquee-mask">
+    <div className="relative overflow-hidden border-b border-ink-700 bg-ink-900 h-10 flex items-center marquee-mask" aria-label="Live prices">
       <div className="flex w-max animate-marquee">
         {items}{items}{items}{items}
       </div>
@@ -174,7 +176,7 @@ function useBtcHistory() {
         if (!res.ok) throw new Error()
         const j = await res.json()
         if (alive) setPoints((j.prices as [number, number][]).map(([, p]) => p))
-      } catch { if (alive) setPoints([]) }
+      } catch { if (alive) setPoints(prev => prev ?? []) }
     }
     load()
     const t = setInterval(load, 5 * 60_000)
@@ -183,26 +185,17 @@ function useBtcHistory() {
   return points
 }
 
-function AreaChart({ points, positive }: { points: number[]; positive: boolean }) {
+function LineChart({ points, positive }: { points: number[]; positive: boolean }) {
   const w = 400, h = 120
   const min = Math.min(...points), max = Math.max(...points)
   const span = max - min || 1
-  const xy = points.map((p, i) => [(i / (points.length - 1)) * w, h - ((p - min) / span) * (h - 10) - 5])
+  const xy = points.map((p, i) => [(i / (points.length - 1)) * w, h - ((p - min) / span) * (h - 12) - 6])
   const line = xy.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ')
-  const color = positive ? '#10b981' : '#ef4444'
-  const [lx, ly] = xy[xy.length - 1]
+  const color = positive ? '#34D399' : '#F87171'
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-28" preserveAspectRatio="none">
-      <defs>
-        <linearGradient id="heroArea" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.35" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={`${line} L${w},${h} L0,${h} Z`} fill="url(#heroArea)" />
-      <path d={line} fill="none" stroke={color} strokeWidth="2" vectorEffect="non-scaling-stroke" className="draw-line" />
-      <circle cx={lx} cy={ly} r="4" fill={color} className="animate-ping-slow" />
-      <circle cx={lx} cy={ly} r="3" fill={color} />
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-28" preserveAspectRatio="none" role="img" aria-label="Bitcoin price, last 24 hours">
+      <path d={`${line} L${w},${h} L0,${h} Z`} fill={color} fillOpacity="0.07" />
+      <path d={line} fill="none" stroke={color} strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
     </svg>
   )
 }
@@ -214,72 +207,55 @@ export function HeroLivePanel({ quotes, trades, status }: ReturnType<typeof useL
   const series = history && history.length > 1 ? (btc ? [...history, btc.price] : history) : null
 
   return (
-    <div className="relative">
-      <div aria-hidden className="absolute -inset-6 bg-gradient-to-br from-violet-600/30 via-fuchsia-500/10 to-orange-500/20 blur-3xl rounded-[3rem] animate-aurora" />
-      <div className="relative glass rounded-3xl p-5 sm:p-6 border border-white/10 shadow-[0_20px_80px_rgba(124,58,237,0.25)] overflow-hidden">
-        <div aria-hidden className="absolute inset-0 shine-sweep pointer-events-none" />
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="coin-3d w-11 h-11 rounded-full bg-gradient-to-br from-amber-300 via-orange-500 to-orange-700 flex items-center justify-center text-xl font-black text-white shadow-[0_0_30px_rgba(251,146,60,0.55)]">₿</div>
-            <div className="text-left">
-              <div className="text-white font-semibold leading-tight">Bitcoin</div>
-              <div className="text-slate-500 text-xs">BTC / USD</div>
-            </div>
-          </div>
-          <StatusPill status={status} />
-        </div>
-
-        <div className="text-left mb-1">
-          <FlashPrice quote={btc} className="text-4xl sm:text-5xl font-black tracking-tight text-white" />
-        </div>
-        <div className="text-left text-sm mb-4 h-5">
-          {ch !== null && (
-            <span className={`font-semibold ${ch >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              {ch >= 0 ? '▲' : '▼'} {Math.abs(ch).toFixed(2)}% <span className="text-slate-500 font-normal">24h</span>
-            </span>
-          )}
-        </div>
-
-        <div className="-mx-2 mb-4">
-          {series ? <AreaChart points={series} positive={(ch ?? 0) >= 0} /> : history === null ? <div className="skeleton h-28 rounded-xl" /> : <div className="h-28 flex items-center justify-center text-xs text-slate-500">24h chart unavailable</div>}
-        </div>
-
-        <div className="text-left">
-          <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-slate-500 mb-2">
-            <span>Live trades</span><span>Size (BTC)</span>
-          </div>
-          <div className="space-y-1 h-[168px] overflow-hidden">
-            {trades.length === 0 && <div className="text-xs text-slate-500 pt-6 text-center">{status === 'polling' || status === 'error' ? 'Live trade stream unavailable' : 'Waiting for trades…'}</div>}
-            {trades.slice(0, 8).map(t => (
-              <div key={t.id} className="trade-row flex items-center justify-between text-xs tabular-nums py-0.5">
-                <span className={`font-semibold ${t.side === 'buy' ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {t.side === 'buy' ? '▲' : '▼'} {usd(t.price)}
-                </span>
-                <span className="text-slate-400">{t.size.toFixed(5)}</span>
-                <span className="text-slate-600 w-16 text-right whitespace-nowrap">{new Date(t.time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <p className="text-[10px] text-slate-600 mt-3 text-left">Prices &amp; trades streamed from Coinbase Exchange · 24h chart via CoinGecko</p>
+    <div className="panel p-5 sm:p-6">
+      <div className="flex items-center justify-between mb-5">
+        <div className="text-sm text-fg-muted">Bitcoin <span className="text-fg-faint">BTC/USD</span></div>
+        <StatusTag status={status} />
       </div>
+
+      <TickPrice quote={btc} className="block text-[40px] sm:text-[44px] leading-none font-semibold tracking-tight text-fg" />
+      <div className="mt-2 h-5 text-sm">
+        {ch !== null && <><Change value={ch} /> <span className="text-fg-faint">past 24h</span></>}
+      </div>
+
+      <div className="mt-4 mb-5 -mx-1">
+        {series ? <LineChart points={series} positive={(ch ?? 0) >= 0} /> : history === null ? <div className="skeleton h-28" /> : <div className="h-28 flex items-center justify-center text-xs text-fg-faint">24h chart unavailable right now</div>}
+      </div>
+
+      <div className="border-t border-ink-700 pt-4">
+        <div className="grid grid-cols-3 text-[11px] uppercase tracking-wide text-fg-faint mb-2">
+          <span>Price (USD)</span><span className="text-right">Size (BTC)</span><span className="text-right">Time</span>
+        </div>
+        <div className="h-[176px] overflow-hidden">
+          {trades.length === 0 && (
+            <div className="text-xs text-fg-faint pt-8 text-center">
+              {status === 'polling' || status === 'error' ? 'Trade feed unavailable. Prices update every 30 seconds.' : 'Waiting for trades'}
+            </div>
+          )}
+          {trades.slice(0, 8).map(t => (
+            <div key={t.id} className="row-in grid grid-cols-3 text-[13px] tabular-nums h-[22px] items-center">
+              <span className={t.side === 'buy' ? 'price-up' : 'price-down'}>{usd(t.price)}</span>
+              <span className="text-right text-fg-muted">{t.size.toFixed(5)}</span>
+              <span className="text-right text-fg-faint">{new Date(t.time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <p className="text-[11px] text-fg-faint mt-3">Prices and trades from Coinbase Exchange. 24h chart from CoinGecko.</p>
     </div>
   )
 }
 
-function StatusPill({ status }: { status: Status }) {
+function StatusTag({ status }: { status: Status }) {
   const map = {
-    live: { t: 'LIVE', c: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30', d: 'bg-emerald-400' },
-    polling: { t: 'DELAYED', c: 'bg-amber-500/15 text-amber-400 border-amber-500/30', d: 'bg-amber-400' },
-    connecting: { t: 'CONNECTING', c: 'bg-slate-500/15 text-slate-400 border-slate-500/30', d: 'bg-slate-400' },
-    error: { t: 'OFFLINE', c: 'bg-red-500/15 text-red-400 border-red-500/30', d: 'bg-red-400' },
+    live: { t: 'Live', c: 'text-emerald-400 border-emerald-500/30', d: 'bg-emerald-400' },
+    polling: { t: 'Delayed', c: 'text-amber-400 border-amber-500/30', d: 'bg-amber-400' },
+    connecting: { t: 'Connecting', c: 'text-fg-muted border-ink-600', d: 'bg-fg-faint' },
+    error: { t: 'Offline', c: 'text-red-400 border-red-500/30', d: 'bg-red-400' },
   }[status]
   return (
-    <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-bold tracking-wider ${map.c}`}>
-      <span className="relative flex w-1.5 h-1.5">
-        {status === 'live' && <span className={`absolute inline-flex h-full w-full rounded-full ${map.d} opacity-75 animate-ping`} />}
-        <span className={`relative inline-flex rounded-full w-1.5 h-1.5 ${map.d}`} />
-      </span>
+    <span className={`tag ${map.c}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${map.d}`} />
       {map.t}
     </span>
   )
@@ -290,7 +266,7 @@ interface Block { id: string; height: number; timestamp: number; tx_count: numbe
 function timeAgo(ts: number) {
   const s = Math.max(0, Math.floor(Date.now() / 1000 - ts))
   if (s < 60) return `${s}s ago`
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`
+  if (s < 3600) return `${Math.floor(s / 60)} min ago`
   return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m ago`
 }
 
@@ -327,46 +303,39 @@ export function LatestBlocks() {
   }, [])
 
   return (
-    <div className="glass rounded-2xl p-5 sm:p-6 border border-white/[0.06]">
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+    <div className="panel p-5 sm:p-6">
+      <div className="flex flex-wrap items-end justify-between gap-4 mb-5">
         <div>
-          <h3 className="font-semibold text-white flex items-center gap-2">
-            <span className="relative flex w-2 h-2"><span className="absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75 animate-ping" /><span className="relative inline-flex rounded-full w-2 h-2 bg-orange-400" /></span>
-            Latest Bitcoin blocks
-          </h3>
-          <p className="text-xs text-slate-500 mt-0.5">Newly mined blocks appear automatically</p>
+          <h3 className="text-[15px] font-semibold text-fg">Latest Bitcoin blocks</h3>
+          <p className="text-[13px] text-fg-faint mt-1">New blocks are added here as they are mined. Checked every 30 seconds.</p>
         </div>
         {fees && (
-          <div className="flex gap-2 text-[11px]">
-            {[['Fast', fees.fastestFee], ['30 min', fees.halfHourFee], ['1 hr', fees.hourFee]].map(([l, v]) => (
-              <div key={l} className="px-2.5 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-center">
-                <div className="text-slate-500">{l}</div>
-                <div className="text-white font-semibold tabular-nums">{v} sat/vB</div>
+          <dl className="flex gap-5 text-[13px]">
+            {([['Next block', fees.fastestFee], ['~30 min', fees.halfHourFee], ['~1 hour', fees.hourFee]] as const).map(([l, v]) => (
+              <div key={l}>
+                <dt className="text-fg-faint">{l}</dt>
+                <dd className="text-fg font-medium tabular-nums">{v} sat/vB</dd>
               </div>
             ))}
-          </div>
+          </dl>
         )}
       </div>
 
-      {error && !blocks && <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">Block data temporarily unavailable</div>}
+      {error && !blocks && <p className="text-sm text-red-400">Block data is unavailable right now.</p>}
 
-      <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 snap-x">
-        {!blocks && !error && Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton shrink-0 w-36 h-36 rounded-xl" />)}
-        {blocks?.map((b, i) => (
-          <div
-            key={b.id}
-            className={`block-cube snap-start shrink-0 w-36 rounded-xl p-3 border text-left relative overflow-hidden ${i === 0 ? 'border-orange-500/40 bg-gradient-to-br from-orange-500/20 to-violet-600/10' : 'border-white/[0.07] bg-gradient-to-br from-violet-600/10 to-blue-600/5'} ${fresh === b.id ? 'block-new' : ''}`}
-            style={{ animationDelay: `${i * 70}ms` }}
-          >
-            <div className="text-orange-300 font-bold tabular-nums">#{b.height.toLocaleString()}</div>
-            <div className="text-[11px] text-slate-500 mb-3">{timeAgo(b.timestamp)}</div>
-            <div className="text-xs text-slate-300 tabular-nums">{b.tx_count.toLocaleString()} txs</div>
-            <div className="text-xs text-slate-400 tabular-nums">{(b.size / 1e6).toFixed(2)} MB</div>
-            <div className="text-[11px] text-slate-500 truncate mt-1">{b.extras?.pool?.name ?? '—'}</div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        {!blocks && !error && Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton h-[118px]" />)}
+        {blocks?.map(b => (
+          <div key={b.id} className={`rounded-md border border-ink-700 bg-ink-850 p-3 ${fresh === b.id ? 'block-new' : ''}`}>
+            <div className="text-[15px] font-semibold text-fg tabular-nums">{b.height.toLocaleString()}</div>
+            <div className="text-xs text-fg-faint mb-3">{timeAgo(b.timestamp)}</div>
+            <div className="text-[13px] text-fg-muted tabular-nums">{b.tx_count.toLocaleString()} transactions</div>
+            <div className="text-[13px] text-fg-muted tabular-nums">{(b.size / 1e6).toFixed(2)} MB</div>
+            <div className="text-xs text-fg-faint truncate mt-1">{b.extras?.pool?.name ?? 'Unknown pool'}</div>
           </div>
         ))}
       </div>
-      <p className="text-[10px] text-slate-600 mt-3">Blockchain data via mempool.space · refreshes every 30s</p>
+      <p className="text-[11px] text-fg-faint mt-4">Source: mempool.space</p>
     </div>
   )
 }

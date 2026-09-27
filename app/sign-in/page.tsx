@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { AuthShell, FormError, Spinner } from '@/components/AuthShell'
 
 export default function SignInPage() {
   const [email, setEmail] = useState('')
@@ -27,127 +28,57 @@ export default function SignInPage() {
       const data = await res.json()
       if (!res.ok) {
         const msg: string = data.error || 'Sign in failed'
-        if (msg.toLowerCase().includes('invalid') || msg.toLowerCase().includes('credentials')) {
+        if (msg.toLowerCase().includes('email not confirmed')) {
+          setError('Please confirm your email first. Check your inbox for the confirmation link.')
+        } else if (msg.toLowerCase().includes('invalid login') || msg.toLowerCase().includes('credentials')) {
           setError('Incorrect email or password.')
-        } else if (msg.toLowerCase().includes('email not confirmed')) {
-          setError('Please verify your email before signing in.')
         } else {
           setError(msg)
         }
         return
       }
-      // Restore the session in the browser so protected pages stay logged in
       if (data.access_token && data.refresh_token) {
         await supabase.auth.setSession({ access_token: data.access_token, refresh_token: data.refresh_token })
       }
-      if (data.role === 'admin') router.push('/admin')
-      else router.push('/dashboard')
+      router.push(data.role === 'admin' ? '/admin' : '/dashboard')
     } catch {
-      setError('A network error occurred. Please try again.')
+      setError('Could not reach the server. Check your connection and try again.')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-[#080810] flex flex-col">
-      <div aria-hidden className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-violet-600/[0.07] rounded-full blur-3xl" />
-      </div>
+    <AuthShell
+      title="Sign in"
+      subtitle="Use the email and password you registered with."
+      footer={<>No account yet? <Link href="/sign-up" className="text-fg underline underline-offset-4 hover:text-accent">Open an account</Link></>}
+    >
+      <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+        {error && <FormError message={error} />}
 
-      <header className="relative z-10 py-6 px-4 sm:px-6">
-        <Link href="/" className="inline-flex items-center gap-2 group">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-600 to-blue-500 flex items-center justify-center text-sm font-bold">₿</div>
-          <span className="font-bold text-white">Tarafab<span className="text-violet-400">.XAi</span></span>
-        </Link>
-      </header>
+        <div>
+          <label htmlFor="email" className="field-label">Email</label>
+          <input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" className="field" disabled={loading} />
+        </div>
 
-      <div className="relative z-10 flex-1 flex items-center justify-center px-4 py-12">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-white mb-2">Welcome back</h1>
-            <p className="text-slate-400 text-sm">Sign in to your Tarafab.XAi account</p>
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <label htmlFor="password" className="field-label !mb-0">Password</label>
+            <Link href="/forgot-password" className="text-[13px] text-fg-muted hover:text-fg">Forgot password?</Link>
           </div>
-
-          <div className="glass rounded-2xl p-8 border border-white/[0.08]">
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {error && (
-                <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-start gap-2">
-                  <span>⚠</span>
-                  <span>{error}</span>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Email address</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                  placeholder="you@example.com"
-                  className="input-field"
-                  disabled={loading}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Password</label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    required
-                    autoComplete="current-password"
-                    placeholder="••••••••"
-                    className="input-field pr-12"
-                    disabled={loading}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors text-sm"
-                    tabIndex={-1}
-                  >
-                    {showPassword ? 'Hide' : 'Show'}
-                  </button>
-                </div>
-                <div className="flex justify-end mt-2">
-                  <Link href="/forgot-password" className="text-xs text-violet-400 hover:text-violet-300 transition-colors">
-                    Forgot password?
-                  </Link>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading || !email || !password}
-                className="w-full py-3.5 text-sm font-semibold text-white bg-gradient-to-r from-violet-600 to-blue-500 rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_0_20px_rgba(124,58,237,0.3)] hover:shadow-[0_0_30px_rgba(124,58,237,0.45)] flex items-center justify-center gap-2"
-              >
-                {loading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Signing in…
-                  </>
-                ) : (
-                  'Sign In'
-                )}
-              </button>
-            </form>
-
-            <div className="mt-6 text-center">
-              <p className="text-slate-500 text-sm">
-                Don&apos;t have an account?{' '}
-                <Link href="/sign-up" className="text-violet-400 hover:text-violet-300 font-medium transition-colors">
-                  Create one
-                </Link>
-              </p>
-            </div>
+          <div className="relative">
+            <input id="password" type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password" className="field pr-16" disabled={loading} />
+            <button type="button" onClick={() => setShowPassword(s => !s)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[13px] text-fg-muted hover:text-fg" aria-label={showPassword ? 'Hide password' : 'Show password'}>
+              {showPassword ? 'Hide' : 'Show'}
+            </button>
           </div>
         </div>
-      </div>
-    </div>
+
+        <button type="submit" disabled={loading || !email || !password} className="btn btn-solid w-full">
+          {loading ? <><Spinner />Signing in</> : 'Sign in'}
+        </button>
+      </form>
+    </AuthShell>
   )
 }

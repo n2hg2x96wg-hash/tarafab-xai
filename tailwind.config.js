@@ -13,6 +13,23 @@ module.exports = {
           blue: '#3b82f6',
           accent: '#8b5cf6',
         },
+        ink: {
+          950: '#0A0C0F',
+          900: '#0F1216',
+          850: '#13171C',
+          800: '#181D23',
+          700: '#232931',
+          600: '#2F3640',
+        },
+        fg: {
+          DEFAULT: '#E8EAED',
+          muted: '#9AA3AF',
+          faint: '#6B7480',
+        },
+        accent: {
+          DEFAULT: '#F7931A',
+          hover: '#FFA73D',
+        },
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],

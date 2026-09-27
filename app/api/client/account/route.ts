@@ -33,6 +33,8 @@ export async function GET(request: NextRequest) {
         email: user.email,
         full_name: profile?.full_name || user.user_metadata?.full_name || null,
         role: profile?.role || 'customer',
+        email_confirmed: Boolean(user.email_confirmed_at),
+        created_at: user.created_at,
       },
       account: account || {
         account_balance: 0,
