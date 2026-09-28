@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import AdminLayout from '@/components/AdminLayout'
 import { authFetch, errorText, newRequestKey, readJson, RequestError } from '@/lib/authFetch'
+import { useI18n } from '@/lib/i18n/I18nProvider'
 
 type Account = {
   id: string
@@ -92,6 +93,7 @@ export default function ClientDetailPage() {
   const [loadError, setLoadError] = useState('')
   const [loadedAt, setLoadedAt] = useState<number | null>(null)
   const [, setTick] = useState(0)
+  const { t } = useI18n()
   // One key per confirmed adjustment, so a retried request is applied once.
   const adjustKey = useRef(newRequestKey())
   // Which client the latest load belongs to; a slower response for a client
@@ -295,7 +297,7 @@ export default function ClientDetailPage() {
       {/* Client header */}
       <div className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-[linear-gradient(135deg,rgba(247,147,26,0.07),rgba(99,102,241,0.05)_45%,rgba(255,255,255,0.015))] p-5 sm:p-6 mb-5 shadow-[0_20px_50px_-30px_rgba(0,0,0,0.9)]">
         <div className="flex items-start gap-4">
-          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-[#171b22] border border-white/[0.1] flex items-center justify-center text-lg font-semibold text-white shrink-0">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-ink-800 border border-white/[0.1] flex items-center justify-center text-lg font-semibold text-white shrink-0">
             {(profile.full_name || '?').charAt(0).toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
@@ -336,23 +338,23 @@ export default function ClientDetailPage() {
           <span className="font-mono text-slate-600 break-all">ID {profile.id}</span>
           {loadedAt && (
             <span className="sm:ml-auto flex items-center gap-2">
-              {Date.now() - loadedAt < 60_000 ? 'Updated just now' : `Loaded ${Math.floor((Date.now() - loadedAt) / 60_000)} min ago`}
-              <button onClick={() => load()} className="text-slate-300 underline underline-offset-2 hover:text-white">Refresh</button>
+              {Date.now() - loadedAt < 60_000 ? t('admin.updatedJustNow') : t('admin.loadedAgo', { n: Math.floor((Date.now() - loadedAt) / 60_000) })}
+              <button onClick={() => load()} className="text-slate-300 underline underline-offset-2 hover:text-white">{t('common.refresh')}</button>
             </span>
           )}
         </p>
         {loadError && (
-          <p role="alert" className="mt-3 text-[12px] text-amber-300">{loadError} The figures shown may be out of date.</p>
+          <p role="alert" className="mt-3 text-[12px] text-amber-300">{loadError} {t('admin.staleNote')}</p>
         )}
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-5 bg-[#0c0e12] p-1 rounded-xl border border-white/[0.07] w-full sm:w-fit overflow-x-auto">
+      <div className="flex gap-1 mb-5 bg-ink-950 p-1 rounded-xl border border-white/[0.07] w-full sm:w-fit overflow-x-auto">
         {(['overview', 'adjust', 'edit', 'history'] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`flex-1 sm:flex-none whitespace-nowrap px-4 py-2.5 rounded-lg text-xs font-semibold transition-all ${tab === t ? 'bg-[#1c2129] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]' : 'text-slate-500 hover:text-slate-200'}`}
+            className={`flex-1 sm:flex-none whitespace-nowrap px-4 py-2.5 rounded-lg text-xs font-semibold transition-all ${tab === t ? 'bg-ink-800 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]' : 'text-slate-500 hover:text-slate-200'}`}
           >
             {t === 'overview' ? 'Overview' : t === 'adjust' ? 'Adjust Balance' : t === 'edit' ? 'Edit Details' : 'History'}
           </button>
@@ -385,7 +387,7 @@ export default function ClientDetailPage() {
           <div className="flex flex-col sm:flex-row gap-2">
             <button
               onClick={() => setTab('adjust')}
-              className="text-sm font-semibold text-black bg-[#F7931A] hover:bg-[#FFA73D] px-5 py-3 rounded-xl transition-colors shadow-[0_8px_24px_-10px_rgba(247,147,26,0.6)]"
+              className="text-sm font-semibold text-accent-ink bg-accent hover:bg-accent-hover px-5 py-3 rounded-xl transition-colors shadow-[0_8px_24px_-10px_rgba(247,147,26,0.6)]"
             >
               Adjust balance
             </button>
@@ -540,7 +542,7 @@ export default function ClientDetailPage() {
               </select>
             </div>
           </div>
-          <button type="submit" disabled={editSaving} className="w-full py-3 text-sm font-semibold text-black bg-[#F7931A] hover:bg-[#FFA73D] rounded-xl disabled:opacity-50 transition-colors">
+          <button type="submit" disabled={editSaving} className="w-full py-3 text-sm font-semibold text-accent-ink bg-accent hover:bg-accent-hover rounded-xl disabled:opacity-50 transition-colors">
             {editSaving ? 'Saving…' : 'Save Changes'}
           </button>
         </form>
@@ -592,7 +594,7 @@ export default function ClientDetailPage() {
               Last changed {new Date(account.trading_status_updated_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
             </p>
           )}
-          <button type="submit" disabled={tradingSaving} className="w-full py-3 text-sm font-semibold text-black bg-[#F7931A] hover:bg-[#FFA73D] rounded-xl disabled:opacity-50 transition-colors">
+          <button type="submit" disabled={tradingSaving} className="w-full py-3 text-sm font-semibold text-accent-ink bg-accent hover:bg-accent-hover rounded-xl disabled:opacity-50 transition-colors">
             {tradingSaving ? 'Saving…' : 'Save Trading Status'}
           </button>
         </form>

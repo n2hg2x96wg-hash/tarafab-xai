@@ -1,7 +1,9 @@
 'use client'
 
+import { chartColors } from '@/lib/chartColors'
 import { useEffect, useRef, useState } from 'react'
 import { useBtcHistory } from '@/components/useMarket'
+import { useI18n } from '@/lib/i18n/I18nProvider'
 
 type Product = 'BTC-USD' | 'ETH-USD' | 'SOL-USD'
 const PRODUCTS: Product[] = ['BTC-USD', 'ETH-USD', 'SOL-USD']
@@ -147,6 +149,7 @@ function TickPrice({ quote, className = '' }: { quote?: Quote; className?: strin
 }
 
 export function LiveTickerBar({ quotes }: { quotes: Partial<Record<Product, Quote>> }) {
+  const { t } = useI18n()
   const items = PRODUCTS.map(p => {
     const q = quotes[p]
     return (
@@ -159,7 +162,7 @@ export function LiveTickerBar({ quotes }: { quotes: Partial<Record<Product, Quot
     )
   })
   return (
-    <div className="relative overflow-hidden border-b border-ink-700 bg-ink-900 h-10 flex items-center marquee-mask" aria-label="Live prices">
+    <div className="relative overflow-hidden border-b border-ink-700 bg-ink-900 h-10 flex items-center marquee-mask" aria-label={t('market.livePrices')}>
       <div className="flex w-max animate-marquee">
         {items}{items}{items}{items}
       </div>
@@ -175,14 +178,15 @@ function useDayHistory() {
 }
 
 function LineChart({ points, positive }: { points: number[]; positive: boolean }) {
+  const { t } = useI18n()
   const w = 400, h = 120
   const min = Math.min(...points), max = Math.max(...points)
   const span = max - min || 1
   const xy = points.map((p, i) => [(i / (points.length - 1)) * w, h - ((p - min) / span) * (h - 12) - 6])
   const line = xy.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ')
-  const color = positive ? '#34D399' : '#F87171'
+  const color = positive ? chartColors.up : chartColors.down
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-28" preserveAspectRatio="none" role="img" aria-label="Bitcoin price, last 24 hours">
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-28" preserveAspectRatio="none" role="img" aria-label={t('market.chart24hAria')}>
       <path d={`${line} L${w},${h} L0,${h} Z`} fill={color} fillOpacity="0.07" />
       <path d={line} fill="none" stroke={color} strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
     </svg>
@@ -194,6 +198,7 @@ export function HeroLivePanel({ quotes, trades, status }: ReturnType<typeof useL
   const ch = pctChange(btc)
   const day = useDayHistory()
   const history = day.points
+  const { t, intl: intlTime } = useI18n()
   const series = history && history.length > 1 ? (btc ? [...history, btc.price] : history) : null
 
   return (
@@ -205,48 +210,49 @@ export function HeroLivePanel({ quotes, trades, status }: ReturnType<typeof useL
 
       <TickPrice quote={btc} className="block text-[40px] sm:text-[44px] leading-none font-semibold tracking-tight text-fg" />
       <div className="mt-2 h-5 text-sm">
-        {ch !== null && <><Change value={ch} /> <span className="text-fg-faint">past 24h</span></>}
+        {ch !== null && <><Change value={ch} /> <span className="text-fg-faint">{t('market.past24h')}</span></>}
       </div>
 
       <div className="mt-4 mb-5 -mx-1">
         {series ? <LineChart points={series} positive={(ch ?? 0) >= 0} /> : day.status !== 'error' ? <div className="skeleton h-28" /> : (
           <div className="h-28 flex flex-col items-center justify-center gap-2 text-xs text-fg-faint">
-            24h chart didn&apos;t load.
-            <button onClick={day.retry} className="underline underline-offset-2 hover:text-fg">Try again</button>
+            {t('market.chart24hFailed')}
+            <button onClick={day.retry} className="underline underline-offset-2 hover:text-fg">{t('common.tryAgain')}</button>
           </div>
         )}
       </div>
 
       <div className="border-t border-ink-700 pt-4">
         <div className="grid grid-cols-3 text-[11px] uppercase tracking-wide text-fg-faint mb-2">
-          <span>Price (USD)</span><span className="text-right">Size (BTC)</span><span className="text-right">Time</span>
+          <span>{t('market.priceUsd')}</span><span className="text-right">{t('market.sizeBtc')}</span><span className="text-right">{t('market.time')}</span>
         </div>
         <div className="h-[176px] overflow-hidden">
           {trades.length === 0 && (
             <div className="text-xs text-fg-faint pt-8 text-center">
-              {status === 'polling' || status === 'error' ? 'Trade feed unavailable. Prices update every 30 seconds.' : 'Waiting for trades'}
+              {status === 'polling' || status === 'error' ? t('market.tradesUnavailable') : t('market.waitingTrades')}
             </div>
           )}
           {trades.slice(0, 8).map(t => (
             <div key={t.id} className="row-in grid grid-cols-3 text-[13px] tabular-nums h-[22px] items-center">
               <span className={t.side === 'buy' ? 'price-up' : 'price-down'}>{usd(t.price)}</span>
               <span className="text-right text-fg-muted">{t.size.toFixed(5)}</span>
-              <span className="text-right text-fg-faint">{new Date(t.time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+              <span className="text-right text-fg-faint">{new Date(t.time).toLocaleTimeString(intlTime, { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
             </div>
           ))}
         </div>
       </div>
-      <p className="text-[11px] text-fg-faint mt-3">Market data provided by Coinbase Exchange.</p>
+      <p className="text-[11px] text-fg-faint mt-3">{t('common.marketDataBy', { source: 'Coinbase Exchange' })}</p>
     </div>
   )
 }
 
 function StatusTag({ status }: { status: Status }) {
+  const { t } = useI18n()
   const map = {
-    live: { t: 'Live', c: 'text-emerald-400 border-emerald-500/30', d: 'bg-emerald-400' },
-    polling: { t: 'Delayed', c: 'text-amber-400 border-amber-500/30', d: 'bg-amber-400' },
-    connecting: { t: 'Connecting', c: 'text-fg-muted border-ink-600', d: 'bg-fg-faint' },
-    error: { t: 'Offline', c: 'text-red-400 border-red-500/30', d: 'bg-red-400' },
+    live: { t: t('status.live'), c: 'text-emerald-400 border-emerald-500/30', d: 'bg-emerald-400' },
+    polling: { t: t('status.delayed'), c: 'text-amber-400 border-amber-500/30', d: 'bg-amber-400' },
+    connecting: { t: t('status.connecting'), c: 'text-fg-muted border-ink-600', d: 'bg-fg-faint' },
+    error: { t: t('status.offline'), c: 'text-red-400 border-red-500/30', d: 'bg-red-400' },
   }[status]
   return (
     <span className={`tag ${map.c}`}>
@@ -258,11 +264,11 @@ function StatusTag({ status }: { status: Status }) {
 
 interface Block { id: string; height: number; timestamp: number; tx_count: number; size: number; extras?: { pool?: { name?: string } } }
 
-function timeAgo(ts: number) {
+function timeAgo(t: ReturnType<typeof useI18n>['t'], ts: number) {
   const s = Math.max(0, Math.floor(Date.now() / 1000 - ts))
-  if (s < 60) return `${s}s ago`
-  if (s < 3600) return `${Math.floor(s / 60)} min ago`
-  return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m ago`
+  if (s < 60) return t('common.secondsAgo', { n: s })
+  if (s < 3600) return t('common.minutesAgo', { n: Math.floor(s / 60) })
+  return t('common.hoursMinutesAgo', { h: Math.floor(s / 3600), m: Math.floor((s % 3600) / 60) })
 }
 
 export function LatestBlocks() {
@@ -272,6 +278,7 @@ export function LatestBlocks() {
   const [fresh, setFresh] = useState<string | null>(null)
   const [, tick] = useState(0)
   const topId = useRef<string | null>(null)
+  const { t } = useI18n()
 
   useEffect(() => {
     let alive = true
@@ -301,12 +308,12 @@ export function LatestBlocks() {
     <div className="panel p-5 sm:p-6">
       <div className="flex flex-wrap items-end justify-between gap-4 mb-5">
         <div>
-          <h3 className="text-[15px] font-semibold text-fg">Latest Bitcoin blocks</h3>
-          <p className="text-[13px] text-fg-faint mt-1">New blocks are added here as they are mined. Checked every 30 seconds.</p>
+          <h3 className="text-[15px] font-semibold text-fg">{t('market.blocksTitle')}</h3>
+          <p className="text-[13px] text-fg-faint mt-1">{t('market.blocksBody')}</p>
         </div>
         {fees && (
           <dl className="flex gap-5 text-[13px]">
-            {([['Next block', fees.fastestFee], ['~30 min', fees.halfHourFee], ['~1 hour', fees.hourFee]] as const).map(([l, v]) => (
+            {([[t('market.nextBlock'), fees.fastestFee], [t('market.halfHour'), fees.halfHourFee], [t('market.oneHour'), fees.hourFee]] as const).map(([l, v]) => (
               <div key={l}>
                 <dt className="text-fg-faint">{l}</dt>
                 <dd className="text-fg font-medium tabular-nums">{v} sat/vB</dd>
@@ -316,21 +323,21 @@ export function LatestBlocks() {
         )}
       </div>
 
-      {error && !blocks && <p className="text-sm text-red-400">Block data is unavailable right now.</p>}
+      {error && !blocks && <p className="text-sm text-red-400">{t('market.blocksUnavailable')}</p>}
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {!blocks && !error && Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton h-[118px]" />)}
         {blocks?.map(b => (
           <div key={b.id} className={`rounded-md border border-ink-700 bg-ink-850 p-3 ${fresh === b.id ? 'block-new' : ''}`}>
             <div className="text-[15px] font-semibold text-fg tabular-nums">{b.height.toLocaleString()}</div>
-            <div className="text-xs text-fg-faint mb-3">{timeAgo(b.timestamp)}</div>
-            <div className="text-[13px] text-fg-muted tabular-nums">{b.tx_count.toLocaleString()} transactions</div>
+            <div className="text-xs text-fg-faint mb-3">{timeAgo(t, b.timestamp)}</div>
+            <div className="text-[13px] text-fg-muted tabular-nums">{t('market.transactions', { n: b.tx_count.toLocaleString() })}</div>
             <div className="text-[13px] text-fg-muted tabular-nums">{(b.size / 1e6).toFixed(2)} MB</div>
-            <div className="text-xs text-fg-faint truncate mt-1">{b.extras?.pool?.name ?? 'Unknown pool'}</div>
+            <div className="text-xs text-fg-faint truncate mt-1">{b.extras?.pool?.name ?? t('market.unknownPool')}</div>
           </div>
         ))}
       </div>
-      <p className="text-[11px] text-fg-faint mt-4">Updated continuously from the Bitcoin network.</p>
+      <p className="text-[11px] text-fg-faint mt-4">{t('market.blocksFooter')}</p>
     </div>
   )
 }

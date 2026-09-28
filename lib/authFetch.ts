@@ -8,8 +8,12 @@ import { createClient } from '@/lib/supabase/client'
 // one forced refresh and a single retry; every request has a timeout so a
 // dropped mobile connection surfaces as an error instead of hanging.
 
+export type ErrorCode = 'network' | 'timeout' | 'unexpected' | 'generic' | 'session' | 'forbidden' | 'notFound' | 'conflict' | 'rateLimited' | 'server'
+
+// `code` is set when the message was produced here rather than sent by the
+// server, so the UI can show it in the selected language.
 export class RequestError extends Error {
-  constructor(message: string, public status: number) { super(message) }
+  constructor(message: string, public status: number, public code?: ErrorCode) { super(message) }
 }
 
 async function currentToken(force = false) {
@@ -31,8 +35,8 @@ export async function authFetch(url: string, init: RequestInit = {}, timeoutMs =
     try {
       return await fetch(url, { ...init, headers, signal: ctrl.signal, cache: 'no-store' })
     } catch (e) {
-      if (ctrl.signal.aborted) throw new RequestError('The request timed out. Check your connection and try again.', 0)
-      throw new RequestError('Could not reach the server. Check your connection and try again.', 0)
+      if (ctrl.signal.aborted) throw new RequestError('The request timed out. Check your connection and try again.', 0, 'timeout')
+      throw new RequestError('Could not reach the server. Check your connection and try again.', 0, 'network')
     } finally {
       clearTimeout(timer)
     }
@@ -52,9 +56,9 @@ export async function readJson<T>(res: Response): Promise<T> {
   try { body = await res.json() } catch { /* handled below */ }
   if (!res.ok) {
     const msg = (body as { error?: string } | null)?.error
-    throw new RequestError(msg || messageFor(res.status), res.status)
+    throw msg ? new RequestError(msg, res.status) : new RequestError(messageFor(res.status), res.status, codeFor(res.status))
   }
-  if (body === null || typeof body !== 'object') throw new RequestError('The server sent an unexpected response. Please try again.', res.status)
+  if (body === null || typeof body !== 'object') throw new RequestError('The server sent an unexpected response. Please try again.', res.status, 'unexpected')
   return body as T
 }
 
@@ -67,8 +71,19 @@ export function messageFor(status: number) {
   return 'Something went wrong on our side. Please try again.'
 }
 
-export function errorText(e: unknown) {
-  return e instanceof RequestError ? e.message : 'Something went wrong. Please try again.'
+function codeFor(status: number): ErrorCode {
+  if (status === 401) return 'session'
+  if (status === 403) return 'forbidden'
+  if (status === 404) return 'notFound'
+  if (status === 409) return 'conflict'
+  if (status === 429) return 'rateLimited'
+  return 'server'
+}
+
+// Pass the translator to get client-side messages in the selected language.
+export function errorText(e: unknown, t?: (key: `errors.${ErrorCode}`) => string) {
+  if (e instanceof RequestError) return e.code && t ? t(`errors.${e.code}`) : e.message
+  return t ? t('errors.generic') : 'Something went wrong. Please try again.'
 }
 
 // A key that identifies one submit attempt, so a retry is recognised as the

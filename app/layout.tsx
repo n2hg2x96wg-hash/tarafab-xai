@@ -1,6 +1,9 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import { cookies } from 'next/headers'
 import SmartsuppWidget from '@/components/SmartsuppWidget'
+import { I18nProvider } from '@/lib/i18n/I18nProvider'
+import { DEFAULT_LOCALE, LOCALE_COOKIE, isLocale } from '@/lib/i18n/config'
 
 export const metadata: Metadata = {
   title: 'Tarafab.XAi | Bitcoin deposits and account tracking',
@@ -16,16 +19,22 @@ export const viewport: Viewport = {
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // The saved language is read on the server so the first render is already
+  // in that language (no flash of English).
+  const saved = cookies().get(LOCALE_COOKIE)?.value
+  const locale = isLocale(saved) ? saved : DEFAULT_LOCALE
   return (
-    <html lang="en" className="scroll-smooth">
+    <html lang={locale} className="scroll-smooth">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
       </head>
-      <body className="min-h-screen bg-[#080810] text-white antialiased overflow-x-hidden">
-        {children}
-        <SmartsuppWidget />
+      <body className="min-h-screen bg-ink-950 text-fg antialiased overflow-x-hidden">
+        <I18nProvider initialLocale={locale}>
+          {children}
+          <SmartsuppWidget />
+        </I18nProvider>
       </body>
     </html>
   )

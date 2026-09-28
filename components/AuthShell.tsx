@@ -1,12 +1,18 @@
+'use client'
+
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { IconAlert, Logo } from '@/components/Icons'
+import { LanguageSelector } from '@/components/LanguageSelector'
+import { useI18n } from '@/lib/i18n/I18nProvider'
 
 export function AuthShell({ title, subtitle, children, footer }: { title: string; subtitle?: string; children: ReactNode; footer?: ReactNode }) {
+  const { t } = useI18n()
   return (
     <div className="site min-h-screen bg-ink-950 text-fg flex flex-col">
-      <header className="h-16 flex items-center px-4 sm:px-6 border-b border-ink-700">
-        <Link href="/" aria-label="Tarafab.XAi home"><Logo /></Link>
+      <header className="h-16 flex items-center justify-between gap-4 px-4 sm:px-6 border-b border-ink-700">
+        <Link href="/" aria-label={t('common.home')}><Logo /></Link>
+        <LanguageSelector />
       </header>
       <main className="flex-1 flex items-start sm:items-center justify-center px-4 py-10">
         <div className="w-full max-w-[400px]">
@@ -22,7 +28,7 @@ export function AuthShell({ title, subtitle, children, footer }: { title: string
 
 export function FormError({ message }: { message: string }) {
   return (
-    <div role="alert" className="flex gap-2.5 p-3 rounded-md border border-red-500/30 bg-red-500/[0.06] text-sm text-red-300">
+    <div role="alert" className="alert alert-danger">
       <IconAlert className="shrink-0 mt-px" width={16} height={16} />
       <span>{message}</span>
     </div>

@@ -1,0 +1,68 @@
+/* Tarafab.XAi colour system: the single source for every colour in the app.
+   Values are RGB channels so Tailwind opacity modifiers (bg-success-500/10)
+   work. Tailwind maps these in tailwind.config.js; component classes in
+   globals.css read them with rgb(var(--token)).
+
+   Meaning is fixed everywhere:
+     success / emerald  positive, live, completed, approved
+     danger  / red      error, negative movement, rejected
+     warning / amber    pending, attention, caution
+     info    / sky      informational, in-progress (e.g. blockchain confirmation)
+     accent  / orange   primary action (Bitcoin)
+     brand   / violet   Tarafab.XAi identity, interactive focus, admin chrome */
+:root {
+  /* Surfaces: cool near-black, each step a touch lighter */
+  --ink-950: 8 10 14;      /* page background */
+  --ink-900: 13 16 22;     /* cards, sidebar */
+  --ink-850: 17 21 28;     /* raised rows, inputs on cards */
+  --ink-800: 22 27 35;     /* hover fill, skeleton */
+  --ink-700: 34 40 51;     /* default border */
+  --ink-600: 46 54 67;     /* strong border */
+  --ink-500: 64 73 88;     /* hover border */
+
+  /* Text, contrast on ink-900: fg 16.1:1, label 12.5:1, muted 8.3:1, faint 5.5:1
+     (all pass WCAG AA for small text). Disabled is 3.0:1, for inactive controls only. */
+  --fg: 233 236 241;
+  --fg-muted: 163 172 186;
+  --fg-faint: 128 138 153;
+  --fg-disabled: 88 97 111;
+  --fg-label: 204 210 219;
+
+  /* Primary action (Bitcoin orange) */
+  --accent: 247 147 26;
+  --accent-hover: 255 167 61;
+  --accent-ink: 10 12 15;
+
+  /* Brand / interactive (indigo-violet) */
+  --brand-200: 221 216 255;
+  --brand-300: 196 187 255;
+  --brand-400: 167 154 255;
+  --brand-500: 139 124 248;
+  --brand-600: 116 101 234;
+  --brand-700: 92 79 199;
+  --brand-blue-400: 125 168 255;
+  --brand-blue-500: 92 140 245;
+
+  /* Status */
+  --success-200: 187 247 222;
+  --success-300: 126 232 185;
+  --success-400: 61 213 160;
+  --success-500: 31 185 133;
+  --success-600: 20 150 107;
+  --danger-200: 254 205 205;
+  --danger-300: 253 164 164;
+  --danger-400: 246 124 124;
+  --danger-500: 229 72 77;
+  --danger-600: 201 60 65;
+  --warning-200: 253 227 167;
+  --warning-300: 252 208 115;
+  --warning-400: 245 181 68;
+  --warning-500: 227 158 34;
+  --warning-600: 185 124 18;
+  --info-300: 140 203 245;
+  --info-400: 93 179 238;
+  --info-500: 53 151 216;
+
+  /* Focus ring */
+  --focus: 167 154 255;
+}

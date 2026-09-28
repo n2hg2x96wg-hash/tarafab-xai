@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { IconInfo } from '@/components/Icons'
+import { useI18n } from '@/lib/i18n/I18nProvider'
 
 export type TradingStatusValue = 'active' | 'inactive' | null | undefined
 
@@ -17,40 +18,41 @@ interface Props {
 const CONFIG = {
   active: {
     dot: 'bg-emerald-400',
-    label: 'Portfolio monitoring active',
+    label: 'trading.activeLabel',
     text: 'text-emerald-300',
     shell: 'border-emerald-500/25 bg-[linear-gradient(135deg,rgba(16,185,129,.10),rgba(16,185,129,0)_55%)]',
-    summary: 'Your portfolio is under active review by our team.',
-    detail: 'This status is recorded on your account by our team. It does not mean trades are being placed automatically. Any change to your balances appears in your transaction history with its own reference number.',
+    summary: 'trading.activeSummary',
+    detail: 'trading.activeDetail',
     animate: true,
   },
   inactive: {
     dot: 'bg-fg-faint',
-    label: 'Portfolio monitoring inactive',
+    label: 'trading.inactiveLabel',
     text: 'text-fg',
     shell: '',
-    summary: 'No active strategy is assigned to this account right now.',
-    detail: 'Your balances change only through deposits and withdrawals you submit, once they are reviewed and approved, or through entries shown in your transaction history.',
+    summary: 'trading.inactiveSummary',
+    detail: 'trading.inactiveDetail',
     animate: false,
   },
   unavailable: {
     dot: 'bg-amber-400',
-    label: 'Status unavailable',
+    label: 'trading.unavailableLabel',
     text: 'text-amber-300',
     shell: 'border-amber-500/25',
-    summary: 'We could not read the current status for this account.',
-    detail: 'This does not affect your balances or transaction history. Refresh the page, or contact support if this continues.',
+    summary: 'trading.unavailableSummary',
+    detail: 'trading.unavailableDetail',
     animate: false,
   },
 } as const
 
 export function TradingStatusCard({ status, strategyName, updatedAt }: Props) {
   const [open, setOpen] = useState(false)
+  const { t, intl } = useI18n()
   const key = status === 'active' || status === 'inactive' ? status : 'unavailable'
   const c = CONFIG[key]
 
   const formattedTime = updatedAt
-    ? new Date(updatedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+    ? new Date(updatedAt).toLocaleString(intl, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
     : null
 
   return (
@@ -68,28 +70,28 @@ export function TradingStatusCard({ status, strategyName, updatedAt }: Props) {
             </span>
           </span>
           <div className="min-w-0">
-            <div className="text-[11px] uppercase tracking-[0.12em] text-fg-faint mb-0.5">Account status</div>
-            <div className={`text-[16px] font-semibold ${c.text}`}>{c.label}</div>
+            <div className="text-[11px] uppercase tracking-[0.12em] text-fg-faint mb-0.5">{t('trading.accountStatus')}</div>
+            <div className={`text-[16px] font-semibold ${c.text}`}>{t(c.label)}</div>
             <div className="text-[13px] text-fg-muted line-clamp-2 mt-0.5">
-              {key === 'active' && strategyName ? <>Strategy: <span className="text-fg">{strategyName}</span></> : c.summary}
+              {key === 'active' && strategyName ? <>{t('trading.strategy')}: <span className="text-fg">{strategyName}</span></> : t(c.summary)}
             </div>
           </div>
         </div>
-        <IconInfo width={18} height={18} className={`shrink-0 text-fg-faint transition-transform duration-200 ${open ? 'rotate-180' : ''}`} aria-label="Details" />
+        <IconInfo width={18} height={18} className={`shrink-0 text-fg-faint transition-transform duration-200 ${open ? 'rotate-180' : ''}`} aria-label={t('trading.details')} />
       </button>
 
       <div className={`grid transition-[grid-template-rows] duration-300 ease-out ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
         <div className="overflow-hidden">
           <div className="px-5 sm:px-6 pb-5 sm:pb-6 pt-4 border-t border-ink-700 space-y-4">
-            <p className="text-[13px] text-fg-muted leading-relaxed">{c.detail}</p>
+            <p className="text-[13px] text-fg-muted leading-relaxed">{t(c.detail)}</p>
             <dl className="grid grid-cols-2 gap-px bg-ink-700 border border-ink-700 rounded-md overflow-hidden text-[13px]">
               <div className="bg-ink-900 p-3">
-                <dt className="text-fg-faint text-xs mb-0.5">Strategy</dt>
-                <dd className="text-fg">{key === 'active' && strategyName ? strategyName : 'None assigned'}</dd>
+                <dt className="text-fg-faint text-xs mb-0.5">{t('trading.strategy')}</dt>
+                <dd className="text-fg">{key === 'active' && strategyName ? strategyName : t('trading.noneAssigned')}</dd>
               </div>
               <div className="bg-ink-900 p-3">
-                <dt className="text-fg-faint text-xs mb-0.5">Last updated</dt>
-                <dd className="text-fg">{formattedTime ?? 'Unknown'}</dd>
+                <dt className="text-fg-faint text-xs mb-0.5">{t('trading.lastUpdated')}</dt>
+                <dd className="text-fg">{formattedTime ?? t('common.unknown')}</dd>
               </div>
             </dl>
           </div>

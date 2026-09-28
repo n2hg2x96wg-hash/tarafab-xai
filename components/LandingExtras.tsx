@@ -1,8 +1,11 @@
 'use client'
 
+import { chartColors } from '@/lib/chartColors'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { compactUsd, timeAgo, useBtcHistory, useBtcSummary, type SummaryStatus } from '@/components/useMarket'
+import { compactUsd, useBtcHistory, useBtcSummary, type SummaryStatus } from '@/components/useMarket'
+import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
+import { timeAgoT } from '@/lib/i18n/format'
 
 const usd = (n: number, d = 2) => `$${n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d })}`
 
@@ -53,11 +56,12 @@ const RANGES = [
 ] as const
 
 export function MarketStatusPill({ status }: { status: SummaryStatus }) {
+  const { t } = useI18n()
   const map = {
-    live: { t: 'Live', c: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/[0.06]', d: 'bg-emerald-400', pulse: true },
-    stale: { t: 'Delayed', c: 'text-amber-400 border-amber-500/30 bg-amber-500/[0.06]', d: 'bg-amber-400', pulse: false },
-    loading: { t: 'Connecting', c: 'text-fg-muted border-ink-600', d: 'bg-fg-faint', pulse: false },
-    error: { t: 'Offline', c: 'text-red-400 border-red-500/30 bg-red-500/[0.06]', d: 'bg-red-400', pulse: false },
+    live: { t: t('status.live'), c: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/[0.06]', d: 'bg-emerald-400', pulse: true },
+    stale: { t: t('status.delayed'), c: 'text-amber-400 border-amber-500/30 bg-amber-500/[0.06]', d: 'bg-amber-400', pulse: false },
+    loading: { t: t('status.connecting'), c: 'text-fg-muted border-ink-600', d: 'bg-fg-faint', pulse: false },
+    error: { t: t('status.offline'), c: 'text-red-400 border-red-500/30 bg-red-500/[0.06]', d: 'bg-red-400', pulse: false },
   }[status]
   return (
     <span className={`tag ${map.c}`}>
@@ -81,6 +85,7 @@ function PriceHistory() {
   const svgRef = useRef<SVGSVGElement>(null)
   const market = useBtcSummary()
   const hist = useBtcHistory(range)
+  const { t, intl } = useI18n()
   useTicker()
   const data = hist.history?.points
 
@@ -105,17 +110,17 @@ function PriceHistory() {
   const hovered = geo && hover !== null ? geo.pts[hover] : null
   const change = geo ? ((geo.last - geo.first) / geo.first) * 100 : 0
   const up = change >= 0
-  const color = up ? '#34D399' : '#F87171'
+  const color = up ? chartColors.up : chartColors.down
   const longRange = range === '365' || range === '1825'
   const s = market.summary
   const headlinePrice = hovered ? hovered.p : s?.price ?? geo?.last
   const source = s?.source ?? hist.history?.source
 
-  const stats: [string, string | null][] = [
-    ['24h change', s ? `${s.change24h >= 0 ? '+' : '-'}${Math.abs(s.change24h).toFixed(2)}%` : null],
-    ['24h high', s ? usd(s.high24h) : null],
-    ['24h low', s ? usd(s.low24h) : null],
-    ['24h volume', s ? compactUsd(s.volume24hUsd) : null],
+  const stats: [TKey, string | null][] = [
+    ['market.change24h', s ? `${s.change24h >= 0 ? '+' : '-'}${Math.abs(s.change24h).toFixed(2)}%` : null],
+    ['market.high24h', s ? usd(s.high24h) : null],
+    ['market.low24h', s ? usd(s.low24h) : null],
+    ['market.volume24h', s ? compactUsd(s.volume24hUsd) : null],
   ]
 
   return (
@@ -124,7 +129,7 @@ function PriceHistory() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="flex items-center gap-2.5 text-[13px] text-fg-faint">
-              <span>{hovered ? `Price on ${new Date(hovered.t).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', ...(longRange ? {} : { hour: '2-digit', minute: '2-digit' }) })}` : 'BTC / USD'}</span>
+              <span>{hovered ? t('market.priceOn', { date: new Date(hovered.t).toLocaleDateString(intl, { month: 'short', day: 'numeric', year: 'numeric', ...(longRange ? {} : { hour: '2-digit', minute: '2-digit' }) }) }) : 'BTC / USD'}</span>
               {!hovered && <MarketStatusPill status={market.status} />}
             </div>
             <div className="text-[32px] sm:text-4xl font-semibold text-fg tabular-nums mt-1.5 leading-none tracking-tight">
@@ -133,12 +138,12 @@ function PriceHistory() {
             <div className="h-5 mt-2 text-sm tabular-nums">
               {geo && (
                 <span className={up ? 'price-up' : 'price-down'}>
-                  {up ? '+' : '-'}{Math.abs(change).toFixed(2)}% <span className="text-fg-faint">over {RANGES.find(r => r.id === range)!.label}</span>
+                  {up ? '+' : '-'}{Math.abs(change).toFixed(2)}% <span className="text-fg-faint">{t('market.over', { range: RANGES.find(r => r.id === range)!.label })}</span>
                 </span>
               )}
             </div>
           </div>
-          <div className="seg" role="tablist" aria-label="Chart range">
+          <div className="seg" role="tablist" aria-label={t('market.chartRange')}>
             {RANGES.map(r => (
               <button key={r.id} role="tab" aria-selected={range === r.id} onClick={() => { setRange(r.id); setHover(null) }}
                 className={`seg-btn ${range === r.id ? 'seg-btn-on' : ''}`}>
@@ -151,9 +156,9 @@ function PriceHistory() {
         <dl className="grid grid-cols-2 sm:grid-cols-4 gap-px mt-5 bg-ink-700 border border-ink-700 rounded-md overflow-hidden">
           {stats.map(([label, value]) => (
             <div key={label} className="bg-ink-900/90 px-3.5 py-2.5">
-              <dt className="text-[11px] uppercase tracking-wide text-fg-faint">{label}</dt>
-              <dd className={`text-sm font-medium tabular-nums mt-0.5 ${label === '24h change' && s ? (s.change24h >= 0 ? 'price-up' : 'price-down') : 'text-fg'}`}>
-                {value ?? (market.status === 'error' ? <span className="text-fg-faint">Unavailable</span> : <span className="skeleton inline-block w-16 h-4 align-middle" />)}
+              <dt className="text-[11px] uppercase tracking-wide text-fg-faint">{t(label)}</dt>
+              <dd className={`text-sm font-medium tabular-nums mt-0.5 ${label === 'market.change24h' && s ? (s.change24h >= 0 ? 'price-up' : 'price-down') : 'text-fg'}`}>
+                {value ?? (market.status === 'error' ? <span className="text-fg-faint">{t('common.unavailable')}</span> : <span className="skeleton inline-block w-16 h-4 align-middle" />)}
               </dd>
             </div>
           ))}
@@ -163,12 +168,12 @@ function PriceHistory() {
       <div className="relative px-2 sm:px-3">
         {hist.status === 'error' && !geo ? (
           <div className="h-[260px] flex flex-col items-center justify-center gap-3 text-center px-6">
-            <p className="text-sm text-fg-muted">We couldn&apos;t load the {RANGES.find(r => r.id === range)!.label} price history.</p>
-            <p className="text-xs text-fg-faint max-w-xs">The market data provider didn&apos;t respond. This doesn&apos;t affect your account.</p>
-            <button onClick={hist.retry} className="btn btn-sm btn-outline mt-1">Try again</button>
+            <p className="text-sm text-fg-muted">{t('market.historyFailed', { range: RANGES.find(r => r.id === range)!.label })}</p>
+            <p className="text-xs text-fg-faint max-w-xs">{t('market.historyFailedBody')}</p>
+            <button onClick={hist.retry} className="btn btn-sm btn-outline mt-1">{t('common.tryAgain')}</button>
           </div>
         ) : !geo ? (
-          <div className="h-[260px] px-2 flex flex-col justify-end gap-2 pb-2" aria-label="Loading price history">
+          <div className="h-[260px] px-2 flex flex-col justify-end gap-2 pb-2" aria-label={t('market.loadingHistory')}>
             <div className="skeleton h-full rounded-md opacity-60" />
           </div>
         ) : (
@@ -182,7 +187,7 @@ function PriceHistory() {
             onTouchMove={e => onMove(e.touches[0].clientX)}
             onTouchEnd={() => setHover(null)}
             role="img"
-            aria-label={`Bitcoin price over ${RANGES.find(r => r.id === range)!.label}`}
+            aria-label={t('market.chartAria', { range: RANGES.find(r => r.id === range)!.label })}
           >
             <defs>
               <linearGradient id="phFill" x1="0" y1="0" x2="0" y2="1">
@@ -190,12 +195,12 @@ function PriceHistory() {
                 <stop offset="100%" stopColor={color} stopOpacity="0" />
               </linearGradient>
             </defs>
-            {[0.25, 0.5, 0.75].map(f => <line key={f} x1="0" x2={w} y1={h * f} y2={h * f} stroke="#232931" strokeWidth="1" vectorEffect="non-scaling-stroke" />)}
+            {[0.25, 0.5, 0.75].map(f => <line key={f} x1="0" x2={w} y1={h * f} y2={h * f} stroke={chartColors.grid} strokeWidth="1" vectorEffect="non-scaling-stroke" />)}
             <path d={`${geo.line} L${w},${h} L0,${h} Z`} fill="url(#phFill)" />
             <path d={geo.line} fill="none" stroke={color} strokeWidth="1.75" vectorEffect="non-scaling-stroke" className="chart-draw" key={range} />
             {hovered && (
               <>
-                <line x1={hovered.x} x2={hovered.x} y1="0" y2={h} stroke="#6B7480" strokeWidth="1" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
+                <line x1={hovered.x} x2={hovered.x} y1="0" y2={h} stroke={chartColors.guide} strokeWidth="1" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
                 <circle cx={hovered.x} cy={hovered.y} r="4" fill={color} vectorEffect="non-scaling-stroke" />
               </>
             )}
@@ -205,11 +210,11 @@ function PriceHistory() {
 
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-5 sm:px-6 py-3 border-t border-ink-700 text-[11px] text-fg-faint">
         <span>
-          {geo ? <>Low {usd(geo.min, 0)} · High {usd(geo.max, 0)}</> : ' '}
-          {market.fetchedAt && <> · Updated {timeAgo(market.fetchedAt)}</>}
-          {market.status === 'stale' && <> · <button onClick={market.retry} className="underline underline-offset-2 hover:text-fg">Refresh</button></>}
+          {geo ? t('market.lowHigh', { low: usd(geo.min, 0), high: usd(geo.max, 0) }) : ' '}
+          {market.fetchedAt && <> · {t('common.updated', { time: timeAgoT(t, market.fetchedAt) })}</>}
+          {market.status === 'stale' && <> · <button onClick={market.retry} className="underline underline-offset-2 hover:text-fg">{t('common.refresh')}</button></>}
         </span>
-        {source && <span>Market data provided by {source}</span>}
+        {source && <span>{t('common.marketDataBy', { source })}</span>}
       </div>
     </div>
   )
@@ -220,6 +225,7 @@ function Converter({ price }: { price?: number }) {
   const [usdVal, setUsdVal] = useState('1000')
   const [btcVal, setBtcVal] = useState('')
   const [last, setLast] = useState<'usd' | 'btc'>('usd')
+  const { t } = useI18n()
 
   useEffect(() => {
     if (!price) return
@@ -234,20 +240,20 @@ function Converter({ price }: { price?: number }) {
 
   return (
     <div className="panel p-5 sm:p-6 flex flex-col">
-      <h3 className="text-[15px] font-semibold text-fg">Bitcoin calculator</h3>
-      <p className="text-[13px] text-fg-faint mt-1 mb-5">Converts at the live price. Type in either box.</p>
+      <h3 className="text-[15px] font-semibold text-fg">{t('market.calculator')}</h3>
+      <p className="text-[13px] text-fg-faint mt-1 mb-5">{t('market.calculatorBody')}</p>
       <div className="space-y-3">
         <div>
-          <label htmlFor="conv-usd" className="field-label">US dollars</label>
+          <label htmlFor="conv-usd" className="field-label">{t('market.usDollars')}</label>
           <input id="conv-usd" type="number" inputMode="decimal" min="0" value={usdVal} onChange={e => { setLast('usd'); setUsdVal(e.target.value) }} className="field tabular-nums" />
         </div>
         <div>
-          <label htmlFor="conv-btc" className="field-label">Bitcoin (BTC)</label>
-          <input id="conv-btc" type="number" inputMode="decimal" min="0" value={btcVal} onChange={e => { setLast('btc'); setBtcVal(e.target.value) }} className="field tabular-nums" placeholder={price ? '' : 'Waiting for price'} />
+          <label htmlFor="conv-btc" className="field-label">{t('market.bitcoin')}</label>
+          <input id="conv-btc" type="number" inputMode="decimal" min="0" value={btcVal} onChange={e => { setLast('btc'); setBtcVal(e.target.value) }} className="field tabular-nums" placeholder={price ? '' : t('market.waitingPrice')} />
         </div>
       </div>
       <div className="mt-auto pt-5 text-[13px] text-fg-muted tabular-nums">
-        {price ? <>1 BTC = {usd(price)}<br />$1 = {(1 / price).toFixed(8)} BTC ({Math.round(1e8 / price).toLocaleString()} sats)</> : 'Live price unavailable'}
+        {price ? <>1 BTC = {usd(price)}<br />$1 = {(1 / price).toFixed(8)} BTC ({Math.round(1e8 / price).toLocaleString()} sats)</> : t('market.livePriceUnavailable')}
       </div>
     </div>
   )
@@ -326,11 +332,15 @@ function FactCard({ title, children, source }: { title: string; children: ReactN
   )
 }
 
-const Unavailable = () => <p className="text-sm text-fg-faint">Unavailable right now.</p>
+function Unavailable() {
+  const { t } = useI18n()
+  return <p className="text-sm text-fg-faint">{t('common.unavailableNow')}</p>
+}
 const Loading = () => <div className="space-y-2"><div className="skeleton h-8 w-40" /><div className="skeleton h-4 w-full" /></div>
 
 function NetworkFacts() {
   const { f, loaded } = useFacts()
+  const { t, intl } = useI18n()
   const HALVING = 210_000
   const h = f.height
   const nextHalving = h !== undefined ? Math.ceil((h + 1) / HALVING) * HALVING : undefined
@@ -342,43 +352,43 @@ function NetworkFacts() {
   return (
     <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
       <Reveal className="h-full">
-        <FactCard title="Next halving" source="Estimated from the current block height, assuming 10-minute blocks.">
+        <FactCard title={t('network.halving')} source={t('network.halvingSource')}>
           {!loaded.chain ? <Loading /> : blocksLeft === undefined ? <Unavailable /> : (
             <>
               <div className="text-3xl font-semibold text-fg tabular-nums">{blocksLeft.toLocaleString()}</div>
-              <div className="text-[13px] text-fg-muted mb-4">blocks to go, around {eta!.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</div>
+              <div className="text-[13px] text-fg-muted mb-4">{t('network.blocksToGo', { date: eta!.toLocaleDateString(intl, { month: 'long', year: 'numeric' }) })}</div>
               <Bar value={epochProgress} />
               <div className="flex justify-between text-xs text-fg-faint mt-2 tabular-nums">
-                <span>Block {h!.toLocaleString()}</span><span>{nextHalving!.toLocaleString()}</span>
+                <span>{t('network.block', { n: h!.toLocaleString() })}</span><span>{nextHalving!.toLocaleString()}</span>
               </div>
-              <p className="text-[13px] text-fg-muted mt-4">Miners earn {reward} BTC per block now. After the halving it drops to {reward! / 2} BTC.</p>
+              <p className="text-[13px] text-fg-muted mt-4">{t('network.reward', { reward: String(reward), next: String(reward! / 2) })}</p>
             </>
           )}
         </FactCard>
       </Reveal>
 
       <Reveal delay={80} className="h-full">
-        <FactCard title="Bitcoin supply" source="The 21 million limit is set by the Bitcoin protocol. Market data provided by CoinGecko.">
+        <FactCard title={t('network.supply')} source={t('network.supplySource')}>
           {!loaded.supply ? <Loading /> : !f.circulating ? <Unavailable /> : (
             <>
               <div className="text-3xl font-semibold text-fg tabular-nums">{(f.circulating / 1e6).toFixed(2)}M</div>
-              <div className="text-[13px] text-fg-muted mb-4">of 21M BTC already mined ({((f.circulating / 21e6) * 100).toFixed(2)}%)</div>
+              <div className="text-[13px] text-fg-muted mb-4">{t('network.mined', { pct: ((f.circulating / 21e6) * 100).toFixed(2) })}</div>
               <Bar value={(f.circulating / 21e6) * 100} />
-              <p className="text-[13px] text-fg-muted mt-4">About {((21e6 - f.circulating) / 1e6).toFixed(2)}M BTC are left to be mined, gradually, until around the year 2140.</p>
+              <p className="text-[13px] text-fg-muted mt-4">{t('network.left', { n: ((21e6 - f.circulating) / 1e6).toFixed(2) })}</p>
             </>
           )}
         </FactCard>
       </Reveal>
 
       <Reveal delay={160} className="h-full">
-        <FactCard title="All-time high" source="Market data provided by CoinGecko.">
+        <FactCard title={t('network.ath')} source={t('network.athSource')}>
           {!loaded.supply ? <Loading /> : !f.ath ? <Unavailable /> : (
             <>
               <div className="text-3xl font-semibold text-fg tabular-nums">{usd(f.ath, 0)}</div>
-              <div className="text-[13px] text-fg-muted mb-4">reached {f.athDate ? new Date(f.athDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'on an unknown date'}</div>
+              <div className="text-[13px] text-fg-muted mb-4">{f.athDate ? t('network.reached', { date: new Date(f.athDate).toLocaleDateString(intl, { month: 'long', day: 'numeric', year: 'numeric' }) }) : t('network.reachedUnknown')}</div>
               {f.athChange !== undefined && (
                 <p className="text-[13px] text-fg-muted">
-                  Today&apos;s price is <span className={f.athChange >= 0 ? 'price-up' : 'price-down'}>{Math.abs(f.athChange).toFixed(1)}% {f.athChange >= 0 ? 'above' : 'below'}</span> that peak. Past highs do not predict future prices.
+                  {t(f.athChange >= 0 ? 'network.athAbove' : 'network.athBelow', { pct: Math.abs(f.athChange).toFixed(1) })}
                 </p>
               )}
             </>
@@ -387,23 +397,23 @@ function NetworkFacts() {
       </Reveal>
 
       <Reveal delay={240} className="h-full">
-        <FactCard title="Network activity" source="Refreshes every minute.">
+        <FactCard title={t('network.activity')} source={t('network.activitySource')}>
           {!loaded.chain ? <Loading /> : f.mempoolCount === undefined && f.diffProgress === undefined ? <Unavailable /> : (
             <dl className="space-y-4">
               {f.mempoolCount !== undefined && (
                 <div>
-                  <dt className="text-[13px] text-fg-faint">Transactions waiting to confirm</dt>
+                  <dt className="text-[13px] text-fg-faint">{t('network.waiting')}</dt>
                   <dd className="text-2xl font-semibold text-fg tabular-nums">{f.mempoolCount.toLocaleString()}</dd>
-                  {f.mempoolVsize !== undefined && <dd className="text-xs text-fg-faint">about {Math.max(1, Math.round(f.mempoolVsize / 1e6))} blocks worth</dd>}
+                  {f.mempoolVsize !== undefined && <dd className="text-xs text-fg-faint">{t('network.blocksWorth', { n: Math.max(1, Math.round(f.mempoolVsize / 1e6)) })}</dd>}
                 </div>
               )}
               {f.diffProgress !== undefined && (
                 <div>
-                  <dt className="text-[13px] text-fg-faint mb-2">Next difficulty adjustment</dt>
+                  <dt className="text-[13px] text-fg-faint mb-2">{t('network.difficulty')}</dt>
                   <dd><Bar value={f.diffProgress} /></dd>
                   <dd className="text-xs text-fg-muted mt-2 tabular-nums">
-                    {f.diffRemaining?.toLocaleString()} blocks left
-                    {f.diffChange !== undefined && <>, estimated {f.diffChange >= 0 ? '+' : ''}{f.diffChange.toFixed(2)}%</>}
+                    {t('network.blocksLeft', { n: f.diffRemaining?.toLocaleString() ?? '' })}
+                    {f.diffChange !== undefined && t('network.estimated', { pct: `${f.diffChange >= 0 ? '+' : ''}${f.diffChange.toFixed(2)}` })}
                   </dd>
                 </div>
               )}
@@ -416,17 +426,18 @@ function NetworkFacts() {
 }
 
 /* FAQ */
-const FAQ: { q: string; a: string }[] = [
-  { q: 'How long does a deposit take to show in my balance?', a: 'First the Bitcoin network has to confirm your transfer. A new block is added about every 10 minutes on average, and busy periods can take longer. After that, our team checks your receipt and the transfer. Your balance updates the moment it is approved, and you can follow the status in your dashboard.' },
-  { q: 'Why is my deposit showing as pending?', a: 'Every deposit is reviewed by a person before it is credited. Pending means we have your submission and it has not been approved yet. Uploading a clear receipt and the transaction ID helps us match it faster.' },
-  { q: 'How do I withdraw?', a: 'Open Withdraw in your dashboard, choose whether to withdraw from your available balance or your profit balance, enter the amount and your Bitcoin address, and submit. Nothing is deducted until the request is approved. If it is declined, your balance stays the same.' },
-  { q: 'What is the profit balance?', a: 'It is a separate balance where any profit credited to your account is shown. It is kept apart from the money you deposited so you can see each clearly, and you can request a withdrawal from it on its own.' },
-  { q: 'Can I lose money?', a: 'Yes. The price of Bitcoin can fall sharply and quickly. We do not promise returns, and past prices do not predict future ones. Only deposit money you can afford to lose.' },
-  { q: 'Who can see my account?', a: 'Only you and our review team. The database only lets a signed-in client read their own balances and transactions, and receipts you upload are stored privately.' },
+const FAQ: { q: TKey; a: TKey }[] = [
+  { q: 'faq.q1', a: 'faq.a1' },
+  { q: 'faq.q2', a: 'faq.a2' },
+  { q: 'faq.q3', a: 'faq.a3' },
+  { q: 'faq.q4', a: 'faq.a4' },
+  { q: 'faq.q5', a: 'faq.a5' },
+  { q: 'faq.q6', a: 'faq.a6' },
 ]
 
 function FaqList() {
   const [open, setOpen] = useState<number | null>(0)
+  const { t } = useI18n()
   return (
     <div className="divide-y divide-ink-700 border-y border-ink-700">
       {FAQ.map((item, i) => {
@@ -438,12 +449,12 @@ function FaqList() {
               aria-expanded={isOpen}
               className="w-full flex items-center justify-between gap-6 py-5 text-left text-[16px] text-fg hover:text-accent transition-colors"
             >
-              {item.q}
+              {t(item.q)}
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className={`shrink-0 text-fg-faint transition-transform duration-300 ${isOpen ? 'rotate-45' : ''}`} aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
             </button>
             <div className={`grid transition-[grid-template-rows] duration-300 ease-out ${isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
               <div className="overflow-hidden">
-                <p className="pb-5 pr-10 text-[15px] text-fg-muted leading-relaxed">{item.a}</p>
+                <p className="pb-5 pr-10 text-[15px] text-fg-muted leading-relaxed">{t(item.a)}</p>
               </div>
             </div>
           </div>
@@ -455,10 +466,11 @@ function FaqList() {
 
 /* Sections placed into the landing page */
 export function HistorySection({ price }: { price?: number }) {
+  const { t } = useI18n()
   return (
     <section className="border-b border-ink-700">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 lg:py-20">
-        <Reveal><SectionHead title="Price history" body="See how the price has moved over the past week, month, year or five years, and convert between dollars and Bitcoin at today's price." /></Reveal>
+        <Reveal><SectionHead title={t('market.historyTitle')} body={t('market.historyBody')} /></Reveal>
         <div className="grid lg:grid-cols-[2fr_1fr] gap-4">
           <Reveal><PriceHistory /></Reveal>
           <Reveal delay={100} className="h-full"><Converter price={price} /></Reveal>
@@ -469,10 +481,11 @@ export function HistorySection({ price }: { price?: number }) {
 }
 
 export function NetworkSection() {
+  const { t } = useI18n()
   return (
     <section className="border-b border-ink-700">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 lg:py-20">
-        <Reveal><SectionHead title="The Bitcoin network right now" body="Live figures from the Bitcoin blockchain: how many coins exist, when the next halving is due, and how busy the network is." /></Reveal>
+        <Reveal><SectionHead title={t('network.title')} body={t('network.body')} /></Reveal>
         <NetworkFacts />
       </div>
     </section>
@@ -480,12 +493,13 @@ export function NetworkSection() {
 }
 
 export function FaqSection() {
+  const { t } = useI18n()
   return (
     <section id="faq" className="scroll-mt-16 border-b border-ink-700">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 lg:py-20 grid lg:grid-cols-[1fr_1.6fr] gap-10">
         <Reveal>
-          <h2 className="text-3xl font-semibold tracking-tight text-fg">Common questions</h2>
-          <p className="mt-3 text-fg-muted">Straight answers about deposits, withdrawals and risk.</p>
+          <h2 className="text-3xl font-semibold tracking-tight text-fg">{t('faq.title')}</h2>
+          <p className="mt-3 text-fg-muted">{t('faq.body')}</p>
         </Reveal>
         <Reveal delay={100}><FaqList /></Reveal>
       </div>
@@ -498,11 +512,12 @@ export function FaqSection() {
    claiming automation that doesn't exist. */
 export function TrustBar({ marketStatus }: { marketStatus?: 'connecting' | 'live' | 'polling' | 'error' }) {
   const liveFeed = marketStatus === 'live' || marketStatus === 'polling'
+  const { t } = useI18n()
   const items: { label: string; sub: string }[] = [
-    { label: liveFeed ? 'Live market data' : 'Market data', sub: liveFeed ? 'Streaming now' : 'Refreshing' },
-    { label: 'Manual review', sub: 'Every deposit checked' },
-    { label: 'Full audit trail', sub: 'Every balance change logged' },
-    { label: 'Secure access', sub: 'Encrypted sign-in' },
+    { label: t(liveFeed ? 'trust.liveData' : 'trust.marketData'), sub: t(liveFeed ? 'trust.streaming' : 'trust.refreshing') },
+    { label: t('trust.review'), sub: t('trust.reviewSub') },
+    { label: t('trust.audit'), sub: t('trust.auditSub') },
+    { label: t('trust.access'), sub: t('trust.accessSub') },
   ]
   return (
     <div className="flex flex-wrap gap-x-8 gap-y-3 py-5 border-y border-ink-700">

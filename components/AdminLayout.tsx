@@ -5,6 +5,8 @@ import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { LanguageSelector } from '@/components/LanguageSelector'
+import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
 
 type Props = {
   children: React.ReactNode
@@ -21,6 +23,7 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [checkFailed, setCheckFailed] = useState(false)
   const [attempt, setAttempt] = useState(0)
+  const { t } = useI18n()
 
   // Access is enforced by the database on every admin query; this check only
   // decides what to render. A connection failure shows a retry instead of
@@ -62,16 +65,16 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
     router.push('/admin/login')
   }
 
-  const navItems = [
-    { label: 'Dashboard', icon: '◈', href: '/admin' },
-    { label: 'Clients', icon: '◉', href: '/admin/clients' },
-    { label: 'Transactions', icon: '⇄', href: '/admin/transactions' },
-    { label: 'Audit Logs', icon: '⊡', href: '/admin/audit-logs' },
+  const navItems: { label: TKey; icon: string; href: string }[] = [
+    { label: 'admin.nav.dashboard', icon: '◈', href: '/admin' },
+    { label: 'admin.nav.clients', icon: '◉', href: '/admin/clients' },
+    { label: 'admin.nav.transactions', icon: '⇄', href: '/admin/transactions' },
+    { label: 'admin.nav.auditLogs', icon: '⊡', href: '/admin/audit-logs' },
   ]
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#080810] flex items-center justify-center">
+      <div className="min-h-screen bg-ink-950 flex items-center justify-center">
         <div className="w-6 h-6 border-2 border-white/20 border-t-violet-500 rounded-full animate-spin" />
       </div>
     )
@@ -79,11 +82,11 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
 
   if (checkFailed) {
     return (
-      <div className="min-h-screen bg-[#080810] flex items-center justify-center px-4">
+      <div className="min-h-screen bg-ink-950 flex items-center justify-center px-4">
         <div className="max-w-sm w-full rounded-xl border border-white/[0.08] bg-white/[0.03] p-6 text-center">
-          <p className="text-white font-medium mb-1">Couldn&apos;t verify your admin session</p>
-          <p className="text-sm text-white/50 mb-5">This is usually a connection problem.</p>
-          <button onClick={() => { setLoading(true); setAttempt(a => a + 1) }} className="w-full py-2.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium">Try again</button>
+          <p className="text-white font-medium mb-1">{t('admin.verifyFailed')}</p>
+          <p className="text-sm text-fg-muted mb-5">{t('admin.verifyFailedBody')}</p>
+          <button onClick={() => { setLoading(true); setAttempt(a => a + 1) }} className="w-full py-2.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium">{t('common.tryAgain')}</button>
         </div>
       </div>
     )
@@ -94,7 +97,7 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
       <div className="flex items-center gap-2 px-6 py-5 border-b border-white/[0.06]">
         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-600 to-blue-500 flex items-center justify-center text-sm font-bold shrink-0">₿</div>
         <span className="font-bold text-white text-sm">Tarafab<span className="text-violet-400">.XAi</span></span>
-        <span className="ml-auto text-[10px] bg-violet-600/20 text-violet-400 border border-violet-500/30 px-1.5 py-0.5 rounded font-medium shrink-0">ADMIN</span>
+        <span className="ml-auto text-[10px] bg-violet-600/20 text-violet-400 border border-violet-500/30 px-1.5 py-0.5 rounded font-medium shrink-0">{t('admin.badge')}</span>
       </div>
 
       <nav className="flex flex-col gap-1 p-4 flex-1">
@@ -105,10 +108,11 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
               key={item.label}
               href={item.href}
               onClick={() => setSidebarOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${isActive ? 'bg-violet-600/15 text-violet-300 border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-white/[0.05]'}`}
+              aria-current={isActive ? 'page' : undefined}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${isActive ? 'nav-item-on font-medium' : 'nav-item'}`}
             >
-              <span className="text-base">{item.icon}</span>
-              {item.label}
+              <span className={`text-base ${isActive ? 'text-brand-300' : ''}`} aria-hidden="true">{item.icon}</span>
+              {t(item.label)}
             </Link>
           )
         })}
@@ -121,21 +125,22 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
           </div>
           <div className="min-w-0">
             <p className="text-xs font-medium text-white truncate">{adminName}</p>
-            <p className="text-[10px] text-violet-400">Administrator</p>
+            <p className="text-[10px] text-violet-400">{t('admin.administrator')}</p>
           </div>
         </div>
+        <LanguageSelector align="left" direction="up" className="mb-2" />
         <button
           onClick={handleSignOut}
           className="w-full text-left text-xs text-slate-500 hover:text-red-400 transition-colors px-3 py-2 rounded-lg hover:bg-red-500/5"
         >
-          Sign Out
+          {t('common.signOut')}
         </button>
       </div>
     </>
   )
 
   return (
-    <div className="min-h-screen bg-[#080810] text-white flex">
+    <div className="min-h-screen bg-ink-950 text-white flex">
       {/* Desktop sidebar */}
       <aside className="hidden lg:flex w-64 shrink-0 border-r border-white/[0.06] flex-col">
         <SidebarContent />
@@ -150,12 +155,12 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
       )}
 
       {/* Mobile sidebar drawer */}
-      <aside className={`lg:hidden fixed top-0 left-0 h-full w-72 z-50 bg-[#0d0d1a] border-r border-white/[0.08] flex flex-col transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`lg:hidden fixed top-0 left-0 h-full w-72 z-50 bg-ink-900 border-r border-white/[0.08] flex flex-col transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex items-center justify-end px-4 pt-4">
           <button
             onClick={() => setSidebarOpen(false)}
             className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.05] transition-colors"
-            aria-label="Close menu"
+            aria-label={t('common.closeMenu')}
           >
             ✕
           </button>
@@ -170,7 +175,7 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
           <button
             onClick={() => setSidebarOpen(true)}
             className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-white/[0.05] transition-colors"
-            aria-label="Open menu"
+            aria-label={t('common.openMenu')}
           >
             <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
               <rect y="3" width="20" height="2" rx="1"/>
@@ -182,7 +187,7 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
             <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-600 to-blue-500 flex items-center justify-center text-xs font-bold">₿</div>
             <span className="font-bold text-white text-sm">Tarafab<span className="text-violet-400">.XAi</span></span>
           </div>
-          <span className="ml-auto text-[10px] bg-violet-600/20 text-violet-400 border border-violet-500/30 px-1.5 py-0.5 rounded font-medium">ADMIN</span>
+          <span className="ml-auto text-[10px] bg-violet-600/20 text-violet-400 border border-violet-500/30 px-1.5 py-0.5 rounded font-medium">{t('admin.badge')}</span>
         </header>
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-auto">
@@ -193,7 +198,7 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
                 {subtitle && <p className="text-slate-500 text-sm">{subtitle}</p>}
               </div>
             )}
-            <ErrorBoundary label="This panel">{children}</ErrorBoundary>
+            <ErrorBoundary label={t('admin.panel')}>{children}</ErrorBoundary>
           </div>
         </main>
       </div>

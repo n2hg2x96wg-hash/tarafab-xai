@@ -27,6 +27,8 @@ export const IconMenu = (p: P) => <Base {...p}><path d="M4 6h16M4 12h16M4 18h16"
 export const IconClose = (p: P) => <Base {...p}><path d="M18 6 6 18M6 6l12 12" /></Base>
 export const IconLock = (p: P) => <Base {...p}><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></Base>
 export const IconFile = (p: P) => <Base {...p}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /></Base>
+export const IconGlobe = (p: P) => <Base {...p}><circle cx="12" cy="12" r="10" /><path d="M2 12h20" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></Base>
+export const IconChevronDown = (p: P) => <Base {...p}><path d="m6 9 6 6 6-6" /></Base>
 
 export function Logo({ className = '' }: { className?: string }) {
   return (

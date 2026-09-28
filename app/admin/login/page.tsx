@@ -50,7 +50,7 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#080810] flex items-center justify-center px-4">
+    <div className="min-h-screen bg-ink-950 flex items-center justify-center px-4">
       <div aria-hidden className="fixed inset-0 pointer-events-none">
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-violet-600/[0.08] rounded-full blur-3xl" />
       </div>
