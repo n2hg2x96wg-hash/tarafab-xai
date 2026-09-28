@@ -26,6 +26,7 @@ const GROUPS: { label: TKey; items: { id: string; label: TKey; core?: boolean }[
   ] },
   { label: 'nav2.groupAccount', items: [
     { id: 'profile', label: 'dash.nav.profile', core: true }, { id: 'security', label: 'nav2.security', core: true },
+    { id: 'verification', label: 'kyc.nav' },
     { id: 'notifications', label: 'nav2.notifications' }, { id: 'preferences', label: 'nav2.preferences', core: true },
   ] },
   { label: 'nav2.groupSupport', items: [{ id: 'support', label: 'nav2.support' }] },

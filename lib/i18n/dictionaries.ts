@@ -6,7 +6,8 @@ import es from './locales/es'
 import de from './locales/de'
 import pt from './locales/pt'
 import it from './locales/it'
+import ko from './locales/ko'
 
 export type Dictionary = typeof en
-export const dictionaries: Record<Locale, DeepPartial<Dictionary>> = { en, fr, es, de, pt, it }
+export const dictionaries: Record<Locale, DeepPartial<Dictionary>> = { en, fr, es, de, pt, it, ko }
 export { en }

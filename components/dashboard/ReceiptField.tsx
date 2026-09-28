@@ -3,21 +3,22 @@
 import { useEffect, useRef, useState } from 'react'
 import { useI18n } from '@/lib/i18n/I18nProvider'
 import { IconCheck, IconClose, IconFile } from '@/components/Icons'
+import { ALLOWED_UPLOAD_TYPES, MAX_UPLOAD_BYTES, prettySize } from '@/lib/uploadFile'
 
-const ACCEPT = 'image/jpeg,image/png,image/webp,application/pdf'
-const MAX_SIZE = 5 * 1024 * 1024
+const ACCEPT = ALLOWED_UPLOAD_TYPES.join(',')
 
-function prettySize(bytes: number) {
-  return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`
-}
-
-// Receipt picker with a preview of the chosen file. The same validation the
-// server applies is checked here too, so a client sees the problem before
-// uploading rather than after.
-export function ReceiptField({ file, onChange, disabled }: {
+// File picker with a preview of the chosen file, used for deposit receipts and
+// for identity documents. The same validation the server applies is checked
+// here too, so a client sees the problem before uploading rather than after.
+export function ReceiptField({ file, onChange, disabled, id = 'receipt', label, help, choose, removeLabel }: {
   file: File | null
   onChange: (f: File | null) => void
   disabled?: boolean
+  id?: string
+  label?: string
+  help?: string
+  choose?: string
+  removeLabel?: string
 }) {
   const { t } = useI18n()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -31,7 +32,8 @@ export function ReceiptField({ file, onChange, disabled }: {
     return () => URL.revokeObjectURL(url)
   }, [file])
 
-  const tooBig = !!file && file.size > MAX_SIZE
+  // Images are scaled down before upload, so only other files can be too big.
+  const tooBig = !!file && !file.type.startsWith('image/') && file.size > MAX_UPLOAD_BYTES
   const wrongType = !!file && !ACCEPT.split(',').includes(file.type)
 
   const clear = () => {
@@ -41,9 +43,9 @@ export function ReceiptField({ file, onChange, disabled }: {
 
   return (
     <div>
-      <span className="field-label">{t('deposit.receipt')}</span>
+      <span className="field-label">{label ?? t('deposit.receipt')}</span>
       <input
-        id="receipt"
+        id={id}
         ref={inputRef}
         type="file"
         accept={ACCEPT}
@@ -54,12 +56,12 @@ export function ReceiptField({ file, onChange, disabled }: {
 
       {!file ? (
         <label
-          htmlFor="receipt"
+          htmlFor={id}
           className={`flex flex-col items-center justify-center gap-2 min-h-[104px] px-4 py-5 rounded-lg border border-dashed border-ink-600 bg-ink-950/40 text-center transition-colors ${disabled ? 'opacity-60' : 'cursor-pointer hover:border-ink-500 hover:bg-ink-850/60'}`}
         >
           <IconFile width={20} height={20} className="text-fg-faint" aria-hidden="true" />
-          <span className="text-[14px] font-medium text-fg">{t('deposit.chooseFile')}</span>
-          <span className="text-xs text-fg-faint">{t('deposit.receiptHelp')}</span>
+          <span className="text-[14px] font-medium text-fg">{choose ?? t('deposit.chooseFile')}</span>
+          <span className="text-xs text-fg-faint">{help ?? t('deposit.receiptHelp')}</span>
         </label>
       ) : (
         <div className={`flex items-center gap-3 p-3 rounded-lg border bg-ink-950/40 ${tooBig || wrongType ? 'border-danger-400/50' : 'border-ink-700'}`}>
@@ -81,7 +83,7 @@ export function ReceiptField({ file, onChange, disabled }: {
             type="button"
             onClick={clear}
             disabled={disabled}
-            aria-label={t('deposit.removeFile')}
+            aria-label={removeLabel ?? t('deposit.removeFile')}
             className="shrink-0 w-9 h-9 rounded-md flex items-center justify-center text-fg-faint hover:text-fg hover:bg-ink-800 transition-colors disabled:opacity-50"
           >
             <IconClose width={16} height={16} aria-hidden="true" />

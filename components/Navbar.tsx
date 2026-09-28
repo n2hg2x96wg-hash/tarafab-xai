@@ -11,6 +11,7 @@ const navLinks: { label: TKey; href: string }[] = [
   { label: 'nav.platform', href: '#platform' },
   { label: 'nav.markets', href: '#markets' },
   { label: 'nav.howItWorks', href: '#how-it-works' },
+  { label: 'nav.howDeposits', href: '#how-deposits-work' },
   { label: 'nav.security', href: '#security' },
 ]
 

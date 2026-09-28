@@ -52,6 +52,17 @@ function tvLocale() {
   return ['en', 'fr', 'es', 'de', 'pt', 'it'].includes(l) ? l : 'en'
 }
 
+// The overall account and investment workflow, shown under "How it works".
+// The deposit-specific steps below stay separate, under "How deposits work".
+const workflow: { title: TKey; body: TKey }[] = [
+  { title: 'landing.flow.f1Title', body: 'landing.flow.f1Body' },
+  { title: 'landing.flow.f2Title', body: 'landing.flow.f2Body' },
+  { title: 'landing.flow.f3Title', body: 'landing.flow.f3Body' },
+  { title: 'landing.flow.f4Title', body: 'landing.flow.f4Body' },
+  { title: 'landing.flow.f5Title', body: 'landing.flow.f5Body' },
+  { title: 'landing.flow.f6Title', body: 'landing.flow.f6Body' },
+]
+
 const steps: { title: TKey; body: TKey }[] = [
   { title: 'landing.steps.s1Title', body: 'landing.steps.s1Body' },
   { title: 'landing.steps.s2Title', body: 'landing.steps.s2Body' },
@@ -186,8 +197,28 @@ export default function LandingPage() {
 
       <NetworkSection />
 
-      {/* How it works */}
+      {/* How it works: the overall account and investment workflow */}
       <section id="how-it-works" className="scroll-mt-16 border-b border-ink-700">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 lg:py-20">
+          <Reveal><div className="mb-10 max-w-2xl">
+            <h2 className="text-3xl font-semibold tracking-tight text-fg">{t('landing.workflowTitle')}</h2>
+            <p className="mt-3 text-fg-muted">{t('landing.workflowBody')}</p>
+          </div></Reveal>
+          <Reveal><ol className="grid sm:grid-cols-2 lg:grid-cols-3 gap-px bg-ink-700 border border-ink-700 rounded-lg overflow-hidden">
+            {workflow.map((s, i) => (
+              <li key={s.title} className="bg-ink-950 p-6">
+                <div className="text-[13px] text-accent font-medium tabular-nums mb-3">{t('landing.step', { n: i + 1 })}</div>
+                <h3 className="text-[17px] font-semibold text-fg mb-2">{t(s.title)}</h3>
+                <p className="text-[15px] text-fg-muted leading-relaxed">{t(s.body)}</p>
+              </li>
+            ))}
+          </ol></Reveal>
+          <Reveal><p className="mt-6 text-[13px] text-fg-faint max-w-3xl">{t('landing.workflowNote')}</p></Reveal>
+        </div>
+      </section>
+
+      {/* How deposits work: funding specifically */}
+      <section id="how-deposits-work" className="scroll-mt-16 border-b border-ink-700">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 lg:py-20">
           <Reveal><div className="mb-10 max-w-2xl">
             <h2 className="text-3xl font-semibold tracking-tight text-fg">{t('landing.howTitle')}</h2>
@@ -252,6 +283,7 @@ export default function LandingPage() {
             <a href="#markets" className="text-fg-muted hover:text-fg">{t('nav.markets')}</a>
             <Link href="/sign-in" className="text-fg-muted hover:text-fg">{t('common.signIn')}</Link>
             <a href="#how-it-works" className="text-fg-muted hover:text-fg">{t('nav.howItWorks')}</a>
+            <a href="#how-deposits-work" className="text-fg-muted hover:text-fg">{t('nav.howDeposits')}</a>
             <Link href="/sign-up" className="text-fg-muted hover:text-fg">{t('common.openAccount')}</Link>
             <a href="#security" className="text-fg-muted hover:text-fg">{t('nav.security')}</a>
             <Link href="/forgot-password" className="text-fg-muted hover:text-fg">{t('nav.resetPassword')}</Link>

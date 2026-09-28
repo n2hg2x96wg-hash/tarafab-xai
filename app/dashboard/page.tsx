@@ -31,6 +31,8 @@ import {
 } from '@/components/dashboard/ExtraTabs'
 import { AnimatedPrice } from '@/components/MarketBits'
 import { ReceiptField } from '@/components/dashboard/ReceiptField'
+import { isAllowedUpload, MAX_UPLOAD_BYTES, prepareUpload } from '@/lib/uploadFile'
+import { VerificationTab } from '@/components/dashboard/VerificationTab'
 import { MarketActivityTab, PriceHistoryTab } from '@/components/dashboard/MarketTabs'
 
 const BTC_ADDRESS = 'bc1qvpwmdln4nm6xa2k9q26l84pg4ud0uuqzk83053'
@@ -88,6 +90,7 @@ const NAV_GROUPS: { label: TKey; items: (NavItem & { core?: boolean })[] }[] = [
   { label: 'nav2.groupAccount', items: [
     { icon: IconUser, label: 'dash.nav.profile', id: 'profile', core: true },
     { icon: IconShield, label: 'nav2.security', id: 'security', core: true },
+    { icon: IconCheck, label: 'kyc.nav', id: 'verification' },
     { icon: IconBell, label: 'nav2.notifications', id: 'notifications' },
     { icon: IconSliders, label: 'nav2.preferences', id: 'preferences', core: true },
   ] },
@@ -424,6 +427,7 @@ export default function DashboardPage() {
             {activeNav === 'depositHistory' && <HistoryTab kind="deposit" txs={txs} hasMore={hasMore} loadingMore={loadingMore} onLoadMore={loadMore} go={go} />}
             {activeNav === 'withdrawalHistory' && <HistoryTab kind="withdrawal" txs={txs} hasMore={hasMore} loadingMore={loadingMore} onLoadMore={loadMore} go={go} />}
             {activeNav === 'security' && <SecurityTab user={user} />}
+            {activeNav === 'verification' && <VerificationTab />}
             {activeNav === 'preferences' && <PreferencesTab />}
             {activeNav === 'support' && <SupportTab />}
             {activeNav === 'notifications' && <NotificationsTab notices={notices} seenAt={seenAt} team={teamNotices} onRead={markTeamRead} go={go} />}
@@ -719,8 +723,7 @@ function DepositTab({ onSuccess, go, can }: { onSuccess: () => void; go: (id: st
     setError('')
     const amt = parseFloat(amount)
     if (!amt || amt <= 0) { setError(t('deposit.errAmount')); return }
-    if (file && file.size > 5 * 1024 * 1024) { setError(t('deposit.errSize')); return }
-    if (file && !['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].includes(file.type)) { setError(t('deposit.errType')); return }
+    if (file && !isAllowedUpload(file)) { setError(t('deposit.errType')); return }
     if (inFlight.current) return
     inFlight.current = true
 
@@ -734,10 +737,23 @@ function DepositTab({ onSuccess, go, can }: { onSuccess: () => void; go: (id: st
           receiptPath = uploaded.current.path
         } else {
           setStage('uploading')
+          // Large phone photos are shrunk first so the request stays inside
+          // the size a serverless function can receive.
+          const ready = await prepareUpload(file)
+          if (ready.size > MAX_UPLOAD_BYTES) { setError(t('deposit.errSize')); return }
           const fd = new FormData()
-          fd.append('file', file)
+          fd.append('file', ready)
           fd.append('key', key)
-          const up = await readJson<{ path: string }>(await authFetch('/api/client/upload-receipt', { method: 'POST', body: fd }, 60_000))
+          let up: { path: string }
+          try {
+            up = await readJson<{ path: string }>(await authFetch('/api/client/upload-receipt', { method: 'POST', body: fd }, 60_000))
+          } catch (uploadErr) {
+            // Say that the receipt is what failed, rather than blaming the
+            // whole submission on the connection.
+            throw uploadErr instanceof RequestError && uploadErr.status === 0
+              ? new RequestError(t('deposit.errUpload'), 0)
+              : uploadErr
+          }
           uploaded.current = { file, path: up.path }
           receiptPath = up.path
         }
