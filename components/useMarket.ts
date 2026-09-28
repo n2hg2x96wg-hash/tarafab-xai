@@ -47,6 +47,10 @@ function sharedSummary() {
   return promise
 }
 
+// A price older than this is shown as delayed. The server refreshes every
+// 30 seconds, so a healthy feed stays well inside it.
+const STALE_AFTER_MS = 3 * 60_000
+
 export type SummaryStatus = 'loading' | 'live' | 'stale' | 'error'
 
 export function useBtcSummary(refreshMs = 30_000) {
@@ -63,9 +67,14 @@ export function useBtcSummary(refreshMs = 30_000) {
     try {
       const { summary } = await sharedSummary()
       if (!alive.current) return
+      // Freshness comes from the provider's own timestamp, not from when we
+      // asked: during a provider outage the server keeps serving its last
+      // cached price, and that must read as delayed rather than live.
+      const asOf = Date.parse(summary.updatedAt)
+      const dataTime = Number.isFinite(asOf) ? Math.min(asOf, Date.now()) : Date.now()
       setSummary(summary)
-      setFetchedAt(Date.now())
-      setStatus('live')
+      setFetchedAt(dataTime)
+      setStatus(Date.now() - dataTime > STALE_AFTER_MS ? 'stale' : 'live')
       hasData.current = true
       failures.current = 0
     } catch {
