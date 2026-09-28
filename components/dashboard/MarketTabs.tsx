@@ -6,7 +6,6 @@ import { useBtcSummary } from '@/components/useMarket'
 import { Converter, NetworkFacts, PriceHistory } from '@/components/LandingExtras'
 import { LatestBlocks } from '@/components/LiveCrypto'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { DataSources } from '@/components/DataSources'
 import { useI18n } from '@/lib/i18n/I18nProvider'
 
 export function MarketActivityTab() {
@@ -15,7 +14,6 @@ export function MarketActivityTab() {
     <div className="space-y-4 panel-in">
       <ErrorBoundary label={t('market.blocksTitle')}><LatestBlocks /></ErrorBoundary>
       <ErrorBoundary label={t('network.title')}><NetworkFacts /></ErrorBoundary>
-      <DataSources />
     </div>
   )
 }
@@ -29,7 +27,6 @@ export function PriceHistoryTab() {
         <ErrorBoundary label={t('market.historyTitle')}><PriceHistory /></ErrorBoundary>
         <ErrorBoundary label={t('market.calculator')}><Converter price={summary?.price} /></ErrorBoundary>
       </div>
-      <DataSources />
     </div>
   )
 }

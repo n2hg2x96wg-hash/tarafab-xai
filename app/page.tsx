@@ -260,7 +260,7 @@ export default function LandingPage() {
         </div>
         <div className="mt-10 pt-6 border-t border-ink-700 flex flex-col sm:flex-row sm:justify-between gap-2 text-xs text-fg-faint">
           <p>&copy; {new Date().getFullYear()} Tarafab.XAi</p>
-          <p>{t('sources.title')}: Coinbase Exchange · CoinGecko · mempool.space · TradingView</p>
+          <p>{t('sources.footer')}</p>
         </div>
       </footer>
     </div>

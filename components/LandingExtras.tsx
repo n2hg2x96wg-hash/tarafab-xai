@@ -6,7 +6,6 @@ import type { ReactNode } from 'react'
 import { compactUsd, useBtcHistory, useBtcSummary, type SummaryStatus } from '@/components/useMarket'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
 import { AnimatedPrice, freshnessText } from '@/components/MarketBits'
-import { DataSources } from '@/components/DataSources'
 
 const usd = (n: number, d = 2) => `$${n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d })}`
 
@@ -501,7 +500,6 @@ export function NetworkSection() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 lg:py-20">
         <Reveal><SectionHead title={t('network.title')} body={t('network.body')} /></Reveal>
         <NetworkFacts />
-        <DataSources className="mt-6" />
       </div>
     </section>
   )

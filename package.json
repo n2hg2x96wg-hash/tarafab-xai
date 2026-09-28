@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "check:i18n": "node scripts/check-i18n.mjs"
+    "check:i18n": "node scripts/check-i18n.mjs",
+    "check:deposit": "node scripts/test-deposit-flow.cjs"
   },
   "dependencies": {
     "@supabase/auth-helpers-nextjs": "^0.8.7",

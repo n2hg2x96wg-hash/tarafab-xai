@@ -94,6 +94,10 @@ export default function TransactionsPage() {
   const reviewingTx = txs.find(t => t.id === reviewingId)
   const reviewNoun = reviewingTx?.type === 'withdrawal' ? 'Withdrawal' : 'Deposit'
   const receiptPath = (notes: string | null) => notes?.match(/receipt:([0-9a-f-]{36}\/[\w.-]+)/i)?.[1] || null
+  // The stored note carries the receipt's file path for the viewer button;
+  // the path itself is an internal detail, so it is not printed in the table.
+  const noteText = (notes: string | null) =>
+    (notes || '').replace(/receipt:[0-9a-f-]{36}\/[\w.-]+/i, '').replace(/\|\s*$/, '').replace(/^\s*\|/, '').trim()
   const [receiptError, setReceiptError] = useState('')
 
   const openReceipt = async (path: string) => {
@@ -184,11 +188,11 @@ export default function TransactionsPage() {
           onChange={e => setSearch(e.target.value)}
           className="input-field text-xs py-2 flex-1"
         />
-        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="input-field text-xs py-2 sm:w-48">
+        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="input-field text-xs py-2 sm:w-48 capitalize">
           <option value="">All statuses</option>
           {allStatuses.map(s => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
         </select>
-        <select value={filterType} onChange={e => setFilterType(e.target.value)} className="input-field text-xs py-2 sm:w-48">
+        <select value={filterType} onChange={e => setFilterType(e.target.value)} className="input-field text-xs py-2 sm:w-48 capitalize">
           <option value="">All types</option>
           {allTypes.map(t => <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>)}
         </select>
@@ -217,7 +221,7 @@ export default function TransactionsPage() {
                   {filtered.map((tx, i) => (
                     <tr key={tx.id} className={`border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors ${i % 2 === 1 ? 'bg-white/[0.01]' : ''}`}>
                       <td className="px-5 py-4">
-                        <p className="text-sm font-medium text-white">{tx.profiles?.full_name || 'Unknown'}</p>
+                        <p className="text-sm font-medium text-white whitespace-nowrap">{tx.profiles?.full_name || 'Unknown'}</p>
                         <p className="text-[10px] text-slate-600 font-mono">{tx.user_id.slice(0, 12)}…</p>
                       </td>
                       <td className="px-5 py-4">
@@ -225,7 +229,7 @@ export default function TransactionsPage() {
                         {tx.method && <p className="text-[10px] text-slate-600 mt-0.5">{sourceLabel(tx)}</p>}
                         {tx.address && <p className="text-[10px] text-slate-400 mt-0.5 font-mono break-all max-w-[180px] select-all">{tx.address}</p>}
                         {receiptPath(tx.notes) && (
-                          <button onClick={() => openReceipt(receiptPath(tx.notes)!)} className="mt-1 text-[10px] font-medium text-sky-400 hover:text-sky-300 underline underline-offset-2">View receipt</button>
+                          <button onClick={() => openReceipt(receiptPath(tx.notes)!)} className="mt-1 text-[10px] font-medium text-sky-400 hover:text-sky-300 underline underline-offset-2 whitespace-nowrap">View receipt</button>
                         )}
                       </td>
                       <td className="px-5 py-4 text-sm font-medium text-white">
@@ -235,11 +239,14 @@ export default function TransactionsPage() {
                         {tx.fee ? `$${tx.fee.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '—'}
                       </td>
                       <td className="px-5 py-4">
-                        <span className={`text-[10px] px-2 py-1 rounded-full border font-medium capitalize ${STATUS_STYLE[tx.status] || 'bg-slate-800 text-slate-400 border-white/[0.06]'}`}>
+                        <span className={`inline-block whitespace-nowrap text-[10px] px-2 py-1 rounded-full border font-medium capitalize ${STATUS_STYLE[tx.status] || 'bg-slate-800 text-slate-400 border-white/[0.06]'}`}>
                           {tx.status.replace(/_/g, ' ')}
                         </span>
                       </td>
-                      <td className="px-5 py-4 text-xs text-slate-500 max-w-[160px] truncate">{tx.notes || '—'}</td>
+                      <td className="px-5 py-4 text-xs text-slate-500 max-w-[180px]">
+                        {tx.reference && <span className="block font-mono text-[11px] text-slate-400">{tx.reference}</span>}
+                        <span className="block truncate" title={noteText(tx.notes)}>{noteText(tx.notes) || '—'}</span>
+                      </td>
                       <td className="px-5 py-4 text-xs text-slate-500 whitespace-nowrap">
                         {new Date(tx.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </td>
@@ -283,7 +290,8 @@ export default function TransactionsPage() {
                   </div>
                   {tx.method && <p className="text-[11px] text-slate-500">{sourceLabel(tx)}</p>}
                   {tx.address && <p className="text-[11px] text-slate-400 font-mono break-all select-all">{tx.address}</p>}
-                  {tx.notes && <p className="text-xs text-slate-500 truncate">{tx.notes}</p>}
+                  {tx.reference && <p className="text-xs font-mono text-slate-400">{tx.reference}</p>}
+                  {noteText(tx.notes) && <p className="text-xs text-slate-500 truncate">{noteText(tx.notes)}</p>}
                   {receiptPath(tx.notes) && (
                     <button onClick={() => openReceipt(receiptPath(tx.notes)!)} className="mt-1 text-xs font-medium text-sky-400 hover:text-sky-300 underline underline-offset-2">View receipt</button>
                   )}

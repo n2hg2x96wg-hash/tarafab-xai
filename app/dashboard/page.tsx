@@ -30,8 +30,8 @@ import {
   txTotals,
 } from '@/components/dashboard/ExtraTabs'
 import { AnimatedPrice } from '@/components/MarketBits'
+import { ReceiptField } from '@/components/dashboard/ReceiptField'
 import { MarketActivityTab, PriceHistoryTab } from '@/components/dashboard/MarketTabs'
-import { DataSources } from '@/components/DataSources'
 
 const BTC_ADDRESS = 'bc1qvpwmdln4nm6xa2k9q26l84pg4ud0uuqzk83053'
 
@@ -430,7 +430,7 @@ export default function DashboardPage() {
             {activeNav === 'performance' && <PerformanceTab txs={txs} hasMore={hasMore} />}
             {activeNav === 'marketActivity' && <MarketActivityTab />}
             {activeNav === 'priceHistory' && <PriceHistoryTab />}
-            {activeNav === 'deposit' && <DepositTab onSuccess={fetchData} />}
+            {activeNav === 'deposit' && <DepositTab onSuccess={fetchData} go={go} can={id => !hiddenNav.includes(id)} />}
             {activeNav === 'withdraw' && <WithdrawTab account={account} txs={txs} onSuccess={fetchData} />}
             {activeNav === 'profile' && <ProfileTab user={user} account={account} />}
           </ErrorBoundary>
@@ -599,7 +599,6 @@ function MarketsTab() {
         </div>
         <ErrorBoundary label={t('market.bitcoinMarket')}><BitcoinMarketCard /></ErrorBoundary>
       </div>
-      <DataSources />
     </div>
   )
 }
@@ -691,7 +690,7 @@ function TransactionsTab({ txs }: { txs: Tx[] }) {
 }
 
 /* Deposit */
-function DepositTab({ onSuccess }: { onSuccess: () => void }) {
+function DepositTab({ onSuccess, go, can }: { onSuccess: () => void; go: (id: string) => void; can: (id: string) => boolean }) {
   const [amount, setAmount] = useState('')
   const [method, setMethod] = useState('bitcoin')
   const [notes, setNotes] = useState('')
@@ -784,7 +783,10 @@ function DepositTab({ onSuccess }: { onSuccess: () => void }) {
               <p className="text-fg font-mono">{success.reference}</p>
             </div>
           )}
-          <button onClick={() => setSuccess(null)} className="btn btn-outline">{t('deposit.another')}</button>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button onClick={() => setSuccess(null)} className="btn btn-outline">{t('deposit.another')}</button>
+            {can('transactions') && <button onClick={() => go('transactions')} className="btn btn-ghost">{t('deposit.viewTransactions')}</button>}
+          </div>
         </div>
       </div>
     )
@@ -834,14 +836,7 @@ function DepositTab({ onSuccess }: { onSuccess: () => void }) {
           </div>
 
           <div>
-            <label htmlFor="receipt" className="field-label">{t('deposit.receipt')}</label>
-            <input
-              id="receipt" ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf"
-              onChange={e => setFile(e.target.files?.[0] || null)}
-              className="block w-full text-sm text-fg-muted file:mr-3 file:h-9 file:px-3 file:rounded-md file:border file:border-ink-600 file:bg-ink-850 file:text-fg file:text-[13px] file:font-medium file:cursor-pointer hover:file:bg-ink-800"
-              disabled={submitting}
-            />
-            <p className="text-xs text-fg-faint mt-1.5">{t('deposit.receiptHelp')}</p>
+            <ReceiptField file={file} onChange={setFile} disabled={submitting} />
           </div>
 
           <div>

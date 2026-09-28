@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { getSupabaseEnv } from '@/lib/supabase/env'
+import { getSupabaseEnv, isJwt } from '@/lib/supabase/env'
 import { rateLimited } from '@/lib/rateLimit'
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
@@ -17,34 +17,46 @@ function contentMatches(type: string, b: Buffer) {
 }
 
 export async function POST(request: NextRequest) {
-  const { url, anonKey, serviceKey } = getSupabaseEnv()
-  if (!url || (!serviceKey && !anonKey)) return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 })
+  const { url, anonKey } = getSupabaseEnv()
+  if (!url || !anonKey) {
+    console.error('upload-receipt: Supabase URL or anon key missing')
+    return NextResponse.json({ error: 'We could not accept the receipt right now. Please try again.' }, { status: 500 })
+  }
 
-  const authHeader = request.headers.get('authorization') || ''
-  const token = authHeader.replace(/^Bearer\s+/i, '')
-  if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const token = (request.headers.get('authorization') || '').replace(/^Bearer\s+/i, '').trim()
+  // A malformed token would otherwise reach Supabase and come back as a raw
+  // library error ("Invalid Compact JWS"); tell the client to sign in instead.
+  if (!token || !isJwt(token)) {
+    if (token) console.error('upload-receipt: access token is not a compact JWS')
+    return NextResponse.json({ error: 'Please sign in again.' }, { status: 401 })
+  }
 
   try {
-    const authClient = createClient(url, anonKey || serviceKey)
+    const authClient = createClient(url, anonKey, { auth: { persistSession: false, autoRefreshToken: false } })
     const { data: { user }, error: authErr } = await authClient.auth.getUser(token)
-    if (authErr || !user) return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+    if (authErr || !user) return NextResponse.json({ error: 'Please sign in again.' }, { status: 401 })
     const limited = rateLimited(`upload:${user.id}`, 10, 10 * 60_000)
     if (limited) return limited
 
     const formData = await request.formData()
     const file = formData.get('file') as File | null
-    if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+    if (!file) return NextResponse.json({ error: 'Please choose a receipt to upload.' }, { status: 400 })
 
     if (!ALLOWED_TYPES.includes(file.type)) {
-      return NextResponse.json({ error: 'Unsupported file type. Allowed: JPG, PNG, WEBP, PDF' }, { status: 400 })
+      return NextResponse.json({ error: 'Receipts must be JPG, PNG, WEBP or PDF.' }, { status: 400 })
     }
     if (file.size > MAX_SIZE) {
-      return NextResponse.json({ error: 'File too large. Maximum 5MB' }, { status: 400 })
+      return NextResponse.json({ error: 'The receipt is larger than 5 MB. Please choose a smaller file.' }, { status: 400 })
     }
 
-    const storageClient = serviceKey
-      ? createClient(url, serviceKey)
-      : createClient(url, anonKey, { global: { headers: { Authorization: `Bearer ${token}` } } })
+    // Upload as the signed-in client, never with the service key: the storage
+    // policy already lets a client write into their own folder, and the user's
+    // access token is a real JWT. A new-format sb_secret_ key is not a JWT and
+    // Supabase Storage rejects it as "Invalid Compact JWS".
+    const storageClient = createClient(url, anonKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    })
 
     const ext = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'application/pdf': 'pdf' } as Record<string, string>)[file.type]
     // A client-supplied key names the file, so retrying the same upload after
@@ -60,24 +72,23 @@ export async function POST(request: NextRequest) {
 
     const { error: uploadErr } = await storageClient.storage
       .from('deposit-receipts')
-      .upload(filePath, buffer, {
-        contentType: file.type,
-        upsert: false,
-      })
+      .upload(filePath, buffer, { contentType: file.type, upsert: false })
 
     if (uploadErr) {
-      const msg = (uploadErr as { message: string }).message
+      const msg = (uploadErr as { message?: string }).message || ''
       // Same key uploaded before (a retry): the file is already stored.
       if (/already exists|duplicate/i.test(msg)) return NextResponse.json({ path: filePath })
-      if (msg.includes('not found') || msg.includes('Bucket')) {
-        return NextResponse.json({ error: 'Storage not configured. Please contact support.' }, { status: 500 })
+      // Keep the technical detail in the server logs, show the client plain words.
+      console.error('upload-receipt: storage upload failed:', msg)
+      if (/jws|jwt|token|unauthor/i.test(msg)) {
+        return NextResponse.json({ error: 'Please sign in again.' }, { status: 401 })
       }
-      return NextResponse.json({ error: msg }, { status: 500 })
+      return NextResponse.json({ error: 'We could not upload the receipt right now. Please try again.' }, { status: 502 })
     }
 
     return NextResponse.json({ path: filePath })
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e)
-    return NextResponse.json({ error: msg }, { status: 500 })
+    console.error('upload-receipt: unexpected failure:', e instanceof Error ? e.message : e)
+    return NextResponse.json({ error: 'We could not upload the receipt right now. Please try again.' }, { status: 500 })
   }
 }
