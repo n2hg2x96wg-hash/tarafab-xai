@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useI18n } from '@/lib/i18n/I18nProvider'
 import { createClient } from '@/lib/supabase/client'
-import { AuthShell, FormError, Spinner } from '@/components/AuthShell'
+import { AuthShell, FormError, Spinner, useSingleFlight } from '@/components/AuthShell'
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
@@ -13,21 +13,25 @@ export default function ForgotPasswordPage() {
   const [sent, setSent] = useState(false)
   const { t } = useI18n()
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const once = useSingleFlight()
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
-    setLoading(true)
-    try {
-      const { error: err } = await createClient().auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/reset-password`,
-      })
-      if (err) { setError(err.message); return }
-      setSent(true)
-    } catch {
-      setError(t('errors.network'))
-    } finally {
-      setLoading(false)
-    }
+    return once(async () => {
+      setError('')
+      setLoading(true)
+      try {
+        const { error: err } = await createClient().auth.resetPasswordForEmail(email.trim(), {
+          redirectTo: `${window.location.origin}/reset-password`,
+        })
+        if (err) { setError(err.message); return }
+        setSent(true)
+      } catch {
+        setError(t('errors.network'))
+      } finally {
+        setLoading(false)
+      }
+    })
   }
 
   if (sent) {

@@ -33,6 +33,7 @@ import { AnimatedPrice } from '@/components/MarketBits'
 import { ReceiptField } from '@/components/dashboard/ReceiptField'
 import { isAllowedUpload, MAX_UPLOAD_BYTES, prepareUpload } from '@/lib/uploadFile'
 import { VerificationTab } from '@/components/dashboard/VerificationTab'
+import { useToast } from '@/components/Toast'
 import { MarketActivityTab, PriceHistoryTab } from '@/components/dashboard/MarketTabs'
 
 const BTC_ADDRESS = 'bc1qvpwmdln4nm6xa2k9q26l84pg4ud0uuqzk83053'
@@ -302,9 +303,17 @@ export default function DashboardPage() {
     if (hiddenNav.includes(activeNav)) setActiveNav('overview')
   }, [hiddenNav, activeNav])
 
+  const [signingOut, setSigningOut] = useState(false)
   const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    router.push('/')
+    if (signingOut) return
+    setSigningOut(true)
+    // supabase-js clears the session stored in this browser even when the
+    // server half of sign-out fails, so leaving is safe offline. Catching here
+    // only makes sure an unexpected throw can never strand the user on this
+    // page with the button spinning.
+    await supabase.auth.signOut().catch(e => console.error('sign-out failed:', e?.message || e))
+    // Replace rather than push, so Back cannot return to this account's figures.
+    router.replace('/')
   }
 
   const go = (id: string) => {
@@ -313,13 +322,7 @@ export default function DashboardPage() {
     try { window.history.replaceState(null, '', id === 'overview' ? '/dashboard' : `/dashboard#${id}`) } catch { /* ignore */ }
   }
 
-  if (loading) {
-    return (
-      <div className="site min-h-screen bg-ink-950 flex items-center justify-center text-fg-muted">
-        <Spinner />
-      </div>
-    )
-  }
+  if (loading) return <DashboardSkeleton label={t('common.loading')} />
 
   if (sessionError) {
     return (
@@ -339,10 +342,10 @@ export default function DashboardPage() {
 
   return (
     <div className="site min-h-screen bg-ink-950 text-fg lg:flex">
-      <aside className={`fixed inset-y-0 left-0 z-40 w-[min(18rem,85vw)] lg:w-64 h-[100dvh] safe-top bg-ink-900 border-r border-ink-700 flex flex-col transition-transform duration-200 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`fixed inset-y-0 left-0 z-40 w-[min(18rem,85vw)] lg:w-64 h-[100dvh] safe-top bg-ink-900 border-r border-ink-700 flex flex-col transition-transform duration-300 ease-[cubic-bezier(.2,.7,.2,1)] lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:shadow-none ${sidebarOpen ? 'translate-x-0 drawer-shadow' : '-translate-x-full'}`}>
         <div className="h-16 flex items-center justify-between px-5 border-b border-ink-700">
           <Link href="/" aria-label={t('common.home')}><Logo /></Link>
-          <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1 text-fg-muted hover:text-fg" aria-label={t('common.closeMenu')}><IconClose /></button>
+          <button onClick={() => setSidebarOpen(false)} className="lg:hidden -mr-2 w-10 h-10 rounded-md flex items-center justify-center text-fg-muted hover:text-fg hover:bg-ink-850" aria-label={t('common.closeMenu')}><IconClose /></button>
         </div>
         <nav className="flex-1 px-3 py-3 overflow-y-auto overscroll-contain" aria-label={t('dash.dashboard')}>
           {NAV_GROUPS.map(group => {
@@ -387,18 +390,18 @@ export default function DashboardPage() {
             <LanguageSelector align="left" direction="up" />
             <ThemeSelector align="left" direction="up" />
           </div>
-          <button onClick={handleSignOut} className="w-full flex items-center gap-3 px-3 h-10 rounded-md text-sm text-fg-muted hover:text-fg hover:bg-ink-850 transition-colors">
-            <IconLogOut width={17} height={17} />{t('common.signOut')}
+          <button onClick={handleSignOut} disabled={signingOut} aria-busy={signingOut} className="w-full flex items-center gap-3 px-3 min-h-11 lg:min-h-10 rounded-md text-sm text-fg-muted hover:text-fg hover:bg-ink-850 transition-colors disabled:opacity-60">
+            {signingOut ? <Spinner /> : <IconLogOut width={17} height={17} />}{t('common.signOut')}
           </button>
         </div>
       </aside>
 
-      {sidebarOpen && <div className="fixed inset-0 z-30 bg-black/60 lg:hidden" onClick={() => setSidebarOpen(false)} aria-hidden="true" />}
+      {sidebarOpen && <div className="fixed inset-0 z-30 bg-black/55 backdrop-blur-[2px] lg:hidden backdrop-in" onClick={() => setSidebarOpen(false)} aria-hidden="true" />}
 
       <div className="flex-1 min-w-0">
-        <header className="sticky top-0 z-20 h-16 flex items-center justify-between gap-4 px-4 sm:px-6 border-b border-ink-700 bg-ink-950">
-          <div className="flex items-center gap-3 min-w-0">
-            <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-1 -ml-1 text-fg-muted hover:text-fg" aria-label={t('common.openMenu')}><IconMenu width={22} height={22} /></button>
+        <header className="sticky top-0 z-20 h-16 flex items-center justify-between gap-4 px-4 sm:px-6 border-b border-ink-700/80 glass-bar">
+          <div className="flex items-center gap-2 min-w-0">
+            <button onClick={() => setSidebarOpen(true)} className="lg:hidden -ml-2 w-10 h-10 rounded-md flex items-center justify-center text-fg-muted hover:text-fg hover:bg-ink-850" aria-label={t('common.openMenu')} aria-expanded={sidebarOpen}><IconMenu width={22} height={22} /></button>
             <h1 className="text-[15px] font-semibold text-fg truncate">{current ? labelOf(current) : t('dash.dashboard')}</h1>
           </div>
           <div className="text-right shrink-0">
@@ -444,6 +447,44 @@ export default function DashboardPage() {
   )
 }
 
+/* Loading skeleton: the same frame as the dashboard, so nothing shifts when
+   the real figures replace it. Purely visual; it holds no data. */
+function DashboardSkeleton({ label }: { label: string }) {
+  return (
+    <div className="site min-h-screen bg-ink-950 lg:flex" role="status" aria-live="polite">
+      <span className="sr-only">{label}</span>
+      <aside className="hidden lg:flex flex-col w-64 h-screen sticky top-0 bg-ink-900 border-r border-ink-700" aria-hidden="true">
+        <div className="h-16 px-5 flex items-center border-b border-ink-700"><div className="skeleton h-7 w-32" /></div>
+        <div className="p-3 space-y-2">
+          {Array.from({ length: 9 }, (_, i) => <div key={i} className="skeleton h-9" style={{ opacity: 1 - i * .07 }} />)}
+        </div>
+      </aside>
+      <div className="flex-1 min-w-0" aria-hidden="true">
+        <div className="h-16 px-4 sm:px-6 flex items-center justify-between border-b border-ink-700">
+          <div className="skeleton h-5 w-28" />
+          <div className="skeleton h-8 w-24" />
+        </div>
+        <div className="p-4 sm:p-6 max-w-6xl space-y-5">
+          <div className="skeleton h-8 w-64 max-w-full" />
+          <div className="grid lg:grid-cols-[1.4fr_1fr] gap-4">
+            <div className="panel p-5 space-y-4">
+              <div className="skeleton h-4 w-28" />
+              <div className="skeleton h-10 w-48" />
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">{Array.from({ length: 4 }, (_, i) => <div key={i} className="skeleton h-14" />)}</div>
+            </div>
+            <div className="panel p-5 space-y-4">
+              <div className="skeleton h-4 w-36" />
+              <div className="skeleton h-9 w-40" />
+              <div className="skeleton h-16" />
+            </div>
+          </div>
+          <div className="panel p-5 space-y-3">{Array.from({ length: 3 }, (_, i) => <div key={i} className="skeleton h-10" />)}</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* Overview */
 function OverviewTab({ name, account, txs, go, can, labelOf }: { name: string; account: Account | null; txs: Tx[]; go: (id: string) => void; can: (id: string) => boolean; labelOf: (item: { id: string; label: TKey }) => string }) {
   const recentTxs = txs.slice(0, 5)
@@ -475,33 +516,37 @@ function OverviewTab({ name, account, txs, go, can, labelOf }: { name: string; a
 
       <div className="grid lg:grid-cols-[1.6fr_1fr] gap-4">
         {/* Primary: balance, the other balances and quick actions */}
-        <section className="relative overflow-hidden rounded-xl border border-ink-700 p-5 sm:p-6 bg-[linear-gradient(135deg,rgb(var(--accent)/.10),rgb(var(--brand-500)/.05)_55%,transparent),rgb(var(--ink-900))]" aria-labelledby="ov-bal">
-          <p id="ov-bal" className="text-[13px] text-fg-muted">{t('overview.accountValue')}</p>
-          <p className="mt-1 text-[34px] sm:text-[42px] leading-none font-semibold tracking-tight text-fg">
+        <section className="relative overflow-hidden rounded-2xl border border-ink-700 p-5 sm:p-6 bg-[linear-gradient(135deg,rgb(var(--accent)/.10),rgb(var(--brand-500)/.05)_55%,transparent),rgb(var(--ink-900))] shadow-[inset_0_1px_0_rgb(var(--contrast)/.06),0_24px_48px_-28px_rgb(var(--shadow)/var(--shadow-strength))]" aria-labelledby="ov-bal">
+          {/* Restrained accent light in the corner; decorative only. */}
+          <div className="pointer-events-none absolute -top-24 -right-16 w-64 h-64 rounded-full bg-accent/10 blur-3xl" aria-hidden="true" />
+          <p id="ov-bal" className="relative text-[12px] font-medium uppercase tracking-[0.12em] text-fg-faint">{t('overview.accountValue')}</p>
+          <p className="relative mt-2 text-[36px] sm:text-[44px] leading-none font-semibold tracking-[-0.03em] text-fg tabular-nums">
             <AnimatedPrice value={Number(account?.account_balance ?? 0)} format={money} />
           </p>
-          <dl className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <dl className="relative mt-5 grid grid-cols-2 sm:grid-cols-4 gap-2">
             {([
               ['dash.available', account?.available_balance ?? 0],
               ['dash.profit', account?.profit_balance ?? 0],
               ['dash.invested', account?.invested_balance ?? 0],
               ['dash.pending', account?.pending_balance ?? 0],
             ] as [TKey, number][]).map(([label, value]) => (
-              <div key={label} className="rounded-lg bg-ink-950/50 border border-ink-700/70 px-3 py-2.5 min-w-0">
+              <div key={label} className="rounded-xl bg-ink-950/55 border border-ink-700/70 px-3 py-2.5 min-w-0 backdrop-blur-sm">
                 <dt className="text-[11px] text-fg-faint truncate">{t(label)}</dt>
                 <dd className="text-[15px] font-semibold text-fg tabular-nums mt-0.5 truncate">{money(Number(value))}</dd>
               </div>
             ))}
           </dl>
           {quick.length > 0 && (
-            <div className="mt-5">
+            <div className="relative mt-5">
               <p className="sr-only">{t('overview.quickActions')}</p>
-              <div className={`grid gap-2 ${quick.length >= 4 ? 'grid-cols-4' : quick.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+              {/* Four actions sit in a 2x2 grid on phones so each label has room
+                  and each target stays large; one row from tablet width up. */}
+              <div className={`grid gap-2 ${quick.length >= 4 ? 'grid-cols-2 sm:grid-cols-4' : quick.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
                 {quick.map(([id, label, I], i) => (
                   <button
                     key={id}
                     onClick={() => go(id)}
-                    className={`group flex flex-col items-center justify-center gap-1.5 min-h-[64px] rounded-lg border px-1 text-[12px] font-medium transition-colors active:scale-[.98] ${i === 0 ? 'border-accent/40 bg-accent/10 text-fg hover:bg-accent/15' : 'border-ink-700 bg-ink-900/60 text-fg-muted hover:text-fg hover:border-ink-500'}`}
+                    className={`group flex flex-col items-center justify-center gap-1.5 min-h-[64px] rounded-xl border px-2 text-[12.5px] font-medium transition-[color,background-color,border-color,transform] duration-150 active:scale-[.97] ${i === 0 ? 'border-accent/40 bg-accent/10 text-fg hover:bg-accent/15' : 'border-ink-700 bg-ink-900/60 text-fg-muted hover:text-fg hover:border-ink-500'}`}
                   >
                     <I width={18} height={18} aria-hidden="true" className={i === 0 ? 'text-accent' : ''} />
                     <span className="text-center leading-tight">{labelOf({ id, label })}</span>
@@ -706,6 +751,7 @@ function DepositTab({ onSuccess, go, can }: { onSuccess: () => void; go: (id: st
   const [stage, setStage] = useState<'' | 'uploading' | 'submitting'>('')
   const fileRef = useRef<HTMLInputElement>(null)
   const { t } = useI18n()
+  const toast = useToast()
   // One key per deposit attempt. A retry after a timeout reuses it, so the
   // server returns the original deposit instead of recording a second one.
   // It is replaced after a confirmed success or when the details change.
@@ -715,7 +761,10 @@ function DepositTab({ onSuccess, go, can }: { onSuccess: () => void; go: (id: st
   useEffect(() => { attemptKey.current = newRequestKey() }, [amount, method, notes, file])
 
   const copyAddress = () => {
-    navigator.clipboard.writeText(BTC_ADDRESS).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) }).catch(() => {})
+    navigator.clipboard.writeText(BTC_ADDRESS).then(() => {
+      setCopied(true); setTimeout(() => setCopied(false), 2000)
+      toast.show(t('common.copied'))
+    }).catch(() => {})
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -885,6 +934,7 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
   const [error, setError] = useState('')
   const [done, setDone] = useState<string | null>(null)
   const { t, intl } = useI18n()
+  const toast = useToast()
   const attemptKey = useRef(newRequestKey())
   const inFlight = useRef(false)
   useEffect(() => { attemptKey.current = newRequestKey() }, [source, amount, address, notes])
@@ -913,6 +963,7 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
         body: JSON.stringify({ amount: amt, source, address: address.trim(), notes: notes.trim() || undefined }),
       }))
       setDone(data.withdrawal?.reference || '')
+      toast.show(t('withdraw.submitted'))
       setAmount('')
       setNotes('')
       attemptKey.current = newRequestKey()

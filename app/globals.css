@@ -4,8 +4,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-
 * {
   margin: 0;
   padding: 0;
@@ -40,7 +38,11 @@ html.theme-switching, html.theme-switching * { transition: background-color .2s 
 body {
   background: var(--bg-primary);
   color: var(--text-primary);
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: var(--font-inter), Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* Inter's open 4, 6 and 9 (easier to tell apart in figures) and the
+     single-storey a, for a cleaner, more contemporary texture. */
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
@@ -74,24 +76,27 @@ body {
      translations stay inside the button instead of overflowing it. */
   min-height: 44px;
   padding: 8px 20px;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 15px;
   font-weight: 600;
+  letter-spacing: -.005em;
   line-height: 1.2;
   text-align: center;
   overflow-wrap: anywhere;
-  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: background-color .18s ease, border-color .18s ease, color .18s ease, box-shadow .18s ease, transform .12s ease;
 }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
 .btn:focus-visible, .seg-btn:focus-visible, .field:focus-visible { outline: 2px solid rgb(var(--focus)); outline-offset: 2px; }
 .site a:focus-visible, .site button:focus-visible { outline: 2px solid rgb(var(--focus)); outline-offset: 2px; border-radius: 4px; }
 .btn-sm { min-height: 36px; padding: 6px 14px; font-size: 14px; }
-.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:active:not(:disabled) { transform: translateY(1px) scale(.985); }
 /* Primary: the one main action on a screen */
 .btn-solid { background: linear-gradient(180deg, rgb(var(--accent-hover)) 0%, rgb(var(--accent)) 100%); color: rgb(var(--accent-ink)); box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 1px 2px rgba(0,0,0,.4), 0 8px 22px -12px rgb(var(--accent) / .55); }
 .btn-solid:hover:not(:disabled) { background: linear-gradient(180deg, rgb(var(--accent-hover)) 0%, rgb(var(--accent-hover)) 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 1px 2px rgba(0,0,0,.4), 0 10px 28px -12px rgb(var(--accent) / .7); }
 /* Secondary: bordered, neutral */
-.btn-outline { background: rgb(var(--ink-900) / .6); color: rgb(var(--fg)); border: 1px solid rgb(var(--ink-600)); }
+.btn-outline { background: rgb(var(--ink-900) / .55); color: rgb(var(--fg)); border: 1px solid rgb(var(--ink-600)); box-shadow: inset 0 1px 0 rgb(var(--contrast) / .04); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
 .btn-outline:hover:not(:disabled) { border-color: rgb(var(--ink-500)); background: rgb(var(--ink-850)); }
 /* Brand: interactive, not the primary money action */
 .btn-brand { background: rgb(var(--brand-500) / .12); color: rgb(var(--brand-200)); border: 1px solid rgb(var(--brand-500) / .35); }
@@ -115,10 +120,24 @@ body {
 .alert-info { color: rgb(var(--info-300)); background: rgb(var(--info-500) / .07); border-color: rgb(var(--info-500) / .3); }
 
 .panel {
-  background: linear-gradient(180deg, rgba(255,255,255,.03) 0%, rgba(255,255,255,0) 38%), rgb(var(--ink-900));
+  background: linear-gradient(180deg, rgb(var(--contrast) / .035) 0%, rgb(var(--contrast) / 0) 42%), rgb(var(--ink-900));
   border: 1px solid rgb(var(--ink-700));
-  border-radius: 10px;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 18px 40px -24px rgb(var(--shadow) / var(--shadow-strength));
+  border-radius: 12px;
+  box-shadow: inset 0 1px 0 rgb(var(--contrast) / .05), 0 1px 2px rgb(var(--shadow) / calc(var(--shadow-strength) * .4)), 0 22px 44px -28px rgb(var(--shadow) / var(--shadow-strength));
+}
+/* Frosted surface for things that sit over content or ambient light: the
+   auth card, sticky headers, the landing navbar once scrolled. */
+.glass-panel {
+  background: linear-gradient(180deg, rgb(var(--contrast) / .05), rgb(var(--contrast) / .015)), rgb(var(--ink-900) / .72);
+  border: 1px solid rgb(var(--contrast) / .08);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: inset 0 1px 0 rgb(var(--contrast) / .06), 0 30px 60px -30px rgb(var(--shadow) / var(--shadow-strength));
+}
+.glass-bar {
+  background: rgb(var(--ink-950) / .78);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
 }
 .panel-lift { transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease; }
 @media (hover: hover) {
@@ -156,21 +175,23 @@ body {
 
 .field {
   width: 100%;
-  height: 44px;
+  height: 46px;
   padding: 0 14px;
-  background: rgb(var(--ink-950));
+  background: rgb(var(--ink-950) / .7);
   border: 1px solid rgb(var(--ink-600));
-  border-radius: 6px;
+  border-radius: 8px;
   color: rgb(var(--fg));
-  font-size: 15px;
+  /* 16px stops iOS Safari zooming the page when a field is focused. */
+  font-size: 16px;
   outline: none;
-  transition: border-color .15s ease, box-shadow .15s ease;
+  box-shadow: inset 0 1px 2px rgb(var(--shadow) / calc(var(--shadow-strength) * .25));
+  transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
 }
 textarea.field { height: auto; padding: 10px 14px; }
 select.field { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23A3ACBA' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
 .field::placeholder { color: rgb(var(--fg-faint)); }
 .field:hover:not(:disabled):not(:focus) { border-color: rgb(var(--ink-500)); }
-.field:focus { border-color: rgb(var(--brand-400)); box-shadow: 0 0 0 3px rgb(var(--brand-500) / .18); }
+.field:focus { border-color: rgb(var(--brand-400)); background: rgb(var(--ink-950)); box-shadow: 0 0 0 4px rgb(var(--brand-500) / .16); }
 .field:disabled { color: rgb(var(--fg-disabled)); background: rgb(var(--ink-900)); cursor: not-allowed; }
 .field-error { border-color: rgb(var(--danger-400) / .7); }
 .field-label { display: block; font-size: 14px; font-weight: 500; color: rgb(var(--fg-label)); margin-bottom: 6px; }
@@ -188,14 +209,15 @@ select.field { appearance: none; background-image: url("data:image/svg+xml,%3Csv
 
 /* Loading skeleton */
 .skeleton {
-  background: rgb(var(--ink-800));
-  border-radius: 4px;
-  animation: skeletonPulse 1.6s ease-in-out infinite;
+  background: linear-gradient(90deg, rgb(var(--ink-800)) 0%, rgb(var(--ink-700) / .9) 50%, rgb(var(--ink-800)) 100%);
+  background-size: 200% 100%;
+  border-radius: 6px;
+  animation: skeletonShimmer 1.6s ease-in-out infinite;
 }
 
-@keyframes skeletonPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: .55; }
+@keyframes skeletonShimmer {
+  from { background-position: 150% 0; }
+  to { background-position: -50% 0; }
 }
 
 /* Custom scrollbar */
@@ -312,3 +334,41 @@ html:has(.site) ::-webkit-scrollbar-thumb:hover { background: rgb(var(--ink-500)
 /* Room at the bottom of scrolling pages on phones so the floating support
    chat bubble never sits on top of the last button or chart. */
 @media (max-width: 767px) { .chat-clearance { padding-bottom: calc(88px + env(safe-area-inset-bottom)); } }
+
+/* ---------------------------------------------------------------------------
+   Motion. Everything here is transform/opacity only (compositor-friendly, no
+   layout work), runs once, and is disabled by the reduced-motion rule above.
+   ------------------------------------------------------------------------- */
+
+/* Entrance: children rise in one after another. Set --i on each child. */
+@keyframes riseIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.rise-in { animation: riseIn .55s cubic-bezier(.2, .7, .2, 1) both; animation-delay: calc(var(--i, 0) * 70ms); }
+
+/* Drawer backdrop and panel. */
+@keyframes backdropIn { from { opacity: 0; } to { opacity: 1; } }
+.backdrop-in { animation: backdropIn .2s ease-out both; }
+.drawer-shadow { box-shadow: 24px 0 60px -20px rgb(var(--shadow) / var(--shadow-strength)); }
+
+/* Toasts. */
+@keyframes toastIn { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
+.toast-in { animation: toastIn .22s cubic-bezier(.2, .7, .2, 1) both; }
+
+/* Landing: a faint price line drifting behind the hero. Decorative only. */
+@keyframes lineDrift { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.market-line { position: absolute; inset: auto 0 12% 0; height: 180px; pointer-events: none; overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent); opacity: .5; }
+.market-line svg { width: 200%; height: 100%; animation: lineDrift 48s linear infinite; }
+
+/* Headline: a quiet vertical sheen on the accent line rather than a loud gradient. */
+.text-accent-sheen { background: linear-gradient(180deg, rgb(var(--accent-hover)) 0%, rgb(var(--accent)) 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+/* Stepper (KYC progress). */
+.step-dot { width: 26px; height: 26px; border-radius: 9999px; display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600; border: 1px solid rgb(var(--ink-600)); color: rgb(var(--fg-faint)); background: rgb(var(--ink-900)); }
+.step-dot-done { border-color: rgb(var(--success-500) / .5); color: rgb(var(--success-400)); background: rgb(var(--success-500) / .1); }
+.step-dot-now { border-color: rgb(var(--accent) / .6); color: rgb(var(--accent-text)); background: rgb(var(--accent) / .1); box-shadow: 0 0 0 4px rgb(var(--accent) / .08); }
+.step-dot-bad { border-color: rgb(var(--danger-400) / .6); color: rgb(var(--danger-400)); background: rgb(var(--danger-400) / .08); }
+.step-bar { flex: 1; height: 2px; border-radius: 2px; background: rgb(var(--ink-700)); }
+.step-bar-done { background: linear-gradient(90deg, rgb(var(--success-500) / .7), rgb(var(--success-500) / .35)); }

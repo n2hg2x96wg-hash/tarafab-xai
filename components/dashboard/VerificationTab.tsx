@@ -145,6 +145,8 @@ export function VerificationTab({ onStatusChange }: { onStatusChange?: (status: 
         <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-fg">{t('kyc.title')}</h2>
       </div>
 
+      <KycStepper status={hasSubmission ? status : 'unverified'} />
+
       <div className={`panel p-5 sm:p-6 border ${TONE[status] || TONE.unverified}`}>
         <div className="flex items-start gap-3">
           <span className="shrink-0 mt-0.5">
@@ -249,5 +251,39 @@ export function VerificationTab({ onStatusChange }: { onStatusChange?: (status: 
         </form>
       )}
     </div>
+  )
+}
+
+// Where the client is in Submit -> Review -> Decision. Driven only by the
+// status the server returned; it never infers or anticipates an outcome.
+function KycStepper({ status }: { status: string }) {
+  const { t } = useI18n()
+  const submitted = status !== 'unverified'
+  const decided = status === 'verified' || status === 'rejected'
+  const steps: { label: string; state: 'done' | 'now' | 'bad' | 'todo' }[] = [
+    { label: t('kyc.step.submit'), state: submitted ? 'done' : 'now' },
+    { label: t('kyc.step.review'), state: decided ? 'done' : submitted ? 'now' : 'todo' },
+    {
+      label: status === 'verified' ? t('kyc.status.verified') : status === 'rejected' ? t('kyc.step.attention') : t('kyc.step.decision'),
+      state: status === 'verified' ? 'done' : status === 'rejected' ? 'bad' : 'todo',
+    },
+  ]
+  const dot = { done: 'step-dot step-dot-done', now: 'step-dot step-dot-now', bad: 'step-dot step-dot-bad', todo: 'step-dot' }
+  // Each step takes a third of the width with its label under the dot, so
+  // the labels stay whole on a phone instead of being cut off.
+  return (
+    <ol className="grid grid-cols-3" aria-label={t('kyc.title')}>
+      {steps.map((st, i) => (
+        <li key={i} className="min-w-0" aria-current={st.state === 'now' ? 'step' : undefined}>
+          <div className="flex items-center gap-2 pr-2">
+            <span className={`${dot[st.state]} shrink-0`}>
+              {st.state === 'done' ? <IconCheck width={13} height={13} aria-hidden="true" /> : st.state === 'bad' ? '!' : i + 1}
+            </span>
+            {i < steps.length - 1 && <span className={`step-bar ${steps[i + 1].state !== 'todo' ? 'step-bar-done' : ''}`} aria-hidden="true" />}
+          </div>
+          <p className={`mt-2 pr-2 text-[12.5px] leading-snug ${st.state === 'todo' ? 'text-fg-faint' : st.state === 'bad' ? 'text-danger-400' : 'text-fg'}`}>{st.label}</p>
+        </li>
+      ))}
+    </ol>
   )
 }

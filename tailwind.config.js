@@ -60,7 +60,7 @@ module.exports = {
       // Orange as text uses a deeper shade in light mode to keep contrast.
       textColor: { accent: { DEFAULT: v('accent-text'), hover: v('accent-hover') } },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['var(--font-inter)', 'Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
       },
       animation: {
         'fade-in': 'fadeIn 0.6s ease-out',

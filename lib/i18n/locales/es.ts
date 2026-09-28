@@ -19,6 +19,7 @@ const es: DeepPartial<typeof en> = {
     home: 'Inicio de Tarafab.XAi',
     copy: 'Copiar',
     copied: 'Copiado',
+    dismiss: 'Cerrar',
     show: 'Mostrar',
     hide: 'Ocultar',
     showPassword: 'Mostrar contraseña',
@@ -395,6 +396,12 @@ const es: DeepPartial<typeof en> = {
     nav: 'Verificación KYC',
     title: 'Verificación KYC',
     why: 'La verificación KYC nos permite confirmar tu identidad y proteger tu cuenta. Una persona revisa tus documentos antes de marcar tu cuenta como verificada.',
+    step: {
+      submit: 'Envío de datos',
+      review: 'Revisión',
+      decision: 'Decisión',
+      attention: 'Requiere atención',
+    },
     status: {
       notSubmitted: 'Sin enviar',
       pending: 'Pendiente de revisión',

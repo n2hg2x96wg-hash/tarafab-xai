@@ -20,6 +20,7 @@ const en = {
     home: 'Tarafab.XAi home',
     copy: 'Copy',
     copied: 'Copied',
+    dismiss: 'Dismiss',
     show: 'Show',
     hide: 'Hide',
     showPassword: 'Show password',
@@ -396,6 +397,12 @@ const en = {
     nav: 'KYC Verification',
     title: 'KYC Verification',
     why: 'KYC verification helps us confirm your identity and protect your account. Your documents are reviewed by a person before your account is marked as verified.',
+    step: {
+      submit: 'Submit details',
+      review: 'Review',
+      decision: 'Decision',
+      attention: 'Needs attention',
+    },
     status: {
       notSubmitted: 'Not submitted',
       pending: 'Pending review',

@@ -27,8 +27,22 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
+  // While the phone menu is open: Escape closes it and the page behind it
+  // does not scroll. Both are undone when it closes or the navbar unmounts.
+  useEffect(() => {
+    if (!mobileOpen) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMobileOpen(false) }
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    document.addEventListener('keydown', onKey)
+    return () => { document.body.style.overflow = prev; document.removeEventListener('keydown', onKey) }
+  }, [mobileOpen])
+
   return (
-    <nav className={`fixed top-0 left-0 right-0 z-50 bg-ink-950 border-b transition-colors duration-200 ${scrolled || mobileOpen ? 'border-ink-700' : 'border-transparent'}`}>
+    <>
+    {/* Tapping anywhere outside the open phone menu closes it. */}
+    {mobileOpen && <div className="md:hidden fixed inset-0 z-40 bg-black/50 backdrop-in" onClick={() => setMobileOpen(false)} aria-hidden="true" />}
+    <nav className={`fixed top-0 left-0 right-0 z-50 border-b transition-colors duration-200 safe-top ${scrolled || mobileOpen ? 'glass-bar border-ink-700/80' : 'bg-ink-950 border-transparent'}`}>
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-16">
           <Link href="/" aria-label={t('common.home')} className="shrink-0"><Logo /></Link>
@@ -60,7 +74,7 @@ export default function Navbar() {
       </div>
 
       {mobileOpen && (
-        <div className="md:hidden border-t border-ink-700 bg-ink-950 px-4 pb-5 pt-2 max-h-[calc(100dvh-4rem)] overflow-y-auto">
+        <div className="md:hidden rise-in border-t border-ink-700 bg-ink-950 px-4 pb-5 pt-2 max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain safe-bottom">
           <div className="flex flex-col">
             {navLinks.map(link => (
               <a key={link.href} href={link.href} onClick={() => setMobileOpen(false)} className="py-3 text-[15px] text-fg-muted hover:text-fg border-b border-ink-800">
@@ -77,5 +91,6 @@ export default function Navbar() {
         </div>
       )}
     </nav>
+    </>
   )
 }

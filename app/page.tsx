@@ -9,6 +9,7 @@ import { HeroLivePanel, LatestBlocks, LiveTickerBar, useLiveMarket } from '@/com
 import { IconArrowDown, IconChart, IconCheck, IconGrid, IconList, IconLock, IconSwap, IconUser, Logo } from '@/components/Icons'
 import { FaqSection, HistorySection, NetworkSection, Reveal, TrustBar } from '@/components/LandingExtras'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { useTheme } from '@/lib/theme/ThemeProvider'
 
 function TradingViewWidget() {
@@ -44,6 +45,19 @@ function TradingViewWidget() {
     </div>
   )
 }
+
+// Decorative line behind the hero. It is an abstract wave, not price data:
+// no axis, no values, and it never changes with the market. Two identical
+// periods are drawn so the slow horizontal drift loops without a seam.
+const HERO_WAVE = (() => {
+  const period = 1600, h = 180, pts: string[] = []
+  for (let x = 0; x <= period * 2; x += 20) {
+    const u = (x % period) / period * Math.PI * 2
+    const y = h * 0.55 - Math.sin(u) * 26 - Math.sin(u * 3 + 1.2) * 12 - Math.sin(u * 7 + .4) * 5
+    pts.push(`${x},${y.toFixed(1)}`)
+  }
+  return `M${pts.join(' L')}`
+})()
 
 // TradingView reads the language from the page so its labels match.
 function tvLocale() {
@@ -125,45 +139,57 @@ export default function LandingPage() {
       <Navbar />
 
       <div className="pt-16">
-        <LiveTickerBar quotes={market.quotes} />
+        <ErrorBoundary label={t('trust.marketData')}><LiveTickerBar quotes={market.quotes} /></ErrorBoundary>
       </div>
 
       {/* Hero */}
       <section className="relative border-b border-ink-700 overflow-hidden">
         <div className="hero-light" aria-hidden="true" />
         <div className="hero-grid" aria-hidden="true" />
+        <div className="market-line" aria-hidden="true">
+          <svg viewBox="0 0 3200 180" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="heroWave" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0" stopColor="rgb(var(--accent))" stopOpacity=".22" />
+                <stop offset="1" stopColor="rgb(var(--accent))" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            <path d={`${HERO_WAVE} L3200,180 L0,180 Z`} fill="url(#heroWave)" />
+            <path d={HERO_WAVE} fill="none" stroke="rgb(var(--accent))" strokeOpacity=".45" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+          </svg>
+        </div>
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-12 pb-14 lg:pt-20 lg:pb-20 grid lg:grid-cols-[1.08fr_1fr] gap-10 lg:gap-12 items-center">
-          <div className="animate-fade-in">
-            <div className="inline-flex items-center gap-2 rounded-md border border-ink-600 bg-ink-900/70 px-2.5 py-1 text-[12px] text-fg-muted mb-6 backdrop-blur-sm">
+          <div>
+            <div className="rise-in inline-flex items-center gap-2 rounded-full border border-ink-600 bg-ink-900/70 px-3 py-1 text-[12px] text-fg-muted mb-6 backdrop-blur-sm" style={{ ['--i' as string]: 0 }}>
               <span className="relative flex w-1.5 h-1.5">
                 {market.status === 'live' && <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-70 animate-ping" />}
                 <span className={`relative inline-flex rounded-full w-1.5 h-1.5 ${market.status === 'live' ? 'bg-emerald-400' : 'bg-fg-faint'}`} />
               </span>
               {t('landing.badge')}
             </div>
-            <h1 className="text-[38px] sm:text-[52px] lg:text-[60px] leading-[1.04] [overflow-wrap:anywhere] [hyphens:auto] font-semibold tracking-[-0.03em] text-fg">
+            <h1 className="rise-in text-[38px] sm:text-[52px] lg:text-[60px] leading-[1.04] [overflow-wrap:anywhere] [hyphens:auto] font-semibold tracking-[-0.035em] text-fg" style={{ ['--i' as string]: 1 }}>
               {t('landing.heroTitle1')}
-              <span className="block text-accent">{t('landing.heroTitle2')}</span>
+              <span className="block text-accent-sheen">{t('landing.heroTitle2')}</span>
             </h1>
-            <p className="mt-6 text-[17px] sm:text-lg text-fg-muted leading-relaxed max-w-xl">
+            <p className="rise-in mt-6 text-[17px] sm:text-lg text-fg-muted leading-relaxed max-w-xl" style={{ ['--i' as string]: 2 }}>
               {t('landing.heroBody')}
             </p>
-            <div className="mt-8 flex flex-col sm:flex-row gap-3">
+            <div className="rise-in mt-8 flex flex-col sm:flex-row gap-3" style={{ ['--i' as string]: 3 }}>
               <Link href="/sign-up" className="btn btn-solid min-h-12 px-6">{t('common.openAccount')}</Link>
               <Link href="/sign-in" className="btn btn-outline min-h-12 px-6">{t('common.signIn')}</Link>
             </div>
-            <p className="mt-5 text-[13px] text-fg-faint max-w-md leading-relaxed">
+            <p className="rise-in mt-5 text-[13px] text-fg-faint max-w-md leading-relaxed" style={{ ['--i' as string]: 4 }}>
               {t('landing.risk')}
             </p>
-            <div className="mt-8">
+            <div className="rise-in mt-8" style={{ ['--i' as string]: 5 }}>
               <TrustBar marketStatus={market.status} />
             </div>
           </div>
 
-          <div className="relative">
+          <div className="relative rise-in" style={{ ['--i' as string]: 3 }}>
             <div className="absolute -inset-4 rounded-2xl bg-gradient-to-b from-accent/10 via-transparent to-transparent blur-2xl" aria-hidden="true" />
             <div className="relative">
-              <HeroLivePanel {...market} />
+              <ErrorBoundary label={t('market.bitcoinMarket')}><HeroLivePanel {...market} /></ErrorBoundary>
             </div>
           </div>
         </div>
@@ -204,19 +230,19 @@ export default function LandingPage() {
               <span className="text-fg">BTC/USD</span>
               <span className="text-fg-faint">{t('landing.livePrice')}</span>
             </div>
-            <TradingViewWidget key={locale} />
+            <ErrorBoundary label={t('landing.livePrice')}><TradingViewWidget key={locale} /></ErrorBoundary>
           </div></Reveal>
 
           <div className="grid lg:grid-cols-[1fr_2fr] gap-4">
-            <Reveal className="h-full"><BitcoinMarketCard /></Reveal>
-            <Reveal delay={100}><LatestBlocks /></Reveal>
+            <Reveal className="h-full"><ErrorBoundary label={t('market.bitcoinMarket')}><BitcoinMarketCard /></ErrorBoundary></Reveal>
+            <Reveal delay={100}><ErrorBoundary label={t('market.blocksTitle')}><LatestBlocks /></ErrorBoundary></Reveal>
           </div>
         </div>
       </section>
 
-      <HistorySection price={market.quotes['BTC-USD']?.price} />
+      <ErrorBoundary label={t('market.historyTitle')} className="max-w-6xl mx-4 sm:mx-auto my-8"><HistorySection price={market.quotes['BTC-USD']?.price} /></ErrorBoundary>
 
-      <NetworkSection />
+      <ErrorBoundary label={t('network.title')} className="max-w-6xl mx-4 sm:mx-auto my-8"><NetworkSection /></ErrorBoundary>
 
       {/* How it works: the overall account and investment workflow */}
       <section id="how-it-works" className="scroll-mt-16 border-b border-ink-700">

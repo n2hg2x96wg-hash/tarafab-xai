@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useI18n } from '@/lib/i18n/I18nProvider'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { AuthShell, FormError, Spinner } from '@/components/AuthShell'
+import { AuthShell, FormError, Spinner, useSingleFlight } from '@/components/AuthShell'
 
 export default function ResetPasswordPage() {
   const [ready, setReady] = useState<'checking' | 'ok' | 'invalid'>('checking')
@@ -28,22 +28,26 @@ export default function ResetPasswordPage() {
     return () => { sub.subscription.unsubscribe(); clearTimeout(t) }
   }, [])
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const once = useSingleFlight()
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
-    if (password.length < 8) { setError(t('auth.errLength')); return }
-    if (password !== confirm) { setError(t('auth.errMatch')); return }
-    if (password.replace(/[^\x20-\x7E]/g, '') !== password) { setError(t('auth.errCharsShort')); return }
-    setLoading(true)
-    try {
-      const { error: err } = await createClient().auth.updateUser({ password })
-      if (err) { setError(err.message); return }
-      router.push('/dashboard')
-    } catch {
-      setError(t('errors.network'))
-    } finally {
-      setLoading(false)
-    }
+    return once(async () => {
+      setError('')
+      if (password.length < 8) { setError(t('auth.errLength')); return }
+      if (password !== confirm) { setError(t('auth.errMatch')); return }
+      if (password.replace(/[^\x20-\x7E]/g, '') !== password) { setError(t('auth.errCharsShort')); return }
+      setLoading(true)
+      try {
+        const { error: err } = await createClient().auth.updateUser({ password })
+        if (err) { setError(err.message); return }
+        router.push('/dashboard')
+      } catch {
+        setError(t('errors.network'))
+      } finally {
+        setLoading(false)
+      }
+    })
   }
 
   if (ready === 'checking') {

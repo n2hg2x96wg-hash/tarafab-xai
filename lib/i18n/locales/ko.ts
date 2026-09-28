@@ -22,6 +22,7 @@ const ko: DeepPartial<typeof en> = {
     home: 'Tarafab.XAi 홈',
     copy: '복사',
     copied: '복사됨',
+    dismiss: '닫기',
     show: '표시',
     hide: '숨기기',
     showPassword: '비밀번호 표시',
@@ -398,6 +399,12 @@ const ko: DeepPartial<typeof en> = {
     nav: 'KYC 본인 인증',
     title: 'KYC 본인 인증',
     why: 'KYC 인증은 본인 확인과 계정 보호를 위한 절차입니다. 제출하신 서류는 담당자가 직접 확인한 뒤에야 계정이 인증됨으로 표시됩니다.',
+    step: {
+      submit: '정보 제출',
+      review: '검토',
+      decision: '결과',
+      attention: '확인 필요',
+    },
     status: {
       notSubmitted: '미제출',
       pending: '검토 대기 중',

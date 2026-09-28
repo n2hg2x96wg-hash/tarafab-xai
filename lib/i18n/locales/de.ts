@@ -19,6 +19,7 @@ const de: DeepPartial<typeof en> = {
     home: 'Tarafab.XAi Startseite',
     copy: 'Kopieren',
     copied: 'Kopiert',
+    dismiss: 'Schließen',
     show: 'Anzeigen',
     hide: 'Verbergen',
     showPassword: 'Passwort anzeigen',
@@ -395,6 +396,12 @@ const de: DeepPartial<typeof en> = {
     nav: 'KYC-Verifizierung',
     title: 'KYC-Verifizierung',
     why: 'Die KYC-Verifizierung hilft uns, Ihre Identität zu bestätigen und Ihr Konto zu schützen. Ihre Dokumente werden von einer Person geprüft, bevor Ihr Konto als verifiziert gilt.',
+    step: {
+      submit: 'Angaben einreichen',
+      review: 'Prüfung',
+      decision: 'Entscheidung',
+      attention: 'Handlung erforderlich',
+    },
     status: {
       notSubmitted: 'Nicht eingereicht',
       pending: 'Wird geprüft',
