@@ -18,19 +18,23 @@ import {
 
 const money = (n: number) => `$${fmt(n)}`
 
+// Totals from completed records only: deposits credited, withdrawals paid,
+// and returns/profit credited by the team (adjustments with direction credit).
+export function txTotals(txs: Tx[]) {
+  let deposited = 0, withdrawn = 0, returns = 0
+  for (const x of txs) {
+    if (x.status !== 'completed' && x.status !== 'approved') continue
+    if (x.type === 'deposit') deposited += Number(x.amount)
+    else if (x.type === 'withdrawal') withdrawn += Number(x.amount)
+    else if (x.type === 'adjustment' && x.direction === 'credit') returns += Number(x.amount)
+  }
+  return { deposited, withdrawn, returns }
+}
+
 /* Portfolio */
 export function PortfolioTab({ account, txs, hasMore, go }: { account: Account | null; txs: Tx[]; hasMore: boolean; go: (id: string) => void }) {
   const { t } = useI18n()
-  const totals = useMemo(() => {
-    let deposited = 0, withdrawn = 0, returns = 0
-    for (const x of txs) {
-      if (x.status !== 'completed' && x.status !== 'approved') continue
-      if (x.type === 'deposit') deposited += Number(x.amount)
-      else if (x.type === 'withdrawal') withdrawn += Number(x.amount)
-      else if (x.type === 'adjustment' && x.direction === 'credit') returns += Number(x.amount)
-    }
-    return { deposited, withdrawn, returns }
-  }, [txs])
+  const totals = useMemo(() => txTotals(txs), [txs])
 
   const balances: [string, number][] = [
     [t('dash.accountBalance'), account?.account_balance ?? 0],
@@ -252,12 +256,64 @@ export function noticesFrom(txs: Tx[]): Notice[] {
   return out.sort((a, b) => b.at.localeCompare(a.at)).slice(0, 50)
 }
 
-export function NotificationsTab({ notices, seenAt }: { notices: Notice[]; seenAt: string | null }) {
+export type TeamNotice = {
+  id: string; type: 'account' | 'deposit' | 'withdrawal' | 'security' | 'announcement'
+  title: string; body: string; cta_label: string | null; cta_target: string | null; created_at: string; read: boolean
+}
+
+const NOTICE_TONE: Record<TeamNotice['type'], string> = {
+  account: 'text-brand-300 border-brand-500/30',
+  deposit: 'text-emerald-400 border-emerald-500/30',
+  withdrawal: 'text-sky-400 border-sky-500/30',
+  security: 'text-amber-400 border-amber-500/30',
+  announcement: 'text-fg-muted border-ink-600',
+}
+
+export function NotificationsTab({ notices, seenAt, team, onRead, go }: {
+  notices: Notice[]; seenAt: string | null; team: TeamNotice[]; onRead: (ids: string[]) => void; go: (id: string) => void
+}) {
   const { t, intl } = useI18n()
+  const unreadIds = team.filter(n => !n.read).map(n => n.id)
+  const when = (d: string) => new Date(d).toLocaleString(intl, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
   return (
-    <div className="max-w-2xl space-y-4">
+    <div className="max-w-2xl space-y-5 panel-in">
       <p className="text-sm text-fg-muted">{t('notices.body')}</p>
-      <div className="panel overflow-hidden">
+
+      {team.length > 0 && (
+        <section className="panel overflow-hidden" aria-labelledby="nt-team">
+          <div className="flex items-center justify-between gap-3 px-4 sm:px-5 h-12 border-b border-ink-700">
+            <h3 id="nt-team" className="text-[14px] font-semibold text-fg">{t('notif.fromTeam')}</h3>
+            {unreadIds.length > 0 && <button onClick={() => onRead(unreadIds)} className="text-[13px] text-fg-muted hover:text-fg min-h-8 px-1">{t('notif.markAllRead')}</button>}
+          </div>
+          <ul className="divide-y divide-ink-700">
+            {team.map(n => (
+              <li key={n.id} className={`px-4 sm:px-5 py-4 transition-colors ${n.read ? '' : 'bg-brand-500/[0.04]'}`}>
+                <div className="flex items-start gap-3">
+                  <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.read ? 'bg-transparent' : 'bg-brand-400'}`} aria-hidden="true" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <span className={`tag ${NOTICE_TONE[n.type]}`}>{t(`notif.types.${n.type}`)}</span>
+                      {!n.read && <span className="sr-only">{t('notif.unread')}</span>}
+                      <span className="text-xs text-fg-faint">{when(n.created_at)}</span>
+                    </div>
+                    <p className="text-sm font-medium text-fg">{n.title}</p>
+                    {n.body && <p className="text-sm text-fg-muted mt-1 whitespace-pre-line break-words">{n.body}</p>}
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {n.cta_label && n.cta_target && (
+                        <button onClick={() => { onRead([n.id]); go(n.cta_target!.slice(1)) }} className="btn btn-brand btn-sm">{n.cta_label}</button>
+                      )}
+                      {!n.read && <button onClick={() => onRead([n.id])} className="btn btn-ghost btn-sm">{t('notif.markRead')}</button>}
+                    </div>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <section className="panel overflow-hidden" aria-labelledby="nt-act">
+        <h3 id="nt-act" className="px-4 sm:px-5 h-12 flex items-center border-b border-ink-700 text-[14px] font-semibold text-fg">{t('notif.activity')}</h3>
         {notices.length === 0 ? <EmptyState title={t('notices.empty')} /> : (
           <ul className="divide-y divide-ink-700">
             {notices.map(n => {
@@ -265,22 +321,87 @@ export function NotificationsTab({ notices, seenAt }: { notices: Notice[]; seenA
               const text = t(`notices.${n.kind}`, { type: txLabel(n.tx, t), amount: money(Number(n.tx.amount)) })
               return (
                 <li key={n.id + n.kind} className="flex items-start gap-3 px-4 sm:px-5 py-3.5">
-                  <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${isNew ? 'bg-brand-400' : 'bg-transparent'}`} aria-hidden="true" />
+                  <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${isNew && n.kind !== 'pending' ? 'bg-brand-400' : 'bg-transparent'}`} aria-hidden="true" />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm text-fg">{text}</p>
-                    <p className="text-xs text-fg-faint">
-                      {new Date(n.at).toLocaleString(intl, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
-                      {n.tx.reference ? ` · ${n.tx.reference}` : ''}
-                    </p>
+                    <p className="text-xs text-fg-faint">{when(n.at)}{n.tx.reference ? ` · ${n.tx.reference}` : ''}</p>
                   </div>
-                  {n.kind === 'approved' && <IconCheck width={16} height={16} className="shrink-0 text-emerald-400 mt-0.5" aria-hidden="true" />}
                   <StatusTag status={n.tx.status} />
                 </li>
               )
             })}
           </ul>
         )}
+      </section>
+    </div>
+  )
+}
+
+/* Performance: returns credited and money in/out, month by month */
+export function PerformanceTab({ txs, hasMore }: { txs: Tx[]; hasMore: boolean }) {
+  const { t, intl } = useI18n()
+  const totals = useMemo(() => txTotals(txs), [txs])
+  const credits = useMemo(() => txs.filter(x => x.type === 'adjustment' && x.direction === 'credit' && x.status === 'completed'), [txs])
+  const months = useMemo(() => {
+    const m = new Map<string, { deposits: number; withdrawals: number; returns: number }>()
+    for (const x of txs) {
+      if (x.status !== 'completed' && x.status !== 'approved') continue
+      const key = x.created_at.slice(0, 7)
+      const row = m.get(key) ?? { deposits: 0, withdrawals: 0, returns: 0 }
+      if (x.type === 'deposit') row.deposits += Number(x.amount)
+      else if (x.type === 'withdrawal') row.withdrawals += Number(x.amount)
+      else if (x.type === 'adjustment' && x.direction === 'credit') row.returns += Number(x.amount)
+      else continue
+      m.set(key, row)
+    }
+    return Array.from(m.entries()).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 12)
+  }, [txs])
+  const monthName = (k: string) => new Date(`${k}-01T00:00:00Z`).toLocaleDateString(intl, { month: 'short', year: 'numeric', timeZone: 'UTC' })
+
+  return (
+    <div className="space-y-4 max-w-4xl panel-in">
+      <p className="text-sm text-fg-muted">{t('performance.body')}</p>
+      <div className="grid sm:grid-cols-2 gap-4">
+        <div className="panel p-5">
+          <p className="text-[13px] text-fg-muted">{t('performance.returnsTotal')}</p>
+          <p className={`mt-1 text-2xl font-semibold tabular-nums ${totals.returns > 0 ? 'price-up' : 'text-fg'}`}>{money(totals.returns)}</p>
+          <p className="text-xs text-fg-faint mt-1">{t('performance.credits')}: {credits.length}</p>
+        </div>
+        <div className="panel p-5">
+          <p className="text-[13px] text-fg-muted">{t('performance.netDeposits')}</p>
+          <p className="mt-1 text-2xl font-semibold text-fg tabular-nums">{money(totals.deposited - totals.withdrawn)}</p>
+          <p className="text-xs text-fg-faint mt-1">{t('performance.netDepositsHint')}</p>
+        </div>
       </div>
+      <section className="panel overflow-hidden" aria-labelledby="pf-months">
+        <h3 id="pf-months" className="px-5 pt-5 pb-3 text-[15px] font-semibold text-fg">{t('performance.byMonth')}</h3>
+        {months.length === 0 ? <EmptyState title={t('performance.noReturns')} /> : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[420px]">
+              <thead>
+                <tr className="border-y border-ink-700 text-left text-xs text-fg-faint">
+                  <th className="px-5 py-2.5 font-medium">{t('performance.month')}</th>
+                  <th className="px-5 py-2.5 font-medium text-right">{t('performance.deposits')}</th>
+                  <th className="px-5 py-2.5 font-medium text-right">{t('performance.withdrawals')}</th>
+                  <th className="px-5 py-2.5 font-medium text-right">{t('performance.returns')}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-ink-700">
+                {months.map(([k, r]) => (
+                  <tr key={k}>
+                    <td className="px-5 py-3 text-fg">{monthName(k)}</td>
+                    <td className="px-5 py-3 text-right tabular-nums text-fg-muted">{money(r.deposits)}</td>
+                    <td className="px-5 py-3 text-right tabular-nums text-fg-muted">{money(r.withdrawals)}</td>
+                    <td className={`px-5 py-3 text-right tabular-nums ${r.returns > 0 ? 'price-up' : 'text-fg-muted'}`}>{money(r.returns)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+      {hasMore && <p className="text-xs text-fg-faint">{t('portfolio.partial', { n: txs.length })}</p>}
+      <p className="text-xs text-fg-faint">{t('portfolio.note')}</p>
     </div>
   )
 }

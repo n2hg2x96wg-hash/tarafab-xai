@@ -239,7 +239,7 @@ export default function LandingPage() {
         </div></Reveal>
       </section>
 
-      <footer className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+      <footer className="max-w-6xl mx-auto px-4 sm:px-6 py-10 chat-clearance">
         <div className="flex flex-col md:flex-row justify-between gap-8">
           <div>
             <Logo />
@@ -258,7 +258,10 @@ export default function LandingPage() {
             <a href="#faq" className="text-fg-muted hover:text-fg">{t('nav.faq')}</a>
           </nav>
         </div>
-        <p className="mt-10 pt-6 border-t border-ink-700 text-xs text-fg-faint">&copy; {new Date().getFullYear()} Tarafab.XAi</p>
+        <div className="mt-10 pt-6 border-t border-ink-700 flex flex-col sm:flex-row sm:justify-between gap-2 text-xs text-fg-faint">
+          <p>&copy; {new Date().getFullYear()} Tarafab.XAi</p>
+          <p>{t('sources.title')}: Coinbase Exchange · CoinGecko · mempool.space · TradingView</p>
+        </div>
       </footer>
     </div>
   )

@@ -8,11 +8,17 @@ export async function POST(request: NextRequest) {
   const { supabase } = clientForRequest(request)
   if (!supabase) return unauthorized()
   try {
-    const { hidden } = await request.json() as { hidden?: unknown }
-    if (!Array.isArray(hidden) || !hidden.every(h => typeof h === 'string') || hidden.length > 20) {
-      return NextResponse.json({ error: 'hidden must be a list of section ids' }, { status: 400 })
+    const { hidden, order, labels } = await request.json() as { hidden?: unknown; order?: unknown; labels?: unknown }
+    const isIds = (v: unknown) => Array.isArray(v) && v.length <= 30 && v.every(h => typeof h === 'string')
+    if (!isIds(hidden)) return NextResponse.json({ error: 'hidden must be a list of section ids' }, { status: 400 })
+    if (order !== undefined && !isIds(order)) return NextResponse.json({ error: 'order must be a list of section ids' }, { status: 400 })
+    if (labels !== undefined && (typeof labels !== 'object' || labels === null || Array.isArray(labels))) {
+      return NextResponse.json({ error: 'labels must be an object' }, { status: 400 })
     }
-    const { data, error } = await supabase.rpc('admin_set_client_nav', { p_hidden: hidden })
+    // Order and labels are optional; omitting them clears them (restore defaults).
+    const { data, error } = await supabase.rpc('admin_set_client_nav_config', {
+      p_hidden: hidden, p_order: (order as string[] | undefined) ?? [], p_labels: labels ?? {},
+    })
     if (error) return dbError(error)
     return NextResponse.json({ config: data })
   } catch {

@@ -16,6 +16,10 @@ export default function SmartsuppWidget() {
         {`
           var _smartsupp = _smartsupp || {};
           _smartsupp.key = '7609b94f32c953ff2d48e555ce2d1f77f817d98e';
+          // Keep the bubble clear of the iPhone home indicator and page edges;
+          // pages add matching bottom space on phones (see .chat-clearance).
+          _smartsupp.offsetX = 16;
+          _smartsupp.offsetY = 20;
           window.smartsupp||(function(d) {
             var s,c,o=smartsupp=function(){ o._.push(arguments)};o._=[];
             s=d.getElementsByTagName('script')[0];c=d.createElement('script');

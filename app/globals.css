@@ -291,3 +291,24 @@ input:-webkit-autofill:active {
 
 html:has(.site) ::-webkit-scrollbar-thumb { background: rgb(var(--ink-600)); }
 html:has(.site) ::-webkit-scrollbar-thumb:hover { background: rgb(var(--ink-500)); }
+
+/* Price update: a brief tint and 2px nudge in the direction of the move. */
+@keyframes priceUp { 0% { color: rgb(var(--success-400)); transform: translateY(2px); } 100% { transform: translateY(0); } }
+@keyframes priceDown { 0% { color: rgb(var(--danger-400)); transform: translateY(-2px); } 100% { transform: translateY(0); } }
+.price-tick-up { animation: priceUp .9s ease-out; }
+.price-tick-down { animation: priceDown .9s ease-out; }
+
+/* Panels settle in once when a section opens. */
+@keyframes panelIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.panel-in { animation: panelIn .35s ease-out both; }
+
+/* Card press feedback on touch devices. */
+.panel-lift:active { transform: scale(.995); }
+
+/* iPhone safe areas for fixed drawers and bars. */
+.safe-bottom { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+.safe-top { padding-top: env(safe-area-inset-top); }
+
+/* Room at the bottom of scrolling pages on phones so the floating support
+   chat bubble never sits on top of the last button or chart. */
+@media (max-width: 767px) { .chat-clearance { padding-bottom: calc(88px + env(safe-area-inset-bottom)); } }

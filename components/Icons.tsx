@@ -38,6 +38,7 @@ export const IconSliders = (p: P) => <Base {...p}><path d="M4 21v-7M4 10V3M12 21
 export const IconHelp = (p: P) => <Base {...p}><circle cx="12" cy="12" r="10" /><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></Base>
 export const IconPie = (p: P) => <Base {...p}><path d="M21.2 15.9A10 10 0 1 1 8 2.8" /><path d="M22 12A10 10 0 0 0 12 2v10z" /></Base>
 export const IconHistory = (p: P) => <Base {...p}><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /><path d="M12 7v5l3 2" /></Base>
+export const IconTrend = (p: P) => <Base {...p}><path d="m3 17 6-6 4 4 8-8" /><path d="M14 7h7v7" /></Base>
 
 export function Logo({ className = '' }: { className?: string }) {
   return (

@@ -5,7 +5,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { compactUsd, useBtcHistory, useBtcSummary, type SummaryStatus } from '@/components/useMarket'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
-import { timeAgoT } from '@/lib/i18n/format'
+import { AnimatedPrice, freshnessText } from '@/components/MarketBits'
+import { DataSources } from '@/components/DataSources'
 
 const usd = (n: number, d = 2) => `$${n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d })}`
 
@@ -133,7 +134,9 @@ export function PriceHistory() {
               {!hovered && <MarketStatusPill status={market.status} />}
             </div>
             <div className="text-[32px] sm:text-4xl font-semibold text-fg tabular-nums mt-1.5 leading-none tracking-tight">
-              {headlinePrice !== undefined ? usd(headlinePrice) : <span className="skeleton inline-block w-52 h-9 align-middle" />}
+              {hovered ? usd(hovered.p)
+                : headlinePrice !== undefined ? <AnimatedPrice value={headlinePrice} format={usd} />
+                : <span className="skeleton inline-block w-52 h-9 align-middle" />}
             </div>
             <div className="h-5 mt-2 text-sm tabular-nums">
               {geo && (
@@ -153,9 +156,9 @@ export function PriceHistory() {
           </div>
         </div>
 
-        <dl className="grid grid-cols-2 sm:grid-cols-4 gap-px mt-5 bg-ink-700 border border-ink-700 rounded-md overflow-hidden">
+        <dl className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-5">
           {stats.map(([label, value]) => (
-            <div key={label} className="bg-ink-900/90 px-3.5 py-2.5">
+            <div key={label} className="rounded-md bg-ink-850 px-3.5 py-2.5 min-w-0">
               <dt className="text-[11px] uppercase tracking-wide text-fg-faint">{t(label)}</dt>
               <dd className={`text-sm font-medium tabular-nums mt-0.5 ${label === 'market.change24h' && s ? (s.change24h >= 0 ? 'price-up' : 'price-down') : 'text-fg'}`}>
                 {value ?? (market.status === 'error' ? <span className="text-fg-faint">{t('common.unavailable')}</span> : <span className="skeleton inline-block w-16 h-4 align-middle" />)}
@@ -195,33 +198,43 @@ export function PriceHistory() {
                 <stop offset="100%" style={{ stopColor: color, stopOpacity: 0 }} />
               </linearGradient>
             </defs>
-            {[0.25, 0.5, 0.75].map(f => <line key={f} x1="0" x2={w} y1={h * f} y2={h * f} style={{ stroke: chartColors.grid }} strokeWidth="1" vectorEffect="non-scaling-stroke" />)}
+            {[1 / 3, 2 / 3].map(f => <line key={f} x1="0" x2={w} y1={h * f} y2={h * f} style={{ stroke: chartColors.grid }} strokeWidth="1" strokeDasharray="2 5" vectorEffect="non-scaling-stroke" />)}
             <path d={`${geo.line} L${w},${h} L0,${h} Z`} fill="url(#phFill)" />
-            <path d={geo.line} fill="none" style={{ stroke: color }} strokeWidth="1.75" vectorEffect="non-scaling-stroke" className="chart-draw" key={range} />
+            <path d={geo.line} fill="none" style={{ stroke: color }} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" className="chart-draw" key={range} />
             {hovered && (
-              <>
-                <line x1={hovered.x} x2={hovered.x} y1="0" y2={h} style={{ stroke: chartColors.guide }} strokeWidth="1" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
-                <circle cx={hovered.x} cy={hovered.y} r="4" style={{ fill: color }} vectorEffect="non-scaling-stroke" />
-              </>
+              <line x1={hovered.x} x2={hovered.x} y1="0" y2={h} style={{ stroke: chartColors.guide }} strokeWidth="1" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
             )}
           </svg>
+        )}
+        {geo && hovered && (
+          // HTML overlay so the dot stays round and the tooltip stays crisp at
+          // any chart width (the SVG itself is stretched to fit).
+          <div className="pointer-events-none absolute inset-y-0 left-2 right-2 sm:left-3 sm:right-3" aria-hidden="true">
+            <span className="absolute w-2.5 h-2.5 -ml-[5px] -mt-[5px] rounded-full ring-2 ring-ink-900" style={{ left: `${(hovered.x / w) * 100}%`, top: `${(hovered.y / h) * 100}%`, background: color }} />
+            <div
+              className="absolute top-2 -translate-x-1/2 whitespace-nowrap rounded-md border border-ink-600 bg-ink-900/95 px-2.5 py-1.5 shadow-[0_8px_24px_-8px_rgb(var(--shadow)/.6)] backdrop-blur-sm"
+              style={{ left: `clamp(64px, ${(hovered.x / w) * 100}%, calc(100% - 64px))` }}
+            >
+              <div className="text-[13px] font-semibold text-fg tabular-nums">{usd(hovered.p)}</div>
+              <div className="text-[11px] text-fg-faint">{new Date(hovered.t).toLocaleString(intl, { month: 'short', day: 'numeric', year: longRange ? 'numeric' : undefined, ...(longRange ? {} : { hour: '2-digit', minute: '2-digit' }) })}</div>
+            </div>
+          </div>
         )}
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-5 sm:px-6 py-3 border-t border-ink-700 text-[11px] text-fg-faint">
         <span>
           {geo ? t('market.lowHigh', { low: usd(geo.min, 0), high: usd(geo.max, 0) }) : ' '}
-          {market.fetchedAt && <> · {t('common.updated', { time: timeAgoT(t, market.fetchedAt) })}</>}
+          {market.fetchedAt && <> · {freshnessText(t, market.status, market.fetchedAt)}</>}
           {market.status === 'stale' && <> · <button onClick={market.retry} className="underline underline-offset-2 hover:text-fg">{t('common.refresh')}</button></>}
         </span>
-        {source && <span>{t('common.marketDataBy', { source })}</span>}
       </div>
     </div>
   )
 }
 
 /* BTC <-> USD converter using the live price */
-function Converter({ price }: { price?: number }) {
+export function Converter({ price }: { price?: number }) {
   const [usdVal, setUsdVal] = useState('1000')
   const [btcVal, setBtcVal] = useState('')
   const [last, setLast] = useState<'usd' | 'btc'>('usd')
@@ -322,12 +335,13 @@ function Bar({ value }: { value: number }) {
   )
 }
 
-function FactCard({ title, children, source }: { title: string; children: ReactNode; source: string }) {
+// Supporting data: a lighter card than the primary price panels. The data
+// source lives in the page's single "Data sources" note, not under each card.
+function FactCard({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="panel p-5 sm:p-6 flex flex-col h-full">
-      <h3 className="text-[15px] font-semibold text-fg mb-4">{title}</h3>
+    <div className="h-full rounded-[10px] border border-ink-700 bg-ink-900/50 p-5 flex flex-col transition-colors hover:border-ink-600">
+      <h3 className="text-[12px] font-medium uppercase tracking-[0.1em] text-fg-faint mb-3">{title}</h3>
       <div className="flex-1">{children}</div>
-      <p className="text-[11px] text-fg-faint mt-4">{source}</p>
     </div>
   )
 }
@@ -338,7 +352,7 @@ function Unavailable() {
 }
 const Loading = () => <div className="space-y-2"><div className="skeleton h-8 w-40" /><div className="skeleton h-4 w-full" /></div>
 
-function NetworkFacts() {
+export function NetworkFacts() {
   const { f, loaded } = useFacts()
   const { t, intl } = useI18n()
   const HALVING = 210_000
@@ -352,7 +366,7 @@ function NetworkFacts() {
   return (
     <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
       <Reveal className="h-full">
-        <FactCard title={t('network.halving')} source={t('network.halvingSource')}>
+        <FactCard title={t('network.halving')}>
           {!loaded.chain ? <Loading /> : blocksLeft === undefined ? <Unavailable /> : (
             <>
               <div className="text-3xl font-semibold text-fg tabular-nums">{blocksLeft.toLocaleString()}</div>
@@ -368,7 +382,7 @@ function NetworkFacts() {
       </Reveal>
 
       <Reveal delay={80} className="h-full">
-        <FactCard title={t('network.supply')} source={t('network.supplySource')}>
+        <FactCard title={t('network.supply')}>
           {!loaded.supply ? <Loading /> : !f.circulating ? <Unavailable /> : (
             <>
               <div className="text-3xl font-semibold text-fg tabular-nums">{(f.circulating / 1e6).toFixed(2)}M</div>
@@ -381,7 +395,7 @@ function NetworkFacts() {
       </Reveal>
 
       <Reveal delay={160} className="h-full">
-        <FactCard title={t('network.ath')} source={t('network.athSource')}>
+        <FactCard title={t('network.ath')}>
           {!loaded.supply ? <Loading /> : !f.ath ? <Unavailable /> : (
             <>
               <div className="text-3xl font-semibold text-fg tabular-nums">{usd(f.ath, 0)}</div>
@@ -397,7 +411,7 @@ function NetworkFacts() {
       </Reveal>
 
       <Reveal delay={240} className="h-full">
-        <FactCard title={t('network.activity')} source={t('network.activitySource')}>
+        <FactCard title={t('network.activity')}>
           {!loaded.chain ? <Loading /> : f.mempoolCount === undefined && f.diffProgress === undefined ? <Unavailable /> : (
             <dl className="space-y-4">
               {f.mempoolCount !== undefined && (
@@ -487,6 +501,7 @@ export function NetworkSection() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 lg:py-20">
         <Reveal><SectionHead title={t('network.title')} body={t('network.body')} /></Reveal>
         <NetworkFacts />
+        <DataSources className="mt-6" />
       </div>
     </section>
   )

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
@@ -18,6 +18,7 @@ type Props = {
 export default function AdminLayout({ children, title, subtitle }: Props) {
   const router = useRouter()
   const pathname = usePathname()
+  const search = useSearchParams()
   const supabase = createClient()
   const [adminName, setAdminName] = useState('')
   const [loading, setLoading] = useState(true)
@@ -70,6 +71,9 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
     { label: 'admin.nav.dashboard', icon: '◈', href: '/admin' },
     { label: 'admin.nav.clients', icon: '◉', href: '/admin/clients' },
     { label: 'admin.nav.transactions', icon: '⇄', href: '/admin/transactions' },
+    { label: 'admin.nav.deposits', icon: '↓', href: '/admin/transactions?type=deposit' },
+    { label: 'admin.nav.withdrawals', icon: '↑', href: '/admin/transactions?type=withdrawal' },
+    { label: 'admin.nav.notifications', icon: '✉', href: '/admin/notifications' },
     { label: 'admin.nav.auditLogs', icon: '⊡', href: '/admin/audit-logs' },
     { label: 'admin.nav.settings', icon: '⚙', href: '/admin/settings' },
   ]
@@ -104,7 +108,12 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
 
       <nav className="flex flex-col gap-1 p-4 flex-1">
         {navItems.map(item => {
-          const isActive = item.href === '/admin' ? pathname === '/admin' : pathname.startsWith(item.href)
+          const [path, query] = item.href.split('?')
+          const type = search.get('type')
+          const isActive = item.href === '/admin' ? pathname === '/admin'
+            : query ? pathname === path && `type=${type}` === query
+            : path === '/admin/transactions' ? pathname === path && !type
+            : pathname.startsWith(path)
           return (
             <Link
               key={item.label}

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import AdminLayout from '@/components/AdminLayout'
 import { AdminLoadError } from '@/components/AdminLoadError'
@@ -37,7 +38,11 @@ export default function TransactionsPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
-  const [filterType, setFilterType] = useState('')
+  const params = useSearchParams()
+  // /admin/transactions?type=deposit (or withdrawal) opens pre-filtered.
+  const typeParam = params.get('type')
+  const [filterType, setFilterType] = useState(typeParam === 'deposit' || typeParam === 'withdrawal' ? typeParam : '')
+  useEffect(() => { setFilterType(typeParam === 'deposit' || typeParam === 'withdrawal' ? typeParam : '') }, [typeParam])
   const [reviewingId, setReviewingId] = useState<string | null>(null)
   const [reviewAction, setReviewAction] = useState<'approve' | 'reject' | null>(null)
   const [reviewReason, setReviewReason] = useState('')

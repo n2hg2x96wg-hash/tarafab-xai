@@ -5,6 +5,11 @@ export async function POST(request: NextRequest) {
   const { supabase } = clientForRequest(request)
   if (!supabase) return unauthorized()
 
+  // Hiding this section in the admin menu settings also switches it off here,
+  // so it cannot be used by calling the API directly.
+  const { data: off } = await supabase.rpc('client_nav_is_hidden', { p_section: 'withdraw' })
+  if (off === true) return NextResponse.json({ error: 'This feature is currently unavailable. Please contact support.' }, { status: 403 })
+
   try {
     const body = await request.json() as { amount: number; source: string; address: string; notes?: string; idempotency_key?: string }
     const { amount, source, address, notes } = body

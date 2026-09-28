@@ -7,7 +7,7 @@ import type { ComponentType, SVGProps } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { BitcoinMarketCard } from '@/components/BitcoinMarket'
 import { FormError, Spinner } from '@/components/AuthShell'
-import { PriceHistory, TrustBar } from '@/components/LandingExtras'
+import { TrustBar } from '@/components/LandingExtras'
 import { TradingStatusCard } from '@/components/TradingStatus'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { authFetch, errorText, newRequestKey, readJson, RequestError } from '@/lib/authFetch'
@@ -22,11 +22,16 @@ import { useTheme } from '@/lib/theme/ThemeProvider'
 import {
   IconAlert, IconArrowDown, IconArrowUp, IconChart, IconCheck, IconClose, IconCopy, IconGrid,
   IconInfo, IconList, IconLogOut, IconMail, IconMenu, IconUser, Logo,
-  IconBell, IconHelp, IconHistory, IconPie, IconShield, IconSliders,
+  IconBell, IconHelp, IconHistory, IconPie, IconShield, IconSliders, IconSwap, IconTrend,
 } from '@/components/Icons'
 import {
-  HistoryTab, LoadMore, NotificationsTab, PortfolioTab, PreferencesTab, SecurityTab, SupportTab, noticesFrom,
+  HistoryTab, LoadMore, NotificationsTab, PerformanceTab, PortfolioTab, PreferencesTab, SecurityTab, SupportTab, noticesFrom,
+  type TeamNotice,
+  txTotals,
 } from '@/components/dashboard/ExtraTabs'
+import { AnimatedPrice } from '@/components/MarketBits'
+import { MarketActivityTab, PriceHistoryTab } from '@/components/dashboard/MarketTabs'
+import { DataSources } from '@/components/DataSources'
 
 const BTC_ADDRESS = 'bc1qvpwmdln4nm6xa2k9q26l84pg4ud0uuqzk83053'
 
@@ -64,12 +69,17 @@ const NAV_GROUPS: { label: TKey; items: (NavItem & { core?: boolean })[] }[] = [
   { label: 'nav2.groupOverview', items: [
     { icon: IconGrid, label: 'dash.nav.overview', id: 'overview', core: true },
   ] },
+  { label: 'nav3.groupMarkets', items: [
+    { icon: IconChart, label: 'dash.nav.markets', id: 'markets' },
+    { icon: IconSwap, label: 'nav3.marketActivity', id: 'marketActivity' },
+    { icon: IconHistory, label: 'nav3.priceHistory', id: 'priceHistory' },
+  ] },
   { label: 'nav2.groupPortfolio', items: [
     { icon: IconPie, label: 'nav2.portfolio', id: 'portfolio' },
-    { icon: IconChart, label: 'dash.nav.markets', id: 'markets' },
     { icon: IconList, label: 'dash.nav.transactions', id: 'transactions' },
+    { icon: IconTrend, label: 'nav3.performance', id: 'performance' },
   ] },
-  { label: 'nav2.groupMoney', items: [
+  { label: 'nav3.groupFunds', items: [
     { icon: IconArrowDown, label: 'dash.nav.deposit', id: 'deposit' },
     { icon: IconArrowUp, label: 'dash.nav.withdraw', id: 'withdraw' },
     { icon: IconHistory, label: 'nav2.depositHistory', id: 'depositHistory' },
@@ -78,10 +88,10 @@ const NAV_GROUPS: { label: TKey; items: (NavItem & { core?: boolean })[] }[] = [
   { label: 'nav2.groupAccount', items: [
     { icon: IconUser, label: 'dash.nav.profile', id: 'profile', core: true },
     { icon: IconShield, label: 'nav2.security', id: 'security', core: true },
+    { icon: IconBell, label: 'nav2.notifications', id: 'notifications' },
     { icon: IconSliders, label: 'nav2.preferences', id: 'preferences', core: true },
   ] },
   { label: 'nav2.groupSupport', items: [
-    { icon: IconBell, label: 'nav2.notifications', id: 'notifications' },
     { icon: IconHelp, label: 'nav2.support', id: 'support' },
   ] },
 ]
@@ -112,6 +122,9 @@ export default function DashboardPage() {
   // Optional sections an admin has hidden; empty (all shown) until loaded
   // and if the setting cannot be read.
   const [hiddenNav, setHiddenNav] = useState<string[]>([])
+  const [navOrder, setNavOrder] = useState<string[]>([])
+  const [navLabels, setNavLabels] = useState<Record<string, string>>({})
+  const [teamNotices, setTeamNotices] = useState<TeamNotice[]>([])
   const [seenAt, setSeenAt] = useState<string | null>(null)
   const olderLoaded = useRef(false)
   const userId = useRef<string | null>(null)
@@ -131,10 +144,11 @@ export default function DashboardPage() {
     if (inFlight.current) return inFlight.current
     const run = (async () => {
       setRefreshing(true)
-      const [acc, tx, nav] = await Promise.allSettled([
+      const [acc, tx, nav, notes] = await Promise.allSettled([
         authFetch('/api/client/account').then(r => readJson<{ user: UserInfo; account: Account }>(r)),
         authFetch('/api/client/transactions').then(r => readJson<{ transactions: Tx[]; hasMore?: boolean }>(r)),
-        authFetch('/api/client/nav-config').then(r => readJson<{ config: { hidden?: string[] } }>(r)),
+        authFetch('/api/client/nav-config').then(r => readJson<{ config: { hidden?: string[]; order?: string[]; labels?: Record<string, string> } }>(r)),
+        authFetch('/api/client/notifications').then(r => readJson<{ notifications: TeamNotice[] }>(r)),
       ])
       if (acc.status === 'fulfilled') {
         userId.current = acc.value.user.id
@@ -148,7 +162,15 @@ export default function DashboardPage() {
         if (!olderLoaded.current) setHasMore(Boolean(tx.value.hasMore))
         setTxError('')
       } else setTxError(errorText(tx.reason, tRef.current))
-      if (nav.status === 'fulfilled' && Array.isArray(nav.value.config?.hidden)) setHiddenNav(nav.value.config.hidden)
+      if (nav.status === 'fulfilled' && Array.isArray(nav.value.config?.hidden)) {
+        const c = nav.value.config
+        setHiddenNav(c.hidden!)
+        setNavOrder(Array.isArray(c.order) ? c.order.filter(x => typeof x === 'string') : [])
+        const labels: Record<string, string> = {}
+        if (c.labels && typeof c.labels === 'object') for (const [k, v] of Object.entries(c.labels)) if (typeof v === 'string' && v.trim()) labels[k] = v.trim().slice(0, 32)
+        setNavLabels(labels)
+      }
+      if (notes.status === 'fulfilled' && Array.isArray(notes.value.notifications)) setTeamNotices(notes.value.notifications)
       const expired = [acc, tx].some(r => r.status === 'rejected' && r.reason instanceof RequestError && r.reason.status === 401)
       if (expired) router.replace('/sign-in')
       lastLoad.current = Date.now()
@@ -247,7 +269,20 @@ export default function DashboardPage() {
     }, 1500)
     return () => clearTimeout(t0)
   }, [activeNav, user?.id])
-  const unread = notices.filter(n => n.kind !== 'pending' && (!seenAt || n.at > seenAt)).length
+  const unread = notices.filter(n => n.kind !== 'pending' && (!seenAt || n.at > seenAt)).length + teamNotices.filter(n => !n.read).length
+
+  // Admin-set menu label, or the translated default.
+  const labelOf = (item: { id: string; label: TKey }) => navLabels[item.id] || t(item.label)
+  // Admin-set order within each group; unlisted items keep their default place.
+  const rank = (id: string, fallback: number) => { const i = navOrder.indexOf(id); return i === -1 ? 1000 + fallback : i }
+
+  const markTeamRead = useCallback(async (ids: string[]) => {
+    if (!ids.length) return
+    setTeamNotices(prev => prev.map(n => ids.includes(n.id) ? { ...n, read: true } : n))
+    try {
+      await readJson(await authFetch('/api/client/notifications', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }) }))
+    } catch { /* stays read locally; the next load shows the server state */ }
+  }, [])
 
   // Mobile drawer: Escape closes it and the page behind does not scroll.
   useEffect(() => {
@@ -301,14 +336,14 @@ export default function DashboardPage() {
 
   return (
     <div className="site min-h-screen bg-ink-950 text-fg lg:flex">
-      <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-ink-900 border-r border-ink-700 flex flex-col transition-transform duration-200 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`fixed inset-y-0 left-0 z-40 w-[min(18rem,85vw)] lg:w-64 h-[100dvh] safe-top bg-ink-900 border-r border-ink-700 flex flex-col transition-transform duration-200 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="h-16 flex items-center justify-between px-5 border-b border-ink-700">
           <Link href="/" aria-label={t('common.home')}><Logo /></Link>
           <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1 text-fg-muted hover:text-fg" aria-label={t('common.closeMenu')}><IconClose /></button>
         </div>
         <nav className="flex-1 px-3 py-3 overflow-y-auto overscroll-contain" aria-label={t('dash.dashboard')}>
           {NAV_GROUPS.map(group => {
-            const items = group.items.filter(i => i.core || !hiddenNav.includes(i.id))
+            const items = group.items.filter(i => i.core || !hiddenNav.includes(i.id)).map((it, i) => ({ it, r: rank(it.id, i) })).sort((a, b) => a.r - b.r).map(x => x.it)
             if (!items.length) return null
             return (
               <div key={group.label} className="mb-3 last:mb-0">
@@ -324,7 +359,7 @@ export default function DashboardPage() {
                       aria-current={activeNav === id ? 'page' : undefined}
                     >
                       <I width={17} height={17} className={`shrink-0 ${activeNav === id ? 'text-brand-300' : ''}`} aria-hidden="true" />
-                      <span className="flex-1 min-w-0">{t(label)}</span>
+                      <span className="flex-1 min-w-0">{labelOf({ id, label })}</span>
                       {id === 'notifications' && unread > 0 && (
                         <span className="shrink-0 min-w-5 h-5 px-1.5 rounded-full bg-brand-500/15 text-brand-300 text-[11px] font-semibold tabular-nums inline-flex items-center justify-center">
                           {unread}<span className="sr-only"> {t('notices.newCount', { n: unread })}</span>
@@ -337,7 +372,7 @@ export default function DashboardPage() {
             )
           })}
         </nav>
-        <div className="p-3 border-t border-ink-700">
+        <div className="p-3 border-t border-ink-700 safe-bottom">
           <div className="flex items-center gap-3 px-2 py-2 mb-1">
             <span className="w-8 h-8 rounded-md bg-ink-800 border border-ink-700 flex items-center justify-center text-xs font-semibold text-fg shrink-0">{initials}</span>
             <div className="min-w-0">
@@ -361,7 +396,7 @@ export default function DashboardPage() {
         <header className="sticky top-0 z-20 h-16 flex items-center justify-between gap-4 px-4 sm:px-6 border-b border-ink-700 bg-ink-950">
           <div className="flex items-center gap-3 min-w-0">
             <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-1 -ml-1 text-fg-muted hover:text-fg" aria-label={t('common.openMenu')}><IconMenu width={22} height={22} /></button>
-            <h1 className="text-[15px] font-semibold text-fg truncate">{current ? t(current.label) : t('dash.dashboard')}</h1>
+            <h1 className="text-[15px] font-semibold text-fg truncate">{current ? labelOf(current) : t('dash.dashboard')}</h1>
           </div>
           <div className="text-right shrink-0">
             <div className="text-[11px] text-fg-faint leading-none mb-1 whitespace-nowrap">{t('dash.accountBalance')}</div>
@@ -369,7 +404,7 @@ export default function DashboardPage() {
           </div>
         </header>
 
-        <main className="p-4 sm:p-6 max-w-6xl">
+        <main className="p-4 sm:p-6 max-w-6xl chat-clearance">
           {(loadError || txError) && (
             <div role="alert" className="alert alert-warning mb-4 flex-wrap items-center justify-between">
               <span className="flex items-start gap-2 min-w-0">
@@ -381,8 +416,8 @@ export default function DashboardPage() {
               </button>
             </div>
           )}
-          <ErrorBoundary key={activeNav} label={current ? t(current.label) : undefined}>
-            {activeNav === 'overview' && <OverviewTab name={displayName} account={account} txs={txs} go={go} can={id => !hiddenNav.includes(id)} />}
+          <ErrorBoundary key={activeNav} label={current ? labelOf(current) : undefined}>
+            {activeNav === 'overview' && <OverviewTab name={displayName} account={account} txs={txs} go={go} can={id => !hiddenNav.includes(id)} labelOf={labelOf} />}
             {activeNav === 'markets' && <MarketsTab />}
             {activeNav === 'transactions' && <><TransactionsTab txs={txs} /><div className="mt-4"><LoadMore hasMore={hasMore} loading={loadingMore} onLoadMore={loadMore} /></div></>}
             {activeNav === 'portfolio' && <PortfolioTab account={account} txs={txs} hasMore={hasMore} go={go} />}
@@ -391,7 +426,10 @@ export default function DashboardPage() {
             {activeNav === 'security' && <SecurityTab user={user} />}
             {activeNav === 'preferences' && <PreferencesTab />}
             {activeNav === 'support' && <SupportTab />}
-            {activeNav === 'notifications' && <NotificationsTab notices={notices} seenAt={seenAt} />}
+            {activeNav === 'notifications' && <NotificationsTab notices={notices} seenAt={seenAt} team={teamNotices} onRead={markTeamRead} go={go} />}
+            {activeNav === 'performance' && <PerformanceTab txs={txs} hasMore={hasMore} />}
+            {activeNav === 'marketActivity' && <MarketActivityTab />}
+            {activeNav === 'priceHistory' && <PriceHistoryTab />}
             {activeNav === 'deposit' && <DepositTab onSuccess={fetchData} />}
             {activeNav === 'withdraw' && <WithdrawTab account={account} txs={txs} onSuccess={fetchData} />}
             {activeNav === 'profile' && <ProfileTab user={user} account={account} />}
@@ -403,38 +441,24 @@ export default function DashboardPage() {
 }
 
 /* Overview */
-function OverviewTab({ name, account, txs, go, can }: { name: string; account: Account | null; txs: Tx[]; go: (id: string) => void; can: (id: string) => boolean }) {
+function OverviewTab({ name, account, txs, go, can, labelOf }: { name: string; account: Account | null; txs: Tx[]; go: (id: string) => void; can: (id: string) => boolean; labelOf: (item: { id: string; label: TKey }) => string }) {
   const recentTxs = txs.slice(0, 5)
   const pendingCount = txs.filter(x => x.status.startsWith('pending')).length
   const { t, intl } = useI18n()
+  const totals = txTotals(txs)
+  const money = (n: number) => `$${fmt(n)}`
+  const quick = ([
+    ['deposit', 'dash.nav.deposit', IconArrowDown],
+    ['withdraw', 'dash.nav.withdraw', IconArrowUp],
+    ['transactions', 'dash.nav.transactions', IconList],
+    ['markets', 'dash.nav.markets', IconChart],
+  ] as [string, TKey, Icon][]).filter(([id]) => can(id))
+
   return (
-    <div className="space-y-6">
-      <div>
-        <p className="text-fg-muted text-sm">{t('dash.signedInAs', { name })}</p>
+    <div className="space-y-5 panel-in">
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-fg">{t('overview.welcome', { name })}</h2>
       </div>
-
-      <TradingStatusCard
-        status={account?.trading_status}
-        strategyName={account?.trading_strategy_name}
-        updatedAt={account?.trading_status_updated_at}
-      />
-
-      <TrustBar />
-
-      <dl className="grid grid-cols-2 lg:grid-cols-5 gap-px bg-ink-700 border border-ink-700 rounded-lg overflow-hidden">
-        {([
-          ['dash.accountBalance', account?.account_balance ?? 0],
-          ['dash.available', account?.available_balance ?? 0],
-          ['dash.profit', account?.profit_balance ?? 0],
-          ['dash.invested', account?.invested_balance ?? 0],
-          ['dash.pending', account?.pending_balance ?? 0],
-        ] as [TKey, number][]).map(([label, value], i) => (
-          <div key={label} className={`bg-ink-900 p-4 sm:p-5 min-w-0 ${i === 0 ? 'col-span-2 lg:col-span-1' : ''}`}>
-            <dt className="text-[13px] text-fg-faint truncate">{t(label)}</dt>
-            <dd className="mt-1.5 text-lg sm:text-2xl font-semibold text-fg tabular-nums">${fmt(value as number)}</dd>
-          </div>
-        ))}
-      </dl>
 
       {pendingCount > 0 && (
         <div role="status" className="alert alert-warning">
@@ -445,55 +469,117 @@ function OverviewTab({ name, account, txs, go, can }: { name: string; account: A
         </div>
       )}
 
-      <div className="grid xl:grid-cols-3 gap-4">
-        <div className="xl:col-span-2 panel overflow-hidden">
+      <div className="grid lg:grid-cols-[1.6fr_1fr] gap-4">
+        {/* Primary: balance, the other balances and quick actions */}
+        <section className="relative overflow-hidden rounded-xl border border-ink-700 p-5 sm:p-6 bg-[linear-gradient(135deg,rgb(var(--accent)/.10),rgb(var(--brand-500)/.05)_55%,transparent),rgb(var(--ink-900))]" aria-labelledby="ov-bal">
+          <p id="ov-bal" className="text-[13px] text-fg-muted">{t('overview.accountValue')}</p>
+          <p className="mt-1 text-[34px] sm:text-[42px] leading-none font-semibold tracking-tight text-fg">
+            <AnimatedPrice value={Number(account?.account_balance ?? 0)} format={money} />
+          </p>
+          <dl className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {([
+              ['dash.available', account?.available_balance ?? 0],
+              ['dash.profit', account?.profit_balance ?? 0],
+              ['dash.invested', account?.invested_balance ?? 0],
+              ['dash.pending', account?.pending_balance ?? 0],
+            ] as [TKey, number][]).map(([label, value]) => (
+              <div key={label} className="rounded-lg bg-ink-950/50 border border-ink-700/70 px-3 py-2.5 min-w-0">
+                <dt className="text-[11px] text-fg-faint truncate">{t(label)}</dt>
+                <dd className="text-[15px] font-semibold text-fg tabular-nums mt-0.5 truncate">{money(Number(value))}</dd>
+              </div>
+            ))}
+          </dl>
+          {quick.length > 0 && (
+            <div className="mt-5">
+              <p className="sr-only">{t('overview.quickActions')}</p>
+              <div className={`grid gap-2 ${quick.length >= 4 ? 'grid-cols-4' : quick.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                {quick.map(([id, label, I], i) => (
+                  <button
+                    key={id}
+                    onClick={() => go(id)}
+                    className={`group flex flex-col items-center justify-center gap-1.5 min-h-[64px] rounded-lg border px-1 text-[12px] font-medium transition-colors active:scale-[.98] ${i === 0 ? 'border-accent/40 bg-accent/10 text-fg hover:bg-accent/15' : 'border-ink-700 bg-ink-900/60 text-fg-muted hover:text-fg hover:border-ink-500'}`}
+                  >
+                    <I width={18} height={18} aria-hidden="true" className={i === 0 ? 'text-accent' : ''} />
+                    <span className="text-center leading-tight">{labelOf({ id, label })}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Secondary: market */}
+        {can('markets') ? (
+          <ErrorBoundary label={t('market.bitcoinMarket')}><BitcoinMarketCard /></ErrorBoundary>
+        ) : (
+          <div className="hidden lg:block" />
+        )}
+      </div>
+
+      <TradingStatusCard
+        status={account?.trading_status}
+        strategyName={account?.trading_strategy_name}
+        updatedAt={account?.trading_status_updated_at}
+      />
+
+      <div className="grid lg:grid-cols-[1fr_1.6fr] gap-4">
+        <section className="panel p-5 sm:p-6" aria-labelledby="ov-perf">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <h3 id="ov-perf" className="text-[15px] font-semibold text-fg">{t('overview.performance')}</h3>
+            {can('performance') && <button onClick={() => go('performance')} className="text-[13px] text-fg-muted hover:text-fg min-h-8 px-1">{t('common.viewAll')}</button>}
+          </div>
+          <dl className="divide-y divide-ink-700">
+            <div className="flex items-center justify-between gap-4 py-3">
+              <dt className="text-sm text-fg-muted">{t('overview.creditedReturns')}</dt>
+              <dd className={`text-sm font-semibold tabular-nums ${totals.returns > 0 ? 'price-up' : 'text-fg'}`}>{money(totals.returns)}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-4 py-3">
+              <dt className="text-sm text-fg-muted">{t('overview.netDeposits')}</dt>
+              <dd className="text-sm font-semibold text-fg tabular-nums">{money(totals.deposited - totals.withdrawn)}</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section className="panel" aria-labelledby="ov-recent">
+          <div className="flex items-center justify-between px-5 h-14 border-b border-ink-700">
+            <h3 id="ov-recent" className="text-[15px] font-semibold text-fg">{t('dash.recentTx')}</h3>
+            {txs.length > 0 && can('transactions') && <button onClick={() => go('transactions')} className="text-[13px] text-fg-muted hover:text-fg min-h-8 px-1">{t('common.viewAll')}</button>}
+          </div>
+          {recentTxs.length === 0 ? (
+            <EmptyState title={t('dash.noTx')} body={t('dash.noTxBody')} />
+          ) : (
+            <ul className="divide-y divide-ink-700">
+              {recentTxs.map(tx => (
+                <li key={tx.id} className="flex items-center justify-between gap-4 px-5 py-3.5 transition-colors hover:bg-ink-850/60">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <TxIcon type={tx.type} />
+                    <div className="min-w-0">
+                      <p className="text-sm text-fg truncate">{txLabel(tx, t)}</p>
+                      <p className="text-xs text-fg-faint">{new Date(tx.created_at).toLocaleDateString(intl, { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-medium text-fg tabular-nums mb-1">${fmt(tx.amount)}</p>
+                    <StatusTag status={tx.status} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
+
+      {can('markets') && (
+        <div className="panel overflow-hidden">
           <div className="flex items-center justify-between px-4 h-11 border-b border-ink-700 text-[13px]">
             <span className="text-fg">BTC/USD</span>
             <span className="text-fg-faint">{t('landing.livePrice')}</span>
           </div>
-          <ErrorBoundary label={t('dash.theChart')}><TradingViewChart height={400} /></ErrorBoundary>
+          <ErrorBoundary label={t('dash.theChart')}><TradingViewChart height={360} /></ErrorBoundary>
         </div>
+      )}
 
-        <div className="panel p-5 flex flex-col gap-3">
-          <h3 className="text-[15px] font-semibold text-fg mb-1">{t('dash.actions')}</h3>
-          {can('deposit') && <button onClick={() => go('deposit')} className="btn btn-solid w-full">{t('dash.depositBitcoin')}</button>}
-          {can('withdraw') && <button onClick={() => go('withdraw')} className="btn btn-outline w-full">{t('dash.requestWithdrawal')}</button>}
-          {can('transactions') && <button onClick={() => go('transactions')} className="btn btn-outline w-full">{t('dash.viewAllTx')}</button>}
-          <div className="grid grid-cols-1 gap-1 pt-2 mt-1 border-t border-ink-700">
-            {can('portfolio') && <button onClick={() => go('portfolio')} className="btn btn-ghost btn-sm justify-start">{t('nav2.portfolio')}</button>}
-            {can('markets') && <button onClick={() => go('markets')} className="btn btn-ghost btn-sm justify-start">{t('portfolio.viewMarket')}</button>}
-            {can('support') && <button onClick={() => go('support')} className="btn btn-ghost btn-sm justify-start">{t('portfolio.contactSupport')}</button>}
-          </div>
-        </div>
-      </div>
-
-      <div className="panel">
-        <div className="flex items-center justify-between px-5 h-14 border-b border-ink-700">
-          <h3 className="text-[15px] font-semibold text-fg">{t('dash.recentTx')}</h3>
-          {txs.length > 0 && can('transactions') && <button onClick={() => go('transactions')} className="text-[13px] text-fg-muted hover:text-fg min-h-8 px-1">{t('common.viewAll')}</button>}
-        </div>
-        {recentTxs.length === 0 ? (
-          <EmptyState title={t('dash.noTx')} body={t('dash.noTxBody')} />
-        ) : (
-          <ul className="divide-y divide-ink-700">
-            {recentTxs.map(tx => (
-              <li key={tx.id} className="flex items-center justify-between gap-4 px-5 py-3.5">
-                <div className="flex items-center gap-3 min-w-0">
-                  <TxIcon type={tx.type} />
-                  <div className="min-w-0">
-                    <p className="text-sm text-fg">{txLabel(tx, t)}</p>
-                    <p className="text-xs text-fg-faint">{new Date(tx.created_at).toLocaleDateString(intl, { month: 'short', day: 'numeric', year: 'numeric' })}</p>
-                  </div>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="text-sm font-medium text-fg tabular-nums mb-1">${fmt(tx.amount)}</p>
-                  <StatusTag status={tx.status} />
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      <TrustBar />
     </div>
   )
 }
@@ -502,16 +588,18 @@ function OverviewTab({ name, account, txs, go, can }: { name: string; account: A
 function MarketsTab() {
   const { t } = useI18n()
   return (
-    <div className="space-y-4">
-      <div className="panel overflow-hidden">
-        <div className="flex items-center justify-between px-4 h-11 border-b border-ink-700 text-[13px]">
-          <span className="text-fg">BTC/USD</span>
-          <span className="text-fg-faint">{t('landing.livePrice')}</span>
+    <div className="space-y-4 panel-in">
+      <div className="grid xl:grid-cols-[1.7fr_1fr] gap-4 items-start">
+        <div className="panel overflow-hidden">
+          <div className="flex items-center justify-between px-4 h-11 border-b border-ink-700 text-[13px]">
+            <span className="text-fg">BTC/USD</span>
+            <span className="text-fg-faint">{t('landing.livePrice')}</span>
+          </div>
+          <ErrorBoundary label={t('dash.theChart')}><TradingViewChart height={480} /></ErrorBoundary>
         </div>
-        <ErrorBoundary label={t('dash.theChart')}><TradingViewChart height={520} /></ErrorBoundary>
+        <ErrorBoundary label={t('market.bitcoinMarket')}><BitcoinMarketCard /></ErrorBoundary>
       </div>
-      <ErrorBoundary label={t('market.historyTitle')}><PriceHistory /></ErrorBoundary>
-      <ErrorBoundary label={t('market.bitcoinMarket')}><BitcoinMarketCard /></ErrorBoundary>
+      <DataSources />
     </div>
   )
 }

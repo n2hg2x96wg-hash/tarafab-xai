@@ -403,6 +403,12 @@ export default function ClientDetailPage() {
             >
               View history
             </button>
+            <Link
+              href={`/admin/notifications?to=${clientId}`}
+              className="text-center text-sm font-semibold text-slate-200 border border-white/[0.12] hover:bg-white/[0.04] px-5 py-3 rounded-xl transition-colors"
+            >
+              {t('adminNotif.send')}
+            </Link>
           </div>
         </div>
       )}

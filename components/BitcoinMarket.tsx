@@ -2,58 +2,61 @@
 
 import { compactUsd, useBtcSummary } from '@/components/useMarket'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
-import { timeAgoT } from '@/lib/i18n/format'
 import { MarketStatusPill } from '@/components/LandingExtras'
+import { AnimatedPrice, freshnessText, useNow } from '@/components/MarketBits'
 
 const usd = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
 export function BitcoinMarketCard() {
   const { summary: data, status, fetchedAt, retry } = useBtcSummary(60_000)
   const { t } = useI18n()
+  useNow()
 
+  const up = (data?.change24h ?? 0) >= 0
   const stats: [TKey, string | null][] = [
     ['market.high24h', data ? usd(data.high24h) : null],
     ['market.low24h', data ? usd(data.low24h) : null],
     ['market.volume24h', data ? compactUsd(data.volume24hUsd) : null],
-    ['market.change24h', data ? `${data.change24h >= 0 ? '+' : '-'}${Math.abs(data.change24h).toFixed(2)}%` : null],
   ]
 
   return (
     <div className="panel panel-lift p-5 sm:p-6 h-full flex flex-col">
-      <div className="flex items-start justify-between gap-4 mb-5">
-        <div>
-          <h3 className="text-[15px] font-semibold text-fg">{t('market.bitcoinMarket')} <span className="text-fg-faint font-normal whitespace-nowrap">BTC/USD</span></h3>
-          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-fg-faint mt-1.5">
-            <MarketStatusPill status={status} />
-            {status === 'error' && !data
-              ? t('market.unavailable')
-              : fetchedAt ? t('common.updated', { time: timeAgoT(t, fetchedAt) }) : t('common.loading')}
-          </p>
-        </div>
-        {data && (
-          <div className="text-right">
-            <div className="text-xl font-semibold text-fg tabular-nums">{usd(data.price)}</div>
-            <div className={`text-[13px] tabular-nums ${data.change24h >= 0 ? 'price-up' : 'price-down'}`}>
-              {data.change24h >= 0 ? '+' : '-'}{Math.abs(data.change24h).toFixed(2)}% (24h)
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-[13px] font-medium text-fg-muted">{t('market.bitcoinMarket')} <span className="text-fg-faint whitespace-nowrap">BTC/USD</span></h3>
+        <MarketStatusPill status={status} />
+      </div>
+
+      {/* Primary: the price */}
+      <div className="mt-3 min-h-[64px]">
+        {data ? (
+          <>
+            <AnimatedPrice value={data.price} format={usd} className="text-[30px] sm:text-[34px] leading-none font-semibold tracking-tight text-fg" />
+            <div className={`mt-2 text-sm tabular-nums ${up ? 'price-up' : 'price-down'}`}>
+              <span aria-hidden="true">{up ? '▲' : '▼'}</span> {Math.abs(data.change24h).toFixed(2)}% <span className="text-fg-faint">24h</span>
             </div>
-          </div>
+          </>
+        ) : status === 'error' ? (
+          <p className="text-sm text-fg-muted pt-2">{t('market.unavailable')}</p>
+        ) : (
+          <div className="space-y-2" aria-label={t('common.loading')}><div className="skeleton h-9 w-48" /><div className="skeleton h-4 w-24" /></div>
         )}
       </div>
 
-      <dl className="grid grid-cols-2 gap-px bg-ink-700 border border-ink-700 rounded-md overflow-hidden">
+      {/* Secondary: 24h statistics */}
+      <dl className="grid grid-cols-3 gap-2 mt-5">
         {stats.map(([label, value]) => (
-          <div key={label} className="bg-ink-900 p-3">
-            <dt className="text-xs text-fg-faint mb-1">{t(label)}</dt>
-            <dd className={`text-sm font-medium tabular-nums ${label === 'market.change24h' && data ? (data.change24h >= 0 ? 'price-up' : 'price-down') : 'text-fg'}`}>
-              {value ?? (status === 'error' ? t('common.unavailable') : <span className="skeleton inline-block w-20 h-4 align-middle" />)}
+          <div key={label} className="rounded-md bg-ink-850 px-3 py-2.5 min-w-0">
+            <dt className="text-[11px] text-fg-faint truncate">{t(label)}</dt>
+            <dd className="text-[13px] font-medium tabular-nums text-fg mt-0.5 truncate">
+              {value ?? (status === 'error' ? '—' : <span className="skeleton inline-block w-14 h-4 align-middle" />)}
             </dd>
           </div>
         ))}
       </dl>
 
-      <div className="mt-auto pt-4 flex items-center justify-between gap-3 text-[11px] text-fg-faint">
-        <span>{data ? t('common.marketDataBy', { source: data.source }) : t('market.refreshEvery')}</span>
-        <button onClick={retry} disabled={status === 'loading'} className="inline-flex items-center min-h-8 px-2 -mr-2 rounded underline underline-offset-2 hover:text-fg shrink-0 disabled:opacity-50">
+      <div className="mt-auto pt-4 flex items-center justify-between gap-3 text-[12px] text-fg-faint">
+        <span aria-live="polite">{freshnessText(t, status, fetchedAt)}</span>
+        <button onClick={retry} disabled={status === 'loading'} className="inline-flex items-center min-h-9 px-2.5 -mr-2.5 rounded-md hover:text-fg hover:bg-ink-850 transition-colors shrink-0 disabled:opacity-50">
           {status === 'error' || status === 'stale' ? t('common.tryAgain') : t('common.refresh')}
         </button>
       </div>

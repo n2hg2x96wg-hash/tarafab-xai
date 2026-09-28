@@ -256,7 +256,6 @@ export function HeroLivePanel({ quotes, trades, status }: ReturnType<typeof useL
           ))}
         </div>
       </div>
-      <p className="text-[11px] text-fg-faint mt-3">{t('common.marketDataBy', { source: 'Coinbase Exchange' })}</p>
     </div>
   )
 }
@@ -353,7 +352,6 @@ export function LatestBlocks() {
           </div>
         ))}
       </div>
-      <p className="text-[11px] text-fg-faint mt-4">{t('market.blocksFooter')}</p>
     </div>
   )
 }
