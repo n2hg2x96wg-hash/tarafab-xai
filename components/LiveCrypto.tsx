@@ -2,7 +2,7 @@
 
 import { chartColors } from '@/lib/chartColors'
 import { useEffect, useRef, useState } from 'react'
-import { useBtcHistory } from '@/components/useMarket'
+import { sharedSummary, useBtcHistory } from '@/components/useMarket'
 import { useI18n } from '@/lib/i18n/I18nProvider'
 
 type Product = 'BTC-USD' | 'ETH-USD' | 'SOL-USD'
@@ -59,8 +59,9 @@ export function useLiveMarket() {
     // the price is current. Used for the first price (before the stream opens)
     // and by the fallback feed if the stream cannot connect.
     const btcFromServer = async () => {
-      const r = await fetch('/api/market/btc/summary', { cache: 'no-store' })
-      const j = r.ok ? await r.json() : null
+      // Shared with the other widgets on the page, so one page load makes one
+      // summary request instead of one per widget.
+      const j = await sharedSummary().catch(() => null)
       const x = j?.summary
       if (!x?.price || !(Date.now() - Date.parse(x.updatedAt) < 3 * 60_000)) return false
       pendingQuotes.current['BTC-USD'] = { price: x.price, open24h: x.price / (1 + (x.change24h ?? 0) / 100) }

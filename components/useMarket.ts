@@ -38,7 +38,7 @@ async function load<T>(url: string): Promise<T> {
 // Every widget on a page shares one summary request: calls within a few
 // seconds of each other reuse the same response.
 let summaryShared: { at: number; promise: Promise<{ summary: Summary }> } | null = null
-function sharedSummary(bypass = false) {
+export function sharedSummary(bypass = false) {
   // A bypass skips both the page-level sharing and any CDN copy.
   if (bypass) return load<{ summary: Summary }>(`/api/market/btc/summary?t=${Date.now()}`)
   const now = Date.now()

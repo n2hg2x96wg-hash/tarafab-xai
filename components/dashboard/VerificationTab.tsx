@@ -24,6 +24,7 @@ const DOCUMENT_TYPES = ['passport', 'national_id', 'drivers_license'] as const
 const TONE: Record<string, string> = {
   verified: 'border-emerald-500/30 bg-emerald-500/[0.06] text-emerald-300',
   pending: 'border-amber-500/30 bg-amber-500/[0.06] text-amber-300',
+  under_review: 'border-sky-500/30 bg-sky-500/[0.06] text-sky-300',
   rejected: 'border-danger-400/40 bg-danger-400/[0.06] text-danger-300',
   unverified: 'border-ink-700 bg-ink-850/60 text-fg-muted',
 }
@@ -121,6 +122,10 @@ export function VerificationTab({ onStatusChange }: { onStatusChange?: (status: 
   }
 
   const status = state?.status || 'unverified'
+  // 'unverified' means nothing has been sent yet; the copy calls that
+  // "not submitted" so a new account is never described as verified.
+  const statusKey = status === 'unverified' ? 'notSubmitted' : status === 'under_review' ? 'underReview' : status
+  // A rejected client can correct their details and send a new request.
   const canSubmit = status === 'unverified' || status === 'rejected'
   const when = (iso: string | null) => iso ? new Date(iso).toLocaleDateString(intl, { dateStyle: 'medium' }) : ''
 
@@ -136,10 +141,8 @@ export function VerificationTab({ onStatusChange }: { onStatusChange?: (status: 
             {status === 'verified' ? <IconCheck width={18} height={18} aria-hidden="true" /> : <IconShield width={18} height={18} aria-hidden="true" />}
           </span>
           <div className="min-w-0">
-            <p className="text-sm font-semibold">{t(`kyc.status.${status === 'unverified' ? 'notSubmitted' : status}` as 'kyc.status.pending')}</p>
-            <p className="text-[14px] mt-1 text-fg-muted">
-              {t(`kyc.body.${status === 'unverified' ? 'notSubmitted' : status}` as 'kyc.body.pending')}
-            </p>
+            <p className="text-sm font-semibold">{t(`kyc.status.${statusKey}` as 'kyc.status.pending')}</p>
+            <p className="text-[14px] mt-1 text-fg-muted">{t(`kyc.body.${statusKey}` as 'kyc.body.pending')}</p>
             {status === 'rejected' && state?.rejection_reason && (
               <p className="text-[14px] mt-2 text-fg">
                 <span className="text-fg-faint">{t('kyc.reason')}: </span>{state.rejection_reason}
@@ -158,7 +161,8 @@ export function VerificationTab({ onStatusChange }: { onStatusChange?: (status: 
         <form onSubmit={submit} className="panel p-5 sm:p-6 space-y-4" noValidate>
           <div>
             <h3 className="text-lg font-semibold text-fg">{t('kyc.formTitle')}</h3>
-            <p className="text-[14px] text-fg-muted mt-1">{t('kyc.formBody')}</p>
+            <p className="text-[14px] text-fg-muted mt-1">{t('kyc.why')}</p>
+            <p className="text-[14px] text-fg-muted mt-2">{t('kyc.formBody')}</p>
           </div>
 
           <div>

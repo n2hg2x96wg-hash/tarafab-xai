@@ -10,10 +10,10 @@ export async function POST(request: NextRequest) {
 
   try {
     const { submission_id, action, reason } = await request.json() as {
-      submission_id: string; action: 'verify' | 'reject'; reason?: string
+      submission_id: string; action: 'review' | 'verify' | 'reject'; reason?: string
     }
-    if (!submission_id || !['verify', 'reject'].includes(action)) {
-      return NextResponse.json({ error: 'submission_id and action (verify/reject) required' }, { status: 400 })
+    if (!submission_id || !['review', 'verify', 'reject'].includes(action)) {
+      return NextResponse.json({ error: 'submission_id and action (review/verify/reject) required' }, { status: 400 })
     }
     const { data, error } = await supabase.rpc('admin_review_kyc', {
       p_submission_id: submission_id,

@@ -31,3 +31,6 @@ out/
 *.sln
 *.sw?
 *.tsbuildinfo
+
+# Screenshots written by local test runs
+undefined/

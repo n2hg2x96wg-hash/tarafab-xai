@@ -3,7 +3,6 @@
 import { useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import Navbar from '@/components/Navbar'
 import { BitcoinMarketCard } from '@/components/BitcoinMarket'
 import { HeroLivePanel, LatestBlocks, LiveTickerBar, useLiveMarket } from '@/components/LiveCrypto'
@@ -49,6 +48,8 @@ function TradingViewWidget() {
 // TradingView reads the language from the page so its labels match.
 function tvLocale() {
   const l = typeof document !== 'undefined' ? document.documentElement.lang : 'en'
+  // TradingView's own code for Korean is "kr", not the ISO "ko".
+  if (l === 'ko') return 'kr'
   return ['en', 'fr', 'es', 'de', 'pt', 'it'].includes(l) ? l : 'en'
 }
 
@@ -90,13 +91,33 @@ export default function LandingPage() {
   const market = useLiveMarket()
   const { t, locale } = useI18n()
 
+  // Signed-in visitors are sent to their dashboard. The Supabase client is
+  // loaded on demand rather than imported at the top of this file: it is a
+  // large library, and including it in the landing page bundle delayed the
+  // point at which the menu and other buttons became clickable by seconds on
+  // a phone. Nothing on this page needs it to render, so it is fetched after
+  // the browser is idle, once the page is already interactive.
   useEffect(() => {
-    const supabase = createClient()
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) return
-      const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single() as { data: { role?: string } | null }
-      router.replace(profile?.role === 'admin' ? '/admin' : '/dashboard')
-    }).catch(() => {})
+    let cancelled = false
+    const check = async () => {
+      try {
+        const { createClient } = await import('@/lib/supabase/client')
+        if (cancelled) return
+        const supabase = createClient()
+        const { data: { session } } = await supabase.auth.getSession()
+        if (cancelled || !session) return
+        const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single() as { data: { role?: string } | null }
+        if (!cancelled) router.replace(profile?.role === 'admin' ? '/admin' : '/dashboard')
+      } catch { /* not signed in, or offline: the landing page is what they see */ }
+    }
+    // requestIdleCallback is missing on older Safari, so fall back to a timer.
+    const hasIdle = typeof window.requestIdleCallback === 'function'
+    const handle = hasIdle ? window.requestIdleCallback(check, { timeout: 1500 }) : window.setTimeout(check, 200)
+    return () => {
+      cancelled = true
+      if (hasIdle) window.cancelIdleCallback?.(handle as number)
+      else clearTimeout(handle as number)
+    }
   }, [router])
 
   return (
