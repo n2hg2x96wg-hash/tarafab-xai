@@ -30,6 +30,8 @@ type Profile = {
 type Transaction = {
   id: string
   type: string
+  method?: string | null
+  direction?: 'credit' | 'debit' | null
   amount: number
   status: string
   notes: string | null
@@ -61,6 +63,8 @@ export default function ClientDetailPage() {
   const [account, setAccount] = useState<Account | null>(null)
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
+  const [email, setEmail] = useState<string | null>(null)
+  const [emailCopied, setEmailCopied] = useState(false)
   const [tab, setTab] = useState<'overview' | 'adjust' | 'edit' | 'history'>('overview')
   const [editForm, setEditForm] = useState({ full_name: '', account_status: 'active', verification_status: 'unverified' })
   const [editSaving, setEditSaving] = useState(false)
@@ -94,12 +98,14 @@ export default function ClientDetailPage() {
     const { data: accountData } = await (supabase.from('accounts') as any)
       .select('*').eq('user_id', clientId).single() as { data: Account | null }
     const { data: txData } = await (supabase.from('transactions') as any)
-      .select('id, type, amount, status, notes, created_at')
+      .select('id, type, method, direction, amount, status, notes, created_at')
       .eq('user_id', clientId)
       .order('created_at', { ascending: false })
       .limit(20) as { data: Transaction[] | null }
 
     setProfile(profileData)
+    const { data: emails } = await (supabase.rpc('admin_client_emails') as unknown as Promise<{ data: { id: string; email: string }[] | null }>)
+    setEmail(emails?.find(e => e.id === clientId)?.email ?? null)
     if (profileData) {
       setEditForm({
         full_name: profileData.full_name || '',
@@ -248,44 +254,66 @@ export default function ClientDetailPage() {
   return (
     <AdminLayout>
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-xs text-slate-500 mb-6">
-        <Link href="/admin" className="hover:text-violet-400 transition-colors">Admin</Link>
-        <span>/</span>
-        <Link href="/admin/clients" className="hover:text-violet-400 transition-colors">Clients</Link>
-        <span>/</span>
-        <span className="text-slate-300 truncate max-w-[120px]">{profile.full_name || profile.id.slice(0, 8)}</span>
+      <nav className="flex items-center gap-2 text-xs text-slate-500 mb-5">
+        <Link href="/admin" className="hover:text-white transition-colors">Admin</Link>
+        <span className="text-slate-700">/</span>
+        <Link href="/admin/clients" className="hover:text-white transition-colors">Clients</Link>
+        <span className="text-slate-700">/</span>
+        <span className="text-slate-300 truncate max-w-[160px]">{profile.full_name || 'Client'}</span>
       </nav>
 
       {/* Client header */}
-      <div className="glass rounded-2xl p-5 border border-white/[0.08] mb-5">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-600 to-blue-500 flex items-center justify-center text-lg font-bold shrink-0">
+      <div className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-[linear-gradient(135deg,rgba(247,147,26,0.07),rgba(99,102,241,0.05)_45%,rgba(255,255,255,0.015))] p-5 sm:p-6 mb-5 shadow-[0_20px_50px_-30px_rgba(0,0,0,0.9)]">
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-[#171b22] border border-white/[0.1] flex items-center justify-center text-lg font-semibold text-white shrink-0">
             {(profile.full_name || '?').charAt(0).toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-bold text-white">{profile.full_name || 'Unnamed Client'}</h1>
-            <p className="text-[10px] text-slate-500 font-mono mt-0.5 break-all">{profile.id}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-lg sm:text-xl font-semibold text-white tracking-tight">{profile.full_name || 'Unnamed client'}</h1>
+              <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-md border font-semibold ${profile.role === 'admin' ? 'text-violet-300 border-violet-500/30 bg-violet-500/10' : 'text-slate-400 border-white/[0.08] bg-white/[0.03]'}`}>
+                {profile.role}
+              </span>
+            </div>
+            {email && (
+              <div className="flex items-center gap-2 mt-1 min-w-0">
+                <span className="text-sm text-slate-300 select-all break-all">{email}</span>
+                <button
+                  type="button"
+                  onClick={() => navigator.clipboard.writeText(email).then(() => { setEmailCopied(true); setTimeout(() => setEmailCopied(false), 1800) }).catch(() => {})}
+                  className="text-[10px] text-slate-300 border border-white/[0.12] rounded-md px-2 py-0.5 hover:bg-white/[0.05] shrink-0"
+                >
+                  {emailCopied ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+            )}
+            <div className="flex flex-wrap gap-1.5 mt-3">
+              <span className={`inline-flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-md border capitalize ${profile.account_status === 'suspended' ? 'text-red-300 border-red-500/30 bg-red-500/[0.08]' : 'text-emerald-300 border-emerald-500/30 bg-emerald-500/[0.08]'}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${profile.account_status === 'suspended' ? 'bg-red-400' : 'bg-emerald-400'}`} />
+                {profile.account_status}
+              </span>
+              <span className={`text-[11px] px-2 py-1 rounded-md border capitalize ${profile.verification_status === 'verified' ? 'text-sky-300 border-sky-500/30 bg-sky-500/[0.08]' : profile.verification_status === 'rejected' ? 'text-red-300 border-red-500/30 bg-red-500/[0.08]' : 'text-slate-300 border-white/[0.1] bg-white/[0.03]'}`}>
+                {profile.verification_status}
+              </span>
+              <span className={`text-[11px] px-2 py-1 rounded-md border ${account?.trading_status === 'active' ? 'text-emerald-300 border-emerald-500/30 bg-emerald-500/[0.08]' : 'text-slate-400 border-white/[0.08] bg-white/[0.02]'}`}>
+                Monitoring {account?.trading_status === 'active' ? 'active' : 'inactive'}
+              </span>
+            </div>
           </div>
-          <span className={`text-[10px] px-2 py-1 rounded-full font-medium border shrink-0 ${profile.role === 'admin' ? 'bg-violet-600/20 text-violet-400 border-violet-500/30' : 'bg-slate-800 text-slate-400 border-white/[0.06]'}`}>
-            {profile.role}
-          </span>
         </div>
-        <div className="flex flex-wrap gap-2 mt-4">
-          <span className={`text-[10px] px-2 py-1 rounded-md border capitalize ${profile.account_status === 'suspended' ? 'text-red-400 border-red-500/30' : 'text-emerald-400 border-emerald-500/30'}`}>{profile.account_status}</span>
-          <span className="text-[10px] px-2 py-1 rounded-md border capitalize text-slate-300 border-white/[0.1]">{profile.verification_status}</span>
-        </div>
-        <p className="text-xs text-slate-600 mt-3">
-          Member since {new Date(profile.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+        <p className="text-[11px] text-slate-500 mt-4 pt-3 border-t border-white/[0.06] flex flex-wrap gap-x-4 gap-y-1">
+          <span>Member since {new Date(profile.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+          <span className="font-mono text-slate-600 break-all">ID {profile.id}</span>
         </p>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-5 bg-white/[0.03] p-1 rounded-xl border border-white/[0.06] w-fit">
+      <div className="flex gap-1 mb-5 bg-[#0c0e12] p-1 rounded-xl border border-white/[0.07] w-full sm:w-fit overflow-x-auto">
         {(['overview', 'adjust', 'edit', 'history'] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${tab === t ? 'bg-violet-600/20 text-violet-300 border border-violet-500/20' : 'text-slate-500 hover:text-white'}`}
+            className={`flex-1 sm:flex-none whitespace-nowrap px-4 py-2.5 rounded-lg text-xs font-semibold transition-all ${tab === t ? 'bg-[#1c2129] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]' : 'text-slate-500 hover:text-slate-200'}`}
           >
             {t === 'overview' ? 'Overview' : t === 'adjust' ? 'Adjust Balance' : t === 'edit' ? 'Edit Details' : 'History'}
           </button>
@@ -298,15 +326,15 @@ export default function ClientDetailPage() {
           {account ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-5">
               {[
-                { label: 'Account Balance', value: account.account_balance },
+                { label: 'Account Balance', value: account.account_balance, accent: true },
                 { label: 'Available', value: account.available_balance },
+                { label: 'Profit', value: account.profit_balance },
                 { label: 'Invested', value: account.invested_balance },
                 { label: 'Pending', value: account.pending_balance },
-                { label: 'Profit', value: account.profit_balance },
-              ].map(item => (
-                <div key={item.label} className="glass rounded-xl p-4 border border-white/[0.08]">
-                  <p className="text-[10px] text-slate-500 mb-1">{item.label}</p>
-                  <p className="text-lg font-bold text-white">${(item.value || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+              ].map((item, i) => (
+                <div key={item.label} className={`rounded-xl p-4 border ${i === 0 ? 'col-span-2 sm:col-span-1' : ''} ${item.accent ? 'border-orange-500/25 bg-[linear-gradient(160deg,rgba(247,147,26,0.10),rgba(255,255,255,0.01))]' : 'border-white/[0.07] bg-white/[0.02]'}`}>
+                  <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-1.5">{item.label}</p>
+                  <p className="text-lg sm:text-xl font-semibold text-white tabular-nums">${(item.value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                 </div>
               ))}
             </div>
@@ -315,12 +343,26 @@ export default function ClientDetailPage() {
               No account record found for this user.
             </div>
           )}
-          <button
-            onClick={() => setTab('adjust')}
-            className="text-sm font-semibold text-white bg-gradient-to-r from-violet-600 to-blue-500 px-6 py-3 rounded-xl hover:opacity-90 transition-all shadow-[0_0_20px_rgba(124,58,237,0.3)]"
-          >
-            Adjust Balance →
-          </button>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <button
+              onClick={() => setTab('adjust')}
+              className="text-sm font-semibold text-black bg-[#F7931A] hover:bg-[#FFA73D] px-5 py-3 rounded-xl transition-colors shadow-[0_8px_24px_-10px_rgba(247,147,26,0.6)]"
+            >
+              Adjust balance
+            </button>
+            <button
+              onClick={() => setTab('edit')}
+              className="text-sm font-semibold text-slate-200 border border-white/[0.12] hover:bg-white/[0.04] px-5 py-3 rounded-xl transition-colors"
+            >
+              Edit details &amp; status
+            </button>
+            <button
+              onClick={() => setTab('history')}
+              className="text-sm font-semibold text-slate-200 border border-white/[0.12] hover:bg-white/[0.04] px-5 py-3 rounded-xl transition-colors"
+            >
+              View history
+            </button>
+          </div>
         </div>
       )}
 
@@ -471,7 +513,7 @@ export default function ClientDetailPage() {
           <div>
             <h2 className="text-sm font-semibold text-white mb-1">Trading Status</h2>
             <p className="text-xs text-slate-500">
-              Controls the &ldquo;Trading Active / Inactive&rdquo; indicator this client sees on their dashboard. There is no automated trading engine yet — only turn this on if trading is genuinely happening on this account. Every change is recorded in the audit log.
+              Controls the &ldquo;Portfolio monitoring active / inactive&rdquo; status this client sees on their dashboard. There is no automated trading engine yet — only turn this on if trading is genuinely happening on this account. Every change is recorded in the audit log.
             </p>
           </div>
           {tradingSuccess && <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm">{tradingSuccess}</div>}
@@ -524,21 +566,24 @@ export default function ClientDetailPage() {
             <h2 className="text-sm font-semibold text-white">Transaction History</h2>
           </div>
           {transactions.length === 0 ? (
-            <div className="p-10 text-center text-slate-500 text-sm">No transactions found</div>
+            <div className="p-10 text-center text-slate-500 text-sm">No transactions yet.</div>
           ) : (
             <div className="divide-y divide-white/[0.04]">
               {transactions.map(tx => (
                 <div key={tx.id} className="flex items-start gap-3 p-4">
-                  <div className={`mt-0.5 w-7 h-7 rounded-full flex items-center justify-center text-xs shrink-0 ${
-                    tx.type === 'adjustment' ? 'bg-violet-600/20 text-violet-400' :
-                    tx.type === 'deposit' ? 'bg-emerald-500/15 text-emerald-400' :
-                    'bg-red-500/10 text-red-400'
+                  <div className={`mt-0.5 w-8 h-8 rounded-lg flex items-center justify-center text-sm font-semibold shrink-0 border ${
+                    tx.type === 'deposit' || tx.direction === 'credit' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                    tx.type === 'adjustment' && !tx.direction ? 'bg-white/[0.04] text-slate-400 border-white/[0.08]' :
+                    'bg-red-500/10 text-red-400 border-red-500/20'
                   }`}>
-                    {tx.type === 'deposit' ? '+' : tx.type === 'adjustment' ? '⟳' : '−'}
+                    {tx.type === 'deposit' || tx.direction === 'credit' ? '+' : tx.type === 'adjustment' && !tx.direction ? '·' : '−'}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-medium text-white capitalize">{tx.type.replace('_', ' ')}</p>
+                      <p className="text-sm font-medium text-white capitalize">
+                        {tx.type.replace(/_/g, ' ')}
+                        {tx.type === 'adjustment' && tx.method && <span className="text-slate-500 font-normal"> · {tx.method.replace(/_/g, ' ')}</span>}
+                      </p>
                       <p className="text-sm font-semibold text-white shrink-0">
                         ${(tx.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                       </p>

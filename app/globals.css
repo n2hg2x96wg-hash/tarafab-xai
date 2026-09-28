@@ -75,14 +75,53 @@ body {
 }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
 .btn-sm { height: 36px; padding: 0 14px; font-size: 14px; }
-.btn-solid { background: #F7931A; color: #0A0C0F; }
-.btn-solid:hover:not(:disabled) { background: #FFA73D; }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn-solid { background: linear-gradient(180deg, #FFA53A 0%, #F7931A 100%); color: #0A0C0F; box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -10px rgba(247,147,26,.55); }
+.btn-solid:hover:not(:disabled) { background: linear-gradient(180deg, #FFB45A 0%, #FFA73D 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 1px 2px rgba(0,0,0,.4), 0 10px 30px -10px rgba(247,147,26,.7); }
 .btn-outline { background: transparent; color: #E8EAED; border: 1px solid #2F3640; }
 .btn-outline:hover:not(:disabled) { border-color: #6B7480; background: #13171C; }
 .btn-danger { background: transparent; color: #F87171; border: 1px solid rgba(248,113,113,.3); }
 .btn-danger:hover:not(:disabled) { background: rgba(248,113,113,.08); }
 
-.panel { background: #0F1216; border: 1px solid #232931; border-radius: 8px; }
+.panel {
+  background: linear-gradient(180deg, rgba(255,255,255,.028) 0%, rgba(255,255,255,0) 38%), #0F1216;
+  border: 1px solid #232931;
+  border-radius: 10px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 18px 40px -24px rgba(0,0,0,.8);
+}
+.panel-lift { transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease; }
+@media (hover: hover) {
+  .panel-lift:hover { transform: translateY(-2px); border-color: #2F3640; box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 24px 48px -24px rgba(0,0,0,.9); }
+}
+
+/* Segmented control (timeframe tabs etc.) */
+.seg { display: inline-flex; padding: 3px; gap: 2px; background: #0A0C0F; border: 1px solid #232931; border-radius: 8px; }
+.seg-btn { height: 30px; padding: 0 12px; border-radius: 6px; font-size: 13px; color: #9AA3AF; transition: color .15s ease, background-color .15s ease; }
+.seg-btn:hover { color: #E8EAED; }
+.seg-btn-on { background: #1D232B; color: #E8EAED; box-shadow: inset 0 1px 0 rgba(255,255,255,.06); }
+
+/* Accent lighting behind the hero: restrained, static, purely decorative. */
+.hero-light { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.hero-light::before, .hero-light::after { content: ''; position: absolute; border-radius: 9999px; filter: blur(80px); }
+.hero-light::before { width: 560px; height: 560px; right: -120px; top: -180px; background: radial-gradient(circle, rgba(247,147,26,.16), transparent 65%); }
+.hero-light::after { width: 620px; height: 620px; left: -220px; top: 60px; background: radial-gradient(circle, rgba(99,102,241,.11), rgba(59,130,246,.06) 40%, transparent 70%); }
+.hero-grid { position: absolute; inset: 0; pointer-events: none;
+  background-image: linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 75%); }
+
+/* Icon tile used on capability cards */
+.icon-tile { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 10px;
+  background: linear-gradient(180deg, rgba(247,147,26,.14), rgba(247,147,26,.04)); border: 1px solid rgba(247,147,26,.22); color: #F7931A; }
+
+/* Chart line draws in when a range loads */
+@keyframes chartDraw { from { stroke-dasharray: 3000; stroke-dashoffset: 3000; } to { stroke-dasharray: 3000; stroke-dashoffset: 0; } }
+.chart-draw { animation: chartDraw .9s ease-out both; }
+
+/* Status glow for a genuinely active account state */
+@keyframes statusGlow { 0%, 100% { box-shadow: 0 0 0 0 rgba(52,211,153,.45); } 50% { box-shadow: 0 0 0 6px rgba(52,211,153,0); } }
+.status-glow { animation: statusGlow 2.4s ease-in-out infinite; }
 
 .field {
   width: 100%;

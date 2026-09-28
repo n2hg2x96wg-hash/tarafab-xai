@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useBtcHistory } from '@/components/useMarket'
 
 type Product = 'BTC-USD' | 'ETH-USD' | 'SOL-USD'
 const PRODUCTS: Product[] = ['BTC-USD', 'ETH-USD', 'SOL-USD']
@@ -166,23 +167,11 @@ export function LiveTickerBar({ quotes }: { quotes: Partial<Record<Product, Quot
   )
 }
 
-function useBtcHistory() {
-  const [points, setPoints] = useState<number[] | null>(null)
-  useEffect(() => {
-    let alive = true
-    const load = async () => {
-      try {
-        const res = await fetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=1')
-        if (!res.ok) throw new Error()
-        const j = await res.json()
-        if (alive) setPoints((j.prices as [number, number][]).map(([, p]) => p))
-      } catch { if (alive) setPoints(prev => prev ?? []) }
-    }
-    load()
-    const t = setInterval(load, 5 * 60_000)
-    return () => { alive = false; clearInterval(t) }
-  }, [])
-  return points
+// 24h history for the hero chart, via the shared cached market route.
+function useDayHistory() {
+  const h = useBtcHistory('1')
+  const points = h.history ? h.history.points.map(([, p]) => p) : null
+  return { points, status: h.status, retry: h.retry }
 }
 
 function LineChart({ points, positive }: { points: number[]; positive: boolean }) {
@@ -203,7 +192,8 @@ function LineChart({ points, positive }: { points: number[]; positive: boolean }
 export function HeroLivePanel({ quotes, trades, status }: ReturnType<typeof useLiveMarket>) {
   const btc = quotes['BTC-USD']
   const ch = pctChange(btc)
-  const history = useBtcHistory()
+  const day = useDayHistory()
+  const history = day.points
   const series = history && history.length > 1 ? (btc ? [...history, btc.price] : history) : null
 
   return (
@@ -219,7 +209,12 @@ export function HeroLivePanel({ quotes, trades, status }: ReturnType<typeof useL
       </div>
 
       <div className="mt-4 mb-5 -mx-1">
-        {series ? <LineChart points={series} positive={(ch ?? 0) >= 0} /> : history === null ? <div className="skeleton h-28" /> : <div className="h-28 flex items-center justify-center text-xs text-fg-faint">24h chart unavailable right now</div>}
+        {series ? <LineChart points={series} positive={(ch ?? 0) >= 0} /> : day.status !== 'error' ? <div className="skeleton h-28" /> : (
+          <div className="h-28 flex flex-col items-center justify-center gap-2 text-xs text-fg-faint">
+            24h chart didn&apos;t load.
+            <button onClick={day.retry} className="underline underline-offset-2 hover:text-fg">Try again</button>
+          </div>
+        )}
       </div>
 
       <div className="border-t border-ink-700 pt-4">
@@ -241,7 +236,7 @@ export function HeroLivePanel({ quotes, trades, status }: ReturnType<typeof useL
           ))}
         </div>
       </div>
-      <p className="text-[11px] text-fg-faint mt-3">Live market prices and trade activity.</p>
+      <p className="text-[11px] text-fg-faint mt-3">Market data provided by Coinbase Exchange.</p>
     </div>
   )
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
+import { compactUsd, timeAgo, useBtcHistory, useBtcSummary, type SummaryStatus } from '@/components/useMarket'
 
 const usd = (n: number, d = 2) => `$${n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d })}`
 
@@ -42,7 +43,8 @@ function SectionHead({ title, body }: { title: string; body: string }) {
   )
 }
 
-/* Price history with range selector and hover readout */
+/* Bitcoin market panel: live summary, range-selectable history, hover readout.
+   Data comes from our own cached /api/market routes (see lib/market.ts). */
 const RANGES = [
   { id: '7', label: '7D' },
   { id: '30', label: '30D' },
@@ -50,26 +52,41 @@ const RANGES = [
   { id: '1825', label: '5Y' },
 ] as const
 
+export function MarketStatusPill({ status }: { status: SummaryStatus }) {
+  const map = {
+    live: { t: 'Live', c: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/[0.06]', d: 'bg-emerald-400', pulse: true },
+    stale: { t: 'Delayed', c: 'text-amber-400 border-amber-500/30 bg-amber-500/[0.06]', d: 'bg-amber-400', pulse: false },
+    loading: { t: 'Connecting', c: 'text-fg-muted border-ink-600', d: 'bg-fg-faint', pulse: false },
+    error: { t: 'Offline', c: 'text-red-400 border-red-500/30 bg-red-500/[0.06]', d: 'bg-red-400', pulse: false },
+  }[status]
+  return (
+    <span className={`tag ${map.c}`}>
+      <span className="relative flex w-1.5 h-1.5">
+        {map.pulse && <span className={`absolute inline-flex h-full w-full rounded-full ${map.d} opacity-70 animate-ping`} />}
+        <span className={`relative inline-flex rounded-full w-1.5 h-1.5 ${map.d}`} />
+      </span>
+      {map.t}
+    </span>
+  )
+}
+
+function useTicker(ms = 15_000) {
+  const [, setN] = useState(0)
+  useEffect(() => { const t = setInterval(() => setN(n => n + 1), ms); return () => clearInterval(t) }, [ms])
+}
+
 function PriceHistory() {
   const [range, setRange] = useState<(typeof RANGES)[number]['id']>('30')
-  const [cache, setCache] = useState<Record<string, [number, number][] | 'error'>>({})
   const [hover, setHover] = useState<number | null>(null)
   const svgRef = useRef<SVGSVGElement>(null)
-  const data = cache[range]
-
-  useEffect(() => {
-    if (cache[range]) return
-    let alive = true
-    fetch(`https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=${range}`)
-      .then(r => (r.ok ? r.json() : Promise.reject()))
-      .then(j => { if (alive) setCache(c => ({ ...c, [range]: j.prices as [number, number][] })) })
-      .catch(() => { if (alive) setCache(c => ({ ...c, [range]: 'error' })) })
-    return () => { alive = false }
-  }, [range, cache])
+  const market = useBtcSummary()
+  const hist = useBtcHistory(range)
+  useTicker()
+  const data = hist.history?.points
 
   const w = 800, h = 260, pad = 8
   const geo = useMemo(() => {
-    if (!Array.isArray(data) || data.length < 2) return null
+    if (!data || data.length < 2) return null
     const prices = data.map(d => d[1])
     const min = Math.min(...prices), max = Math.max(...prices)
     const span = max - min || 1
@@ -85,45 +102,81 @@ function PriceHistory() {
     setHover(Math.max(0, Math.min(geo.pts.length - 1, i)))
   }
 
-  const active = geo ? geo.pts[hover ?? geo.pts.length - 1] : null
+  const hovered = geo && hover !== null ? geo.pts[hover] : null
   const change = geo ? ((geo.last - geo.first) / geo.first) * 100 : 0
   const up = change >= 0
   const color = up ? '#34D399' : '#F87171'
   const longRange = range === '365' || range === '1825'
+  const s = market.summary
+  const headlinePrice = hovered ? hovered.p : s?.price ?? geo?.last
+  const source = s?.source ?? hist.history?.source
+
+  const stats: [string, string | null][] = [
+    ['24h change', s ? `${s.change24h >= 0 ? '+' : '-'}${Math.abs(s.change24h).toFixed(2)}%` : null],
+    ['24h high', s ? usd(s.high24h) : null],
+    ['24h low', s ? usd(s.low24h) : null],
+    ['24h volume', s ? compactUsd(s.volume24hUsd) : null],
+  ]
 
   return (
-    <div className="panel p-5 sm:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-4 mb-5">
-        <div>
-          <div className="text-[13px] text-fg-faint">{hover !== null ? 'Price at' : 'Bitcoin price'}{active ? ` ${new Date(active.t).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', ...(longRange ? {} : { hour: '2-digit', minute: '2-digit' }) })}` : ''}</div>
-          <div className="text-3xl font-semibold text-fg tabular-nums mt-1">{active ? usd(active.p) : <span className="skeleton inline-block w-48 h-8 align-middle" />}</div>
-          {geo && (
-            <div className={`text-sm tabular-nums mt-1 ${up ? 'price-up' : 'price-down'}`}>
-              {up ? '+' : '-'}{Math.abs(change).toFixed(2)}% <span className="text-fg-faint">over {RANGES.find(r => r.id === range)!.label}</span>
+    <div className="panel panel-lift overflow-hidden">
+      <div className="p-5 sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2.5 text-[13px] text-fg-faint">
+              <span>{hovered ? `Price on ${new Date(hovered.t).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', ...(longRange ? {} : { hour: '2-digit', minute: '2-digit' }) })}` : 'BTC / USD'}</span>
+              {!hovered && <MarketStatusPill status={market.status} />}
             </div>
-          )}
+            <div className="text-[32px] sm:text-4xl font-semibold text-fg tabular-nums mt-1.5 leading-none tracking-tight">
+              {headlinePrice !== undefined ? usd(headlinePrice) : <span className="skeleton inline-block w-52 h-9 align-middle" />}
+            </div>
+            <div className="h-5 mt-2 text-sm tabular-nums">
+              {geo && (
+                <span className={up ? 'price-up' : 'price-down'}>
+                  {up ? '+' : '-'}{Math.abs(change).toFixed(2)}% <span className="text-fg-faint">over {RANGES.find(r => r.id === range)!.label}</span>
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="seg" role="tablist" aria-label="Chart range">
+            {RANGES.map(r => (
+              <button key={r.id} role="tab" aria-selected={range === r.id} onClick={() => { setRange(r.id); setHover(null) }}
+                className={`seg-btn ${range === r.id ? 'seg-btn-on' : ''}`}>
+                {r.label}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="inline-flex border border-ink-700 rounded-md overflow-hidden text-[13px]" role="tablist" aria-label="Chart range">
-          {RANGES.map(r => (
-            <button key={r.id} role="tab" aria-selected={range === r.id} onClick={() => { setRange(r.id); setHover(null) }}
-              className={`px-3.5 h-9 border-r border-ink-700 last:border-r-0 transition-colors ${range === r.id ? 'bg-ink-800 text-fg' : 'text-fg-muted hover:text-fg'}`}>
-              {r.label}
-            </button>
+
+        <dl className="grid grid-cols-2 sm:grid-cols-4 gap-px mt-5 bg-ink-700 border border-ink-700 rounded-md overflow-hidden">
+          {stats.map(([label, value]) => (
+            <div key={label} className="bg-ink-900/90 px-3.5 py-2.5">
+              <dt className="text-[11px] uppercase tracking-wide text-fg-faint">{label}</dt>
+              <dd className={`text-sm font-medium tabular-nums mt-0.5 ${label === '24h change' && s ? (s.change24h >= 0 ? 'price-up' : 'price-down') : 'text-fg'}`}>
+                {value ?? (market.status === 'error' ? <span className="text-fg-faint">Unavailable</span> : <span className="skeleton inline-block w-16 h-4 align-middle" />)}
+              </dd>
+            </div>
           ))}
-        </div>
+        </dl>
       </div>
 
-      <div className="relative">
-        {data === 'error' ? (
-          <div className="h-[260px] flex items-center justify-center text-sm text-fg-faint">Price history is unavailable right now.</div>
+      <div className="relative px-2 sm:px-3">
+        {hist.status === 'error' && !geo ? (
+          <div className="h-[260px] flex flex-col items-center justify-center gap-3 text-center px-6">
+            <p className="text-sm text-fg-muted">We couldn&apos;t load the {RANGES.find(r => r.id === range)!.label} price history.</p>
+            <p className="text-xs text-fg-faint max-w-xs">The market data provider didn&apos;t respond. This doesn&apos;t affect your account.</p>
+            <button onClick={hist.retry} className="btn btn-sm btn-outline mt-1">Try again</button>
+          </div>
         ) : !geo ? (
-          <div className="skeleton h-[260px]" />
+          <div className="h-[260px] px-2 flex flex-col justify-end gap-2 pb-2" aria-label="Loading price history">
+            <div className="skeleton h-full rounded-md opacity-60" />
+          </div>
         ) : (
           <svg
             ref={svgRef}
             viewBox={`0 0 ${w} ${h}`}
             preserveAspectRatio="none"
-            className="w-full h-[260px] touch-none cursor-crosshair"
+            className={`w-full h-[260px] touch-none cursor-crosshair transition-opacity duration-300 ${hist.status === 'loading' ? 'opacity-40' : 'opacity-100'}`}
             onMouseMove={e => onMove(e.clientX)}
             onMouseLeave={() => setHover(null)}
             onTouchMove={e => onMove(e.touches[0].clientX)}
@@ -131,25 +184,33 @@ function PriceHistory() {
             role="img"
             aria-label={`Bitcoin price over ${RANGES.find(r => r.id === range)!.label}`}
           >
+            <defs>
+              <linearGradient id="phFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={color} stopOpacity="0.18" />
+                <stop offset="100%" stopColor={color} stopOpacity="0" />
+              </linearGradient>
+            </defs>
             {[0.25, 0.5, 0.75].map(f => <line key={f} x1="0" x2={w} y1={h * f} y2={h * f} stroke="#232931" strokeWidth="1" vectorEffect="non-scaling-stroke" />)}
-            <path d={`${geo.line} L${w},${h} L0,${h} Z`} fill={color} fillOpacity="0.07" />
-            <path d={geo.line} fill="none" stroke={color} strokeWidth="1.75" vectorEffect="non-scaling-stroke" />
-            {hover !== null && active && (
+            <path d={`${geo.line} L${w},${h} L0,${h} Z`} fill="url(#phFill)" />
+            <path d={geo.line} fill="none" stroke={color} strokeWidth="1.75" vectorEffect="non-scaling-stroke" className="chart-draw" key={range} />
+            {hovered && (
               <>
-                <line x1={active.x} x2={active.x} y1="0" y2={h} stroke="#6B7480" strokeWidth="1" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
-                <circle cx={active.x} cy={active.y} r="4" fill={color} vectorEffect="non-scaling-stroke" />
+                <line x1={hovered.x} x2={hovered.x} y1="0" y2={h} stroke="#6B7480" strokeWidth="1" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
+                <circle cx={hovered.x} cy={hovered.y} r="4" fill={color} vectorEffect="non-scaling-stroke" />
               </>
             )}
           </svg>
         )}
-        {geo && (
-          <div className="flex justify-between text-[11px] text-fg-faint mt-2 tabular-nums">
-            <span>Low {usd(geo.min, 0)}</span>
-            <span>High {usd(geo.max, 0)}</span>
-          </div>
-        )}
       </div>
-      <p className="text-[11px] text-fg-faint mt-3">Hover or drag across the chart to see the price on a given date.</p>
+
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-5 sm:px-6 py-3 border-t border-ink-700 text-[11px] text-fg-faint">
+        <span>
+          {geo ? <>Low {usd(geo.min, 0)} · High {usd(geo.max, 0)}</> : ' '}
+          {market.fetchedAt && <> · Updated {timeAgo(market.fetchedAt)}</>}
+          {market.status === 'stale' && <> · <button onClick={market.retry} className="underline underline-offset-2 hover:text-fg">Refresh</button></>}
+        </span>
+        {source && <span>Market data provided by {source}</span>}
+      </div>
     </div>
   )
 }
@@ -297,7 +358,7 @@ function NetworkFacts() {
       </Reveal>
 
       <Reveal delay={80} className="h-full">
-        <FactCard title="Bitcoin supply" source="The 21 million limit is set by the Bitcoin protocol.">
+        <FactCard title="Bitcoin supply" source="The 21 million limit is set by the Bitcoin protocol. Market data provided by CoinGecko.">
           {!loaded.supply ? <Loading /> : !f.circulating ? <Unavailable /> : (
             <>
               <div className="text-3xl font-semibold text-fg tabular-nums">{(f.circulating / 1e6).toFixed(2)}M</div>
@@ -310,7 +371,7 @@ function NetworkFacts() {
       </Reveal>
 
       <Reveal delay={160} className="h-full">
-        <FactCard title="All-time high" source="Highest price reached to date.">
+        <FactCard title="All-time high" source="Market data provided by CoinGecko.">
           {!loaded.supply ? <Loading /> : !f.ath ? <Unavailable /> : (
             <>
               <div className="text-3xl font-semibold text-fg tabular-nums">{usd(f.ath, 0)}</div>

@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import Navbar from '@/components/Navbar'
 import { BitcoinMarketCard } from '@/components/BitcoinMarket'
 import { HeroLivePanel, LatestBlocks, LiveTickerBar, useLiveMarket } from '@/components/LiveCrypto'
-import { IconArrowDown, IconChart, IconCheck, IconGrid, IconList, IconLock, Logo } from '@/components/Icons'
+import { IconArrowDown, IconChart, IconCheck, IconGrid, IconList, IconLock, IconSwap, IconUser, Logo } from '@/components/Icons'
 import { FaqSection, HistorySection, NetworkSection, Reveal, TrustBar } from '@/components/LandingExtras'
 
 function TradingViewWidget() {
@@ -65,33 +65,43 @@ const steps = [
 const capabilities = [
   {
     icon: IconChart,
-    title: 'Portfolio growth',
-    body: 'Follow how your portfolio changes over time. Your balances, profit balance and account history are laid out so you can see exactly what moved and when.',
-  },
-  {
-    icon: IconGrid,
-    title: 'Market intelligence',
-    body: 'Live Bitcoin pricing, 24-hour and long-range price history, network activity and block data, so you can follow the market that affects your holdings.',
-  },
-  {
-    icon: IconList,
-    title: 'Investment management',
-    body: 'Review your positions and account activity in one place, including the current status of any strategy running on your account.',
+    title: 'Bitcoin portfolio tracking',
+    body: 'Your account, available, invested and profit balances in one view, updated as each deposit, withdrawal or credit is recorded.',
   },
   {
     icon: IconArrowDown,
-    title: 'Bitcoin deposits',
-    body: 'Fund your account in Bitcoin using your deposit address and QR code, then follow the deposit from submitted, through review, to approved.',
+    title: 'Deposit tracking',
+    body: 'Fund your account in Bitcoin, upload your transfer receipt, and follow each deposit from submitted to reviewed to credited.',
   },
   {
-    icon: IconCheck,
-    title: 'Transparent reporting',
-    body: 'Every balance, deposit, withdrawal and transaction is listed with its reference and status. Nothing is hidden behind a summary figure.',
+    icon: IconGrid,
+    title: 'Portfolio management',
+    body: 'Request withdrawals from your available or profit balance and see the current status of the strategy assigned to your account.',
+  },
+  {
+    icon: IconSwap,
+    title: 'Market monitoring',
+    body: 'Live BTC/USD pricing, 24-hour range and volume, long-range price history and Bitcoin network activity, all in your dashboard.',
+  },
+  {
+    icon: IconList,
+    title: 'Transaction history',
+    body: 'Every deposit, withdrawal, return and profit entry listed with its amount, status, reference and date.',
+  },
+  {
+    icon: IconUser,
+    title: 'Account activity',
+    body: 'Pending items are flagged on your overview, so you always know what is waiting for review and what has settled.',
   },
   {
     icon: IconLock,
-    title: 'Secure account access',
-    body: 'Your account is protected by authenticated sign-in, and you can only ever see your own balances and transaction records.',
+    title: 'Security and authentication',
+    body: 'Encrypted sign-in and a private account: you can only ever see your own balances, receipts and records.',
+  },
+  {
+    icon: IconCheck,
+    title: 'Auditability',
+    body: 'Balance changes are made only through reviewed actions, and each approval, rejection and adjustment is written to an audit log.',
   },
 ]
 
@@ -125,45 +135,61 @@ export default function LandingPage() {
       </div>
 
       {/* Hero */}
-      <section className="border-b border-ink-700">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 lg:py-20 grid lg:grid-cols-[1.1fr_1fr] gap-12 items-center">
-          <div>
-            <h1 className="text-[40px] sm:text-5xl lg:text-[56px] leading-[1.05] font-semibold tracking-tight text-fg">
-              Invest with clarity.<br />Track every move.
+      <section className="relative border-b border-ink-700 overflow-hidden">
+        <div className="hero-light" aria-hidden="true" />
+        <div className="hero-grid" aria-hidden="true" />
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-12 pb-14 lg:pt-20 lg:pb-20 grid lg:grid-cols-[1.08fr_1fr] gap-10 lg:gap-12 items-center">
+          <div className="animate-fade-in">
+            <div className="inline-flex items-center gap-2 rounded-md border border-ink-600 bg-ink-900/70 px-2.5 py-1 text-[12px] text-fg-muted mb-6 backdrop-blur-sm">
+              <span className="relative flex w-1.5 h-1.5">
+                {market.status === 'live' && <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-70 animate-ping" />}
+                <span className={`relative inline-flex rounded-full w-1.5 h-1.5 ${market.status === 'live' ? 'bg-emerald-400' : 'bg-fg-faint'}`} />
+              </span>
+              Digital-asset portfolio platform
+            </div>
+            <h1 className="text-[42px] sm:text-[54px] lg:text-[64px] leading-[1.02] font-semibold tracking-[-0.03em] text-fg">
+              Invest with clarity.
+              <span className="block bg-gradient-to-r from-fg via-fg to-accent bg-clip-text text-transparent">Track every move.</span>
             </h1>
-            <p className="mt-6 text-lg text-fg-muted leading-relaxed max-w-xl">
-              Manage your digital-asset portfolio, follow the market, review your investment performance and monitor every account movement from a single dashboard. Fund your account in Bitcoin, withdraw when you choose, and see every balance change with the record behind it.
+            <p className="mt-6 text-[17px] sm:text-lg text-fg-muted leading-relaxed max-w-xl">
+              Manage your digital-asset portfolio, follow the market and review your account&apos;s performance from one dashboard. Fund in Bitcoin, withdraw when you choose, and see the record behind every balance change.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row gap-3">
-              <Link href="/sign-up" className="btn btn-solid">Open an account</Link>
-              <Link href="/sign-in" className="btn btn-outline">Sign in</Link>
+              <Link href="/sign-up" className="btn btn-solid h-12 px-6">Open an account</Link>
+              <Link href="/sign-in" className="btn btn-outline h-12 px-6">Sign in</Link>
             </div>
-            <p className="mt-6 text-[13px] text-fg-faint max-w-md">
-              Bitcoin prices move quickly and can fall. We do not promise returns.
+            <p className="mt-5 text-[13px] text-fg-faint max-w-md leading-relaxed">
+              Digital assets are volatile and their value can fall as well as rise. We do not promise returns.
             </p>
-            <div className="mt-10">
+            <div className="mt-8">
               <TrustBar marketStatus={market.status} />
             </div>
           </div>
 
-          <HeroLivePanel {...market} />
+          <div className="relative">
+            <div className="absolute -inset-4 rounded-2xl bg-gradient-to-b from-accent/10 via-transparent to-transparent blur-2xl" aria-hidden="true" />
+            <div className="relative">
+              <HeroLivePanel {...market} />
+            </div>
+          </div>
         </div>
       </section>
 
       {/* What the platform does */}
       <section id="platform" className="scroll-mt-16 border-b border-ink-700">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 lg:py-20">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 lg:py-24">
           <Reveal><div className="mb-10 max-w-2xl">
-            <h2 className="text-3xl font-semibold tracking-tight text-fg">Everything in one account</h2>
-            <p className="mt-3 text-fg-muted">Your portfolio, the market it moves with, and a full record of every transaction.</p>
+            <p className="text-[12px] font-medium uppercase tracking-[0.14em] text-accent mb-3">The platform</p>
+            <h2 className="text-3xl sm:text-[34px] font-semibold tracking-tight text-fg">Everything in one account</h2>
+            <p className="mt-3 text-fg-muted leading-relaxed">Your portfolio, the market it moves with, and a complete record of every transaction.</p>
           </div></Reveal>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-px bg-ink-700 border border-ink-700 rounded-lg overflow-hidden">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {capabilities.map(({ icon: Icon, title, body }, i) => (
-              <Reveal key={title} delay={i * 60}>
-                <div className="bg-ink-950 p-6 h-full">
-                  <Icon className="text-accent mb-4" width={20} height={20} />
-                  <h3 className="text-[17px] font-semibold text-fg mb-2">{title}</h3>
-                  <p className="text-[15px] text-fg-muted leading-relaxed">{body}</p>
+              <Reveal key={title} delay={(i % 4) * 70} className="h-full">
+                <div className="panel panel-lift p-5 h-full">
+                  <span className="icon-tile mb-4"><Icon width={19} height={19} /></span>
+                  <h3 className="text-[16px] font-semibold text-fg mb-1.5">{title}</h3>
+                  <p className="text-[14px] text-fg-muted leading-relaxed">{body}</p>
                 </div>
               </Reveal>
             ))}
