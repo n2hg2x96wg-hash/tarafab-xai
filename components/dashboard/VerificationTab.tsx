@@ -9,7 +9,11 @@ import { FormError, Spinner } from '@/components/AuthShell'
 import { IconCheck, IconInfo, IconShield } from '@/components/Icons'
 
 export type KycState = {
-  status: 'unverified' | 'pending' | 'verified' | 'rejected' | string
+  status: 'unverified' | 'pending' | 'under_review' | 'verified' | 'rejected' | string
+  // What the profile says. It can carry a status set by an admin before the
+  // KYC form existed, which is not a submission and must not hide the form.
+  profile_status?: string
+  has_submission?: boolean
   submitted_at: string | null
   reviewed_at: string | null
   rejection_reason: string | null
@@ -43,6 +47,7 @@ export function VerificationTab({ onStatusChange }: { onStatusChange?: (status: 
   const [docNumber, setDocNumber] = useState('')
   const [docFile, setDocFile] = useState<File | null>(null)
   const [selfieFile, setSelfieFile] = useState<File | null>(null)
+  const [consent, setConsent] = useState(false)
 
   const [submitting, setSubmitting] = useState(false)
   const [stage, setStage] = useState<'' | 'uploading' | 'submitting'>('')
@@ -84,6 +89,7 @@ export function VerificationTab({ onStatusChange }: { onStatusChange?: (status: 
     setError('')
     if (!fullName.trim()) { setError(t('kyc.errName')); return }
     if (!docFile) { setError(t('kyc.errDocument')); return }
+    if (!consent) { setError(t('kyc.errConsent')); return }
     if (!isAllowedUpload(docFile) || (selfieFile && !isAllowedUpload(selfieFile))) { setError(t('kyc.errType')); return }
     if (submitting) return
 
@@ -122,11 +128,15 @@ export function VerificationTab({ onStatusChange }: { onStatusChange?: (status: 
   }
 
   const status = state?.status || 'unverified'
+  // Whether the client has actually applied, which is what decides if the form
+  // is shown. A profile status on its own is not a submission.
+  const hasSubmission = state?.has_submission ?? (status !== 'unverified')
   // 'unverified' means nothing has been sent yet; the copy calls that
   // "not submitted" so a new account is never described as verified.
   const statusKey = status === 'unverified' ? 'notSubmitted' : status === 'under_review' ? 'underReview' : status
-  // A rejected client can correct their details and send a new request.
-  const canSubmit = status === 'unverified' || status === 'rejected'
+  // The form is offered whenever there is no submission to wait on, and after
+  // a rejection so the details can be corrected and sent again.
+  const canSubmit = !hasSubmission || status === 'rejected'
   const when = (iso: string | null) => iso ? new Date(iso).toLocaleDateString(intl, { dateStyle: 'medium' }) : ''
 
   return (
@@ -148,7 +158,7 @@ export function VerificationTab({ onStatusChange }: { onStatusChange?: (status: 
                 <span className="text-fg-faint">{t('kyc.reason')}: </span>{state.rejection_reason}
               </p>
             )}
-            {state?.submitted_at && status !== 'unverified' && (
+            {state?.submitted_at && hasSubmission && (
               <p className="text-xs mt-2 text-fg-faint">{t('kyc.submittedOn', { date: when(state.submitted_at) })}</p>
             )}
           </div>
@@ -160,7 +170,7 @@ export function VerificationTab({ onStatusChange }: { onStatusChange?: (status: 
       {canSubmit && (
         <form onSubmit={submit} className="panel p-5 sm:p-6 space-y-4" noValidate>
           <div>
-            <h3 className="text-lg font-semibold text-fg">{t('kyc.formTitle')}</h3>
+            <h3 className="text-lg font-semibold text-fg">{status === 'rejected' ? t('kyc.resubmit') : t('kyc.formTitle')}</h3>
             <p className="text-[14px] text-fg-muted mt-1">{t('kyc.why')}</p>
             <p className="text-[14px] text-fg-muted mt-2">{t('kyc.formBody')}</p>
           </div>
@@ -217,12 +227,24 @@ export function VerificationTab({ onStatusChange }: { onStatusChange?: (status: 
             <p>{t('kyc.privacy')}</p>
           </div>
 
+          <label htmlFor="kyc-consent" className="flex items-start gap-3 cursor-pointer py-1">
+            <input
+              id="kyc-consent"
+              type="checkbox"
+              checked={consent}
+              onChange={e => setConsent(e.target.checked)}
+              disabled={submitting}
+              className="mt-0.5 w-5 h-5 shrink-0 accent-[rgb(var(--accent))]"
+            />
+            <span className="text-[14px] text-fg-muted">{t('kyc.consent')}</span>
+          </label>
+
           {error && <FormError message={error} />}
 
-          <button type="submit" disabled={submitting} className="btn btn-solid w-full sm:w-auto">
+          <button type="submit" disabled={submitting || !consent} className="btn btn-solid w-full sm:w-auto">
             {submitting
               ? <span className="flex items-center gap-2"><Spinner />{stage === 'uploading' ? t('kyc.uploading') : t('kyc.submitting')}</span>
-              : t('kyc.submit')}
+              : status === 'rejected' ? t('kyc.resubmit') : t('kyc.submit')}
           </button>
         </form>
       )}

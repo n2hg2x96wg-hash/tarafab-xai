@@ -3,6 +3,10 @@ import { clientForRequest, dbError, unauthorized } from '@/lib/supabase/request'
 
 type KycStatus = {
   status: string
+  // Whether a real submission exists. A profile can carry a verification
+  // status set before the KYC form existed, which is not a submission.
+  has_submission: boolean
+  profile_status: string
   submitted_at: string | null
   reviewed_at: string | null
   rejection_reason: string | null

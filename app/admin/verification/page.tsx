@@ -80,6 +80,19 @@ export default function VerificationPage() {
     return () => { cancelled = true }
   }, [supabase, reload])
 
+  // A request submitted while this page is open should appear without the
+  // admin having to reload by hand. Refreshing when the tab regains focus
+  // covers that without polling the database continuously.
+  useEffect(() => {
+    const refresh = () => { if (document.visibilityState === 'visible') setReload(n => n + 1) }
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', refresh)
+    return () => {
+      window.removeEventListener('focus', refresh)
+      document.removeEventListener('visibilitychange', refresh)
+    }
+  }, [])
+
   const openDocument = async (path: string, kind: 'document' | 'selfie') => {
     // Opened first so the browser treats it as part of the click, then pointed
     // at the short-lived signed link once it comes back.
@@ -127,11 +140,16 @@ export default function VerificationPage() {
 
   return (
     <AdminLayout>
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-white">KYC Verification</h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Identity documents submitted by clients{openCount > 0 ? ` · ${openCount} awaiting review` : ''}
-        </p>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-white">KYC Verification</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Identity documents submitted by clients{openCount > 0 ? ` · ${openCount} awaiting review` : ''}
+          </p>
+        </div>
+        <button onClick={() => setReload(n => n + 1)} disabled={loading} className="btn btn-sm btn-outline">
+          {loading ? 'Refreshing…' : 'Refresh'}
+        </button>
       </div>
 
       {loadError && <AdminLoadError message={loadError} onRetry={() => setReload(n => n + 1)} />}
