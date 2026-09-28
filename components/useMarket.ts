@@ -22,10 +22,29 @@ export interface History { range: HistoryRange; points: [number, number][]; sour
 const historyCache = new Map<HistoryRange, { history: History; fetchedAt: number }>()
 
 async function load<T>(url: string): Promise<T> {
-  const res = await fetch(url, { cache: 'no-store' })
-  const body = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(body?.error || `Request failed (${res.status})`)
-  return body as T
+  const ctrl = new AbortController()
+  const t = setTimeout(() => ctrl.abort(), 15_000)
+  try {
+    const res = await fetch(url, { cache: 'no-store', signal: ctrl.signal })
+    const body = await res.json().catch(() => null)
+    if (!res.ok) throw new Error(body?.error || `Request failed (${res.status})`)
+    if (!body || typeof body !== 'object') throw new Error('Malformed market data')
+    return body as T
+  } finally {
+    clearTimeout(t)
+  }
+}
+
+// Every widget on a page shares one summary request: calls within a few
+// seconds of each other reuse the same response.
+let summaryShared: { at: number; promise: Promise<{ summary: Summary }> } | null = null
+function sharedSummary() {
+  const now = Date.now()
+  if (summaryShared && now - summaryShared.at < 5_000) return summaryShared.promise
+  const promise = load<{ summary: Summary }>('/api/market/btc/summary')
+  promise.catch(() => { if (summaryShared?.promise === promise) summaryShared = null })
+  summaryShared = { at: now, promise }
+  return promise
 }
 
 export type SummaryStatus = 'loading' | 'live' | 'stale' | 'error'
@@ -36,29 +55,57 @@ export function useBtcSummary(refreshMs = 30_000) {
   const [status, setStatus] = useState<SummaryStatus>('loading')
   const hasData = useRef(false)
 
+  const failures = useRef(0)
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const alive = useRef(true)
+
   const run = useCallback(async () => {
     try {
-      const { summary } = await load<{ summary: Summary }>('/api/market/btc/summary')
+      const { summary } = await sharedSummary()
+      if (!alive.current) return
       setSummary(summary)
       setFetchedAt(Date.now())
       setStatus('live')
       hasData.current = true
+      failures.current = 0
     } catch {
+      if (!alive.current) return
       // Keep showing the last good figures, clearly marked as delayed.
       setStatus(hasData.current ? 'stale' : 'error')
+      failures.current += 1
     }
   }, [])
 
+  // Polls on a timer that backs off after failures (up to 5 minutes) and
+  // skips while the tab is hidden, resuming as soon as it is visible again.
+  const schedule = useCallback(() => {
+    clearTimeout(timer.current)
+    const delay = Math.min(refreshMs * 2 ** failures.current, 300_000)
+    timer.current = setTimeout(async () => {
+      if (typeof document === 'undefined' || document.visibilityState === 'visible') await run()
+      if (alive.current) schedule()
+    }, delay)
+  }, [run, refreshMs])
+
   const retry = useCallback(() => {
     if (!hasData.current) setStatus('loading')
-    run()
-  }, [run])
+    failures.current = 0
+    run().then(() => { if (alive.current) schedule() })
+  }, [run, schedule])
 
   useEffect(() => {
-    run()
-    const t = setInterval(run, refreshMs)
-    return () => clearInterval(t)
-  }, [run, refreshMs])
+    alive.current = true
+    run().then(() => { if (alive.current) schedule() })
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') { failures.current = 0; run(); schedule() }
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      alive.current = false
+      clearTimeout(timer.current)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [run, schedule])
 
   return { summary, fetchedAt, status, retry }
 }

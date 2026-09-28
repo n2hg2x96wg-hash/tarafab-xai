@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import AdminLayout from '@/components/AdminLayout'
+import { authFetch, errorText, newRequestKey, readJson, RequestError } from '@/lib/authFetch'
 
 type Account = {
   id: string
@@ -16,6 +17,7 @@ type Account = {
   trading_status: 'active' | 'inactive' | null
   trading_strategy_name: string | null
   trading_status_updated_at: string | null
+  updated_at?: string
 }
 
 type Profile = {
@@ -25,6 +27,7 @@ type Profile = {
   created_at: string
   account_status: string
   verification_status: string
+  updated_at?: string
 }
 
 type Transaction = {
@@ -86,26 +89,57 @@ export default function ClientDetailPage() {
   const [adjustError, setAdjustError] = useState('')
   const [adjustSuccess, setAdjustSuccess] = useState('')
   const [showConfirm, setShowConfirm] = useState(false)
+  const [loadError, setLoadError] = useState('')
+  const [loadedAt, setLoadedAt] = useState<number | null>(null)
+  const [, setTick] = useState(0)
+  // One key per confirmed adjustment, so a retried request is applied once.
+  const adjustKey = useRef(newRequestKey())
+  // Which client the latest load belongs to; a slower response for a client
+  // the admin has already navigated away from is discarded.
+  const loadFor = useRef(clientId)
 
   useEffect(() => {
-    load()
+    loadFor.current = clientId
+    load({ initial: true })
   }, [clientId])
 
-  const load = async () => {
-    setLoading(true)
-    const { data: profileData } = await (supabase.from('profiles') as any)
-      .select('id, full_name, role, created_at, account_status, verification_status').eq('id', clientId).single() as { data: Profile | null }
-    const { data: accountData } = await (supabase.from('accounts') as any)
-      .select('*').eq('user_id', clientId).single() as { data: Account | null }
-    const { data: txData } = await (supabase.from('transactions') as any)
-      .select('id, type, method, direction, amount, status, notes, created_at')
-      .eq('user_id', clientId)
-      .order('created_at', { ascending: false })
-      .limit(20) as { data: Transaction[] | null }
+  // A different adjustment gets a different key; an unchanged form retried
+  // after a network error keeps its key and cannot be applied twice.
+  useEffect(() => { adjustKey.current = newRequestKey() }, [adjustForm.field, adjustForm.operation, adjustForm.amount, adjustForm.reason])
+
+  useEffect(() => {
+    const t = setInterval(() => setTick(n => n + 1), 15_000)
+    return () => clearInterval(t)
+  }, [])
+
+  const load = async ({ initial = false } = {}) => {
+    const id = clientId
+    if (initial) setLoading(true)
+    const [p, a, t, e] = await Promise.all([
+      (supabase.from('profiles') as any)
+        .select('id, full_name, role, created_at, account_status, verification_status, updated_at').eq('id', id).maybeSingle() as Promise<{ data: Profile | null; error: { message: string } | null }>,
+      (supabase.from('accounts') as any)
+        .select('*').eq('user_id', id).maybeSingle() as Promise<{ data: Account | null; error: { message: string } | null }>,
+      (supabase.from('transactions') as any)
+        .select('id, type, method, direction, amount, status, notes, created_at')
+        .eq('user_id', id)
+        .order('created_at', { ascending: false })
+        .limit(20) as Promise<{ data: Transaction[] | null; error: { message: string } | null }>,
+      supabase.rpc('admin_client_emails') as unknown as Promise<{ data: { id: string; email: string }[] | null }>,
+    ])
+    if (loadFor.current !== id) return
+    // Keep what is on screen if a refresh fails, and say so.
+    if (p.error || a.error || t.error) {
+      setLoadError('Could not load the latest data for this client.')
+      setLoading(false)
+      return
+    }
+    setLoadError('')
+    setLoadedAt(Date.now())
+    const profileData = p.data, accountData = a.data, txData = t.data
 
     setProfile(profileData)
-    const { data: emails } = await (supabase.rpc('admin_client_emails') as unknown as Promise<{ data: { id: string; email: string }[] | null }>)
-    setEmail(emails?.find(e => e.id === clientId)?.email ?? null)
+    setEmail(e.data?.find(x => x.id === id)?.email ?? null)
     if (profileData) {
       setEditForm({
         full_name: profileData.full_name || '',
@@ -130,18 +164,16 @@ export default function ClientDetailPage() {
     setEditSuccess('')
     setEditSaving(true)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const res = await fetch('/api/admin/update-client', {
+      await readJson(await authFetch('/api/admin/update-client', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
-        body: JSON.stringify({ user_id: clientId, ...editForm }),
-      })
-      const data = await res.json()
-      if (!res.ok) { setEditError(data.error || 'Could not save changes'); return }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: clientId, ...editForm, expected_updated_at: profile?.updated_at }),
+      }))
       setEditSuccess('Client details saved.')
       await load()
-    } catch {
-      setEditError('Network error. Please try again.')
+    } catch (err) {
+      setEditError(errorText(err))
+      if (err instanceof RequestError && err.status === 409) await load()
     } finally {
       setEditSaving(false)
     }
@@ -153,22 +185,21 @@ export default function ClientDetailPage() {
     setTradingSuccess('')
     setTradingSaving(true)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const res = await fetch('/api/admin/set-trading-status', {
+      await readJson(await authFetch('/api/admin/set-trading-status', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_id: clientId,
           trading_status: tradingForm.trading_status,
           trading_strategy_name: tradingForm.trading_strategy_name,
+          expected_updated_at: account?.trading_status_updated_at,
         }),
-      })
-      const data = await res.json()
-      if (!res.ok) { setTradingError(data.error || 'Could not save trading status'); return }
+      }))
       setTradingSuccess('Trading status saved.')
       await load()
-    } catch {
-      setTradingError('Network error. Please try again.')
+    } catch (err) {
+      setTradingError(errorText(err))
+      if (err instanceof RequestError && err.status === 409) await load()
     } finally {
       setTradingSaving(false)
     }
@@ -200,29 +231,27 @@ export default function ClientDetailPage() {
     setAdjustError('')
 
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const res = await fetch('/api/admin/adjust-balance', {
+      await readJson(await authFetch('/api/admin/adjust-balance', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token || ''}`,
-        },
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': adjustKey.current },
         body: JSON.stringify({
           target_user_id: clientId,
           field: adjustForm.field,
           operation: adjustForm.operation,
           amount: parseFloat(adjustForm.amount),
           reason: adjustForm.reason.trim(),
+          // Rejected if the balances changed after this page loaded them.
+          expected_updated_at: account?.updated_at,
         }),
-      })
-      const data = await res.json()
-      if (!res.ok) { setAdjustError(data.error || 'Adjustment failed'); setAdjusting(false); return }
+      }))
 
       setAdjustSuccess(`${FIELD_LABELS[adjustForm.field]} updated successfully.`)
       setAdjustForm({ field: 'account_balance', operation: 'credit', amount: '', reason: '' })
+      adjustKey.current = newRequestKey()
       await load()
-    } catch {
-      setAdjustError('Network error. Please try again.')
+    } catch (err) {
+      setAdjustError(errorText(err))
+      if (err instanceof RequestError && err.status === 409) { adjustKey.current = newRequestKey(); await load() }
     } finally {
       setAdjusting(false)
     }
@@ -242,7 +271,8 @@ export default function ClientDetailPage() {
     return (
       <AdminLayout>
         <div className="text-center py-20">
-          <p className="text-slate-400 text-sm mb-4">Client not found</p>
+          <p className="text-slate-400 text-sm mb-4">{loadError || 'Client not found'}</p>
+          {loadError && <button onClick={() => load({ initial: true })} className="block mx-auto mb-4 text-sm text-white underline underline-offset-4">Try again</button>}
           <Link href="/admin/clients" className="text-violet-400 text-sm hover:text-violet-300">← Back to clients</Link>
         </div>
       </AdminLayout>
@@ -304,7 +334,16 @@ export default function ClientDetailPage() {
         <p className="text-[11px] text-slate-500 mt-4 pt-3 border-t border-white/[0.06] flex flex-wrap gap-x-4 gap-y-1">
           <span>Member since {new Date(profile.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
           <span className="font-mono text-slate-600 break-all">ID {profile.id}</span>
+          {loadedAt && (
+            <span className="sm:ml-auto flex items-center gap-2">
+              {Date.now() - loadedAt < 60_000 ? 'Updated just now' : `Loaded ${Math.floor((Date.now() - loadedAt) / 60_000)} min ago`}
+              <button onClick={() => load()} className="text-slate-300 underline underline-offset-2 hover:text-white">Refresh</button>
+            </span>
+          )}
         </p>
+        {loadError && (
+          <p role="alert" className="mt-3 text-[12px] text-amber-300">{loadError} The figures shown may be out of date.</p>
+        )}
       </div>
 
       {/* Tabs */}

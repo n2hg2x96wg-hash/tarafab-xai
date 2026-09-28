@@ -19,6 +19,18 @@ export const unauthorized = () => NextResponse.json({ error: 'Please sign in aga
 
 export function dbError(err: { message?: string; code?: string } | null) {
   const msg = err?.message || 'Something went wrong'
-  const status = err?.code === 'PGRST301' || /jwt/i.test(msg) ? 401 : 400
+  const status =
+    err?.code === 'PGRST301' || /jwt/i.test(msg) ? 401
+    : /^admins only|^only admins/i.test(msg) ? 403
+    : err?.code === '40001' ? 409 // changed by someone else since it was loaded
+    : /^too many/i.test(msg) ? 429
+    : 400
   return NextResponse.json({ error: status === 401 ? 'Please sign in again.' : msg }, { status })
+}
+
+// Client-generated key that makes a repeated submit return the original
+// record instead of creating a second one. Invalid keys are ignored.
+export function idempotencyKey(request: NextRequest, body?: { idempotency_key?: unknown }) {
+  const raw = request.headers.get('idempotency-key') ?? body?.idempotency_key
+  return typeof raw === 'string' && /^[A-Za-z0-9_-]{8,100}$/.test(raw) ? raw : null
 }

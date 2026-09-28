@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import AdminLayout from '@/components/AdminLayout'
+import { AdminLoadError } from '@/components/AdminLoadError'
 
 type Client = {
   id: string
@@ -24,16 +25,21 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
 
+  const [loadError, setLoadError] = useState('')
+  const [reload, setReload] = useState(0)
+
   useEffect(() => {
     const fetch = async () => {
-      const { data } = await (supabase.from('profiles') as any)
+      const { data, error } = await (supabase.from('profiles') as any)
         .select('id, full_name, role, created_at, accounts(account_balance, available_balance, invested_balance, pending_balance)')
-        .order('created_at', { ascending: false }) as { data: Client[] | null }
-      setClients(data || [])
+        .order('created_at', { ascending: false }) as { data: Client[] | null; error: unknown }
+      // A failed load keeps the previous list rather than showing zero clients.
+      if (error) setLoadError('Client data could not be loaded. Figures below may be incomplete.')
+      else { setClients(data || []); setLoadError('') }
       setLoading(false)
     }
     fetch()
-  }, [])
+  }, [reload])
 
   const customers = clients.filter(c => c.role === 'customer')
   const totalAUM = customers.reduce((sum, c) => sum + (c.accounts?.account_balance || 0), 0)
@@ -48,6 +54,7 @@ export default function AdminPage() {
 
   return (
     <AdminLayout title="Admin Dashboard" subtitle="Manage client accounts and platform activity">
+      {loadError && <AdminLoadError message={loadError} onRetry={() => setReload(n => n + 1)} />}
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         {[

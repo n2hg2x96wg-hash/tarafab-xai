@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import AdminLayout from '@/components/AdminLayout'
+import { AdminLoadError } from '@/components/AdminLoadError'
 
 type Log = {
   id: string
@@ -19,17 +20,21 @@ export default function AuditLogsPage() {
   const [search, setSearch] = useState('')
   const [expanded, setExpanded] = useState<string | null>(null)
 
+  const [loadError, setLoadError] = useState('')
+  const [reload, setReload] = useState(0)
+
   useEffect(() => {
     const fetch = async () => {
-      const { data } = await (supabase.from('audit_logs') as any)
+      const { data, error } = await (supabase.from('audit_logs') as any)
         .select('id, user_id, action, details, created_at')
         .order('created_at', { ascending: false })
-        .limit(200) as { data: Log[] | null }
-      setLogs(data || [])
+        .limit(200) as { data: Log[] | null; error: unknown }
+      if (error) setLoadError('Audit logs could not be loaded.')
+      else { setLogs(data || []); setLoadError('') }
       setLoading(false)
     }
     fetch()
-  }, [])
+  }, [reload])
 
   const filtered = logs.filter(log => {
     if (!search) return true
@@ -50,6 +55,7 @@ export default function AuditLogsPage() {
 
   return (
     <AdminLayout title="Audit Logs" subtitle="Full immutable record of admin actions">
+      {loadError && <AdminLoadError message={loadError} onRetry={() => setReload(n => n + 1)} />}
       <div className="flex flex-col sm:flex-row gap-3 mb-5">
         <input
           type="text"

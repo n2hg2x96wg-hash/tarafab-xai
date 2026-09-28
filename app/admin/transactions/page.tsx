@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import AdminLayout from '@/components/AdminLayout'
+import { AdminLoadError } from '@/components/AdminLoadError'
+import { authFetch, errorText, readJson, RequestError } from '@/lib/authFetch'
 
 type Tx = {
   id: string
@@ -42,37 +44,41 @@ export default function TransactionsPage() {
   const [reviewLoading, setReviewLoading] = useState(false)
   const [reviewError, setReviewError] = useState('')
 
+  const [loadError, setLoadError] = useState('')
+  const [reload, setReload] = useState(0)
+
   const fetchTxs = async () => {
-    const { data } = await (supabase.from('transactions') as any)
+    const { data, error } = await (supabase.from('transactions') as any)
       .select('id, user_id, type, method, amount, fee, status, notes, reference, address, created_at, profiles(full_name)')
       .order('created_at', { ascending: false })
-      .limit(200) as { data: Tx[] | null }
-    setTxs(data || [])
+      .limit(200) as { data: Tx[] | null; error: unknown }
+    if (error) setLoadError('Transactions could not be loaded. The list may be out of date.')
+    else { setTxs(data || []); setLoadError('') }
     setLoading(false)
   }
 
-  useEffect(() => { fetchTxs() }, [])
+  useEffect(() => { fetchTxs() }, [reload])
 
   const handleReview = async () => {
     if (!reviewingId || !reviewAction) return
     setReviewLoading(true)
     setReviewError('')
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) { setReviewError('Not authenticated'); return }
-      const res = await fetch('/api/admin/review-deposit', {
+      // The database only reviews a transaction that is still pending, so a
+      // second click, a retry or another admin acting first cannot apply it twice.
+      await readJson(await authFetch('/api/admin/review-deposit', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ transaction_id: reviewingId, action: reviewAction, reason: reviewReason.trim() || undefined }),
-      })
-      const data = await res.json()
-      if (!res.ok) { setReviewError(data.error || 'Failed'); return }
+      }))
       setReviewingId(null)
       setReviewAction(null)
       setReviewReason('')
       fetchTxs()
-    } catch {
-      setReviewError('Network error')
+    } catch (err) {
+      setReviewError(errorText(err))
+      // Someone may have reviewed it already; show the current state.
+      if (err instanceof RequestError && err.status !== 0) fetchTxs()
     } finally {
       setReviewLoading(false)
     }
@@ -89,15 +95,12 @@ export default function TransactionsPage() {
     setReceiptError('')
     const win = window.open('', '_blank')
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const res = await fetch(`/api/admin/receipt-url?path=${encodeURIComponent(path)}`, { headers: { Authorization: `Bearer ${session?.access_token || ''}` } })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Could not open receipt')
+      const data = await readJson<{ url: string }>(await authFetch(`/api/admin/receipt-url?path=${encodeURIComponent(path)}`))
       if (win) win.location.href = data.url
       else window.location.href = data.url
     } catch (e) {
       win?.close()
-      setReceiptError(e instanceof Error ? e.message : 'Could not open receipt')
+      setReceiptError(errorText(e))
     }
   }
 
@@ -116,6 +119,7 @@ export default function TransactionsPage() {
 
   return (
     <AdminLayout title="Transactions" subtitle="All platform transactions">
+      {loadError && <AdminLoadError message={loadError} onRetry={() => setReload(n => n + 1)} />}
       {/* Review Modal */}
       {reviewingId && reviewAction && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={() => { setReviewingId(null); setReviewAction(null) }}>

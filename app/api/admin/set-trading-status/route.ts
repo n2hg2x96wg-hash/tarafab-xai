@@ -6,8 +6,8 @@ export async function POST(request: NextRequest) {
   if (!supabase) return unauthorized()
 
   try {
-    const { user_id, trading_status, trading_strategy_name } = await request.json() as {
-      user_id: string; trading_status: string; trading_strategy_name?: string
+    const { user_id, trading_status, trading_strategy_name, expected_updated_at } = await request.json() as {
+      user_id: string; trading_status: string; trading_strategy_name?: string; expected_updated_at?: string
     }
     if (!user_id) return NextResponse.json({ error: 'user_id is required' }, { status: 400 })
     if (!['active', 'inactive'].includes(trading_status)) {
@@ -17,6 +17,7 @@ export async function POST(request: NextRequest) {
       p_user_id: user_id,
       p_trading_status: trading_status,
       p_trading_strategy_name: trading_strategy_name?.trim() || null,
+      p_expected_updated_at: expected_updated_at || null,
     })
     if (error) return dbError(error)
     return NextResponse.json({ success: true })

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import AdminLayout from '@/components/AdminLayout'
+import { AdminLoadError } from '@/components/AdminLoadError'
 
 type Client = {
   id: string
@@ -34,22 +35,30 @@ export default function ClientsPage() {
       .catch(() => {})
   }
 
+  const [loadError, setLoadError] = useState('')
+  const [reload, setReload] = useState(0)
+
   useEffect(() => {
     const fetch = async () => {
-      const [{ data }, { data: emails }] = await Promise.all([
+      const [{ data, error }, { data: emails }] = await Promise.all([
         (supabase.from('profiles') as any)
           .select('id, full_name, role, created_at, accounts(account_balance, available_balance, invested_balance, pending_balance, profit_balance)')
-          .order('created_at', { ascending: false }) as Promise<{ data: Client[] | null }>,
+          .order('created_at', { ascending: false }) as Promise<{ data: Client[] | null; error: unknown }>,
         // Registration email lives in the auth record; this admin-only function
         // reads it there rather than duplicating it into a second table.
         supabase.rpc('admin_client_emails') as unknown as Promise<{ data: { id: string; email: string }[] | null }>,
       ])
-      const byId = new Map((emails || []).map(e => [e.id, e.email]))
-      setClients((data || []).map(c => ({ ...c, email: byId.get(c.id) ?? null })))
+      if (error) {
+        setLoadError('The client list could not be loaded.')
+      } else {
+        const byId = new Map((emails || []).map(e => [e.id, e.email]))
+        setClients((data || []).map(c => ({ ...c, email: byId.get(c.id) ?? null })))
+        setLoadError('')
+      }
       setLoading(false)
     }
     fetch()
-  }, [])
+  }, [reload])
 
   const filtered = clients.filter(c => {
     const matchRole = filter === 'all' || c.role === filter
@@ -63,6 +72,7 @@ export default function ClientsPage() {
 
   return (
     <AdminLayout title="Clients" subtitle="View and manage all registered users">
+      {loadError && <AdminLoadError message={loadError} onRetry={() => setReload(n => n + 1)} />}
       <div className="glass rounded-2xl border border-white/[0.08] overflow-hidden">
         {/* Toolbar */}
         <div className="p-4 sm:p-5 border-b border-white/[0.06] flex flex-col sm:flex-row gap-3">

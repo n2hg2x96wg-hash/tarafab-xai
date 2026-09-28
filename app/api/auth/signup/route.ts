@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { getSupabaseEnv } from '@/lib/supabase/env'
+import { clientIp, rateLimited } from '@/lib/rateLimit'
 
 export async function POST(request: NextRequest) {
   const { url, anonKey: key } = getSupabaseEnv()
   if (!url || !key) return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 })
+
+  const limited = rateLimited(`signup:${clientIp(request)}`, 10, 10 * 60_000)
+  if (limited) return limited
 
   try {
     const body = await request.json()

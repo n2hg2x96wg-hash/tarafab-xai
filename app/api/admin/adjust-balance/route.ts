@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { clientForRequest, dbError, unauthorized } from '@/lib/supabase/request'
+import { clientForRequest, dbError, idempotencyKey, unauthorized } from '@/lib/supabase/request'
 
 const VALID_FIELDS = ['account_balance', 'available_balance', 'invested_balance', 'pending_balance', 'profit_balance'] as const
 const VALID_OPS = ['credit', 'debit', 'set'] as const
@@ -13,13 +13,16 @@ export async function POST(request: NextRequest) {
   if (!supabase) return unauthorized()
 
   try {
-    const { target_user_id, field, operation, amount, reason } = await request.json() as {
+    const body = await request.json() as {
       target_user_id: string
       field: Field
       operation: Op
       amount: number
       reason: string
+      idempotency_key?: string
+      expected_updated_at?: string
     }
+    const { target_user_id, field, operation, amount, reason, expected_updated_at } = body
 
     if (!target_user_id || !VALID_FIELDS.includes(field) || !VALID_OPS.includes(operation)) {
       return NextResponse.json({ error: 'Invalid parameters' }, { status: 400 })
@@ -37,6 +40,8 @@ export async function POST(request: NextRequest) {
       p_operation: operation,
       p_amount: amount,
       p_reason: reason.trim(),
+      p_idempotency_key: idempotencyKey(request, body),
+      p_expected_updated_at: expected_updated_at || null,
     })
     if (error) return dbError(error)
     return NextResponse.json({ success: true, field, new_value: data })

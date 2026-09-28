@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 type Props = {
   children: React.ReactNode
@@ -18,19 +19,43 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
   const [adminName, setAdminName] = useState('')
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [checkFailed, setCheckFailed] = useState(false)
+  const [attempt, setAttempt] = useState(0)
 
+  // Access is enforced by the database on every admin query; this check only
+  // decides what to render. A connection failure shows a retry instead of
+  // treating the admin as signed out.
   useEffect(() => {
+    let alive = true
     const check = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.push('/admin/login'); return }
-      const { data: profile } = await (supabase.from('profiles') as any)
-        .select('role, full_name').eq('id', user.id).single() as { data: { role?: string; full_name?: string } | null }
-      if (profile?.role !== 'admin') { router.push('/dashboard'); return }
-      setAdminName(profile?.full_name || 'Admin')
-      setLoading(false)
+      setCheckFailed(false)
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session) { router.replace('/admin/login'); return }
+        const { data: profile, error } = await (supabase.from('profiles') as any)
+          .select('role, full_name').eq('id', session.user.id).maybeSingle() as { data: { role?: string; full_name?: string } | null; error: { message: string } | null }
+        if (!alive) return
+        if (error) {
+          if (/jwt/i.test(error.message)) { router.replace('/admin/login'); return }
+          setCheckFailed(true); setLoading(false); return
+        }
+        if (profile?.role !== 'admin') { router.replace('/dashboard'); return }
+        setAdminName(profile?.full_name || 'Admin')
+        setLoading(false)
+      } catch {
+        if (alive) { setCheckFailed(true); setLoading(false) }
+      }
     }
     check()
-  }, [])
+    return () => { alive = false }
+  }, [attempt, router, supabase])
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(event => {
+      if (event === 'SIGNED_OUT') router.replace('/admin/login')
+    })
+    return () => subscription.unsubscribe()
+  }, [router, supabase])
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
@@ -48,6 +73,18 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
     return (
       <div className="min-h-screen bg-[#080810] flex items-center justify-center">
         <div className="w-6 h-6 border-2 border-white/20 border-t-violet-500 rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  if (checkFailed) {
+    return (
+      <div className="min-h-screen bg-[#080810] flex items-center justify-center px-4">
+        <div className="max-w-sm w-full rounded-xl border border-white/[0.08] bg-white/[0.03] p-6 text-center">
+          <p className="text-white font-medium mb-1">Couldn&apos;t verify your admin session</p>
+          <p className="text-sm text-white/50 mb-5">This is usually a connection problem.</p>
+          <button onClick={() => { setLoading(true); setAttempt(a => a + 1) }} className="w-full py-2.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium">Try again</button>
+        </div>
       </div>
     )
   }
@@ -156,7 +193,7 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
                 {subtitle && <p className="text-slate-500 text-sm">{subtitle}</p>}
               </div>
             )}
-            {children}
+            <ErrorBoundary label="This panel">{children}</ErrorBoundary>
           </div>
         </main>
       </div>

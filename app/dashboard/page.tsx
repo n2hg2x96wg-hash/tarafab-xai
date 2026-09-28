@@ -9,6 +9,8 @@ import { BitcoinMarketCard } from '@/components/BitcoinMarket'
 import { FormError, Spinner } from '@/components/AuthShell'
 import { TrustBar } from '@/components/LandingExtras'
 import { TradingStatusCard } from '@/components/TradingStatus'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { authFetch, errorText, newRequestKey, readJson, RequestError } from '@/lib/authFetch'
 import {
   IconAlert, IconArrowDown, IconArrowUp, IconChart, IconCheck, IconClose, IconCopy, IconGrid,
   IconInfo, IconList, IconLogOut, IconMail, IconMenu, IconSwap, IconUser, Logo,
@@ -137,39 +139,83 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [activeNav, setActiveNav] = useState('overview')
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [token, setToken] = useState('')
+  const [loadError, setLoadError] = useState('')
+  const [txError, setTxError] = useState('')
+  const [refreshing, setRefreshing] = useState(false)
+  const [sessionError, setSessionError] = useState(false)
+  const lastLoad = useRef(0)
+  const inFlight = useRef<Promise<void> | null>(null)
   const router = useRouter()
   const supabase = createClient()
 
-  const fetchData = useCallback(async (accessToken: string) => {
-    const headers = { Authorization: `Bearer ${accessToken}` }
-    const [accRes, txRes] = await Promise.all([
-      fetch('/api/client/account', { headers }),
-      fetch('/api/client/transactions', { headers }),
-    ])
-    if (accRes.ok) {
-      const d = await accRes.json()
-      setUser(d.user)
-      setAccount(d.account)
-    }
-    if (txRes.ok) {
-      const d = await txRes.json()
-      setTxs(d.transactions || [])
-    }
-  }, [])
+  // Account and transactions load independently: one failing never blanks
+  // the other, and a failed refresh keeps the figures already on screen.
+  // Concurrent calls (tab focus + a submit finishing) share one request.
+  const fetchData = useCallback(() => {
+    if (inFlight.current) return inFlight.current
+    const run = (async () => {
+      setRefreshing(true)
+      const [acc, tx] = await Promise.allSettled([
+        authFetch('/api/client/account').then(r => readJson<{ user: UserInfo; account: Account }>(r)),
+        authFetch('/api/client/transactions').then(r => readJson<{ transactions: Tx[] }>(r)),
+      ])
+      if (acc.status === 'fulfilled') { setUser(acc.value.user); setAccount(acc.value.account); setLoadError('') }
+      else setLoadError(errorText(acc.reason))
+      if (tx.status === 'fulfilled') { setTxs(tx.value.transactions || []); setTxError('') }
+      else setTxError(errorText(tx.reason))
+      const expired = [acc, tx].some(r => r.status === 'rejected' && r.reason instanceof RequestError && r.reason.status === 401)
+      if (expired) router.replace('/sign-in')
+      lastLoad.current = Date.now()
+      setRefreshing(false)
+    })()
+    inFlight.current = run
+    run.finally(() => { inFlight.current = null })
+    return run
+  }, [router])
 
+  const init = useCallback(async () => {
+    setSessionError(false)
+    setLoading(true)
+    // Supabase keeps retrying a token refresh while offline; cap the wait so
+    // a dead connection shows a retry instead of an endless spinner.
+    const timeout = new Promise<{ data: { session: null }; error: Error }>(resolve =>
+      setTimeout(() => resolve({ data: { session: null }, error: new Error('timeout') }), 10_000))
+    const { data, error } = await Promise.race([
+      supabase.auth.getSession().catch(e => ({ data: { session: null }, error: e })),
+      timeout,
+    ])
+    // A network failure while restoring the session is not the same as being
+    // signed out: offer a retry instead of sending the user to sign in.
+    if (error) { setSessionError(true); setLoading(false); return }
+    if (!data.session) { router.replace('/sign-in'); return }
+    await fetchData()
+    setLoading(false)
+  }, [supabase, router, fetchData])
+
+  useEffect(() => { init() }, [init])
+
+  // One listener per mounted dashboard, removed on unmount. Signing out in
+  // another tab signs this tab out too.
   useEffect(() => {
-    const init = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (!session) { router.push('/sign-in'); return }
-        setToken(session.access_token)
-        await fetchData(session.access_token)
-      } catch { router.push('/sign-in'); return }
-      setLoading(false)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(event => {
+      if (event === 'SIGNED_OUT') router.replace('/sign-in')
+    })
+    return () => subscription.unsubscribe()
+  }, [supabase, router])
+
+  // Returning to the tab (or regaining a connection) refreshes balances,
+  // at most once every 30 seconds.
+  useEffect(() => {
+    const maybeRefresh = () => {
+      if (document.visibilityState === 'visible' && Date.now() - lastLoad.current > 30_000) fetchData()
     }
-    init()
-  }, [router, supabase, fetchData])
+    document.addEventListener('visibilitychange', maybeRefresh)
+    window.addEventListener('online', maybeRefresh)
+    return () => {
+      document.removeEventListener('visibilitychange', maybeRefresh)
+      window.removeEventListener('online', maybeRefresh)
+    }
+  }, [fetchData])
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
@@ -182,6 +228,18 @@ export default function DashboardPage() {
     return (
       <div className="site min-h-screen bg-ink-950 flex items-center justify-center text-fg-muted">
         <Spinner />
+      </div>
+    )
+  }
+
+  if (sessionError) {
+    return (
+      <div className="site min-h-screen bg-ink-950 text-fg flex items-center justify-center px-4">
+        <div className="panel max-w-sm w-full p-6 text-center">
+          <p className="font-medium mb-1">We couldn&apos;t restore your session</p>
+          <p className="text-sm text-fg-muted mb-5">This is usually a connection problem. You are still signed in.</p>
+          <button onClick={init} className="btn btn-solid w-full">Try again</button>
+        </div>
       </div>
     )
   }
@@ -241,12 +299,24 @@ export default function DashboardPage() {
         </header>
 
         <main className="p-4 sm:p-6 max-w-6xl">
-          {activeNav === 'overview' && <OverviewTab name={displayName} account={account} txs={txs} go={go} />}
-          {activeNav === 'markets' && <MarketsTab />}
-          {activeNav === 'transactions' && <TransactionsTab txs={txs} />}
-          {activeNav === 'deposit' && <DepositTab token={token} onSuccess={() => fetchData(token)} />}
-          {activeNav === 'withdraw' && <WithdrawTab account={account} txs={txs} token={token} onSuccess={() => fetchData(token)} />}
-          {activeNav === 'profile' && <ProfileTab user={user} account={account} />}
+          {(loadError || txError) && (
+            <div role="alert" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-amber-500/30 bg-amber-500/[0.06] px-4 py-3 text-sm">
+              <span className="text-amber-200">
+                {loadError ? `${loadError}${account ? ' Showing the last figures loaded.' : ''}` : `Transactions: ${txError}`}
+              </span>
+              <button onClick={() => fetchData()} disabled={refreshing} className="btn btn-sm btn-outline">
+                {refreshing ? 'Refreshing' : 'Try again'}
+              </button>
+            </div>
+          )}
+          <ErrorBoundary key={activeNav} label={current?.label}>
+            {activeNav === 'overview' && <OverviewTab name={displayName} account={account} txs={txs} go={go} />}
+            {activeNav === 'markets' && <MarketsTab />}
+            {activeNav === 'transactions' && <TransactionsTab txs={txs} />}
+            {activeNav === 'deposit' && <DepositTab onSuccess={fetchData} />}
+            {activeNav === 'withdraw' && <WithdrawTab account={account} txs={txs} onSuccess={fetchData} />}
+            {activeNav === 'profile' && <ProfileTab user={user} account={account} />}
+          </ErrorBoundary>
         </main>
       </div>
     </div>
@@ -310,7 +380,7 @@ function OverviewTab({ name, account, txs, go }: { name: string; account: Accoun
             <span className="text-fg">BTC/USD</span>
             <span className="text-fg-faint">Live price</span>
           </div>
-          <TradingViewChart height={400} />
+          <ErrorBoundary label="The chart"><TradingViewChart height={400} /></ErrorBoundary>
         </div>
 
         <div className="panel p-5 flex flex-col gap-3">
@@ -361,9 +431,9 @@ function MarketsTab() {
           <span className="text-fg">BTC/USD</span>
           <span className="text-fg-faint">Live price</span>
         </div>
-        <TradingViewChart height={520} />
+        <ErrorBoundary label="The chart"><TradingViewChart height={520} /></ErrorBoundary>
       </div>
-      <BitcoinMarketCard />
+      <ErrorBoundary label="Bitcoin market"><BitcoinMarketCard /></ErrorBoundary>
     </div>
   )
 }
@@ -454,7 +524,7 @@ function TransactionsTab({ txs }: { txs: Tx[] }) {
 }
 
 /* Deposit */
-function DepositTab({ token, onSuccess }: { token: string; onSuccess: () => void }) {
+function DepositTab({ onSuccess }: { onSuccess: () => void }) {
   const [amount, setAmount] = useState('')
   const [method, setMethod] = useState('bitcoin')
   const [notes, setNotes] = useState('')
@@ -463,7 +533,15 @@ function DepositTab({ token, onSuccess }: { token: string; onSuccess: () => void
   const [error, setError] = useState('')
   const [success, setSuccess] = useState<{ reference: string } | null>(null)
   const [copied, setCopied] = useState(false)
+  const [stage, setStage] = useState<'' | 'uploading' | 'submitting'>('')
   const fileRef = useRef<HTMLInputElement>(null)
+  // One key per deposit attempt. A retry after a timeout reuses it, so the
+  // server returns the original deposit instead of recording a second one.
+  // It is replaced after a confirmed success or when the details change.
+  const attemptKey = useRef(newRequestKey())
+  const uploaded = useRef<{ file: File; path: string } | null>(null)
+  const inFlight = useRef(false)
+  useEffect(() => { attemptKey.current = newRequestKey() }, [amount, method, notes, file])
 
   const copyAddress = () => {
     navigator.clipboard.writeText(BTC_ADDRESS).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) }).catch(() => {})
@@ -474,41 +552,54 @@ function DepositTab({ token, onSuccess }: { token: string; onSuccess: () => void
     setError('')
     const amt = parseFloat(amount)
     if (!amt || amt <= 0) { setError('Enter the amount you sent, in US dollars.'); return }
+    if (file && file.size > 5 * 1024 * 1024) { setError('The receipt is larger than 5 MB. Please choose a smaller file.'); return }
+    if (file && !['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].includes(file.type)) { setError('Receipts must be JPG, PNG, WEBP or PDF.'); return }
+    if (inFlight.current) return
+    inFlight.current = true
 
     setSubmitting(true)
+    const key = attemptKey.current
     try {
       let receiptPath: string | undefined
       if (file) {
-        const fd = new FormData()
-        fd.append('file', file)
-        const upRes = await fetch('/api/client/upload-receipt', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-          body: fd,
-        })
-        const upData = await upRes.json()
-        if (!upRes.ok) { setError(upData.error || 'The receipt could not be uploaded.'); return }
-        receiptPath = upData.path
+        // Reuse a receipt already uploaded for this attempt.
+        if (uploaded.current?.file === file) {
+          receiptPath = uploaded.current.path
+        } else {
+          setStage('uploading')
+          const fd = new FormData()
+          fd.append('file', file)
+          fd.append('key', key)
+          const up = await readJson<{ path: string }>(await authFetch('/api/client/upload-receipt', { method: 'POST', body: fd }, 60_000))
+          uploaded.current = { file, path: up.path }
+          receiptPath = up.path
+        }
       }
 
-      const res = await fetch('/api/client/deposit', {
+      setStage('submitting')
+      const data = await readJson<{ deposit?: { reference?: string } }>(await authFetch('/api/client/deposit', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key },
         body: JSON.stringify({ amount: amt, method, receipt_path: receiptPath, notes: notes.trim() || undefined }),
-      })
-      const data = await res.json()
-      if (!res.ok) { setError(data.error || 'The deposit could not be submitted.'); return }
+      }))
 
       setSuccess({ reference: data.deposit?.reference || '' })
       setAmount('')
       setNotes('')
       setFile(null)
+      uploaded.current = null
       if (fileRef.current) fileRef.current.value = ''
+      attemptKey.current = newRequestKey()
       onSuccess()
-    } catch {
-      setError('Could not reach the server. Check your connection and try again.')
+    } catch (err) {
+      const offline = err instanceof RequestError && err.status === 0
+      setError(offline
+        ? `${errorText(err)} If it went through, submitting again will not create a duplicate.`
+        : errorText(err))
     } finally {
+      inFlight.current = false
       setSubmitting(false)
+      setStage('')
     }
   }
 
@@ -591,7 +682,7 @@ function DepositTab({ token, onSuccess }: { token: string; onSuccess: () => void
           </div>
 
           <button type="submit" disabled={submitting} className="btn btn-solid w-full">
-            {submitting ? <><Spinner />Submitting</> : 'Submit deposit for review'}
+            {submitting ? <><Spinner />{stage === 'uploading' ? 'Uploading receipt' : 'Submitting'}</> : 'Submit deposit for review'}
           </button>
         </form>
       </div>
@@ -607,7 +698,7 @@ const SOURCES = [
 ] as const
 type Source = typeof SOURCES[number]['id']
 
-function WithdrawTab({ account, txs, token, onSuccess }: { account: Account | null; txs: Tx[]; token: string; onSuccess: () => void }) {
+function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs: Tx[]; onSuccess: () => void }) {
   const [source, setSource] = useState<Source>('available_balance')
   const [amount, setAmount] = useState('')
   const [address, setAddress] = useState('')
@@ -615,6 +706,9 @@ function WithdrawTab({ account, txs, token, onSuccess }: { account: Account | nu
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState<string | null>(null)
+  const attemptKey = useRef(newRequestKey())
+  const inFlight = useRef(false)
+  useEffect(() => { attemptKey.current = newRequestKey() }, [source, amount, address, notes])
 
   const withdrawals = txs.filter(t => t.type === 'withdrawal')
   const reserved = (src: Source) => withdrawals.filter(t => t.method === src && OPEN_STATUSES.includes(t.status)).reduce((s, t) => s + Number(t.amount), 0)
@@ -630,22 +724,27 @@ function WithdrawTab({ account, txs, token, onSuccess }: { account: Account | nu
     if (amt > max) { setError(`You can withdraw up to $${fmt(max)} from this balance.`); return }
     if (!/^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,87}$/.test(address.trim())) { setError('Enter a valid Bitcoin address. It starts with bc1, 1 or 3.'); return }
 
+    if (inFlight.current) return
+    inFlight.current = true
     setSubmitting(true)
     try {
-      const res = await fetch('/api/client/withdraw', {
+      const data = await readJson<{ withdrawal?: { reference?: string } }>(await authFetch('/api/client/withdraw', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': attemptKey.current },
         body: JSON.stringify({ amount: amt, source, address: address.trim(), notes: notes.trim() || undefined }),
-      })
-      const data = await res.json()
-      if (!res.ok) { setError(data.error || 'The request could not be submitted.'); return }
+      }))
       setDone(data.withdrawal?.reference || '')
       setAmount('')
       setNotes('')
+      attemptKey.current = newRequestKey()
       onSuccess()
-    } catch {
-      setError('Could not reach the server. Check your connection and try again.')
+    } catch (err) {
+      const offline = err instanceof RequestError && err.status === 0
+      setError(offline
+        ? `${errorText(err)} If it went through, submitting again will not create a duplicate.`
+        : errorText(err))
     } finally {
+      inFlight.current = false
       setSubmitting(false)
     }
   }

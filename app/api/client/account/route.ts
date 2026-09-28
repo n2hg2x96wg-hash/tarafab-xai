@@ -18,17 +18,18 @@ export async function GET(request: NextRequest) {
     const { data: { user }, error: authErr } = await supabase.auth.getUser(token)
     if (authErr || !user) return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('full_name, role')
-      .eq('id', user.id)
-      .single()
-
-    const { data: account } = await supabase
-      .from('accounts')
-      .select('account_balance, available_balance, invested_balance, pending_balance, profit_balance, trading_status, trading_strategy_name, trading_status_updated_at')
-      .eq('user_id', user.id)
-      .single()
+    const [{ data: profile, error: profileErr }, { data: account, error: accountErr }] = await Promise.all([
+      supabase.from('profiles').select('full_name, role').eq('id', user.id).maybeSingle(),
+      supabase
+        .from('accounts')
+        .select('account_balance, available_balance, invested_balance, pending_balance, profit_balance, trading_status, trading_strategy_name, trading_status_updated_at')
+        .eq('user_id', user.id)
+        .maybeSingle(),
+    ])
+    // A failed read must not be shown as a zero balance.
+    if (profileErr || accountErr) {
+      return NextResponse.json({ error: 'Your account could not be loaded right now.' }, { status: 503 })
+    }
 
     return NextResponse.json({
       user: {

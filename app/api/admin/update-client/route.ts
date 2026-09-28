@@ -6,8 +6,8 @@ export async function POST(request: NextRequest) {
   if (!supabase) return unauthorized()
 
   try {
-    const { user_id, full_name, account_status, verification_status } = await request.json() as {
-      user_id: string; full_name: string; account_status: string; verification_status: string
+    const { user_id, full_name, account_status, verification_status, expected_updated_at } = await request.json() as {
+      user_id: string; full_name: string; account_status: string; verification_status: string; expected_updated_at?: string
     }
     if (!user_id) return NextResponse.json({ error: 'user_id is required' }, { status: 400 })
     const { error } = await supabase.rpc('admin_update_client', {
@@ -15,6 +15,7 @@ export async function POST(request: NextRequest) {
       p_full_name: String(full_name ?? '').trim(),
       p_account_status: account_status,
       p_verification_status: verification_status,
+      p_expected_updated_at: expected_updated_at || null,
     })
     if (error) return dbError(error)
     return NextResponse.json({ success: true })
