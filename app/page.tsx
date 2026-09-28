@@ -10,9 +10,11 @@ import { HeroLivePanel, LatestBlocks, LiveTickerBar, useLiveMarket } from '@/com
 import { IconArrowDown, IconChart, IconCheck, IconGrid, IconList, IconLock, IconSwap, IconUser, Logo } from '@/components/Icons'
 import { FaqSection, HistorySection, NetworkSection, Reveal, TrustBar } from '@/components/LandingExtras'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
+import { useTheme } from '@/lib/theme/ThemeProvider'
 
 function TradingViewWidget() {
   const ref = useRef<HTMLDivElement>(null)
+  const { resolved } = useTheme()
   useEffect(() => {
     const el = ref.current
     if (!el) return
@@ -24,11 +26,11 @@ function TradingViewWidget() {
       symbol: 'COINBASE:BTCUSD',
       interval: '60',
       timezone: 'Etc/UTC',
-      theme: 'dark',
+      theme: resolved,
       style: '1',
       locale: tvLocale(),
-      backgroundColor: 'rgba(13, 16, 22, 1)',
-      gridColor: 'rgba(255, 255, 255, 0.04)',
+      backgroundColor: resolved === 'light' ? 'rgba(255, 255, 255, 1)' : 'rgba(13, 16, 22, 1)',
+      gridColor: resolved === 'light' ? 'rgba(16, 21, 30, 0.06)' : 'rgba(255, 255, 255, 0.04)',
       hide_side_toolbar: true,
       allow_symbol_change: false,
       save_image: false,
@@ -36,7 +38,7 @@ function TradingViewWidget() {
     })
     el.appendChild(script)
     return () => { el.innerHTML = '<div class="tradingview-widget-container__widget" style="height:100%;width:100%"></div>' }
-  }, [])
+  }, [resolved])
   return (
     <div className="tradingview-widget-container h-[420px] sm:h-[480px]" ref={ref}>
       <div className="tradingview-widget-container__widget" style={{ height: '100%', width: '100%' }} />

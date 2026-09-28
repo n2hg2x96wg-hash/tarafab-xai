@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { LanguageSelector } from '@/components/LanguageSelector'
+import { ThemeSelector } from '@/components/ThemeSelector'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
 
 type Props = {
@@ -70,6 +71,7 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
     { label: 'admin.nav.clients', icon: '◉', href: '/admin/clients' },
     { label: 'admin.nav.transactions', icon: '⇄', href: '/admin/transactions' },
     { label: 'admin.nav.auditLogs', icon: '⊡', href: '/admin/audit-logs' },
+    { label: 'admin.nav.settings', icon: '⚙', href: '/admin/settings' },
   ]
 
   if (loading) {
@@ -86,7 +88,7 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
         <div className="max-w-sm w-full rounded-xl border border-white/[0.08] bg-white/[0.03] p-6 text-center">
           <p className="text-white font-medium mb-1">{t('admin.verifyFailed')}</p>
           <p className="text-sm text-fg-muted mb-5">{t('admin.verifyFailedBody')}</p>
-          <button onClick={() => { setLoading(true); setAttempt(a => a + 1) }} className="w-full py-2.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium">{t('common.tryAgain')}</button>
+          <button onClick={() => { setLoading(true); setAttempt(a => a + 1) }} className="w-full py-2.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-[#fff] text-sm font-medium">{t('common.tryAgain')}</button>
         </div>
       </div>
     )
@@ -95,7 +97,7 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
   const SidebarContent = () => (
     <>
       <div className="flex items-center gap-2 px-6 py-5 border-b border-white/[0.06]">
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-600 to-blue-500 flex items-center justify-center text-sm font-bold shrink-0">₿</div>
+        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-600 to-blue-500 flex items-center justify-center text-sm font-bold shrink-0 text-[#fff]">₿</div>
         <span className="font-bold text-white text-sm">Tarafab<span className="text-violet-400">.XAi</span></span>
         <span className="ml-auto text-[10px] bg-violet-600/20 text-violet-400 border border-violet-500/30 px-1.5 py-0.5 rounded font-medium shrink-0">{t('admin.badge')}</span>
       </div>
@@ -120,7 +122,7 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
 
       <div className="border-t border-white/[0.06] p-4">
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-600 to-blue-500 flex items-center justify-center text-xs font-bold shrink-0">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-600 to-blue-500 flex items-center justify-center text-xs font-bold shrink-0 text-[#fff]">
             {adminName.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0">
@@ -128,7 +130,10 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
             <p className="text-[10px] text-violet-400">{t('admin.administrator')}</p>
           </div>
         </div>
-        <LanguageSelector align="left" direction="up" className="mb-2" />
+        <div className="flex items-center gap-2 mb-2">
+          <LanguageSelector align="left" direction="up" />
+          <ThemeSelector align="left" direction="up" />
+        </div>
         <button
           onClick={handleSignOut}
           className="w-full text-left text-xs text-slate-500 hover:text-red-400 transition-colors px-3 py-2 rounded-lg hover:bg-red-500/5"
@@ -184,7 +189,7 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
             </svg>
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-600 to-blue-500 flex items-center justify-center text-xs font-bold">₿</div>
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-600 to-blue-500 flex items-center justify-center text-xs font-bold text-[#fff]">₿</div>
             <span className="font-bold text-white text-sm">Tarafab<span className="text-violet-400">.XAi</span></span>
           </div>
           <span className="ml-auto text-[10px] bg-violet-600/20 text-violet-400 border border-violet-500/30 px-1.5 py-0.5 rounded font-medium">{t('admin.badge')}</span>

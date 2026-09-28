@@ -22,11 +22,9 @@ export function BitcoinMarketCard() {
     <div className="panel panel-lift p-5 sm:p-6 h-full flex flex-col">
       <div className="flex items-start justify-between gap-4 mb-5">
         <div>
-          <div className="flex items-center gap-2">
-            <h3 className="text-[15px] font-semibold text-fg">{t('market.bitcoinMarket')}</h3>
+          <h3 className="text-[15px] font-semibold text-fg">{t('market.bitcoinMarket')} <span className="text-fg-faint font-normal whitespace-nowrap">BTC/USD</span></h3>
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-fg-faint mt-1.5">
             <MarketStatusPill status={status} />
-          </div>
-          <p className="text-[13px] text-fg-faint mt-1">
             {status === 'error' && !data
               ? t('market.unavailable')
               : fetchedAt ? t('common.updated', { time: timeAgoT(t, fetchedAt) }) : t('common.loading')}
@@ -55,9 +53,9 @@ export function BitcoinMarketCard() {
 
       <div className="mt-auto pt-4 flex items-center justify-between gap-3 text-[11px] text-fg-faint">
         <span>{data ? t('common.marketDataBy', { source: data.source }) : t('market.refreshEvery')}</span>
-        {(status === 'error' || status === 'stale') && (
-          <button onClick={retry} className="underline underline-offset-2 hover:text-fg shrink-0">{t('common.tryAgain')}</button>
-        )}
+        <button onClick={retry} disabled={status === 'loading'} className="inline-flex items-center min-h-8 px-2 -mr-2 rounded underline underline-offset-2 hover:text-fg shrink-0 disabled:opacity-50">
+          {status === 'error' || status === 'stale' ? t('common.tryAgain') : t('common.refresh')}
+        </button>
       </div>
     </div>
   )

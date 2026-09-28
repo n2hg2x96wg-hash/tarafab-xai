@@ -4,6 +4,7 @@ import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { IconAlert, Logo } from '@/components/Icons'
 import { LanguageSelector } from '@/components/LanguageSelector'
+import { ThemeSelector } from '@/components/ThemeSelector'
 import { useI18n } from '@/lib/i18n/I18nProvider'
 
 export function AuthShell({ title, subtitle, children, footer }: { title: string; subtitle?: string; children: ReactNode; footer?: ReactNode }) {
@@ -12,7 +13,10 @@ export function AuthShell({ title, subtitle, children, footer }: { title: string
     <div className="site min-h-screen bg-ink-950 text-fg flex flex-col">
       <header className="h-16 flex items-center justify-between gap-4 px-4 sm:px-6 border-b border-ink-700">
         <Link href="/" aria-label={t('common.home')}><Logo /></Link>
-        <LanguageSelector />
+        <div className="flex items-center gap-2">
+          <ThemeSelector />
+          <LanguageSelector />
+        </div>
       </header>
       <main className="flex-1 flex items-start sm:items-center justify-center px-4 py-10">
         <div className="w-full max-w-[400px]">

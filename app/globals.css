@@ -16,8 +16,8 @@
   /* Legacy names kept for existing admin styles; values come from tokens.css */
   --bg-primary: rgb(var(--ink-950));
   --bg-secondary: rgb(var(--ink-900));
-  --bg-card: rgba(255, 255, 255, 0.035);
-  --border-subtle: rgba(255, 255, 255, 0.08);
+  --bg-card: rgb(var(--contrast) / .035);
+  --border-subtle: rgb(var(--contrast) / .08);
   --border-accent: rgb(var(--brand-500) / .3);
   --text-primary: rgb(var(--fg));
   --text-secondary: rgb(var(--fg-muted));
@@ -33,6 +33,9 @@
 html {
   scroll-behavior: smooth;
 }
+
+/* Brief colour cross-fade when the theme changes (set by ThemeProvider). */
+html.theme-switching, html.theme-switching * { transition: background-color .2s ease, border-color .2s ease, color .2s ease !important; }
 
 body {
   background: var(--bg-primary);
@@ -56,7 +59,7 @@ body {
 }
 
 .glass-hover:hover {
-  background: rgba(255, 255, 255, 0.07);
+  background: rgb(var(--contrast) / .07);
   border-color: rgb(var(--brand-500) / .25);
   transform: translateY(-2px);
 }
@@ -86,7 +89,7 @@ body {
 .btn:active:not(:disabled) { transform: translateY(1px); }
 /* Primary: the one main action on a screen */
 .btn-solid { background: linear-gradient(180deg, rgb(var(--accent-hover)) 0%, rgb(var(--accent)) 100%); color: rgb(var(--accent-ink)); box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 1px 2px rgba(0,0,0,.4), 0 8px 22px -12px rgb(var(--accent) / .55); }
-.btn-solid:hover:not(:disabled) { background: linear-gradient(180deg, #FFB75C 0%, rgb(var(--accent-hover)) 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 1px 2px rgba(0,0,0,.4), 0 10px 28px -12px rgb(var(--accent) / .7); }
+.btn-solid:hover:not(:disabled) { background: linear-gradient(180deg, rgb(var(--accent-hover)) 0%, rgb(var(--accent-hover)) 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 1px 2px rgba(0,0,0,.4), 0 10px 28px -12px rgb(var(--accent) / .7); }
 /* Secondary: bordered, neutral */
 .btn-outline { background: rgb(var(--ink-900) / .6); color: rgb(var(--fg)); border: 1px solid rgb(var(--ink-600)); }
 .btn-outline:hover:not(:disabled) { border-color: rgb(var(--ink-500)); background: rgb(var(--ink-850)); }
@@ -115,11 +118,11 @@ body {
   background: linear-gradient(180deg, rgba(255,255,255,.03) 0%, rgba(255,255,255,0) 38%), rgb(var(--ink-900));
   border: 1px solid rgb(var(--ink-700));
   border-radius: 10px;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 18px 40px -24px rgba(0,0,0,.8);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 18px 40px -24px rgb(var(--shadow) / var(--shadow-strength));
 }
 .panel-lift { transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease; }
 @media (hover: hover) {
-  .panel-lift:hover { transform: translateY(-2px); border-color: rgb(var(--ink-600)); box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 24px 48px -24px rgba(0,0,0,.9); }
+  .panel-lift:hover { transform: translateY(-2px); border-color: rgb(var(--ink-600)); box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 24px 48px -24px rgb(var(--shadow) / var(--shadow-strength)); }
 }
 
 /* Segmented control (timeframe tabs etc.) */
@@ -134,7 +137,7 @@ body {
 .hero-light::before { width: 560px; height: 560px; right: -120px; top: -180px; background: radial-gradient(circle, rgb(var(--accent) / .14), transparent 65%); }
 .hero-light::after { width: 620px; height: 620px; left: -220px; top: 60px; background: radial-gradient(circle, rgb(var(--brand-500) / .12), rgb(var(--brand-blue-500) / .05) 40%, transparent 70%); }
 .hero-grid { position: absolute; inset: 0; pointer-events: none;
-  background-image: linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+  background-image: linear-gradient(rgb(var(--contrast) / .03) 1px, transparent 1px), linear-gradient(90deg, rgb(var(--contrast) / .03) 1px, transparent 1px);
   background-size: 56px 56px;
   mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 75%);
   -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 75%); }
@@ -218,7 +221,7 @@ input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
 input:-webkit-autofill:active {
-  -webkit-box-shadow: 0 0 0 1000px rgba(255,255,255,0.04) inset !important;
+  -webkit-box-shadow: 0 0 0 1000px rgb(var(--ink-900)) inset !important;
   -webkit-text-fill-color: rgb(var(--fg)) !important;
   caret-color: rgb(var(--fg));
   border-color: rgb(var(--brand-500) / .3) !important;
@@ -227,7 +230,7 @@ input:-webkit-autofill:active {
 
 /* Input styles */
 .input-field {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgb(var(--contrast) / .04);
   border: 1px solid var(--border-subtle);
   color: var(--text-primary);
   padding: 12px 16px;

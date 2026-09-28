@@ -152,7 +152,7 @@ export default function TransactionsPage() {
                 Cancel
               </button>
               <button onClick={handleReview} disabled={reviewLoading}
-                className={`flex-1 py-2.5 text-sm font-semibold text-white rounded-xl transition-all flex items-center justify-center gap-2 ${
+                className={`flex-1 py-2.5 text-sm font-semibold text-[#fff] rounded-xl transition-all flex items-center justify-center gap-2 ${
                   reviewAction === 'approve'
                     ? 'bg-emerald-600 hover:bg-emerald-500'
                     : 'bg-red-600 hover:bg-red-500'

@@ -60,8 +60,8 @@ export function MarketStatusPill({ status }: { status: SummaryStatus }) {
   const map = {
     live: { t: t('status.live'), c: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/[0.06]', d: 'bg-emerald-400', pulse: true },
     stale: { t: t('status.delayed'), c: 'text-amber-400 border-amber-500/30 bg-amber-500/[0.06]', d: 'bg-amber-400', pulse: false },
-    loading: { t: t('status.connecting'), c: 'text-fg-muted border-ink-600', d: 'bg-fg-faint', pulse: false },
-    error: { t: t('status.offline'), c: 'text-red-400 border-red-500/30 bg-red-500/[0.06]', d: 'bg-red-400', pulse: false },
+    loading: { t: t('common.loading'), c: 'text-fg-muted border-ink-600', d: 'bg-fg-faint', pulse: false },
+    error: { t: t('common.unavailable'), c: 'text-red-400 border-red-500/30 bg-red-500/[0.06]', d: 'bg-red-400', pulse: false },
   }[status]
   return (
     <span className={`tag ${map.c}`}>
@@ -79,7 +79,7 @@ function useTicker(ms = 15_000) {
   useEffect(() => { const t = setInterval(() => setN(n => n + 1), ms); return () => clearInterval(t) }, [ms])
 }
 
-function PriceHistory() {
+export function PriceHistory() {
   const [range, setRange] = useState<(typeof RANGES)[number]['id']>('30')
   const [hover, setHover] = useState<number | null>(null)
   const svgRef = useRef<SVGSVGElement>(null)
@@ -191,17 +191,17 @@ function PriceHistory() {
           >
             <defs>
               <linearGradient id="phFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={color} stopOpacity="0.18" />
-                <stop offset="100%" stopColor={color} stopOpacity="0" />
+                <stop offset="0%" style={{ stopColor: color, stopOpacity: 0.18 }} />
+                <stop offset="100%" style={{ stopColor: color, stopOpacity: 0 }} />
               </linearGradient>
             </defs>
-            {[0.25, 0.5, 0.75].map(f => <line key={f} x1="0" x2={w} y1={h * f} y2={h * f} stroke={chartColors.grid} strokeWidth="1" vectorEffect="non-scaling-stroke" />)}
+            {[0.25, 0.5, 0.75].map(f => <line key={f} x1="0" x2={w} y1={h * f} y2={h * f} style={{ stroke: chartColors.grid }} strokeWidth="1" vectorEffect="non-scaling-stroke" />)}
             <path d={`${geo.line} L${w},${h} L0,${h} Z`} fill="url(#phFill)" />
-            <path d={geo.line} fill="none" stroke={color} strokeWidth="1.75" vectorEffect="non-scaling-stroke" className="chart-draw" key={range} />
+            <path d={geo.line} fill="none" style={{ stroke: color }} strokeWidth="1.75" vectorEffect="non-scaling-stroke" className="chart-draw" key={range} />
             {hovered && (
               <>
-                <line x1={hovered.x} x2={hovered.x} y1="0" y2={h} stroke={chartColors.guide} strokeWidth="1" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
-                <circle cx={hovered.x} cy={hovered.y} r="4" fill={color} vectorEffect="non-scaling-stroke" />
+                <line x1={hovered.x} x2={hovered.x} y1="0" y2={h} style={{ stroke: chartColors.guide }} strokeWidth="1" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
+                <circle cx={hovered.x} cy={hovered.y} r="4" style={{ fill: color }} vectorEffect="non-scaling-stroke" />
               </>
             )}
           </svg>

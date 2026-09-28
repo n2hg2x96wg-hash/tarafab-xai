@@ -14,6 +14,7 @@ const info = { 200: v('info-300'), ...scale('info', [300, 400, 500]), 600: v('in
 const brand = { 100: v('brand-200'), ...scale('brand', [200, 300, 400, 500, 600, 700]), 800: v('brand-700') }
 
 module.exports = {
+  darkMode: ['selector', '[data-theme="dark"]'],
   content: [
     './app/**/*.{js,ts,jsx,tsx,mdx}',
     './components/**/*.{js,ts,jsx,tsx,mdx}',
@@ -48,11 +49,16 @@ module.exports = {
         purple: brand,
         indigo: brand,
         blue: { 300: v('brand-blue-400'), 400: v('brand-blue-400'), 500: v('brand-blue-500'), 600: v('brand-blue-500') },
+        // "white" follows the theme (see --contrast in tokens.css); use
+        // text-[#fff] where white must stay white, e.g. on a coloured button.
+        white: v('contrast'),
         slate: {
           100: v('fg'), 200: v('fg'), 300: v('fg-label'), 400: v('fg-muted'), 500: v('fg-faint'),
           600: v('fg-faint'), 700: v('ink-600'), 800: v('ink-700'), 900: v('ink-850'),
         },
       },
+      // Orange as text uses a deeper shade in light mode to keep contrast.
+      textColor: { accent: { DEFAULT: v('accent-text'), hover: v('accent-hover') } },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
       },

@@ -1,64 +1,39 @@
 'use client'
 
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useMemo, useState, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { ComponentType, SVGProps } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { BitcoinMarketCard } from '@/components/BitcoinMarket'
 import { FormError, Spinner } from '@/components/AuthShell'
-import { TrustBar } from '@/components/LandingExtras'
+import { PriceHistory, TrustBar } from '@/components/LandingExtras'
 import { TradingStatusCard } from '@/components/TradingStatus'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { authFetch, errorText, newRequestKey, readJson, RequestError } from '@/lib/authFetch'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
-import { statusLabel } from '@/lib/i18n/format'
+import {
+  EmptyState, OPEN_STATUSES, StatusTag, SUPPORT_EMAIL, TxIcon, fmt, methodLabel, txLabel,
+  type Account, type Tx, type UserInfo,
+} from '@/components/dashboard/shared'
 import { LanguageSelector } from '@/components/LanguageSelector'
+import { ThemeSelector } from '@/components/ThemeSelector'
+import { useTheme } from '@/lib/theme/ThemeProvider'
 import {
   IconAlert, IconArrowDown, IconArrowUp, IconChart, IconCheck, IconClose, IconCopy, IconGrid,
-  IconInfo, IconList, IconLogOut, IconMail, IconMenu, IconSwap, IconUser, Logo,
+  IconInfo, IconList, IconLogOut, IconMail, IconMenu, IconUser, Logo,
+  IconBell, IconHelp, IconHistory, IconPie, IconShield, IconSliders,
 } from '@/components/Icons'
-
-interface Account {
-  account_balance: number
-  available_balance: number
-  invested_balance: number
-  pending_balance: number
-  profit_balance?: number
-  trading_status?: 'active' | 'inactive' | null
-  trading_strategy_name?: string | null
-  trading_status_updated_at?: string | null
-}
-
-interface UserInfo {
-  id: string
-  email: string
-  full_name: string | null
-  role: string
-  email_confirmed?: boolean
-  created_at?: string
-}
-
-interface Tx {
-  id: string
-  type: string
-  method: string | null
-  amount: number
-  fee: number | null
-  status: string
-  reference: string | null
-  notes: string | null
-  address?: string | null
-  direction?: 'credit' | 'debit' | null
-  created_at: string
-}
+import {
+  HistoryTab, LoadMore, NotificationsTab, PortfolioTab, PreferencesTab, SecurityTab, SupportTab, noticesFrom,
+} from '@/components/dashboard/ExtraTabs'
 
 const BTC_ADDRESS = 'bc1qvpwmdln4nm6xa2k9q26l84pg4ud0uuqzk83053'
-const SUPPORT_EMAIL = 'tarafab.support@gmail.com'
 
 function TradingViewChart({ height }: { height: number }) {
   const ref = useRef<HTMLDivElement>(null)
   const { locale } = useI18n()
+  const { resolved } = useTheme()
   useEffect(() => {
     const el = ref.current
     if (!el) return
@@ -67,13 +42,13 @@ function TradingViewChart({ height }: { height: number }) {
     script.async = true
     script.innerHTML = JSON.stringify({
       autosize: true, symbol: 'COINBASE:BTCUSD', interval: '60', timezone: 'Etc/UTC',
-      theme: 'dark', style: '1', locale, backgroundColor: 'rgba(13, 16, 22, 1)',
-      gridColor: 'rgba(255, 255, 255, 0.04)', hide_side_toolbar: true, allow_symbol_change: false,
+      theme: resolved, style: '1', locale, backgroundColor: resolved === 'light' ? 'rgba(255, 255, 255, 1)' : 'rgba(13, 16, 22, 1)',
+      gridColor: resolved === 'light' ? 'rgba(16, 21, 30, 0.06)' : 'rgba(255, 255, 255, 0.04)', hide_side_toolbar: true, allow_symbol_change: false,
       save_image: false, calendar: false,
     })
     el.appendChild(script)
     return () => { el.innerHTML = '<div class="tradingview-widget-container__widget" style="height:100%;width:100%"></div>' }
-  }, [locale])
+  }, [locale, resolved])
   return (
     <div className="tradingview-widget-container" ref={ref} style={{ height }}>
       <div className="tradingview-widget-container__widget" style={{ height: '100%', width: '100%' }} />
@@ -81,35 +56,37 @@ function TradingViewChart({ height }: { height: number }) {
   )
 }
 
-const STATUS_STYLE: Record<string, string> = {
-  completed: 'text-emerald-400 border-emerald-500/30',
-  approved: 'text-emerald-400 border-emerald-500/30',
-  rejected: 'text-red-400 border-red-500/30',
-  failed: 'text-red-400 border-red-500/30',
-  pending: 'text-amber-400 border-amber-500/30',
-  pending_review: 'text-amber-400 border-amber-500/30',
-  pending_verification: 'text-amber-400 border-amber-500/30',
-  pending_blockchain_confirmation: 'text-sky-400 border-sky-500/30',
-}
-
-function StatusTag({ status }: { status: string }) {
-  const { t } = useI18n()
-  return <span className={`tag ${STATUS_STYLE[status] || 'text-fg-muted border-ink-600'}`}>{statusLabel(t, status)}</span>
-}
-
 type Icon = ComponentType<SVGProps<SVGSVGElement>>
-const navItems: { icon: Icon; label: TKey; id: string }[] = [
-  { icon: IconGrid, label: 'dash.nav.overview', id: 'overview' },
-  { icon: IconChart, label: 'dash.nav.markets', id: 'markets' },
-  { icon: IconList, label: 'dash.nav.transactions', id: 'transactions' },
-  { icon: IconArrowDown, label: 'dash.nav.deposit', id: 'deposit' },
-  { icon: IconArrowUp, label: 'dash.nav.withdraw', id: 'withdraw' },
-  { icon: IconUser, label: 'dash.nav.profile', id: 'profile' },
+type NavItem = { icon: Icon; label: TKey; id: string }
+// Grouped client navigation. Items marked `core` can never be hidden by the
+// admin navigation setting (it only accepts optional ids server-side too).
+const NAV_GROUPS: { label: TKey; items: (NavItem & { core?: boolean })[] }[] = [
+  { label: 'nav2.groupOverview', items: [
+    { icon: IconGrid, label: 'dash.nav.overview', id: 'overview', core: true },
+  ] },
+  { label: 'nav2.groupPortfolio', items: [
+    { icon: IconPie, label: 'nav2.portfolio', id: 'portfolio' },
+    { icon: IconChart, label: 'dash.nav.markets', id: 'markets' },
+    { icon: IconList, label: 'dash.nav.transactions', id: 'transactions' },
+  ] },
+  { label: 'nav2.groupMoney', items: [
+    { icon: IconArrowDown, label: 'dash.nav.deposit', id: 'deposit' },
+    { icon: IconArrowUp, label: 'dash.nav.withdraw', id: 'withdraw' },
+    { icon: IconHistory, label: 'nav2.depositHistory', id: 'depositHistory' },
+    { icon: IconHistory, label: 'nav2.withdrawalHistory', id: 'withdrawalHistory' },
+  ] },
+  { label: 'nav2.groupAccount', items: [
+    { icon: IconUser, label: 'dash.nav.profile', id: 'profile', core: true },
+    { icon: IconShield, label: 'nav2.security', id: 'security', core: true },
+    { icon: IconSliders, label: 'nav2.preferences', id: 'preferences', core: true },
+  ] },
+  { label: 'nav2.groupSupport', items: [
+    { icon: IconBell, label: 'nav2.notifications', id: 'notifications' },
+    { icon: IconHelp, label: 'nav2.support', id: 'support' },
+  ] },
 ]
-
-function fmt(n: number) {
-  return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
+const navItems: NavItem[] = NAV_GROUPS.flatMap(g => g.items)
+const NAV_IDS = new Set(navItems.map(n => n.id))
 
 function initialsOf(name: string) {
   return name.split(/\s+/).filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() || 'U'
@@ -119,28 +96,6 @@ function initialsOf(name: string) {
 // unchanged. A credit to the profit balance reads as "Profit", any other
 // credit as "Return", and a deduction keeps the neutral "Adjustment" so a
 // balance being reduced is never presented as a gain.
-type T = ReturnType<typeof useI18n>['t']
-function txLabel(tx: Tx, t: T) {
-  if (tx.type === 'adjustment') {
-    if (tx.direction === 'credit') return t(tx.method === 'profit_balance' ? 'dash.txType.profit' : 'dash.txType.return')
-    return t('dash.txType.adjustment')
-  }
-  return t(`dash.txType.${tx.type}` as TKey) || tx.type.replace(/_/g, ' ')
-}
-
-function methodLabel(method: string, t: T) {
-  return t(`dash.method.${method}` as TKey) || method.replace(/_/g, ' ')
-}
-
-function TxIcon({ type }: { type: string }) {
-  const I = type === 'deposit' ? IconArrowDown : type === 'withdrawal' ? IconArrowUp : IconSwap
-  return (
-    <span className="w-8 h-8 rounded-md bg-ink-800 border border-ink-700 flex items-center justify-center text-fg-muted shrink-0">
-      <I width={16} height={16} />
-    </span>
-  )
-}
-
 export default function DashboardPage() {
   const [user, setUser] = useState<UserInfo | null>(null)
   const [account, setAccount] = useState<Account | null>(null)
@@ -152,6 +107,14 @@ export default function DashboardPage() {
   const [txError, setTxError] = useState('')
   const [refreshing, setRefreshing] = useState(false)
   const [sessionError, setSessionError] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  // Optional sections an admin has hidden; empty (all shown) until loaded
+  // and if the setting cannot be read.
+  const [hiddenNav, setHiddenNav] = useState<string[]>([])
+  const [seenAt, setSeenAt] = useState<string | null>(null)
+  const olderLoaded = useRef(false)
+  const userId = useRef<string | null>(null)
   const lastLoad = useRef(0)
   const inFlight = useRef<Promise<void> | null>(null)
   const router = useRouter()
@@ -168,14 +131,24 @@ export default function DashboardPage() {
     if (inFlight.current) return inFlight.current
     const run = (async () => {
       setRefreshing(true)
-      const [acc, tx] = await Promise.allSettled([
+      const [acc, tx, nav] = await Promise.allSettled([
         authFetch('/api/client/account').then(r => readJson<{ user: UserInfo; account: Account }>(r)),
-        authFetch('/api/client/transactions').then(r => readJson<{ transactions: Tx[] }>(r)),
+        authFetch('/api/client/transactions').then(r => readJson<{ transactions: Tx[]; hasMore?: boolean }>(r)),
+        authFetch('/api/client/nav-config').then(r => readJson<{ config: { hidden?: string[] } }>(r)),
       ])
-      if (acc.status === 'fulfilled') { setUser(acc.value.user); setAccount(acc.value.account); setLoadError('') }
-      else setLoadError(errorText(acc.reason, tRef.current))
-      if (tx.status === 'fulfilled') { setTxs(tx.value.transactions || []); setTxError('') }
-      else setTxError(errorText(tx.reason, tRef.current))
+      if (acc.status === 'fulfilled') {
+        userId.current = acc.value.user.id
+        setUser(acc.value.user); setAccount(acc.value.account); setLoadError('')
+      } else setLoadError(errorText(acc.reason, tRef.current))
+      if (tx.status === 'fulfilled') {
+        const page = tx.value.transactions || []
+        const last = page[page.length - 1]?.created_at
+        // Keep older pages the client already loaded; refresh only the newest.
+        setTxs(prev => olderLoaded.current && last ? [...page, ...prev.filter(x => x.created_at < last)] : page)
+        if (!olderLoaded.current) setHasMore(Boolean(tx.value.hasMore))
+        setTxError('')
+      } else setTxError(errorText(tx.reason, tRef.current))
+      if (nav.status === 'fulfilled' && Array.isArray(nav.value.config?.hidden)) setHiddenNav(nav.value.config.hidden)
       const expired = [acc, tx].some(r => r.status === 'rejected' && r.reason instanceof RequestError && r.reason.status === 401)
       if (expired) router.replace('/sign-in')
       lastLoad.current = Date.now()
@@ -210,8 +183,11 @@ export default function DashboardPage() {
   // One listener per mounted dashboard, removed on unmount. Signing out in
   // another tab signs this tab out too.
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(event => {
-      if (event === 'SIGNED_OUT') router.replace('/sign-in')
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') { router.replace('/sign-in'); return }
+      // A different account signed in (e.g. in another tab): never show the
+      // previous account's figures under the new session. Reload cleanly.
+      if (session?.user && userId.current && session.user.id !== userId.current) window.location.replace('/dashboard')
     })
     return () => subscription.unsubscribe()
   }, [supabase, router])
@@ -230,12 +206,74 @@ export default function DashboardPage() {
     }
   }, [fetchData])
 
+  // Open the section named in the URL (#deposit etc.) after a refresh.
+  useEffect(() => {
+    const id = window.location.hash.slice(1)
+    if (NAV_IDS.has(id)) setActiveNav(id)
+  }, [])
+
+  const loadMore = useCallback(async () => {
+    const last = txs[txs.length - 1]?.created_at
+    if (!last || loadingMore) return
+    setLoadingMore(true)
+    try {
+      const d = await readJson<{ transactions: Tx[]; hasMore?: boolean }>(await authFetch(`/api/client/transactions?before=${encodeURIComponent(last)}`))
+      olderLoaded.current = true
+      setTxs(prev => {
+        const ids = new Set(prev.map(x => x.id))
+        return [...prev, ...(d.transactions || []).filter(x => !ids.has(x.id))]
+      })
+      setHasMore(Boolean(d.hasMore))
+      setTxError('')
+    } catch (err) {
+      setTxError(errorText(err, tRef.current))
+    } finally {
+      setLoadingMore(false)
+    }
+  }, [txs, loadingMore])
+
+  // Notifications: "new" means newer than the last visit to that section,
+  // remembered per account on this device (only a timestamp is stored).
+  const notices = useMemo(() => noticesFrom(txs), [txs])
+  useEffect(() => {
+    if (!user?.id) return
+    try { setSeenAt(localStorage.getItem(`tarafab.noticesSeen.${user.id}`)) } catch { /* ignore */ }
+  }, [user?.id])
+  useEffect(() => {
+    if (activeNav !== 'notifications' || !user?.id) return
+    const t0 = setTimeout(() => {
+      const now = new Date().toISOString()
+      try { localStorage.setItem(`tarafab.noticesSeen.${user.id}`, now) } catch { /* ignore */ }
+    }, 1500)
+    return () => clearTimeout(t0)
+  }, [activeNav, user?.id])
+  const unread = notices.filter(n => n.kind !== 'pending' && (!seenAt || n.at > seenAt)).length
+
+  // Mobile drawer: Escape closes it and the page behind does not scroll.
+  useEffect(() => {
+    if (!sidebarOpen) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setSidebarOpen(false) }
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    document.addEventListener('keydown', onKey)
+    return () => { document.body.style.overflow = prev; document.removeEventListener('keydown', onKey) }
+  }, [sidebarOpen])
+
+  // A hidden section cannot stay open.
+  useEffect(() => {
+    if (hiddenNav.includes(activeNav)) setActiveNav('overview')
+  }, [hiddenNav, activeNav])
+
   const handleSignOut = async () => {
     await supabase.auth.signOut()
     router.push('/')
   }
 
-  const go = (id: string) => { setActiveNav(id); setSidebarOpen(false); window.scrollTo({ top: 0 }) }
+  const go = (id: string) => {
+    setActiveNav(id); setSidebarOpen(false); window.scrollTo({ top: 0 })
+    // Kept in the URL so a refresh or the back button returns to this section.
+    try { window.history.replaceState(null, '', id === 'overview' ? '/dashboard' : `/dashboard#${id}`) } catch { /* ignore */ }
+  }
 
   if (loading) {
     return (
@@ -268,20 +306,36 @@ export default function DashboardPage() {
           <Link href="/" aria-label={t('common.home')}><Logo /></Link>
           <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1 text-fg-muted hover:text-fg" aria-label={t('common.closeMenu')}><IconClose /></button>
         </div>
-        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-          {navItems.map(({ icon: I, label, id }) => (
-            <button
-              key={id}
-              onClick={() => go(id)}
-              className={`w-full flex items-center gap-3 px-3 min-h-10 py-2 rounded-md text-sm transition-colors text-left ${
-                activeNav === id ? 'nav-item-on font-medium' : 'nav-item'
-              }`}
-              aria-current={activeNav === id ? 'page' : undefined}
-            >
-              <I width={17} height={17} className={`shrink-0 ${activeNav === id ? 'text-brand-300' : ''}`} />
-              {t(label)}
-            </button>
-          ))}
+        <nav className="flex-1 px-3 py-3 overflow-y-auto overscroll-contain" aria-label={t('dash.dashboard')}>
+          {NAV_GROUPS.map(group => {
+            const items = group.items.filter(i => i.core || !hiddenNav.includes(i.id))
+            if (!items.length) return null
+            return (
+              <div key={group.label} className="mb-3 last:mb-0">
+                <p className="px-3 pt-2 pb-1 text-[11px] font-medium uppercase tracking-[0.12em] text-fg-faint">{t(group.label)}</p>
+                <div className="space-y-0.5">
+                  {items.map(({ icon: I, label, id }) => (
+                    <button
+                      key={id}
+                      onClick={() => go(id)}
+                      className={`w-full flex items-center gap-3 px-3 min-h-11 lg:min-h-10 py-2 rounded-md text-sm transition-colors text-left ${
+                        activeNav === id ? 'nav-item-on font-medium' : 'nav-item'
+                      }`}
+                      aria-current={activeNav === id ? 'page' : undefined}
+                    >
+                      <I width={17} height={17} className={`shrink-0 ${activeNav === id ? 'text-brand-300' : ''}`} aria-hidden="true" />
+                      <span className="flex-1 min-w-0">{t(label)}</span>
+                      {id === 'notifications' && unread > 0 && (
+                        <span className="shrink-0 min-w-5 h-5 px-1.5 rounded-full bg-brand-500/15 text-brand-300 text-[11px] font-semibold tabular-nums inline-flex items-center justify-center">
+                          {unread}<span className="sr-only"> {t('notices.newCount', { n: unread })}</span>
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
         </nav>
         <div className="p-3 border-t border-ink-700">
           <div className="flex items-center gap-3 px-2 py-2 mb-1">
@@ -291,14 +345,17 @@ export default function DashboardPage() {
               <p className="text-xs text-fg-faint truncate">{user?.email}</p>
             </div>
           </div>
-          <LanguageSelector align="left" direction="up" className="px-2 mb-2" />
+          <div className="flex items-center gap-2 px-2 mb-2">
+            <LanguageSelector align="left" direction="up" />
+            <ThemeSelector align="left" direction="up" />
+          </div>
           <button onClick={handleSignOut} className="w-full flex items-center gap-3 px-3 h-10 rounded-md text-sm text-fg-muted hover:text-fg hover:bg-ink-850 transition-colors">
             <IconLogOut width={17} height={17} />{t('common.signOut')}
           </button>
         </div>
       </aside>
 
-      {sidebarOpen && <div className="fixed inset-0 z-30 bg-black/60 lg:hidden" onClick={() => setSidebarOpen(false)} />}
+      {sidebarOpen && <div className="fixed inset-0 z-30 bg-black/60 lg:hidden" onClick={() => setSidebarOpen(false)} aria-hidden="true" />}
 
       <div className="flex-1 min-w-0">
         <header className="sticky top-0 z-20 h-16 flex items-center justify-between gap-4 px-4 sm:px-6 border-b border-ink-700 bg-ink-950">
@@ -325,9 +382,16 @@ export default function DashboardPage() {
             </div>
           )}
           <ErrorBoundary key={activeNav} label={current ? t(current.label) : undefined}>
-            {activeNav === 'overview' && <OverviewTab name={displayName} account={account} txs={txs} go={go} />}
+            {activeNav === 'overview' && <OverviewTab name={displayName} account={account} txs={txs} go={go} can={id => !hiddenNav.includes(id)} />}
             {activeNav === 'markets' && <MarketsTab />}
-            {activeNav === 'transactions' && <TransactionsTab txs={txs} />}
+            {activeNav === 'transactions' && <><TransactionsTab txs={txs} /><div className="mt-4"><LoadMore hasMore={hasMore} loading={loadingMore} onLoadMore={loadMore} /></div></>}
+            {activeNav === 'portfolio' && <PortfolioTab account={account} txs={txs} hasMore={hasMore} go={go} />}
+            {activeNav === 'depositHistory' && <HistoryTab kind="deposit" txs={txs} hasMore={hasMore} loadingMore={loadingMore} onLoadMore={loadMore} go={go} />}
+            {activeNav === 'withdrawalHistory' && <HistoryTab kind="withdrawal" txs={txs} hasMore={hasMore} loadingMore={loadingMore} onLoadMore={loadMore} go={go} />}
+            {activeNav === 'security' && <SecurityTab user={user} />}
+            {activeNav === 'preferences' && <PreferencesTab />}
+            {activeNav === 'support' && <SupportTab />}
+            {activeNav === 'notifications' && <NotificationsTab notices={notices} seenAt={seenAt} />}
             {activeNav === 'deposit' && <DepositTab onSuccess={fetchData} />}
             {activeNav === 'withdraw' && <WithdrawTab account={account} txs={txs} onSuccess={fetchData} />}
             {activeNav === 'profile' && <ProfileTab user={user} account={account} />}
@@ -338,17 +402,8 @@ export default function DashboardPage() {
   )
 }
 
-function EmptyState({ title, body }: { title: string; body?: string }) {
-  return (
-    <div className="px-6 py-12 text-center">
-      <p className="text-sm text-fg">{title}</p>
-      {body && <p className="text-[13px] text-fg-faint mt-1">{body}</p>}
-    </div>
-  )
-}
-
 /* Overview */
-function OverviewTab({ name, account, txs, go }: { name: string; account: Account | null; txs: Tx[]; go: (id: string) => void }) {
+function OverviewTab({ name, account, txs, go, can }: { name: string; account: Account | null; txs: Tx[]; go: (id: string) => void; can: (id: string) => boolean }) {
   const recentTxs = txs.slice(0, 5)
   const pendingCount = txs.filter(x => x.status.startsWith('pending')).length
   const { t, intl } = useI18n()
@@ -401,16 +456,21 @@ function OverviewTab({ name, account, txs, go }: { name: string; account: Accoun
 
         <div className="panel p-5 flex flex-col gap-3">
           <h3 className="text-[15px] font-semibold text-fg mb-1">{t('dash.actions')}</h3>
-          <button onClick={() => go('deposit')} className="btn btn-solid w-full">{t('dash.depositBitcoin')}</button>
-          <button onClick={() => go('withdraw')} className="btn btn-outline w-full">{t('dash.requestWithdrawal')}</button>
-          <button onClick={() => go('transactions')} className="btn btn-outline w-full">{t('dash.viewAllTx')}</button>
+          {can('deposit') && <button onClick={() => go('deposit')} className="btn btn-solid w-full">{t('dash.depositBitcoin')}</button>}
+          {can('withdraw') && <button onClick={() => go('withdraw')} className="btn btn-outline w-full">{t('dash.requestWithdrawal')}</button>}
+          {can('transactions') && <button onClick={() => go('transactions')} className="btn btn-outline w-full">{t('dash.viewAllTx')}</button>}
+          <div className="grid grid-cols-1 gap-1 pt-2 mt-1 border-t border-ink-700">
+            {can('portfolio') && <button onClick={() => go('portfolio')} className="btn btn-ghost btn-sm justify-start">{t('nav2.portfolio')}</button>}
+            {can('markets') && <button onClick={() => go('markets')} className="btn btn-ghost btn-sm justify-start">{t('portfolio.viewMarket')}</button>}
+            {can('support') && <button onClick={() => go('support')} className="btn btn-ghost btn-sm justify-start">{t('portfolio.contactSupport')}</button>}
+          </div>
         </div>
       </div>
 
       <div className="panel">
         <div className="flex items-center justify-between px-5 h-14 border-b border-ink-700">
           <h3 className="text-[15px] font-semibold text-fg">{t('dash.recentTx')}</h3>
-          {txs.length > 0 && <button onClick={() => go('transactions')} className="text-[13px] text-fg-muted hover:text-fg">{t('common.viewAll')}</button>}
+          {txs.length > 0 && can('transactions') && <button onClick={() => go('transactions')} className="text-[13px] text-fg-muted hover:text-fg min-h-8 px-1">{t('common.viewAll')}</button>}
         </div>
         {recentTxs.length === 0 ? (
           <EmptyState title={t('dash.noTx')} body={t('dash.noTxBody')} />
@@ -450,6 +510,7 @@ function MarketsTab() {
         </div>
         <ErrorBoundary label={t('dash.theChart')}><TradingViewChart height={520} /></ErrorBoundary>
       </div>
+      <ErrorBoundary label={t('market.historyTitle')}><PriceHistory /></ErrorBoundary>
       <ErrorBoundary label={t('market.bitcoinMarket')}><BitcoinMarketCard /></ErrorBoundary>
     </div>
   )
@@ -646,7 +707,7 @@ function DepositTab({ onSuccess }: { onSuccess: () => void }) {
       <div className="panel p-5 sm:p-6">
         <h3 className="text-[15px] font-semibold text-fg">{t('deposit.step1')}</h3>
         <p className="text-[13px] text-fg-faint mt-1 mb-5">{t('deposit.step1Body')}</p>
-        <div className="w-44 h-44 mx-auto sm:mx-0 mb-5 bg-white rounded-md p-2">
+        <div className="w-44 h-44 mx-auto sm:mx-0 mb-5 bg-[#fff] rounded-md p-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={`https://api.qrserver.com/v1/create-qr-code/?size=176x176&data=bitcoin:${BTC_ADDRESS}`} alt={t('deposit.qrAlt')} className="w-full h-full" />
         </div>
@@ -710,7 +771,6 @@ function DepositTab({ onSuccess }: { onSuccess: () => void }) {
 }
 
 /* Withdraw */
-const OPEN_STATUSES = ['pending_review', 'pending', 'requested', 'under_review']
 const SOURCES = [
   { id: 'available_balance', label: 'withdraw.availableBalance', short: 'withdraw.availableShort' },
   { id: 'profit_balance', label: 'withdraw.profitBalance', short: 'withdraw.profitShort' },

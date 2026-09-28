@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { IconClose, IconMenu, Logo } from '@/components/Icons'
 import { LanguageSelector } from '@/components/LanguageSelector'
+import { ThemeSelector } from '@/components/ThemeSelector'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
 
 const navLinks: { label: TKey; href: string }[] = [
@@ -40,6 +41,7 @@ export default function Navbar() {
           </div>
 
           <div className="hidden md:flex items-center gap-3">
+            <ThemeSelector />
             <LanguageSelector />
             <Link href="/sign-in" className="btn btn-sm btn-outline">{t('common.signIn')}</Link>
             <Link href="/sign-up" className="btn btn-sm btn-solid">{t('common.openAccountShort')}</Link>
@@ -70,6 +72,7 @@ export default function Navbar() {
             <Link href="/sign-up" onClick={() => setMobileOpen(false)} className="btn btn-solid min-w-0">{t('common.openAccountShort')}</Link>
           </div>
           <LanguageSelector variant="list" className="pt-5" />
+          <ThemeSelector variant="list" className="pt-5" />
         </div>
       )}
     </nav>

@@ -32,6 +32,7 @@
   --accent: 247 147 26;
   --accent-hover: 255 167 61;
   --accent-ink: 10 12 15;
+  --accent-text: 247 147 26; /* orange used as text; deeper in light mode */
 
   /* Brand / interactive (indigo-violet) */
   --brand-200: 221 216 255;
@@ -65,4 +66,69 @@
 
   /* Focus ring */
   --focus: 167 154 255;
+
+  /* "white" in Tailwind classes resolves to this, so white text and faint
+     white overlays (used across admin) flip correctly in light mode. */
+  --contrast: 255 255 255;
+  --shadow: 0 0 0;
+  --shadow-strength: .8;
+  color-scheme: dark;
+}
+
+/* Light theme: a considered light financial UI, not inverted dark. Pages
+   sit on a cool grey, cards are white, text is near-black, and status
+   colours use deeper shades so they keep contrast on light surfaces. */
+:root[data-theme="light"] {
+  --ink-950: 243 245 248;
+  --ink-900: 255 255 255;
+  --ink-850: 248 249 251;
+  --ink-800: 236 239 243;
+  --ink-700: 222 226 233;
+  --ink-600: 204 210 219;
+  --ink-500: 168 176 189;
+
+  --fg: 16 21 30;
+  --fg-muted: 70 80 96;
+  --fg-faint: 92 102 118;
+  --fg-disabled: 150 158 171;
+  --fg-label: 42 50 64;
+
+  --accent: 247 147 26;
+  --accent-hover: 255 167 61;
+  --accent-ink: 10 12 15;
+  --accent-text: 166 82 0;
+
+  --brand-200: 55 42 148;
+  --brand-300: 72 58 180;
+  --brand-400: 88 72 205;
+  --brand-500: 108 92 231;
+  --brand-600: 96 80 220;
+  --brand-700: 76 62 184;
+  --brand-blue-400: 29 88 216;
+  --brand-blue-500: 37 99 235;
+
+  --success-200: 5 80 58;
+  --success-300: 4 100 72;
+  --success-400: 4 120 86;
+  --success-500: 16 150 105;
+  --success-600: 6 110 80;
+  --danger-200: 125 28 30;
+  --danger-300: 160 32 38;
+  --danger-400: 185 36 44;
+  --danger-500: 220 52 58;
+  --danger-600: 180 35 40;
+  --warning-200: 105 58 4;
+  --warning-300: 128 72 4;
+  --warning-400: 146 82 6;
+  --warning-500: 214 138 18;
+  --warning-600: 150 88 8;
+  --info-300: 10 86 145;
+  --info-400: 12 100 165;
+  --info-500: 22 132 200;
+
+  --focus: 96 80 214;
+  --contrast: 16 21 30;
+  --shadow: 30 40 60;
+  --shadow-strength: .12;
+  color-scheme: light;
 }

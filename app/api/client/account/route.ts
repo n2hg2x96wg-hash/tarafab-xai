@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
         role: profile?.role || 'customer',
         email_confirmed: Boolean(user.email_confirmed_at),
         created_at: user.created_at,
+        last_sign_in_at: user.last_sign_in_at ?? null,
       },
       account: account || {
         account_balance: 0,

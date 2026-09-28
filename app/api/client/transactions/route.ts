@@ -18,16 +18,23 @@ export async function GET(request: NextRequest) {
     const { data: { user }, error: authErr } = await supabase.auth.getUser(token)
     if (authErr || !user) return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
 
-    const { data: transactions, error: txErr } = await supabase
+    // Pages of 100, newest first. ?before=<created_at> returns the next older
+    // page; one extra row tells the client whether more exist.
+    const PAGE = 100
+    const before = request.nextUrl.searchParams.get('before')
+    let query = supabase
       .from('transactions')
-      .select('id, type, method, amount, fee, status, reference, notes, address, direction, created_at')
+      .select('id, type, method, amount, fee, status, reference, notes, address, direction, created_at, updated_at')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
-      .limit(100)
+      .limit(PAGE + 1)
+    if (before && !Number.isNaN(Date.parse(before))) query = query.lt('created_at', before)
+    const { data: rows, error: txErr } = await query
 
-    if (txErr) return NextResponse.json({ error: txErr.message }, { status: 500 })
+    if (txErr) return NextResponse.json({ error: 'Transactions could not be loaded.' }, { status: 500 })
 
-    return NextResponse.json({ transactions: transactions || [] })
+    const list = rows || []
+    return NextResponse.json({ transactions: list.slice(0, PAGE), hasMore: list.length > PAGE })
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)
     return NextResponse.json({ error: msg }, { status: 500 })

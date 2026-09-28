@@ -55,23 +55,38 @@ export function useLiveMarket() {
       }
     }, 600)
 
+    // Bitcoin from our own server route: its provider timestamp says whether
+    // the price is current. Used for the first price (before the stream opens)
+    // and by the fallback feed if the stream cannot connect.
+    const btcFromServer = async () => {
+      const r = await fetch('/api/market/btc/summary', { cache: 'no-store' })
+      const j = r.ok ? await r.json() : null
+      const x = j?.summary
+      if (!x?.price || !(Date.now() - Date.parse(x.updatedAt) < 3 * 60_000)) return false
+      pendingQuotes.current['BTC-USD'] = { price: x.price, open24h: x.price / (1 + (x.change24h ?? 0) / 100) }
+      return true
+    }
+    btcFromServer().catch(() => false)
+
     const startPolling = () => {
       if (pollTimer || closed) return
       const poll = async () => {
+        // Status follows Bitcoin, the price this panel is about. Ethereum and
+        // Solana are best-effort extras for the ticker bar.
+        const btcOk = await btcFromServer().catch(() => false)
         try {
-          const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd&include_24hr_change=true')
-          if (!res.ok) throw new Error()
-          const j = await res.json()
-          const map: [Product, string][] = [['BTC-USD', 'bitcoin'], ['ETH-USD', 'ethereum'], ['SOL-USD', 'solana']]
-          for (const [p, id] of map) {
-            const price = j[id]?.usd
-            const ch = j[id]?.usd_24h_change
-            if (price) pendingQuotes.current[p] = { price, open24h: price / (1 + (ch ?? 0) / 100) }
+          const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum,solana&vs_currencies=usd&include_24hr_change=true')
+          if (res.ok) {
+            const j = await res.json()
+            const map: [Product, string][] = [['ETH-USD', 'ethereum'], ['SOL-USD', 'solana']]
+            for (const [p, id] of map) {
+              const price = j[id]?.usd
+              const ch = j[id]?.usd_24h_change
+              if (price) pendingQuotes.current[p] = { price, open24h: price / (1 + (ch ?? 0) / 100) }
+            }
           }
-          setStatus('polling')
-        } catch {
-          setStatus(s => (s === 'polling' ? s : 'error'))
-        }
+        } catch { /* extras only */ }
+        if (!closed) setStatus(btcOk ? 'polling' : 'error')
       }
       poll()
       pollTimer = setInterval(poll, 30_000)
@@ -187,8 +202,8 @@ function LineChart({ points, positive }: { points: number[]; positive: boolean }
   const color = positive ? chartColors.up : chartColors.down
   return (
     <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-28" preserveAspectRatio="none" role="img" aria-label={t('market.chart24hAria')}>
-      <path d={`${line} L${w},${h} L0,${h} Z`} fill={color} fillOpacity="0.07" />
-      <path d={line} fill="none" stroke={color} strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+      <path d={`${line} L${w},${h} L0,${h} Z`} style={{ fill: color, fillOpacity: 0.07 }} />
+      <path d={line} fill="none" style={{ stroke: color }} strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
     </svg>
   )
 }
@@ -250,9 +265,10 @@ function StatusTag({ status }: { status: Status }) {
   const { t } = useI18n()
   const map = {
     live: { t: t('status.live'), c: 'text-emerald-400 border-emerald-500/30', d: 'bg-emerald-400' },
-    polling: { t: t('status.delayed'), c: 'text-amber-400 border-amber-500/30', d: 'bg-amber-400' },
+    // Fallback feed refreshed every 30 seconds: current, but not streaming.
+    polling: { t: t('status.current'), c: 'text-emerald-400 border-emerald-500/30', d: 'bg-emerald-400' },
     connecting: { t: t('status.connecting'), c: 'text-fg-muted border-ink-600', d: 'bg-fg-faint' },
-    error: { t: t('status.offline'), c: 'text-red-400 border-red-500/30', d: 'bg-red-400' },
+    error: { t: t('common.unavailable'), c: 'text-red-400 border-red-500/30', d: 'bg-red-400' },
   }[status]
   return (
     <span className={`tag ${map.c}`}>

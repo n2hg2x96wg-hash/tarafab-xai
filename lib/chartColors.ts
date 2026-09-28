@@ -1,8 +1,9 @@
-// SVG presentation attributes cannot read CSS variables reliably, so charts
-// use these literal values. Keep them in step with app/tokens.css.
+// Chart colours follow the active theme through CSS variables. SVG
+// presentation attributes cannot read variables, so charts apply these
+// through the style prop (style={{ stroke: chartColors.up }}).
 export const chartColors = {
-  up: '#3DD5A0', // --success-400
-  down: '#F67C7C', // --danger-400
-  grid: '#222833', // --ink-700
-  guide: '#808A99', // --fg-faint
+  up: 'rgb(var(--success-400))',
+  down: 'rgb(var(--danger-400))',
+  grid: 'rgb(var(--ink-700))',
+  guide: 'rgb(var(--fg-faint))',
 } as const

@@ -38,7 +38,9 @@ async function load<T>(url: string): Promise<T> {
 // Every widget on a page shares one summary request: calls within a few
 // seconds of each other reuse the same response.
 let summaryShared: { at: number; promise: Promise<{ summary: Summary }> } | null = null
-function sharedSummary() {
+function sharedSummary(bypass = false) {
+  // A bypass skips both the page-level sharing and any CDN copy.
+  if (bypass) return load<{ summary: Summary }>(`/api/market/btc/summary?t=${Date.now()}`)
   const now = Date.now()
   if (summaryShared && now - summaryShared.at < 5_000) return summaryShared.promise
   const promise = load<{ summary: Summary }>('/api/market/btc/summary')
@@ -63,15 +65,27 @@ export function useBtcSummary(refreshMs = 30_000) {
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const alive = useRef(true)
 
-  const run = useCallback(async () => {
+  const run = useCallback(async (bypass = false) => {
     try {
-      const { summary } = await sharedSummary()
+      let { summary } = await sharedSummary(bypass)
       if (!alive.current) return
       // Freshness comes from the provider's own timestamp, not from when we
       // asked: during a provider outage the server keeps serving its last
-      // cached price, and that must read as delayed rather than live.
-      const asOf = Date.parse(summary.updatedAt)
-      const dataTime = Number.isFinite(asOf) ? Math.min(asOf, Date.now()) : Date.now()
+      // good price, and that must read as delayed rather than live.
+      const ageOf = (x: Summary) => {
+        const asOf = Date.parse(x.updatedAt)
+        return Number.isFinite(asOf) ? Math.min(asOf, Date.now()) : Date.now()
+      }
+      // First load only: an old first answer is re-checked straight away
+      // (the card keeps showing "Loading") before it is called delayed.
+      if (!hasData.current && !bypass && Date.now() - ageOf(summary) > STALE_AFTER_MS) {
+        try {
+          const fresh = await sharedSummary(true)
+          if (!alive.current) return
+          summary = fresh.summary
+        } catch { /* keep the first answer; it is labelled by its age below */ }
+      }
+      const dataTime = ageOf(summary)
       setSummary(summary)
       setFetchedAt(dataTime)
       setStatus(Date.now() - dataTime > STALE_AFTER_MS ? 'stale' : 'live')
@@ -96,10 +110,11 @@ export function useBtcSummary(refreshMs = 30_000) {
     }, delay)
   }, [run, refreshMs])
 
+  // Manual refresh asks the provider directly rather than a shared copy.
   const retry = useCallback(() => {
     if (!hasData.current) setStatus('loading')
     failures.current = 0
-    run().then(() => { if (alive.current) schedule() })
+    run(true).then(() => { if (alive.current) schedule() })
   }, [run, schedule])
 
   useEffect(() => {

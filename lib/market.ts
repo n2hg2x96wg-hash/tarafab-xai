@@ -33,10 +33,16 @@ export type HistoryRange = (typeof HISTORY_RANGES)[number]
 
 // How long each response may be reused. Longer ranges change more slowly.
 export const HISTORY_TTL: Record<HistoryRange, number> = { '1': 60, '7': 300, '30': 900, '365': 3600, '1825': 21600 }
-export const SUMMARY_TTL = 30
+// Current price: fetched fresh on every server request; the CDN may share one
+// response between visitors for this many seconds (see the summary route).
+export const SUMMARY_TTL = 10
 
+// revalidate 0 = always ask the provider (used for the current price, where
+// a saved copy would be served stale first); otherwise Next's data cache may
+// reuse a response for that many seconds (used for price history).
 async function getJson<T>(url: string, revalidate: number): Promise<T> {
-  const res = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(TIMEOUT_MS), next: { revalidate } })
+  const cacheOpts: RequestInit = revalidate > 0 ? { next: { revalidate } } : { cache: 'no-store' }
+  const res = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(TIMEOUT_MS), ...cacheOpts })
   if (!res.ok) throw new Error(`${new URL(url).host} responded ${res.status}`)
   return res.json() as Promise<T>
 }
@@ -51,8 +57,8 @@ const num = (v: unknown) => {
 
 async function coinbaseSummary(): Promise<MarketSummary> {
   const [stats, ticker] = await Promise.all([
-    getJson<Record<string, string>>(`${COINBASE}/products/BTC-USD/stats`, SUMMARY_TTL),
-    getJson<Record<string, string>>(`${COINBASE}/products/BTC-USD/ticker`, SUMMARY_TTL),
+    getJson<Record<string, string>>(`${COINBASE}/products/BTC-USD/stats`, 0),
+    getJson<Record<string, string>>(`${COINBASE}/products/BTC-USD/ticker`, 0),
   ])
   const price = num(ticker.price ?? stats.last)
   const open = num(stats.open)
@@ -62,13 +68,13 @@ async function coinbaseSummary(): Promise<MarketSummary> {
     high24h: num(stats.high),
     low24h: num(stats.low),
     volume24hUsd: num(stats.volume) * price,
-    updatedAt: ticker.time || new Date().toISOString(),
+    updatedAt: ticker.time || new Date().toISOString(), // time of the last trade
     source: 'Coinbase Exchange',
   }
 }
 
 async function coingeckoSummary(): Promise<MarketSummary> {
-  const [btc] = await getJson<Record<string, unknown>[]>(`${COINGECKO}/coins/markets?vs_currency=usd&ids=bitcoin`, SUMMARY_TTL)
+  const [btc] = await getJson<Record<string, unknown>[]>(`${COINGECKO}/coins/markets?vs_currency=usd&ids=bitcoin`, 0)
   if (!btc) throw new Error('Malformed market data')
   return {
     price: num(btc.current_price),
@@ -81,13 +87,21 @@ async function coingeckoSummary(): Promise<MarketSummary> {
   }
 }
 
+// Last good answer in this server instance. Used only when both providers
+// fail, and always returned with its original timestamp, so the page shows
+// it as delayed rather than live.
+let lastGood: MarketSummary | null = null
+
 export async function getSummary(): Promise<MarketSummary> {
   try {
-    return await coinbaseSummary()
+    lastGood = await coinbaseSummary()
+    return lastGood
   } catch (primary) {
     try {
-      return await coingeckoSummary()
+      lastGood = await coingeckoSummary()
+      return lastGood
     } catch {
+      if (lastGood) return lastGood
       throw primary
     }
   }

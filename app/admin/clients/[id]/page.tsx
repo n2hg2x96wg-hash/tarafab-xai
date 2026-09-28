@@ -502,7 +502,7 @@ export default function ClientDetailPage() {
           <button
             onClick={handleAdjustSubmit}
             disabled={adjusting || !adjustForm.amount || !adjustForm.reason.trim()}
-            className="w-full mt-6 py-3.5 text-sm font-semibold text-white bg-gradient-to-r from-violet-600 to-blue-500 rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_0_20px_rgba(124,58,237,0.3)] flex items-center justify-center gap-2"
+            className="w-full mt-6 py-3.5 text-sm font-semibold text-[#fff] bg-gradient-to-r from-violet-600 to-blue-500 rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_0_20px_rgba(124,58,237,0.3)] flex items-center justify-center gap-2"
           >
             {adjusting ? (
               <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Processing…</>
@@ -668,7 +668,7 @@ export default function ClientDetailPage() {
             <div className="flex gap-3">
               <button
                 onClick={handleAdjustConfirm}
-                className="flex-1 py-3 text-sm font-semibold text-white bg-gradient-to-r from-violet-600 to-blue-500 rounded-xl hover:opacity-90 transition-all"
+                className="flex-1 py-3 text-sm font-semibold text-[#fff] bg-gradient-to-r from-violet-600 to-blue-500 rounded-xl hover:opacity-90 transition-all"
               >
                 Confirm
               </button>

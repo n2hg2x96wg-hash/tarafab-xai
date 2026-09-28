@@ -8,7 +8,7 @@ export async function GET() {
     const summary = await getSummary()
     return NextResponse.json(
       { summary, fetchedAt: new Date().toISOString() },
-      { headers: { 'Cache-Control': `public, s-maxage=${SUMMARY_TTL}, stale-while-revalidate=120` } },
+      { headers: { 'Cache-Control': `public, s-maxage=${SUMMARY_TTL}, stale-while-revalidate=${SUMMARY_TTL}` } },
     )
   } catch (e) {
     console.error('market summary failed:', e instanceof Error ? e.message : e)
