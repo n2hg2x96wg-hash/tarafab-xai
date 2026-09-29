@@ -410,6 +410,7 @@ export default function ClientDetailPage() {
               {t('adminNotif.send')}
             </Link>
           </div>
+          <ClientFinancialProfile clientId={clientId} />
         </div>
       )}
 
@@ -689,5 +690,66 @@ export default function ClientDetailPage() {
         </div>
       )}
     </AdminLayout>
+  )
+}
+
+// Read-only financial profile of one client: KYC, investments with their own
+// profit / return, and deposit / withdrawal totals. Nothing here edits data;
+// profit changes happen in the Investment Center, balance changes in "Adjust".
+function ClientFinancialProfile({ clientId }: { clientId: string }) {
+  const supabase = createClient()
+  type Inv = { id: string; reference: string | null; status: string; principal: number; profit_amount: number | null; created_at: string; maturity_date: string | null; investment_products: { code: string } | null }
+  const [data, setData] = useState<{ kyc: string; invs: Inv[]; deposits: number; withdrawals: number } | null>(null)
+  const [error, setError] = useState(false)
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      const [k, i, d, w] = await Promise.all([
+        supabase.from('kyc_submissions').select('status').eq('user_id', clientId).order('submitted_at', { ascending: false }).limit(1),
+        (supabase.from('client_investments') as any).select('id, reference, status, principal, profit_amount, created_at, maturity_date, investment_products(code)').eq('user_id', clientId).order('created_at', { ascending: false }).limit(50),
+        (supabase.from('transactions') as any).select('amount').eq('user_id', clientId).eq('type', 'deposit').eq('status', 'completed').limit(1000),
+        (supabase.from('transactions') as any).select('amount').eq('user_id', clientId).eq('type', 'withdrawal').eq('status', 'completed').limit(1000),
+      ])
+      if (!alive) return
+      if (i.error) { setError(true); return }
+      const sum = (r: { data: { amount: number }[] | null }) => (r.data || []).reduce((s, x) => s + Number(x.amount), 0)
+      setData({ kyc: (k.data?.[0] as { status?: string } | undefined)?.status || 'not submitted', invs: i.data || [], deposits: sum(d), withdrawals: sum(w) })
+    })()
+    return () => { alive = false }
+  }, [supabase, clientId])
+  const usd = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  const signed = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${usd(Math.abs(n))}`
+  if (error) return <p className="mt-5 text-xs text-amber-300">Investments could not be loaded.</p>
+  if (!data) return <div className="mt-5 h-24 rounded-xl bg-white/[0.02] animate-pulse" />
+  const active = data.invs.filter(x => x.status === 'active').length
+  const completed = data.invs.filter(x => x.status === 'completed' || x.status === 'matured').length
+  return (
+    <div className="mt-5 space-y-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        {[['KYC status', data.kyc.replace(/_/g, ' ')], ['Active investments', String(active)], ['Completed investments', String(completed)], ['Deposits (completed)', usd(data.deposits)], ['Withdrawals (completed)', usd(data.withdrawals)]].map(([l, v]) => (
+          <div key={l} className="rounded-xl p-3 border border-white/[0.07] bg-white/[0.02] min-w-0">
+            <p className="text-[10px] uppercase tracking-wider text-slate-500">{l}</p>
+            <p className="text-sm font-semibold text-white capitalize truncate mt-1">{v}</p>
+          </div>
+        ))}
+      </div>
+      <div className="rounded-xl border border-white/[0.07] overflow-hidden">
+        <p className="px-4 py-3 text-xs font-semibold text-white border-b border-white/[0.06]">Investments</p>
+        {data.invs.length === 0 ? <p className="px-4 py-5 text-xs text-slate-500">No investments.</p> : (
+          <ul className="divide-y divide-white/[0.04]">
+            {data.invs.map(x => {
+              const p = Number(x.profit_amount || 0)
+              return (
+                <li key={x.id} className="px-4 py-3 flex flex-wrap items-center justify-between gap-2 text-sm">
+                  <span className="min-w-0"><span className="text-white font-mono text-xs">{x.reference || x.id.slice(0, 8)}</span> <span className="text-slate-500 text-xs">{x.investment_products?.code} · {x.status === 'pending_activation' ? 'pending' : x.status}</span></span>
+                  <span className="tabular-nums text-xs text-slate-300">Principal {usd(Number(x.principal))} · Value {usd(Number(x.principal) + p)} · <span className={p > 0 ? 'text-emerald-400' : p < 0 ? 'text-red-400' : ''}>{signed(p)}</span></span>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+        <p className="px-4 py-2.5 text-[11px] text-slate-500 border-t border-white/[0.06]">Profit / return is edited per investment in <Link href="/admin/investments" className="underline">Investment Center</Link>; every change is audited.</p>
+      </div>
+    </div>
   )
 }

@@ -549,3 +549,66 @@ export function TrustBar({ marketStatus }: { marketStatus?: 'connecting' | 'live
     </div>
   )
 }
+
+// Small status layer. Each indicator reflects something actually checked:
+// market data = the live feed's own state; platform = /api/health, which asks
+// the authentication service; security = whether this page is on an encrypted
+// connection. Nothing is shown as healthy before it has been checked.
+export function PlatformStatus({ marketStatus }: { marketStatus?: 'connecting' | 'live' | 'polling' | 'error' }) {
+  const { t } = useI18n()
+  const [platform, setPlatform] = useState<'checking' | 'operational' | 'degraded'>('checking')
+  const [secure, setSecure] = useState<boolean | null>(null)
+  useEffect(() => {
+    let alive = true
+    setSecure(window.location.protocol === 'https:' || ['localhost', '127.0.0.1'].includes(window.location.hostname))
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), 6000)
+    fetch('/api/health', { signal: ctrl.signal }).then(r => r.ok ? r.json() : null)
+      .then(d => { if (alive) setPlatform(d?.platform === 'operational' ? 'operational' : 'degraded') })
+      .catch(() => { if (alive) setPlatform('degraded') })
+      .finally(() => clearTimeout(timer))
+    return () => { alive = false; ctrl.abort() }
+  }, [])
+  const market = marketStatus === 'live' || marketStatus === 'polling' ? 'ok' : marketStatus === 'error' ? 'bad' : 'wait'
+  const items: { label: string; value: string; tone: 'ok' | 'bad' | 'wait' }[] = [
+    { label: t('landing.status.market'), value: t(market === 'ok' ? 'landing.status.connected' : market === 'bad' ? 'landing.status.unavailable' : 'landing.status.connecting'), tone: market },
+    { label: t('landing.status.platform'), value: t(platform === 'operational' ? 'landing.status.operational' : platform === 'degraded' ? 'landing.status.degraded' : 'landing.status.checking'), tone: platform === 'operational' ? 'ok' : platform === 'degraded' ? 'bad' : 'wait' },
+    { label: t('landing.status.security'), value: t(secure === false ? 'landing.status.unencrypted' : 'landing.status.encrypted'), tone: secure === null ? 'wait' : secure ? 'ok' : 'bad' },
+  ]
+  const dot = { ok: 'bg-emerald-400', bad: 'bg-amber-400', wait: 'bg-fg-faint' }
+  return (
+    <ul className="flex flex-wrap gap-2" aria-label={t('landing.status.title')}>
+      {items.map(i => (
+        <li key={i.label} className="inline-flex items-center gap-2 rounded-full border border-ink-700 bg-ink-900/60 backdrop-blur-sm px-3 py-1.5 text-[12px]">
+          <span className={`w-1.5 h-1.5 rounded-full ${dot[i.tone]} ${i.tone === 'ok' ? 'shadow-[0_0_8px_currentColor] text-emerald-400' : ''}`} aria-hidden="true" />
+          <span className="uppercase tracking-[0.1em] text-[10.5px] text-fg-faint">{i.label}</span>
+          <span className="text-fg-muted">{i.value}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+// Floating information panels for very wide screens, placed only in the empty
+// space beside the hero content. The market panel shows the real BTC price
+// from the same feed as the hero, or "Unavailable"; the portfolio panel
+// describes the product. Neither shows client activity or performance.
+export function HeroFloatPanels({ price, change, live }: { price?: number; change?: number; live: boolean }) {
+  const { t } = useI18n()
+  return (
+    <div className="hidden min-[1760px]:block pointer-events-none absolute inset-0" aria-hidden="true">
+      <div className="absolute left-8 top-[20%] w-52 rounded-xl border border-ink-700/80 bg-ink-900/55 backdrop-blur-md px-4 py-3 shadow-[0_20px_40px_-24px_rgb(0_0_0/.6)] float-a">
+        <p className="text-[10.5px] uppercase tracking-[0.14em] text-accent/90">{t('landing.status.panelMarket')}</p>
+        <p className="mt-1 text-[13px] font-medium text-fg">BTC/USD</p>
+        {live && price ? (
+          <p className="text-[15px] font-semibold tabular-nums text-fg">${price.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+            {change !== undefined && <span className={`ml-2 text-[11.5px] ${change >= 0 ? 'price-up' : 'price-down'}`}>{change >= 0 ? '+' : ''}{change.toFixed(2)}%</span>}</p>
+        ) : <p className="text-[11.5px] text-fg-faint">{t('landing.status.unavailable')}</p>}
+      </div>
+      <div className="absolute right-8 bottom-[16%] w-52 rounded-xl border border-ink-700/80 bg-ink-900/55 backdrop-blur-md px-4 py-3 shadow-[0_20px_40px_-24px_rgb(0_0_0/.6)] float-b">
+        <p className="text-[10.5px] uppercase tracking-[0.14em] text-accent/90">{t('landing.status.panelPortfolio')}</p>
+        <p className="mt-1 text-[12.5px] text-fg-muted leading-snug">{t('landing.status.trackHoldings')}</p>
+      </div>
+    </div>
+  )
+}

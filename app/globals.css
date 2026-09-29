@@ -380,3 +380,10 @@ html:has(.site) ::-webkit-scrollbar-thumb:hover { background: rgb(var(--ink-500)
   body.has-bottom-nav .chat-clearance { padding-bottom: calc(160px + env(safe-area-inset-bottom)); }
   body.has-bottom-nav #chat-application { bottom: calc(72px + env(safe-area-inset-bottom)) !important; }
 }
+
+/* Hero floating information panels: slow, small drift; still when motion is reduced. */
+@keyframes floatA { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-8px) } }
+@keyframes floatB { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(6px) } }
+.float-a { animation: floatA 9s ease-in-out infinite; }
+.float-b { animation: floatB 11s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .float-a, .float-b { animation: none; } }

@@ -21,7 +21,7 @@ type Version = {
   eligibility: { kyc_required?: boolean }; published_at: string | null; created_at: string
 }
 type Inv = {
-  id: string; reference: string | null; user_id: string; product_id: string; product_version_id: string; principal: number; fee_amount: number; currency: string; status: string
+  id: string; reference: string | null; user_id: string; product_id: string; product_version_id: string; principal: number; fee_amount: number; profit_amount?: number | null; currency: string; status: string
   start_date: string | null; maturity_date: string | null; completed_at: string | null; rejection_reason: string | null; reviewed_by: string | null; reviewed_at: string | null; terms_accepted_at?: string | null; created_at: string
 }
 type Audit = { id: string; action: string; entity: string; entity_id: string; details: Record<string, unknown>; created_at: string }
@@ -44,13 +44,17 @@ const STATUS_STYLE: Record<string, string> = {
 const PAGE = 25
 const EMPTY_FORM = { product_id: '', code: '', name: '', description: '', min_amount: '', max_amount: '', duration_value: '', duration_unit: 'months', risk_level: 'medium', risk_disclosure: '', terms_text: '', entry_fee_pct: '0', return_type: 'none', return_rate_pct: '', kyc_required: true, cancellation_allowed: false, cancellation_terms: '' }
 const FINAL = ['archived', 'closed']
+const profitOf = (i: { profit_amount?: number | null }) => Number(i.profit_amount || 0)
+const signedMoney = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}$${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+const pct = (p: number, principal: number) => principal > 0 ? `${p > 0 ? '+' : p < 0 ? '−' : ''}${Math.abs((p / principal) * 100).toFixed(2)}%` : '—'
+const pClass = (n: number) => n > 0 ? 'text-emerald-400' : n < 0 ? 'text-red-400' : 'text-slate-300'
 const label = (s: string) => s === 'pending_activation' ? 'pending' : s.replace(/_/g, ' ')
 const money = (n: number | null | undefined) => `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 const duration = (v: { duration_value?: number | null; duration_unit?: string | null; term_days?: number | null }) =>
   v.duration_value && v.duration_unit ? `${v.duration_value} ${v.duration_value === 1 ? v.duration_unit.replace(/s$/, '') : v.duration_unit}` : v.term_days ? `${v.term_days} days` : 'Open-ended'
 
 export default function AdminInvestmentsPage() {
-  const [tab, setTab] = useState<'products' | 'investments' | 'activity'>('products')
+  const [tab, setTab] = useState<'products' | 'investments' | 'adjustments' | 'activity'>('products')
   return (
     <AdminLayout>
       <div className="mb-6">
@@ -58,13 +62,14 @@ export default function AdminInvestmentsPage() {
         <p className="text-sm text-slate-500 mt-1">Products, their versioned terms, client positions and the audit trail.</p>
       </div>
       <InvestingBanner />
-      <div className="seg mb-5" role="tablist">
-        {([['products', 'Products'], ['investments', 'Client investments'], ['activity', 'Activity']] as const).map(([id, label]) => (
+      <div className="seg mb-5 max-w-full overflow-x-auto" role="tablist">
+        {([['products', 'Products'], ['investments', 'Client investments'], ['adjustments', 'Profit / return adjustments'], ['activity', 'Activity & audit']] as const).map(([id, label]) => (
           <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className={`seg-btn ${tab === id ? 'seg-btn-on' : ''}`}>{label}</button>
         ))}
       </div>
       {tab === 'products' && <ProductsTab />}
       {tab === 'investments' && <InvestmentsTab />}
+      {tab === 'adjustments' && <AdjustmentsTab />}
       {tab === 'activity' && <ActivityTab />}
     </AdminLayout>
   )
@@ -286,6 +291,14 @@ function InvestmentsTab() {
   const [loadError, setLoadError] = useState('')
   const [reload, setReload] = useState(0)
   const [open, setOpen] = useState<Inv | null>(null)
+  const [minAmt, setMinAmt] = useState('')
+  const [maxAmt, setMaxAmt] = useState('')
+  const [minProfit, setMinProfit] = useState('')
+  const [maxProfit, setMaxProfit] = useState('')
+  const [sort, setSort] = useState('created_at.desc')
+  const [term, setTerm] = useState('')
+  // Debounced: one query after typing pauses.
+  useEffect(() => { const t = setTimeout(() => setTerm(search.trim()), 300); return () => clearTimeout(t) }, [search])
 
   useEffect(() => { supabase.from('investment_products').select('id, code').then(r => setProducts(r.data || [])) }, [supabase])
   useEffect(() => {
@@ -293,18 +306,23 @@ function InvestmentsTab() {
     ;(async () => {
       setLoading(true)
       let q = supabase.from('client_investments')
-        .select('id, reference, user_id, product_id, product_version_id, principal, fee_amount, currency, status, start_date, maturity_date, completed_at, rejection_reason, reviewed_by, reviewed_at, created_at', { count: 'exact' })
-        .order('created_at', { ascending: false }).range(page * PAGE, page * PAGE + PAGE - 1)
+        .select('id, reference, user_id, product_id, product_version_id, principal, fee_amount, profit_amount, currency, status, start_date, maturity_date, completed_at, rejection_reason, reviewed_by, reviewed_at, created_at', { count: 'exact' })
+        .order(sort.split('.')[0], { ascending: sort.endsWith('.asc') }).order('created_at', { ascending: false }).range(page * PAGE, page * PAGE + PAGE - 1)
       if (status) q = q.eq('status', status)
+      const numOr = (v: string) => v.trim() !== '' && Number.isFinite(Number(v)) ? Number(v) : null
+      if (numOr(minAmt) !== null) q = q.gte('principal', numOr(minAmt)!)
+      if (numOr(maxAmt) !== null) q = q.lte('principal', numOr(maxAmt)!)
+      if (numOr(minProfit) !== null) q = q.gte('profit_amount', numOr(minProfit)!)
+      if (numOr(maxProfit) !== null) q = q.lte('profit_amount', numOr(maxProfit)!)
       if (product) q = q.eq('product_id', product)
       if (from) q = q.gte('created_at', new Date(from).toISOString())
       if (to) q = q.lt('created_at', new Date(new Date(to).getTime() + 86400000).toISOString())
-      const term = search.trim()
       if (term) {
-        // Investment reference / ID, or a client's name.
+        // Investment reference / ID, or a client's name or email (matched
+        // server-side by the admin-only admin_list_customers function).
         const uuid = /^[0-9a-f-]{36}$/i.test(term)
-        const people = await supabase.from('profiles').select('id').ilike('full_name', `%${term.replace(/[%_,()]/g, '')}%`).limit(50)
-        const ids = ((people.data || []) as { id: string }[]).map(x => x.id)
+        const people = await (supabase.rpc as any)('admin_list_customers', { p_search: term.replace(/[%_,()]/g, '') }) as { data: { id: string }[] | null }
+        const ids = (people.data || []).map(x => x.id).slice(0, 100)
         const ors = [`reference.ilike.%${term.replace(/[%_,()]/g, '')}%`]
         if (uuid) ors.push(`id.eq.${term}`, `user_id.eq.${term}`)
         if (ids.length) ors.push(`user_id.in.(${ids.join(',')})`)
@@ -324,7 +342,7 @@ function InvestmentsTab() {
       setLoading(false)
     })()
     return () => { alive = false }
-  }, [supabase, status, product, page, search, from, to, reload])
+  }, [supabase, status, product, page, term, from, to, reload, minAmt, maxAmt, minProfit, maxProfit, sort])
 
   const code = (id: string) => products.find(p => p.id === id)?.code || '—'
   const d = (iso: string | null) => iso ? new Date(iso).toLocaleDateString() : '—'
@@ -338,13 +356,28 @@ function InvestmentsTab() {
         ))}
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <input className="input-field text-xs py-2" placeholder="Search client name, client ID or INV- reference" value={search} onChange={e => { setSearch(e.target.value); setPage(0) }} />
+        <input className="input-field text-xs py-2" placeholder="Search client name, email, client ID or INV- reference" value={search} onChange={e => { setSearch(e.target.value); setPage(0) }} />
         <select className="input-field text-xs py-2" value={product} onChange={e => { setProduct(e.target.value); setPage(0) }}>
           <option value="">All products</option>
           {products.map(p => <option key={p.id} value={p.id}>{p.code}</option>)}
         </select>
         <label className="flex items-center gap-2 text-xs text-slate-500">From<input type="date" className="input-field text-xs py-2 flex-1" value={from} onChange={e => { setFrom(e.target.value); setPage(0) }} /></label>
         <label className="flex items-center gap-2 text-xs text-slate-500">To<input type="date" className="input-field text-xs py-2 flex-1" value={to} onChange={e => { setTo(e.target.value); setPage(0) }} /></label>
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        <input className="input-field text-xs py-2" inputMode="decimal" placeholder="Min amount" value={minAmt} onChange={e => { setMinAmt(e.target.value); setPage(0) }} />
+        <input className="input-field text-xs py-2" inputMode="decimal" placeholder="Max amount" value={maxAmt} onChange={e => { setMaxAmt(e.target.value); setPage(0) }} />
+        <input className="input-field text-xs py-2" inputMode="decimal" placeholder="Min profit / return" value={minProfit} onChange={e => { setMinProfit(e.target.value); setPage(0) }} />
+        <input className="input-field text-xs py-2" inputMode="decimal" placeholder="Max profit / return" value={maxProfit} onChange={e => { setMaxProfit(e.target.value); setPage(0) }} />
+        <select className="input-field text-xs py-2 col-span-2 lg:col-span-1" value={sort} onChange={e => { setSort(e.target.value); setPage(0) }} aria-label="Sort">
+          <option value="created_at.desc">Newest first</option>
+          <option value="created_at.asc">Oldest first</option>
+          <option value="principal.desc">Largest amount</option>
+          <option value="principal.asc">Smallest amount</option>
+          <option value="profit_amount.desc">Highest profit / return</option>
+          <option value="profit_amount.asc">Lowest profit / return</option>
+          <option value="maturity_date.asc">Maturing soonest</option>
+        </select>
       </div>
       {loadError && <AdminLoadError message={loadError} onRetry={() => setReload(x => x + 1)} />}
       {loading ? <div className="panel p-8 text-center text-sm text-slate-500">Loading…</div> : rows.length === 0 ? (
@@ -357,23 +390,24 @@ function InvestmentsTab() {
                 <button onClick={() => setOpen(r)} className="panel p-4 w-full text-left">
                   <div className="flex justify-between gap-2"><span className="text-white truncate">{names[r.user_id] || r.user_id.slice(0, 8)}</span><span className={`text-[11px] px-2 py-0.5 rounded-full border capitalize shrink-0 ${STATUS_STYLE[r.status] || ''}`}>{label(r.status)}</span></div>
                   <p className="text-xs text-slate-500 mt-1 font-mono">{r.reference || r.id.slice(0, 8)} · {code(r.product_id)}</p>
-                  <p className="text-sm text-white tabular-nums mt-1">{money(r.principal)} <span className="text-xs text-slate-500">· {d(r.created_at)}</span></p>
+                  <p className="text-sm text-white tabular-nums mt-1">{money(r.principal)} <span className={`text-xs ${pClass(profitOf(r))}`}>{signedMoney(profitOf(r))}</span> <span className="text-xs text-slate-500">· {d(r.created_at)}</span></p>
                 </button>
               </li>
             ))}
           </ul>
           <div className="panel overflow-x-auto hidden md:block">
             <table className="w-full text-sm">
-              <thead><tr className="text-left text-xs text-slate-500 border-b border-white/[0.06]">{['Client', 'Reference', 'Product', 'Amount', 'Status', 'Submitted', 'Start', 'Maturity', ''].map(h => <th key={h} className="px-4 py-3 font-medium">{h}</th>)}</tr></thead>
+              <thead><tr className="text-left text-xs text-slate-500 border-b border-white/[0.06]">{['Client', 'Reference', 'Product', 'Principal', 'Current value', 'Profit / return', 'Status', 'Submitted', 'Maturity', ''].map(h => <th key={h} className="px-4 py-3 font-medium">{h}</th>)}</tr></thead>
               <tbody>{rows.map(r => (
                 <tr key={r.id} className="border-b border-white/[0.04]">
                   <td className="px-4 py-3 text-white">{names[r.user_id] || r.user_id.slice(0, 8)}</td>
                   <td className="px-4 py-3 font-mono text-xs text-slate-400">{r.reference || r.id.slice(0, 8)}</td>
                   <td className="px-4 py-3 text-slate-300">{code(r.product_id)}</td>
                   <td className="px-4 py-3 text-white tabular-nums">{money(r.principal)}</td>
+                  <td className="px-4 py-3 text-white tabular-nums">{money(Number(r.principal) + profitOf(r))}</td>
+                  <td className={`px-4 py-3 tabular-nums ${pClass(profitOf(r))}`}>{signedMoney(profitOf(r))} <span className="text-xs text-slate-500">{pct(profitOf(r), Number(r.principal))}</span></td>
                   <td className="px-4 py-3"><span className={`text-[11px] px-2 py-0.5 rounded-full border capitalize ${STATUS_STYLE[r.status] || ''}`}>{label(r.status)}</span></td>
                   <td className="px-4 py-3 text-slate-400">{d(r.created_at)}</td>
-                  <td className="px-4 py-3 text-slate-400">{d(r.start_date)}</td>
                   <td className="px-4 py-3 text-slate-400">{d(r.maturity_date)}</td>
                   <td className="px-4 py-3"><button onClick={() => setOpen(r)} className="btn btn-sm btn-outline">{r.status === 'pending_activation' ? 'Review' : 'Open'}</button></td>
                 </tr>
@@ -396,14 +430,16 @@ function InvestmentsTab() {
   )
 }
 
+type AdjRow = { id: string; admin_id: string; previous_profit: number; new_profit: number; previous_value: number; new_value: number; reason: string; created_at: string }
 type Ev = { id: number; from_status: string | null; to_status: string; reason: string | null; created_at: string }
 type LinkedTx = { kind: string; transactions: { id: string; type: string; amount: number; status: string; reference: string | null; created_at: string } | null }
 
 // Everything an admin needs to decide, loaded fresh for one investment.
 function ReviewPanel({ inv, client, productCode, onClose, onDone }: { inv: Inv; client?: string; productCode: string; onClose: () => void; onDone: () => void }) {
   const supabase = createClient()
-  const [info, setInfo] = useState<{ kyc: string; available: number | null; pending: number | null; version: Version | null; events: Ev[]; txs: LinkedTx[]; reviewer: string | null } | null>(null)
-  const [mode, setMode] = useState<'' | 'reject' | 'complete' | 'return'>('')
+  const [info, setInfo] = useState<{ kyc: string; email: string | null; available: number | null; pending: number | null; version: Version | null; events: Ev[]; txs: LinkedTx[]; reviewer: string | null; adjustments: AdjRow[]; admins: Record<string, string> } | null>(null)
+  const [mode, setMode] = useState<'' | 'reject' | 'complete' | 'return' | 'profit' | 'profit-review'>('')
+  const [newProfit, setNewProfit] = useState('')
   const [amount, setAmount] = useState('')
   // One key per return being recorded: a double click or retry cannot credit twice.
   const returnKey = useRef(newRequestKey())
@@ -414,14 +450,19 @@ function ReviewPanel({ inv, client, productCode, onClose, onDone }: { inv: Inv; 
   useEffect(() => {
     let alive = true
     ;(async () => {
-      const [k, a, v, e, t, rv] = await Promise.all([
+      const [k, a, v, e, t, rv, adj, em] = await Promise.all([
         supabase.from('kyc_submissions').select('status, submitted_at').eq('user_id', inv.user_id).order('submitted_at', { ascending: false }).limit(1),
         supabase.from('accounts').select('available_balance, pending_balance').eq('user_id', inv.user_id).maybeSingle(),
         supabase.from('investment_product_versions').select('*').eq('id', inv.product_version_id).maybeSingle(),
         supabase.from('client_investment_events').select('id, from_status, to_status, reason, created_at').eq('client_investment_id', inv.id).order('created_at'),
         supabase.from('investment_transactions').select('kind, transactions(id, type, amount, status, reference, created_at)').eq('client_investment_id', inv.id),
         inv.reviewed_by ? supabase.from('profiles').select('full_name').eq('id', inv.reviewed_by).maybeSingle() : Promise.resolve({ data: null }),
+        supabase.from('investment_profit_adjustments').select('id, admin_id, previous_profit, new_profit, previous_value, new_value, reason, created_at').eq('investment_id', inv.id).order('created_at', { ascending: false }),
+        (supabase.rpc as any)('admin_list_customers', { p_search: inv.user_id }) as Promise<{ data: { id: string; email: string }[] | null }>,
       ])
+      const adjRows = (adj.data || []) as AdjRow[]
+      const adminIds = Array.from(new Set(adjRows.map(x => x.admin_id)))
+      const admins = adminIds.length ? ((await supabase.from('profiles').select('id, full_name').in('id', adminIds)).data || []) as { id: string; full_name: string }[] : []
       if (!alive) return
       const acct = a.data as { available_balance: number; pending_balance: number } | null
       setInfo({
@@ -431,6 +472,8 @@ function ReviewPanel({ inv, client, productCode, onClose, onDone }: { inv: Inv; 
         txs: ((t.data || []) as unknown as { kind: string; transactions: LinkedTx['transactions'] | LinkedTx['transactions'][] }[])
           .map(x => ({ kind: x.kind, transactions: Array.isArray(x.transactions) ? x.transactions[0] : x.transactions })),
         reviewer: (rv.data as { full_name?: string } | null)?.full_name || null,
+        adjustments: adjRows, admins: Object.fromEntries(admins.map(x => [x.id, x.full_name || x.id.slice(0, 8)])),
+        email: (em.data || []).find(x => x.id === inv.user_id)?.email || null,
       })
     })()
     return () => { alive = false }
@@ -439,9 +482,13 @@ function ReviewPanel({ inv, client, productCode, onClose, onDone }: { inv: Inv; 
   const go = async (body: Record<string, unknown>) => {
     setBusy(true); setErr('')
     try { await act({ ...body, investment_id: inv.id }); onDone() }
-    catch (e) { setErr(errorText(e)); if (body.action === 'record_return') returnKey.current = newRequestKey() }
+    catch (e) { setErr(errorText(e)); if (body.action === 'record_return' || body.action === 'set_profit') returnKey.current = newRequestKey() }
     finally { setBusy(false) }
   }
+  const running = ['active', 'completed', 'matured'].includes(inv.status)
+  const profit = profitOf(inv)
+  const np = newProfit.trim() === '' ? NaN : Number(newProfit)
+  const npValid = /^-?\d+(\.\d{1,2})?$/.test(newProfit.trim()) && np >= -Number(inv.principal) && np !== profit
   const row = (k: string, v: React.ReactNode) => <div className="flex justify-between gap-3 py-1.5 border-b border-white/[0.04] text-sm"><span className="text-slate-500 shrink-0">{k}</span><span className="text-white text-right break-all">{v}</span></div>
 
   return (
@@ -453,10 +500,16 @@ function ReviewPanel({ inv, client, productCode, onClose, onDone }: { inv: Inv; 
         </div>
         <div>
           {row('Client', client || '—')}
+          {row('Client email', info ? info.email || '—' : '…')}
           {row('Client ID', <span className="font-mono text-xs">{inv.user_id}</span>)}
           {row('Investment ID', <span className="font-mono text-xs">{inv.id}</span>)}
-          {row('Product', `${info?.version?.name || productCode}${info?.version ? ` (v${info.version.version})` : ''}`)}
-          {row(inv.status === 'pending_activation' ? 'Amount requested' : 'Principal', money(inv.principal))}
+          {row('Product', info?.version?.name || productCode)}
+          {row('Product version', info?.version ? `v${info.version.version}` : '…')}
+          {row(inv.status === 'pending_activation' ? 'Amount requested' : 'Investment amount', money(Number(inv.principal) + (inv.status === 'pending_activation' ? 0 : Number(inv.fee_amount))))}
+          {inv.status !== 'pending_activation' && row('Principal', money(inv.principal))}
+          {running && row('Current value', money(Number(inv.principal) + profit))}
+          {running && row('Current profit / return', <span className={pClass(profit)}>{signedMoney(profit)}</span>)}
+          {running && row('Return', <span className={pClass(profit)}>{pct(profit, Number(inv.principal))}</span>)}
           {Number(inv.fee_amount) > 0 && row(inv.status === 'pending_activation' ? 'Entry fee on approval' : 'Entry fee', money(inv.fee_amount))}
           {row('Submitted', new Date(inv.created_at).toLocaleString())}
           {row('Status', <span className="capitalize">{label(inv.status)}</span>)}
@@ -489,20 +542,58 @@ function ReviewPanel({ inv, client, productCode, onClose, onDone }: { inv: Inv; 
         {inv.status === 'active' && mode === '' && (
           <button disabled={busy} onClick={() => setMode('complete')} className="btn btn-outline w-full">Mark completed (return principal)</button>
         )}
-        {['active', 'completed', 'matured'].includes(inv.status) && mode === '' && (
-          <button disabled={busy} onClick={() => setMode('return')} className="btn btn-outline w-full">Record return</button>
+        {running && mode === '' && (
+          <button disabled={busy} onClick={() => { setMode('profit'); setNewProfit(''); setReason(''); setErr('') }} className="btn btn-outline w-full">Edit profit / return</button>
         )}
-        {mode === 'return' && (
-          <div className="space-y-3">
-            <input className="input-field" inputMode="decimal" placeholder="Return amount (USD)" value={amount} onChange={e => setAmount(e.target.value.replace(',', '.'))} />
-            <textarea className="input-field" rows={2} placeholder="Reason (required, shown in the client's history and the audit log)" value={reason} onChange={e => setReason(e.target.value)} />
-            <p className="text-xs text-slate-500">Credits the client&apos;s profit balance and account total, creates a ledger entry linked to this investment and records the previous and new values in the audit log. Only record returns that were actually earned.</p>
-            <div className="flex gap-3">
-              <button disabled={busy} onClick={() => { setMode(''); setReason(''); setAmount('') }} className="btn btn-outline flex-1">Back</button>
-              <button disabled={busy || !reason.trim() || !/^\d+(\.\d{1,2})?$/.test(amount) || Number(amount) <= 0}
-                onClick={() => { if (confirm(`Credit ${money(Number(amount))} to this client as a return on ${inv.reference || 'this investment'}?`)) go({ action: 'record_return', amount, reason, idempotency_key: returnKey.current }) }}
-                className="btn btn-solid flex-1">{busy ? 'Working…' : 'Confirm return'}</button>
+        {mode === 'profit' && (
+          <div className="space-y-3 rounded-xl border border-white/[0.08] p-4">
+            <p className="text-sm font-semibold text-white">Edit profit / return</p>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div><p className="text-xs text-slate-500">Current profit</p><p className={`tabular-nums ${pClass(profit)}`}>{signedMoney(profit)}</p></div>
+              <div><p className="text-xs text-slate-500">Current value</p><p className="tabular-nums text-white">{money(Number(inv.principal) + profit)}</p></div>
             </div>
+            <label className="block"><span className="block text-xs text-slate-400 mb-1">New profit / return (USD, total for this investment; negative for a loss)</span>
+              <input className="input-field" inputMode="decimal" value={newProfit} onChange={e => setNewProfit(e.target.value.replace(',', '.'))} placeholder={profit.toFixed(2)} /></label>
+            <div className="flex justify-between text-sm"><span className="text-slate-500">Resulting current value</span><span className="tabular-nums text-white">{Number.isFinite(np) ? money(Number(inv.principal) + np) : '—'}</span></div>
+            <textarea className="input-field" rows={2} placeholder="Reason for adjustment (required, shown in the client's history and the audit log)" value={reason} onChange={e => setReason(e.target.value)} />
+            {newProfit && !npValid && <p className="text-xs text-red-400">{np === profit ? 'The new profit is the same as the current profit.' : 'Enter an amount with at most 2 decimals, not below −principal.'}</p>}
+            <div className="flex gap-3">
+              <button disabled={busy} onClick={() => { setMode(''); setReason(''); setNewProfit('') }} className="btn btn-outline flex-1">Cancel</button>
+              <button disabled={busy || !npValid || reason.trim().length < 3} onClick={() => setMode('profit-review')} className="btn btn-solid flex-1">Review adjustment</button>
+            </div>
+          </div>
+        )}
+        {mode === 'profit-review' && (
+          <div className="space-y-3 rounded-xl border border-yellow-500/30 bg-yellow-500/[0.05] p-4" role="group" aria-label="Review adjustment">
+            <p className="text-sm font-semibold text-white">Review adjustment</p>
+            <div className="text-sm space-y-1">
+              {row('Investment', inv.reference || inv.id.slice(0, 8))}
+              {row('Previous profit', signedMoney(profit))}
+              {row('New profit', <span className={pClass(np)}>{signedMoney(np)}</span>)}
+              {row('Previous value', money(Number(inv.principal) + profit))}
+              {row('New value', money(Number(inv.principal) + np))}
+              {row('Client profit balance change', <span className={pClass(np - profit)}>{signedMoney(np - profit)}</span>)}
+              {row('Reason', reason.trim())}
+            </div>
+            <p className="text-xs text-slate-400">Committing moves the difference into the client&apos;s profit balance and account total, adds a ledger entry linked to this investment, and appends a permanent record to the adjustment history and audit log. Only record results that actually occurred.</p>
+            <div className="flex gap-3">
+              <button disabled={busy} onClick={() => setMode('profit')} className="btn btn-outline flex-1">Back</button>
+              <button disabled={busy} onClick={() => go({ action: 'set_profit', new_profit: newProfit.trim(), reason: reason.trim(), idempotency_key: returnKey.current })} className="btn btn-solid flex-1">{busy ? 'Saving…' : 'Confirm adjustment'}</button>
+            </div>
+          </div>
+        )}
+        {info && running && (
+          <div>
+            <p className="text-xs text-slate-500 mb-1">Profit / return adjustment history</p>
+            {info.adjustments.length === 0 ? <p className="text-xs text-slate-600">No adjustments recorded.</p> : (
+              <ul className="space-y-2">{info.adjustments.map(a => (
+                <li key={a.id} className="rounded-lg border border-white/[0.06] p-2.5 text-xs">
+                  <div className="flex justify-between gap-2"><span className="text-white">{info.admins[a.admin_id] || a.admin_id.slice(0, 8)}</span><span className="text-slate-500">{new Date(a.created_at).toLocaleString()}</span></div>
+                  <p className="text-slate-300 mt-0.5 tabular-nums">Previous: {signedMoney(Number(a.previous_profit))} → New: <span className={pClass(Number(a.new_profit))}>{signedMoney(Number(a.new_profit))}</span> · Value {money(a.previous_value)} → {money(a.new_value)}</p>
+                  <p className="text-slate-500 mt-0.5 break-words">Reason: {a.reason}</p>
+                </li>
+              ))}</ul>
+            )}
           </div>
         )}
         {(mode === 'reject' || mode === 'complete') && (
@@ -517,6 +608,59 @@ function ReviewPanel({ inv, client, productCode, onClose, onDone }: { inv: Inv; 
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+// Every profit / return adjustment across all clients, newest first, paged.
+function AdjustmentsTab() {
+  const supabase = createClient()
+  type Row = AdjRow & { investment_id: string; client_id: string }
+  const [rows, setRows] = useState<Row[]>([])
+  const [names, setNames] = useState<Record<string, string>>({})
+  const [refs, setRefs] = useState<Record<string, string>>({})
+  const [hasMore, setHasMore] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const load = async (before?: string) => {
+    let q = supabase.from('investment_profit_adjustments').select('id, investment_id, client_id, admin_id, previous_profit, new_profit, previous_value, new_value, reason, created_at')
+      .order('created_at', { ascending: false }).limit(51)
+    if (before) q = q.lt('created_at', before)
+    const r = await q
+    if (r.error) { setError('Adjustments could not be loaded.'); setLoading(false); return }
+    const data = (r.data || []) as Row[]
+    setHasMore(data.length > 50)
+    const page = data.slice(0, 50)
+    setRows(prev => before ? [...prev, ...page] : page)
+    const people = Array.from(new Set(page.flatMap(x => [x.client_id, x.admin_id])))
+    const invIds = Array.from(new Set(page.map(x => x.investment_id)))
+    const [p, i] = await Promise.all([
+      people.length ? supabase.from('profiles').select('id, full_name').in('id', people) : Promise.resolve({ data: [] }),
+      invIds.length ? supabase.from('client_investments').select('id, reference').in('id', invIds) : Promise.resolve({ data: [] }),
+    ])
+    setNames(n => ({ ...n, ...Object.fromEntries(((p.data || []) as { id: string; full_name: string }[]).map(x => [x.id, x.full_name])) }))
+    setRefs(n => ({ ...n, ...Object.fromEntries(((i.data || []) as { id: string; reference: string }[]).map(x => [x.id, x.reference])) }))
+    setError(''); setLoading(false)
+  }
+  useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  if (loading) return <div className="panel p-8 text-center text-sm text-slate-500">Loading…</div>
+  if (error) return <AdminLoadError message={error} onRetry={() => load()} />
+  if (!rows.length) return <div className="panel p-8 text-center text-sm text-slate-400">No profit / return adjustments recorded yet.</div>
+  return (
+    <div className="space-y-3">
+      <ul className="panel divide-y divide-white/[0.04]">
+        {rows.map(a => (
+          <li key={a.id} className="px-5 py-3 text-sm">
+            <div className="flex flex-wrap justify-between gap-2">
+              <span className="text-white">{names[a.client_id] || a.client_id.slice(0, 8)} <span className="text-slate-500 font-mono text-xs">{refs[a.investment_id] || a.investment_id.slice(0, 8)}</span></span>
+              <span className="text-xs text-slate-500">{new Date(a.created_at).toLocaleString()} · by {names[a.admin_id] || a.admin_id.slice(0, 8)}</span>
+            </div>
+            <p className="text-xs text-slate-300 mt-1 tabular-nums">Profit {signedMoney(Number(a.previous_profit))} → <span className={pClass(Number(a.new_profit))}>{signedMoney(Number(a.new_profit))}</span> · Value {money(a.previous_value)} → {money(a.new_value)}</p>
+            <p className="text-xs text-slate-500 mt-0.5 break-words">Reason: {a.reason}</p>
+          </li>
+        ))}
+      </ul>
+      {hasMore && <button onClick={() => load(rows[rows.length - 1].created_at)} className="btn btn-sm btn-outline">Load older</button>}
     </div>
   )
 }

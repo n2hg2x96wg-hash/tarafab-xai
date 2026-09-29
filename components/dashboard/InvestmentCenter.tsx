@@ -28,15 +28,16 @@ type Version = {
 }
 type Product = { id: string; code: string; status: string; current_version_id: string | null }
 type Investment = {
-  id: string; reference?: string | null; product_id: string; product_version_id: string; principal: number; fee_amount: number; currency: string
+  id: string; reference?: string | null; product_id: string; product_version_id: string; principal: number; fee_amount: number; profit_amount?: number | null; currency: string
   status: string; start_date: string | null; maturity_date: string | null; completed_at?: string | null; rejection_reason?: string | null; reviewed_at?: string | null; created_at: string
 }
 type Ev = { id: number; client_investment_id: string; from_status: string | null; to_status: string; reason: string | null; created_at: string }
 type LinkedTx = { client_investment_id: string; kind: string; tx: { id: string; type: string; amount: number; status: string; reference: string | null; created_at: string } | null }
+type Adj = { id: string; investment_id: string; previous_profit: number; new_profit: number; previous_value: number; new_value: number; reason: string; created_at: string }
 type Balance = { available: number; pending: number; invested: number }
 type Data = {
   products: Product[]; versions: Version[]; investments: Investment[]; returns: { client_investment_id: string; amount: number }[]
-  events: Ev[]; transactions: LinkedTx[]; balance: Balance | null; kyc_verified: boolean; investing_enabled: boolean
+  events: Ev[]; transactions: LinkedTx[]; adjustments: Adj[]; balance: Balance | null; kyc_verified: boolean; investing_enabled: boolean
 }
 
 const RISK_TONE = {
@@ -50,6 +51,10 @@ const STATUS_TONE: Record<string, string> = {
   rejected: 'text-danger-300 border-danger-400/40 bg-danger-400/[0.07]',
 }
 const money = (n: number) => `$${fmt(n)}`
+// Each investment's own recorded profit / return (0 when none is recorded).
+export const profitOf = (i: { profit_amount?: number | null }) => Number(i.profit_amount || 0)
+export const signed = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}$${fmt(Math.abs(n))}`
+export const pctOf = (profit: number, principal: number) => principal > 0 ? `${profit > 0 ? '+' : profit < 0 ? '−' : ''}${Math.abs((profit / principal) * 100).toFixed(2)}%` : '—'
 const UNIT_KEY = { days: 'inv.f.dDays', weeks: 'inv.f.dWeeks', months: 'inv.f.dMonths', years: 'inv.f.dYears' } as const
 type T = ReturnType<typeof useI18n>['t']
 const durationText = (v: Version, t: T) =>
@@ -78,7 +83,7 @@ export function InvestmentCenter({ go }: { go: (id: string) => void }) {
       const b = raw.balance
       setData({
         products: raw.products!, versions: raw.versions!, investments: raw.investments!, returns: raw.returns!,
-        events: Array.isArray(raw.events) ? raw.events : [], transactions: Array.isArray(raw.transactions) ? raw.transactions : [],
+        events: Array.isArray(raw.events) ? raw.events : [], adjustments: Array.isArray(raw.adjustments) ? raw.adjustments : [], transactions: Array.isArray(raw.transactions) ? raw.transactions : [],
         balance: b && Number.isFinite(Number(b.available)) ? { available: Number(b.available), pending: Number(b.pending), invested: Number(b.invested) } : null,
         kyc_verified: raw.kyc_verified === true, investing_enabled: raw.investing_enabled === true,
       })
@@ -96,7 +101,8 @@ export function InvestmentCenter({ go }: { go: (id: string) => void }) {
   const pending = invs.filter(i => i.status === 'pending_activation')
   const principal = active.reduce((s, i) => s + Number(i.principal), 0)
   const held = pending.reduce((s, i) => s + Number(i.principal), 0)
-  const realised = (data?.returns || []).reduce((s, r) => s + r.amount, 0)
+  const realised = invs.reduce((s, i) => s + profitOf(i), 0)
+  const activeValue = active.reduce((s, i) => s + Number(i.principal) + profitOf(i), 0)
   const hasInvestments = invs.length > 0
   const date = (iso: string | null | undefined) => iso ? new Date(iso).toLocaleDateString(intl, { day: 'numeric', month: 'short', year: 'numeric' }) : t('inv.notSet')
 
@@ -123,7 +129,8 @@ export function InvestmentCenter({ go }: { go: (id: string) => void }) {
     { label: 'inv.principal', value: money(principal), hint: 'inv.principalHint' },
     { label: 'inv.activeCount', value: String(active.length), hint: 'inv.activeCountHint' },
     { label: 'inv.f.pendingCount', value: pending.length ? `${pending.length} · ${money(held)}` : '0', hint: 'inv.f.pendingHint', muted: !pending.length },
-    { label: 'inv.f.profit', value: hasInvestments && data.returns.length ? money(realised) : '—', hint: 'inv.realisedHint', muted: !data.returns.length },
+    { label: 'inv.f.currentValue', value: money(activeValue), hint: 'inv.f.currentValueHint', muted: !active.length },
+    { label: 'inv.f.profit', value: signed(realised), hint: 'inv.f.profitHint', muted: realised === 0 },
   ]
 
   return (
@@ -136,7 +143,7 @@ export function InvestmentCenter({ go }: { go: (id: string) => void }) {
           </div>
           {data.balance && <p className="text-sm text-fg-muted">{t('inv.f.available')}: <span className="text-fg font-semibold tabular-nums">{money(data.balance.available)}</span></p>}
         </div>
-        <dl className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <dl className="grid grid-cols-2 lg:grid-cols-5 gap-3">
           {stats.map(s => (
             <div key={s.label} className="panel p-4 min-w-0" title={t(s.hint)}>
               <dt className="text-[12px] text-fg-faint truncate">{t(s.label)}</dt>
@@ -198,7 +205,8 @@ export function InvestmentCenter({ go }: { go: (id: string) => void }) {
                       {i.status === 'rejected' && i.rejection_reason && <p className="text-xs text-danger-300 mt-0.5 line-clamp-2">{t('inv.f.rejectionReason')}: {i.rejection_reason}</p>}
                     </div>
                     <div className="text-right shrink-0 space-y-1">
-                      <p className="text-sm font-semibold text-fg tabular-nums">{money(Number(i.principal))}</p>
+                      <p className="text-sm font-semibold text-fg tabular-nums">{money(Number(i.principal) + (['active', 'completed', 'matured'].includes(i.status) ? profitOf(i) : 0))}</p>
+                      {['active', 'completed', 'matured'].includes(i.status) && <p className={`text-[11px] tabular-nums ${profitOf(i) > 0 ? 'price-up' : profitOf(i) < 0 ? 'price-down' : 'text-fg-faint'}`}>{signed(profitOf(i))} · {pctOf(profitOf(i), Number(i.principal))}</p>}
                       <StatusBadge status={i.status} />
                     </div>
                   </button>
@@ -227,7 +235,7 @@ export function InvestmentCenter({ go }: { go: (id: string) => void }) {
       {open && <ProductDetail v={open} kycVerified={data.kyc_verified} balance={data.balance} onClose={() => setOpen(null)} onSubmitted={load} go={go} />}
       {openInv && (
         <InvestmentDetail inv={openInv} v={versionById.get(openInv.product_version_id)}
-          returns={data.returns.filter(r => r.client_investment_id === openInv.id)}
+          adjustments={data.adjustments.filter(a => a.investment_id === openInv.id)}
           events={data.events.filter(e => e.client_investment_id === openInv.id)}
           txs={data.transactions.filter(x => x.client_investment_id === openInv.id)}
           onClose={() => setOpenInv(null)} onChanged={() => { setOpenInv(null); load() }} />
@@ -353,24 +361,35 @@ function InvestForm({ v, balance, onBack, onDone }: { v: Version; balance: Balan
       key.current = newRequestKey()
     } finally { setBusy(false) }
   }
-  const row = (k: TKey, val: string, strong = false) => <div className="flex justify-between gap-4 py-2.5"><dt className="text-fg-faint">{t(k)}</dt><dd className={`text-right tabular-nums ${strong ? 'text-fg font-semibold' : 'text-fg'}`}>{val}</dd></div>
+  const row = (k: TKey, val: string, strong = false, note?: string) => (
+    <div className="py-2.5">
+      <div className="flex justify-between gap-4"><dt className="text-fg-faint">{t(k)}</dt><dd className={`text-right tabular-nums ${strong ? 'text-fg font-semibold' : 'text-fg'}`}>{val}</dd></div>
+      {note && <p className="mt-0.5 text-[11px] text-fg-faint">{note}</p>}
+    </div>
+  )
 
   return (
     <div className="space-y-5">
       <label className="block">
-        <span className="block text-sm text-fg-muted mb-1.5">{t('inv.f.amount')}</span>
+        <span className="block text-sm text-fg-muted mb-1.5">{t('inv.f.investmentAmount')} (USD)</span>
         <input className="input-field text-lg tabular-nums" inputMode="decimal" autoFocus value={amount} onChange={e => { setAmount(e.target.value.replace(',', '.')); setErr('') }} placeholder={String(Number(v.min_amount))} aria-invalid={!!problem} />
         <span className="block text-xs text-fg-faint mt-1.5">{v.max_amount ? t('inv.f.limitsRange', { min: money(Number(v.min_amount)), max: money(Number(v.max_amount)) }) : t('inv.f.limitsMin', { min: money(Number(v.min_amount)) })}</span>
         {problem && <span role="alert" className="block text-xs text-danger-300 mt-1">{problem}</span>}
       </label>
+      {/* Order follows the money: what is available, what is committed, the
+          fee, the principal that is invested, and what stays available. */}
       <dl className="divide-y divide-ink-700 text-sm rounded-xl border border-ink-700 px-4">
         {row('inv.product', `${v.name} · ${t('inv.versionN', { n: v.version })}`)}
-        {row('inv.f.available', available === null ? '—' : money(available))}
-        {row('inv.f.remaining', available === null || !valid ? '—' : money(Math.max(0, Math.round((available - n) * 100) / 100)), true)}
-        {Number(v.entry_fee_pct) > 0 && row('inv.f.feeOnApproval', valid ? money(fee) : '—')}
-        {Number(v.entry_fee_pct) > 0 && row('inv.f.principalAfterFee', valid ? money(n - fee) : '—')}
+        {row('inv.f.available', available === null ? '—' : money(available), false, t('inv.f.availableNote'))}
+        {row('inv.f.investmentAmount', valid ? money(n) : '—')}
+        {row('inv.f.kFee', valid ? `${Number(v.entry_fee_pct) ? '−' : ''}${money(fee)}` : '—', false, Number(v.entry_fee_pct) ? `${feeText(v, t)} · ${t('inv.f.feeNote')}` : undefined)}
+        {row('inv.f.principalAfter', valid ? money(Math.round((n - fee) * 100) / 100) : '—', true)}
         {row('inv.duration', durationText(v, t))}
       </dl>
+      <div className="rounded-xl border border-ink-700 bg-ink-900/50 px-4 py-3">
+        <div className="flex justify-between gap-4 text-sm"><span className="text-fg-muted">{t('inv.f.remainingAvailable')}</span><span className="text-fg font-semibold tabular-nums">{available === null || !valid ? '—' : money(Math.max(0, Math.round((available - n) * 100) / 100))}</span></div>
+        <p className="mt-1.5 text-xs text-fg-faint leading-relaxed">{t('inv.f.remainingNote')}</p>
+      </div>
       <label className="flex items-start gap-3 text-sm text-fg-muted cursor-pointer">
         <input type="checkbox" className="mt-0.5 w-4 h-4 shrink-0" checked={accept} onChange={e => { setAccept(e.target.checked); setErr('') }} />
         <span>{t('inv.f.accept', { n: v.version })}</span>
@@ -390,25 +409,37 @@ function IconAlert() {
 
 const KIND_KEY: Record<string, TKey> = { principal_in: 'inv.f.kPrincipal', fee: 'inv.f.kFee', principal_out: 'inv.f.kPrincipalOut', return: 'inv.f.kReturn' }
 
-function InvestmentDetail({ inv, v, returns, events, txs, onClose, onChanged }: { inv: Investment; v?: Version; returns: { amount: number }[]; events: Ev[]; txs: LinkedTx[]; onClose: () => void; onChanged: () => void }) {
+function InvestmentDetail({ inv, v, adjustments, events, txs, onClose, onChanged }: { inv: Investment; v?: Version; adjustments: Adj[]; events: Ev[]; txs: LinkedTx[]; onClose: () => void; onChanged: () => void }) {
   const { t, intl } = useI18n()
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
-  const realised = returns.reduce((s, r) => s + r.amount, 0)
   const principal = Number(inv.principal)
+  const running = ['active', 'completed', 'matured'].includes(inv.status)
+  const profit = running ? profitOf(inv) : 0
+  const tone = profit > 0 ? 'price-up' : profit < 0 ? 'price-down' : 'text-fg'
   const dt = (iso: string | null | undefined) => iso ? new Date(iso).toLocaleString(intl, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : t('inv.notSet')
   const date = (iso: string | null | undefined) => iso ? new Date(iso).toLocaleDateString(intl, { day: 'numeric', month: 'short', year: 'numeric' }) : t('inv.notSet')
   const rows: [TKey, React.ReactNode][] = [
     ['inv.reference', inv.reference || inv.id.slice(0, 8).toUpperCase()],
-    ['inv.product', v ? `${v.name} · ${t('inv.versionN', { n: v.version })}` : t('inv.notSet')],
     ['inv.statusLabel', <StatusBadge key="s" status={inv.status} />],
     ['inv.f.submitted', dt(inv.created_at)],
     ['inv.start', date(inv.start_date)],
     ['inv.maturity', date(inv.maturity_date)],
     ['inv.duration', v ? durationText(v, t) : t('inv.notSet')],
+    ['inv.f.kFee', money(Number(inv.fee_amount))],
   ]
   if (inv.completed_at) rows.push(['inv.f.ended', date(inv.completed_at)])
-  if (Number(inv.fee_amount) > 0) rows.push(['inv.fee', money(Number(inv.fee_amount))])
+
+  // One timeline: status changes and profit / return updates, oldest first.
+  type Item = { at: string; title: string; note?: string }
+  const timeline: Item[] = [
+    ...events.filter(e => e.from_status !== e.to_status).map(e => ({
+      at: e.created_at,
+      title: e.to_status === 'active' ? t('inv.f.approvedEv') : e.to_status === 'pending_activation' ? t('inv.f.submitted') : t(`inv.status.${e.to_status}` as TKey),
+      note: e.reason && e.to_status === 'rejected' ? e.reason : undefined,
+    })),
+    ...adjustments.map(a => ({ at: a.created_at, title: t('inv.f.profitSet', { from: signed(Number(a.previous_profit)), to: signed(Number(a.new_profit)) }), note: a.reason })),
+  ].sort((x, y) => x.at.localeCompare(y.at))
 
   const cancel = async () => {
     if (busy || !confirm(t('inv.f.cancelConfirm'))) return
@@ -418,38 +449,70 @@ function InvestmentDetail({ inv, v, returns, events, txs, onClose, onChanged }: 
       onChanged()
     } catch (e) { setErr(errorText(e)); setBusy(false) }
   }
+  const tile = (label: TKey, value: string, cls = 'text-fg') => (
+    <div className="rounded-xl border border-ink-700 bg-ink-900/40 p-3 min-w-0">
+      <p className="text-[11px] uppercase tracking-wide text-fg-faint truncate">{t(label)}</p>
+      <p className={`mt-0.5 text-base sm:text-lg font-semibold tabular-nums truncate ${cls}`}>{value}</p>
+    </div>
+  )
 
   return (
     <Sheet title={v?.name || t('inv.product')} onClose={onClose}>
       {inv.status === 'rejected' && inv.rejection_reason && (
         <div role="note" className="mb-4 rounded-xl border border-danger-400/40 bg-danger-400/[0.07] p-3 text-sm text-danger-300">{t('inv.f.rejectionReason')}: {inv.rejection_reason}</div>
       )}
-      {/* Principal, return and total are kept apart and never blended */}
-      <div className="grid grid-cols-3 gap-2 mb-4">
-        <div className="rounded-xl border border-ink-700 p-3 min-w-0"><p className="text-[11px] uppercase tracking-wide text-fg-faint">{t('inv.f.kPrincipal')}</p><p className="text-sm sm:text-base font-semibold text-fg tabular-nums truncate">{money(principal)}</p></div>
-        <div className="rounded-xl border border-ink-700 p-3 min-w-0"><p className="text-[11px] uppercase tracking-wide text-fg-faint">{t('inv.f.kReturn')}</p><p className={`text-sm sm:text-base font-semibold tabular-nums truncate ${returns.length ? 'text-fg' : 'text-fg-muted'}`}>{returns.length ? money(realised) : '—'}</p></div>
-        <div className="rounded-xl border border-ink-700 p-3 min-w-0"><p className="text-[11px] uppercase tracking-wide text-fg-faint">{t('inv.f.total')}</p><p className="text-sm sm:text-base font-semibold text-fg tabular-nums truncate">{money(principal + realised)}</p></div>
-      </div>
-      {!returns.length && <p className="text-xs text-fg-faint mb-3">{t('inv.f.noReturn')}</p>}
-      <dl className="divide-y divide-ink-700 text-sm">
+      <section aria-label={t('inv.f.overview')}>
+        <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-fg-faint mb-2">{t('inv.f.overview')}</h3>
+        {/* Principal, profit / return and value are kept apart and never blended */}
+        <div className="grid grid-cols-2 gap-2">
+          {tile('inv.f.kPrincipal', money(principal))}
+          {tile('inv.f.currentValue', money(principal + profit))}
+          {tile('inv.f.profit', signed(profit), tone)}
+          {tile('inv.f.returnPct', running ? pctOf(profit, principal) : '—', tone)}
+        </div>
+        {running && profit === 0 && adjustments.length === 0 && <p className="mt-2 text-xs text-fg-faint">{t('inv.f.noPerformance')}</p>}
+      </section>
+      <dl className="mt-4 divide-y divide-ink-700 text-sm">
         {rows.map(([k, val]) => <div key={k} className="flex justify-between items-center gap-4 py-2.5"><dt className="text-fg-faint">{t(k)}</dt><dd className="text-fg text-right tabular-nums">{val}</dd></div>)}
       </dl>
-      {events.length > 0 && (
+      {timeline.length > 0 && (
         <>
-          <h3 className="mt-6 text-sm font-semibold text-fg">{t('inv.f.timeline')}</h3>
-          <ol className="mt-2 space-y-2 border-l border-ink-700 pl-4">
-            {events.map(e => (
-              <li key={e.id} className="text-sm">
-                <p className="text-fg">{t(`inv.status.${e.to_status}` as TKey)}</p>
-                <p className="text-xs text-fg-faint">{dt(e.created_at)}{e.reason && e.to_status === 'rejected' ? ` · ${e.reason}` : ''}</p>
+          <h3 className="mt-6 text-xs font-semibold uppercase tracking-[0.12em] text-fg-faint">{t('inv.f.timeline')}</h3>
+          <ol className="mt-3 space-y-3 border-l border-ink-700 pl-4">
+            {timeline.map((e, i) => (
+              <li key={i} className="relative text-sm">
+                <span className="absolute -left-[21px] top-1.5 w-2.5 h-2.5 rounded-full bg-accent/80 ring-4 ring-ink-900" aria-hidden="true" />
+                <p className="text-fg">{e.title}</p>
+                <p className="text-xs text-fg-faint">{dt(e.at)}{e.note ? ` · ${e.note}` : ''}</p>
               </li>
             ))}
           </ol>
         </>
       )}
+      {v && (
+        <>
+          <h3 className="mt-6 text-xs font-semibold uppercase tracking-[0.12em] text-fg-faint">{t('inv.f.productDetails')}</h3>
+          <p className="mt-2 text-sm text-fg-muted leading-relaxed whitespace-pre-line">{v.description}</p>
+          <dl className="mt-3 divide-y divide-ink-700 text-sm">
+            {([
+              ['inv.minimum', money(Number(v.min_amount))],
+              ['inv.f.maximum', v.max_amount ? money(Number(v.max_amount)) : t('inv.f.noMaximum')],
+              ['inv.duration', durationText(v, t)],
+              ['inv.fee', feeText(v, t)],
+              ['inv.termsVersion', t('inv.versionN', { n: v.version })],
+              ['inv.f.riskVersion', t('inv.versionN', { n: v.version })],
+            ] as [TKey, string][]).map(([k, val]) => <div key={k} className="flex justify-between gap-4 py-2.5"><dt className="text-fg-faint">{t(k)}</dt><dd className="text-fg text-right">{val}</dd></div>)}
+          </dl>
+          <details className="mt-2 text-sm">
+            <summary className="cursor-pointer text-fg-muted py-2">{t('inv.riskDisclosure')} · {t('inv.terms')}</summary>
+            <p className="mt-1 text-fg-muted leading-relaxed whitespace-pre-line">{v.risk_disclosure}</p>
+            <p className="mt-3 text-fg-muted leading-relaxed whitespace-pre-line">{v.terms_text}</p>
+          </details>
+        </>
+      )}
       {txs.some(x => x.tx) && (
         <>
-          <h3 className="mt-6 text-sm font-semibold text-fg">{t('inv.f.transactions')}</h3>
+          <h3 className="mt-6 text-xs font-semibold uppercase tracking-[0.12em] text-fg-faint">{t('inv.f.activity')}</h3>
           <ul className="mt-2 divide-y divide-ink-700 text-sm">
             {txs.filter(x => x.tx).map(x => (
               <li key={x.tx!.id} className="flex justify-between gap-3 py-2">
@@ -463,5 +526,67 @@ function InvestmentDetail({ inv, v, returns, events, txs, onClose, onChanged }: 
       {err && <p role="alert" className="mt-4 text-sm text-danger-300">{err}</p>}
       {inv.status === 'pending_activation' && <button onClick={cancel} disabled={busy} className="btn btn-outline w-full mt-6">{t('inv.f.cancelRequest')}</button>}
     </Sheet>
+  )
+}
+
+// Home dashboard: the client's actual active investments, read from the same
+// endpoint as the Investment Center. Nothing is shown that is not recorded.
+export function ActiveInvestmentsCard({ go }: { go: (id: string) => void }) {
+  const { t, intl } = useI18n()
+  const [state, setState] = useState<{ invs: Investment[]; versions: Map<string, Version> } | 'error' | null>(null)
+  useEffect(() => {
+    let alive = true
+    authFetch('/api/client/investments').then(r => readJson<Partial<Data>>(r)).then(raw => {
+      if (!alive) return
+      if (!Array.isArray(raw.investments) || !Array.isArray(raw.versions)) { setState('error'); return }
+      setState({ invs: raw.investments.filter(i => i.status === 'active'), versions: new Map(raw.versions.map(v => [v.id, v])) })
+    }).catch(() => alive && setState('error'))
+    return () => { alive = false }
+  }, [])
+  const date = (iso: string | null) => iso ? new Date(iso).toLocaleDateString(intl, { day: 'numeric', month: 'short', year: 'numeric' }) : t('inv.notSet')
+  if (state === 'error') return null // the Portfolio tab shows the full error state
+  return (
+    <section className="panel overflow-hidden" aria-labelledby="ov-inv">
+      <div className="flex items-center justify-between px-5 h-14 border-b border-ink-700">
+        <h3 id="ov-inv" className="text-[15px] font-semibold text-fg">{t('inv.f.activeTitle')}</h3>
+        <button onClick={() => go('portfolio')} className="text-[13px] text-fg-muted hover:text-fg min-h-8 px-1">{t('common.viewAll')}</button>
+      </div>
+      {state === null ? (
+        <div className="p-5 space-y-2" role="status" aria-label={t('common.loading')}><div className="skeleton h-4 w-40" /><div className="skeleton h-16" /></div>
+      ) : state.invs.length === 0 ? (
+        <div className="px-5 py-8 text-center">
+          <span className="mx-auto mb-3 w-10 h-10 rounded-xl border border-ink-700 flex items-center justify-center text-fg-faint"><IconPie width={18} height={18} /></span>
+          <p className="text-sm text-fg-muted">{t('inv.f.noActiveHome')}</p>
+          <button onClick={() => go('portfolio')} className="btn btn-outline btn-sm mt-3">{t('inv.f.browsePlans')}</button>
+        </div>
+      ) : (
+        <ul className="divide-y divide-ink-700">
+          {state.invs.slice(0, 3).map(i => {
+            const v = state.versions.get(i.product_version_id)
+            const p = profitOf(i), principal = Number(i.principal)
+            const tone = p > 0 ? 'price-up' : p < 0 ? 'price-down' : 'text-fg'
+            return (
+              <li key={i.id} className="px-5 py-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-fg truncate">{v?.name || t('inv.product')}</p>
+                    <p className="text-xs text-fg-faint">{v ? durationText(v, t) : ''} · {date(i.start_date)} → {date(i.maturity_date)}</p>
+                  </div>
+                  <StatusBadge status={i.status} />
+                </div>
+                <dl className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+                  {([['inv.f.kPrincipal', money(principal), 'text-fg'], ['inv.f.currentValue', money(principal + p), 'text-fg'], ['inv.f.profit', signed(p), tone], ['inv.f.returnPct', pctOf(p, principal), tone]] as [TKey, string, string][]).map(([k, val, cls]) => (
+                    <div key={k} className="rounded-lg bg-ink-950/40 border border-ink-700/70 px-2.5 py-2 min-w-0">
+                      <dt className="text-[11px] text-fg-faint truncate">{t(k)}</dt>
+                      <dd className={`font-semibold tabular-nums truncate ${cls}`}>{val}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </section>
   )
 }

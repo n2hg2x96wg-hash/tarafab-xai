@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
   const [products, investments, kyc, account] = await Promise.all([
     supabase.from('investment_products').select('id, code, status, current_version_id').eq('status', 'active').order('created_at'),
     supabase.from('client_investments')
-      .select('id, reference, product_id, product_version_id, principal, fee_amount, currency, status, start_date, maturity_date, completed_at, rejection_reason, reviewed_at, created_at')
+      .select('id, reference, product_id, product_version_id, principal, fee_amount, profit_amount, currency, status, start_date, maturity_date, completed_at, rejection_reason, reviewed_at, created_at')
       .eq('user_id', auth.user.id).order('created_at', { ascending: false }).limit(100),
     supabase.rpc('client_kyc_status'),
     // The one existing balance record; nothing here recalculates it.
@@ -56,14 +56,19 @@ export async function GET(request: NextRequest) {
   // Timeline and linked ledger rows for the client's own investments.
   let events: unknown[] = []
   let txs: unknown[] = []
+  let adjustments: unknown[] = []
   if (invs.length) {
     const ids = invs.map(i => i.id)
-    const [ev, tl] = await Promise.all([
+    const [ev, tl, adj] = await Promise.all([
       supabase.from('client_investment_events').select('id, client_investment_id, from_status, to_status, reason, created_at')
         .in('client_investment_id', ids).order('created_at'),
       supabase.from('investment_transactions').select('client_investment_id, kind, transactions(id, type, amount, status, reference, created_at)')
         .in('client_investment_id', ids),
+      // Profit history for the client's own investments (who adjusted it is not shown).
+      supabase.from('investment_profit_adjustments').select('id, investment_id, previous_profit, new_profit, previous_value, new_value, reason, created_at')
+        .in('investment_id', ids).order('created_at'),
     ])
+    if (!adj.error) adjustments = adj.data || []
     if (!ev.error) events = ev.data || []
     if (!tl.error) txs = (tl.data || []).map(l => ({ client_investment_id: l.client_investment_id, kind: l.kind, tx: Array.isArray(l.transactions) ? l.transactions[0] : l.transactions }))
   }
@@ -76,6 +81,7 @@ export async function GET(request: NextRequest) {
     returns,
     events,
     transactions: txs,
+    adjustments,
     balance: account.data ? {
       available: Number(account.data.available_balance), pending: Number(account.data.pending_balance), invested: Number(account.data.invested_balance),
     } : null,

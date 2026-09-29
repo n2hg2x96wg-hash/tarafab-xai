@@ -34,7 +34,7 @@ import { ReceiptField } from '@/components/dashboard/ReceiptField'
 import { isAllowedUpload, MAX_UPLOAD_BYTES, prepareUpload } from '@/lib/uploadFile'
 import { VerificationTab } from '@/components/dashboard/VerificationTab'
 import { useToast } from '@/components/Toast'
-import { InvestmentCenter } from '@/components/dashboard/InvestmentCenter'
+import { ActiveInvestmentsCard, InvestmentCenter } from '@/components/dashboard/InvestmentCenter'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { CommandSearch, type CommandItem } from '@/components/dashboard/CommandSearch'
 import { MarketActivityTab, PriceHistoryTab } from '@/components/dashboard/MarketTabs'
@@ -695,6 +695,8 @@ function OverviewTab({ name, account, txs, go, can, labelOf }: { name: string; a
           <div className="hidden lg:block" />
         )}
       </div>
+
+      {can('portfolio') && <ErrorBoundary label={t('inv.f.activeTitle')}><ActiveInvestmentsCard go={go} /></ErrorBoundary>}
 
       <TradingStatusCard
         status={account?.trading_status}

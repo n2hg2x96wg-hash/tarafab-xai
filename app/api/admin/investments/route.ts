@@ -71,6 +71,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ investment: data })
   }
 
+  if (body.action === 'set_profit') {
+    const key = idempotencyKey(request, body as { idempotency_key?: unknown })
+    const newProfit = num(body.new_profit)
+    if (!key) return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
+    if (newProfit === null || !Number.isFinite(newProfit)) return NextResponse.json({ error: 'Enter the new profit / return' }, { status: 400 })
+    // Only the investment, the target value and the reason come from the
+    // browser; the database reads the current values and does the arithmetic.
+    const { data, error } = await supabase.rpc('admin_set_investment_profit', {
+      p_investment_id: str(body.investment_id), p_new_profit: newProfit, p_reason: str(body.reason), p_idempotency_key: key,
+    })
+    if (error) return dbError(friendly(error))
+    return NextResponse.json({ adjustment: data })
+  }
+
   if (body.action === 'record_return') {
     const key = idempotencyKey(request, body as { idempotency_key?: unknown })
     if (!key) return NextResponse.json({ error: 'Invalid request' }, { status: 400 })

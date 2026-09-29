@@ -1,16 +1,21 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import dynamic from 'next/dynamic'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import { BitcoinMarketCard } from '@/components/BitcoinMarket'
 import { HeroLivePanel, LatestBlocks, LiveTickerBar, useLiveMarket } from '@/components/LiveCrypto'
 import { IconArrowDown, IconChart, IconCheck, IconGrid, IconList, IconLock, IconSwap, IconUser, Logo } from '@/components/Icons'
-import { FaqSection, HistorySection, NetworkSection, Reveal, TrustBar } from '@/components/LandingExtras'
+import { FaqSection, HeroFloatPanels, HistorySection, NetworkSection, PlatformStatus, Reveal, TrustBar } from '@/components/LandingExtras'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { useTheme } from '@/lib/theme/ThemeProvider'
+
+// Decorative canvas: its code is fetched only once the browser is idle, so it
+// never competes with the page becoming interactive.
+const AmbientField = dynamic(() => import('@/components/AmbientField').then(m => m.AmbientField), { ssr: false })
 
 function TradingViewWidget() {
   const ref = useRef<HTMLDivElement>(null)
@@ -103,6 +108,12 @@ const safeguards: TKey[] = [
 export default function LandingPage() {
   const router = useRouter()
   const market = useLiveMarket()
+  const [ambient, setAmbient] = useState(false)
+  useEffect(() => {
+    const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (h: number) => void }
+    if (w.requestIdleCallback) { const h = w.requestIdleCallback(() => setAmbient(true), { timeout: 2500 }); return () => w.cancelIdleCallback?.(h) }
+    const t = setTimeout(() => setAmbient(true), 1200); return () => clearTimeout(t)
+  }, [])
   const { t, locale } = useI18n()
 
   // Signed-in visitors are sent to their dashboard. The Supabase client is
@@ -146,6 +157,12 @@ export default function LandingPage() {
       <section className="relative border-b border-ink-700 overflow-hidden">
         <div className="hero-light" aria-hidden="true" />
         <div className="hero-grid" aria-hidden="true" />
+        {ambient && <AmbientField className="opacity-90" />}
+        <HeroFloatPanels
+          live={market.status === 'live' || market.status === 'polling'}
+          price={market.quotes['BTC-USD']?.price}
+          change={market.quotes['BTC-USD']?.open24h ? ((market.quotes['BTC-USD']!.price / market.quotes['BTC-USD']!.open24h) - 1) * 100 : undefined}
+        />
         <div className="market-line" aria-hidden="true">
           <svg viewBox="0 0 3200 180" preserveAspectRatio="none">
             <defs>
@@ -183,6 +200,9 @@ export default function LandingPage() {
             </p>
             <div className="rise-in mt-8" style={{ ['--i' as string]: 5 }}>
               <TrustBar marketStatus={market.status} />
+            </div>
+            <div className="rise-in mt-5" style={{ ['--i' as string]: 6 }}>
+              <PlatformStatus marketStatus={market.status} />
             </div>
           </div>
 
