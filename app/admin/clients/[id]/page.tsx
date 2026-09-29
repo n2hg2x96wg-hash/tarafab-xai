@@ -49,13 +49,18 @@ type AdjustForm = {
   reason: string
 }
 
+// "Account Balance" is the client's spendable balance and is stored in
+// available_balance (the field withdrawals and investments use). The older
+// account_balance column is a recorded total kept for history/accounting; it is
+// still accepted by the database but is no longer offered as an adjustment target.
 const FIELD_LABELS = {
-  account_balance: 'Account Balance',
-  available_balance: 'Available Balance',
+  account_balance: 'Recorded total (legacy)',
+  available_balance: 'Account Balance',
   invested_balance: 'Invested Balance',
   pending_balance: 'Pending Balance',
   profit_balance: 'Profit Balance',
 }
+const ADJUST_FIELDS: AdjustForm['field'][] = ['available_balance', 'invested_balance', 'pending_balance', 'profit_balance']
 
 export default function ClientDetailPage() {
   const router = useRouter()
@@ -81,7 +86,7 @@ export default function ClientDetailPage() {
   const [tradingSuccess, setTradingSuccess] = useState('')
 
   const [adjustForm, setAdjustForm] = useState<AdjustForm>({
-    field: 'account_balance',
+    field: 'available_balance',
     operation: 'credit',
     amount: '',
     reason: '',
@@ -248,7 +253,7 @@ export default function ClientDetailPage() {
       }))
 
       setAdjustSuccess(`${FIELD_LABELS[adjustForm.field]} updated successfully.`)
-      setAdjustForm({ field: 'account_balance', operation: 'credit', amount: '', reason: '' })
+      setAdjustForm({ field: 'available_balance', operation: 'credit', amount: '', reason: '' })
       adjustKey.current = newRequestKey()
       await load()
     } catch (err) {
@@ -367,11 +372,11 @@ export default function ClientDetailPage() {
           {account ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-5">
               {[
-                { label: 'Account Balance', value: account.account_balance, accent: true },
-                { label: 'Available', value: account.available_balance },
+                { label: 'Account Balance', value: account.available_balance, accent: true },
                 { label: 'Profit', value: account.profit_balance },
                 { label: 'Invested', value: account.invested_balance },
                 { label: 'Pending', value: account.pending_balance },
+                { label: 'Recorded total (legacy)', value: account.account_balance },
               ].map((item, i) => (
                 <div key={item.label} className={`rounded-xl p-4 border ${i === 0 ? 'col-span-2 sm:col-span-1' : ''} ${item.accent ? 'border-orange-500/25 bg-[linear-gradient(160deg,rgba(247,147,26,0.10),rgba(255,255,255,0.01))]' : 'border-white/[0.07] bg-white/[0.02]'}`}>
                   <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-1.5">{item.label}</p>
@@ -440,10 +445,16 @@ export default function ClientDetailPage() {
                 className="input-field text-sm"
                 disabled={adjusting}
               >
-                {(Object.entries(FIELD_LABELS) as [AdjustForm['field'], string][]).map(([k, v]) => (
-                  <option key={k} value={k}>{v}</option>
+                {ADJUST_FIELDS.map(k => (
+                  <option key={k} value={k}>{FIELD_LABELS[k]}</option>
                 ))}
               </select>
+              <p className="mt-1.5 text-[11px] leading-snug text-slate-500">
+                {adjustForm.field === 'available_balance' && 'The client’s spendable balance: what they see as Account Balance and can withdraw or invest.'}
+                {adjustForm.field === 'invested_balance' && 'Principal currently invested. It is separate from the Account Balance and is not spendable.'}
+                {adjustForm.field === 'pending_balance' && 'Amounts held for pending requests. Separate from the Account Balance.'}
+                {adjustForm.field === 'profit_balance' && 'Recorded profit. Separate from the Account Balance; it is not added to it.'}
+              </p>
             </div>
 
             <div>

@@ -19,7 +19,7 @@ type Client = {
   } | null
 }
 
-type Stats = { total_customers: number; total_account_usd: number; customers_with_accounts: number }
+type Stats = { total_customers: number; total_account_usd: number; total_available_usd: number; customers_with_accounts: number }
 type Recon = { user_id: string; full_name: string | null; check_name: string; expected: number; actual: number; difference: number }
 const RECON_LABEL: Record<string, string> = {
   total_vs_parts: 'Account total differs from the sum of its balances',
@@ -73,7 +73,9 @@ export default function AdminPage() {
 
   const filtered = clients
   const recentClients = clients
-  const totalAUM = Number(stats?.total_account_usd || 0)
+  // Sum of the clients' Account Balances (spendable). The legacy recorded total
+  // (total_account_usd) is no longer kept in step with adjustments.
+  const totalAUM = Number(stats?.total_available_usd || 0)
   const customers = { length: Number(stats?.total_customers || 0) }
   const activeAccounts = Number(stats?.customers_with_accounts || 0)
 
@@ -99,7 +101,7 @@ export default function AdminPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         {[
           { label: 'Total Clients', value: customers.length.toString(), sub: 'registered users', icon: '◉' },
-          { label: 'Assets Under Management', value: `$${totalAUM.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, sub: 'total account balances', icon: '◈' },
+          { label: 'Client Account Balances', value: `$${totalAUM.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, sub: 'total spendable balances', icon: '◈' },
           { label: 'Active Accounts', value: activeAccounts.toString(), sub: 'with account records', icon: '⇄' },
         ].map(stat => (
           <div key={stat.label} className="glass rounded-2xl p-5 border border-white/[0.08]">
@@ -162,7 +164,7 @@ export default function AdminPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-white/[0.06]">
-                    {['Name / ID', 'Account Balance', 'Available', 'Invested', 'Joined', ''].map(h => (
+                    {['Name / ID', 'Account Balance', 'Invested', 'Joined', ''].map(h => (
                       <th key={h} className="px-5 py-3 text-left text-xs text-slate-500 font-medium">{h}</th>
                     ))}
                   </tr>
@@ -174,10 +176,8 @@ export default function AdminPage() {
                         <p className="text-sm font-medium text-white">{client.full_name || 'Unnamed'}</p>
                         <p className="text-[10px] text-slate-600 mt-0.5 font-mono">{client.id.slice(0, 16)}…</p>
                       </td>
+                      {/* Account Balance = the client's spendable (available) balance, as the client sees it. */}
                       <td className="px-5 py-4 text-sm text-white font-medium">
-                        {client.accounts ? `$${(client.accounts.account_balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : <span className="text-slate-600">—</span>}
-                      </td>
-                      <td className="px-5 py-4 text-sm text-slate-300">
                         {client.accounts ? `$${(client.accounts.available_balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : <span className="text-slate-600">—</span>}
                       </td>
                       <td className="px-5 py-4 text-sm text-slate-300">
@@ -210,7 +210,7 @@ export default function AdminPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-white truncate">{client.full_name || 'Unnamed'}</p>
                     <p className="text-xs text-slate-500">
-                      {client.accounts ? `$${(client.accounts.account_balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : 'No account'}
+                      {client.accounts ? `$${(client.accounts.available_balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : 'No account'}
                     </p>
                   </div>
                   <Link

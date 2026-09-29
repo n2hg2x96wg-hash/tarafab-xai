@@ -138,7 +138,7 @@ export default function ClientsPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-white/[0.06]">
-                    {['Name / Email', 'Role', 'Account Balance', 'Available', 'Profit', 'Invested', 'Pending', 'Joined', ''].map(h => (
+                    {['Name / Email', 'Role', 'Account Balance', 'Profit', 'Invested', 'Pending', 'Joined', ''].map(h => (
                       <th key={h} className="px-5 py-3 text-left text-xs text-slate-500 font-medium">{h}</th>
                     ))}
                   </tr>
@@ -169,10 +169,8 @@ export default function ClientsPage() {
                           {client.role}
                         </span>
                       </td>
+                      {/* Account Balance = the client's spendable (available) balance, as the client sees it. */}
                       <td className="px-5 py-4 text-sm text-white font-medium">
-                        {client.accounts ? `$${(client.accounts.account_balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : <span className="text-slate-600">—</span>}
-                      </td>
-                      <td className="px-5 py-4 text-sm text-slate-300">
                         {client.accounts ? `$${(client.accounts.available_balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : <span className="text-slate-600">—</span>}
                       </td>
                       <td className="px-5 py-4 text-sm text-slate-300">
@@ -224,8 +222,7 @@ export default function ClientsPage() {
                   {client.accounts && (
                     <div className="grid grid-cols-2 gap-2 mb-3">
                       {[
-                        { label: 'Account', value: client.accounts.account_balance },
-                        { label: 'Available', value: client.accounts.available_balance },
+                        { label: 'Account Balance', value: client.accounts.available_balance },
                         { label: 'Profit', value: client.accounts.profit_balance },
                         { label: 'Invested', value: client.accounts.invested_balance },
                         { label: 'Pending', value: client.accounts.pending_balance },

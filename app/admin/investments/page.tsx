@@ -564,7 +564,7 @@ function ReviewPanel({ inv, client, productCode, onClose, onDone }: { inv: Inv; 
           {row('Status', <span className="capitalize">{label(inv.status)}</span>)}
           {row('Terms accepted', 'Yes, at submission (required)')}
           {row('KYC status', <span className="capitalize">{info ? info.kyc : '…'}</span>)}
-          {row('Available balance', info?.available == null ? '…' : money(info.available))}
+          {row('Account balance (spendable)', info?.available == null ? '…' : money(info.available))}
           {row('Held for pending requests', info?.pending == null ? '…' : money(info.pending))}
           {inv.start_date && row('Start', new Date(inv.start_date).toLocaleString())}
           {inv.maturity_date && row('Maturity', new Date(inv.maturity_date).toLocaleString())}
