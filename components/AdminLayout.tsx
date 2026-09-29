@@ -74,6 +74,7 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
     { label: 'admin.nav.deposits', icon: '↓', href: '/admin/transactions?type=deposit' },
     { label: 'admin.nav.withdrawals', icon: '↑', href: '/admin/transactions?type=withdrawal' },
     { label: 'admin.nav.verification', icon: '☑', href: '/admin/verification' },
+    { label: 'admin.nav.investments', icon: '◆', href: '/admin/investments' },
     { label: 'admin.nav.notifications', icon: '✉', href: '/admin/notifications' },
     { label: 'admin.nav.auditLogs', icon: '⊡', href: '/admin/audit-logs' },
     { label: 'admin.nav.settings', icon: '⚙', href: '/admin/settings' },

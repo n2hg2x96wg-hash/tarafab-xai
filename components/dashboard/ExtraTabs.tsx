@@ -63,6 +63,8 @@ export function PortfolioTab({ account, txs, hasMore, go }: { account: Account |
               </div>
             ))}
           </dl>
+          {/* Where these figures come from, so none of them reads as a calculation it is not. */}
+          <p className="mt-3 text-xs leading-relaxed text-fg-faint">{t('portfolio.sourceNote')}</p>
         </section>
         <section className="panel p-5 sm:p-6" aria-labelledby="pf-act">
           <h3 id="pf-act" className="text-[15px] font-semibold text-fg mb-3">{t('portfolio.activity')}</h3>
