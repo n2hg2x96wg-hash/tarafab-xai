@@ -255,7 +255,8 @@ export default function DashboardPage() {
 
   // Open the section named in the URL (#deposit etc.) after a refresh.
   useEffect(() => {
-    const id = window.location.hash.slice(1)
+    const raw = window.location.hash.slice(1)
+    const id = raw === 'investments' ? 'portfolio' : raw
     if (NAV_IDS.has(id)) setActiveNav(id)
   }, [])
 
@@ -337,7 +338,11 @@ export default function DashboardPage() {
     router.replace('/')
   }
 
-  const go = (id: string) => {
+  // 'investments' is the public name of the Investment Center; it lives in the
+  // Portfolio section. Kept as an alias so links and notification buttons can
+  // target #investments without depending on the internal section id.
+  const go = (rawId: string) => {
+    const id = rawId === 'investments' ? 'portfolio' : rawId
     setActiveNav(id); setSidebarOpen(false); window.scrollTo({ top: 0 })
     // Kept in the URL so a refresh or the back button returns to this section.
     try { window.history.replaceState(null, '', id === 'overview' ? '/dashboard' : `/dashboard#${id}`) } catch { /* ignore */ }

@@ -109,6 +109,7 @@ export default function LandingPage() {
   const router = useRouter()
   const market = useLiveMarket()
   const [ambient, setAmbient] = useState(false)
+  const [adminSession, setAdminSession] = useState(false)
   useEffect(() => {
     const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (h: number) => void }
     if (w.requestIdleCallback) { const h = w.requestIdleCallback(() => setAmbient(true), { timeout: 2500 }); return () => w.cancelIdleCallback?.(h) }
@@ -116,7 +117,12 @@ export default function LandingPage() {
   }, [])
   const { t, locale } = useI18n()
 
-  // Signed-in visitors are sent to their dashboard. The Supabase client is
+  // A signed-in CLIENT is sent to their dashboard. A signed-in ADMIN is not
+  // redirected: the public site is a legitimate place for an admin to be, and
+  // a session alone must never decide where they land. They get a link to the
+  // admin dashboard instead (see adminSession below). The role always comes
+  // from the profile record, never from the mere existence of a session.
+  // The Supabase client is
   // loaded on demand rather than imported at the top of this file: it is a
   // large library, and including it in the landing page bundle delayed the
   // point at which the menu and other buttons became clickable by seconds on
@@ -132,7 +138,9 @@ export default function LandingPage() {
         const { data: { session } } = await supabase.auth.getSession()
         if (cancelled || !session) return
         const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single() as { data: { role?: string } | null }
-        if (!cancelled) router.replace(profile?.role === 'admin' ? '/admin' : '/dashboard')
+        if (cancelled) return
+        if (profile?.role === 'admin') setAdminSession(true)
+        else if (profile?.role === 'customer') router.replace('/dashboard')
       } catch { /* not signed in, or offline: the landing page is what they see */ }
     }
     // requestIdleCallback is missing on older Safari, so fall back to a timer.
@@ -148,6 +156,13 @@ export default function LandingPage() {
   return (
     <div className="site min-h-screen bg-ink-950 text-fg">
       <Navbar />
+      {adminSession && (
+        <div className="fixed top-16 inset-x-0 z-30 flex justify-center px-3 pointer-events-none">
+          <Link href="/admin" className="pointer-events-auto mt-2 inline-flex items-center gap-2 rounded-full border border-ink-600 bg-ink-900/90 backdrop-blur px-4 py-2 text-[13px] text-fg-muted hover:text-fg shadow-lg">
+            {t('landing.adminBar')}
+          </Link>
+        </div>
+      )}
 
       <div className="pt-16">
         <ErrorBoundary label={t('trust.marketData')}><LiveTickerBar quotes={market.quotes} /></ErrorBoundary>

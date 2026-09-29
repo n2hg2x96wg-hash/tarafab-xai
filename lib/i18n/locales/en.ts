@@ -98,6 +98,7 @@ const en = {
     resetPassword: 'Reset password',
   },
   landing: {
+    adminBar: "You are signed in as an administrator. Go to the Admin dashboard →",
     status: {
       title: "Platform status",
       market: "Market data",

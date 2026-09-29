@@ -97,6 +97,7 @@ const de: DeepPartial<typeof en> = {
     resetPassword: 'Passwort zurücksetzen',
   },
   landing: {
+    adminBar: "Sie sind als Administrator angemeldet. Zum Admin-Dashboard →",
     status: {
       title: "Plattformstatus",
       market: "Marktdaten",

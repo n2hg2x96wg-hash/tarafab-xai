@@ -100,6 +100,7 @@ const ko: DeepPartial<typeof en> = {
     resetPassword: '비밀번호 재설정',
   },
   landing: {
+    adminBar: "관리자로 로그인되어 있습니다. 관리자 대시보드로 이동 →",
     status: {
       title: "플랫폼 상태",
       market: "시장 데이터",
