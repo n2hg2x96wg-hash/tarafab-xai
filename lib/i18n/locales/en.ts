@@ -543,6 +543,7 @@ const en = {
     savedHere: 'Saved on this device.',
   },
   nav2: {
+    investments: "Investments",
     groupOverview: 'Overview',
     groupPortfolio: 'Portfolio',
     groupMoney: 'Money',
@@ -681,6 +682,7 @@ const en = {
     markRead: 'Mark as read',
     unread: 'Unread',
     types: {
+      investment: "Investment",
       account: 'Account',
       deposit: 'Deposit update',
       withdrawal: 'Withdrawal update',
@@ -689,6 +691,8 @@ const en = {
     },
   },
   adminNotif: {
+    relatedInvestment: "Related investment (optional)",
+    noRelatedInvestment: "No specific investment",
     title: 'Notifications',
     subtitle: 'Messages shown in client dashboards',
     compose: 'New notification',

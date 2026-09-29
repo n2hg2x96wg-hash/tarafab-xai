@@ -259,8 +259,8 @@ export function noticesFrom(txs: Tx[]): Notice[] {
 }
 
 export type TeamNotice = {
-  id: string; type: 'account' | 'deposit' | 'withdrawal' | 'security' | 'announcement'
-  title: string; body: string; cta_label: string | null; cta_target: string | null; created_at: string; read: boolean
+  id: string; type: 'account' | 'deposit' | 'withdrawal' | 'security' | 'announcement' | 'investment'
+  title: string; body: string; cta_label: string | null; cta_target: string | null; investment_id?: string | null; created_at: string; read: boolean
 }
 
 const NOTICE_TONE: Record<TeamNotice['type'], string> = {
@@ -269,10 +269,11 @@ const NOTICE_TONE: Record<TeamNotice['type'], string> = {
   withdrawal: 'text-sky-400 border-sky-500/30',
   security: 'text-amber-400 border-amber-500/30',
   announcement: 'text-fg-muted border-ink-600',
+  investment: 'text-accent border-accent/30',
 }
 
 export function NotificationsTab({ notices, seenAt, team, onRead, go }: {
-  notices: Notice[]; seenAt: string | null; team: TeamNotice[]; onRead: (ids: string[]) => void; go: (id: string) => void
+  notices: Notice[]; seenAt: string | null; team: TeamNotice[]; onRead: (ids: string[]) => void; go: (id: string, investmentId?: string | null) => void
 }) {
   const { t, intl } = useI18n()
   const unreadIds = team.filter(n => !n.read).map(n => n.id)
@@ -302,7 +303,7 @@ export function NotificationsTab({ notices, seenAt, team, onRead, go }: {
                     {n.body && <p className="text-sm text-fg-muted mt-1 whitespace-pre-line break-words">{n.body}</p>}
                     <div className="flex flex-wrap gap-2 mt-3">
                       {n.cta_label && n.cta_target && (
-                        <button onClick={() => { onRead([n.id]); go(n.cta_target!.slice(1)) }} className="btn btn-brand btn-sm">{n.cta_label}</button>
+                        <button onClick={() => { onRead([n.id]); go(n.cta_target!.slice(1), n.investment_id) }} className="btn btn-brand btn-sm">{n.cta_label}</button>
                       )}
                       {!n.read && <button onClick={() => onRead([n.id])} className="btn btn-ghost btn-sm">{t('notif.markRead')}</button>}
                     </div>

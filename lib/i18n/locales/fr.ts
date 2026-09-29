@@ -542,6 +542,7 @@ const fr: DeepPartial<typeof en> = {
     savedHere: 'Enregistré sur cet appareil.',
   },
   nav2: {
+    investments: "Investissements",
     groupOverview: 'Aperçu',
     groupPortfolio: 'Portefeuille',
     groupMoney: 'Fonds',
@@ -680,6 +681,7 @@ const fr: DeepPartial<typeof en> = {
     markRead: 'Marquer comme lu',
     unread: 'Non lu',
     types: {
+      investment: "Investissement",
       account: 'Compte',
       deposit: 'Mise à jour de dépôt',
       withdrawal: 'Mise à jour de retrait',
@@ -688,6 +690,8 @@ const fr: DeepPartial<typeof en> = {
     },
   },
   adminNotif: {
+    relatedInvestment: "Investissement concerné (facultatif)",
+    noRelatedInvestment: "Aucun investissement précis",
     title: 'Notifications',
     subtitle: 'Messages affichés dans les tableaux de bord clients',
     compose: 'Nouvelle notification',

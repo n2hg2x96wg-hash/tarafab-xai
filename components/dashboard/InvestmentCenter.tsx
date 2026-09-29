@@ -73,7 +73,7 @@ function StatusBadge({ status }: { status: string }) {
   return <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${STATUS_TONE[status] || 'text-fg-muted border-ink-600'}`}>{t(`inv.status.${status}` as TKey)}</span>
 }
 
-export function InvestmentCenter({ go }: { go: (id: string) => void }) {
+export function InvestmentCenter({ go, focusId, onFocusDone }: { go: (id: string) => void; focusId?: string | null; onFocusDone?: () => void }) {
   const { t, intl } = useI18n()
   const [data, setData] = useState<Data | null>(null)
   const [error, setError] = useState('')
@@ -98,6 +98,14 @@ export function InvestmentCenter({ go }: { go: (id: string) => void }) {
     catch (e) { setError(errorText(e, t)) }
   }, [t])
   useEffect(() => { load() }, [load])
+  // Open a specific investment when asked to (notification button or deep link).
+  // Only an investment in the client's own list can be opened.
+  useEffect(() => {
+    if (!focusId || !data) return
+    const mine = data.investments.find(i => i.id.toLowerCase() === focusId.toLowerCase())
+    if (mine) setOpenInv(mine)
+    onFocusDone?.()
+  }, [focusId, data, onFocusDone])
 
   const versionById = useMemo(() => new Map((data?.versions || []).map(v => [v.id, v])), [data])
   const offers = useMemo(() => (data?.products || [])

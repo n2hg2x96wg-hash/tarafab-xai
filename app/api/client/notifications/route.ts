@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
   if (!supabase) return unauthorized()
   const [{ data: rows, error }, { data: reads, error: readErr }] = await Promise.all([
     supabase.from('client_notifications')
-      .select('id, type, title, body, cta_label, cta_target, created_at')
+      .select('id, type, title, body, cta_label, cta_target, investment_id, created_at')
       .is('archived_at', null)
       .order('created_at', { ascending: false })
       .limit(50),

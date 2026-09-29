@@ -8,13 +8,13 @@ import { createClient } from '@/lib/supabase/client'
 import { authFetch, errorText, readJson } from '@/lib/authFetch'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
 
-type NoticeType = 'account' | 'deposit' | 'withdrawal' | 'security' | 'announcement'
-const TYPES: NoticeType[] = ['account', 'deposit', 'withdrawal', 'security', 'announcement']
+type NoticeType = 'account' | 'deposit' | 'withdrawal' | 'security' | 'announcement' | 'investment'
+const TYPES: NoticeType[] = ['account', 'deposit', 'withdrawal', 'security', 'announcement', 'investment']
 // Buttons can only open a client dashboard section, never an outside link
 // (the database enforces the same rule).
 const TARGETS: { id: string; label: TKey }[] = [
   { id: 'deposit', label: 'dash.nav.deposit' }, { id: 'withdraw', label: 'dash.nav.withdraw' },
-  { id: 'transactions', label: 'dash.nav.transactions' }, { id: 'depositHistory', label: 'nav2.depositHistory' },
+  { id: 'transactions', label: 'dash.nav.transactions' }, { id: 'investments', label: 'nav2.investments' }, { id: 'depositHistory', label: 'nav2.depositHistory' },
   { id: 'withdrawalHistory', label: 'nav2.withdrawalHistory' }, { id: 'security', label: 'nav2.security' },
   { id: 'profile', label: 'dash.nav.profile' }, { id: 'markets', label: 'dash.nav.markets' }, { id: 'support', label: 'nav2.support' },
 ]
@@ -36,9 +36,22 @@ export default function AdminNotificationsPage() {
   const [body, setBody] = useState('')
   const [ctaLabel, setCtaLabel] = useState('')
   const [ctaTarget, setCtaTarget] = useState('')
+  const [investmentId, setInvestmentId] = useState('')
+  const [clientInvs, setClientInvs] = useState<{ id: string; reference: string | null; status: string; principal: number }[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [ok, setOk] = useState('')
+
+  // Optional: link the notification to one of the chosen client's investments.
+  useEffect(() => {
+    setInvestmentId('')
+    if (audience !== 'one' || !clientId) { setClientInvs([]); return }
+    let alive = true
+    createClient().from('client_investments').select('id, reference, status, principal').eq('user_id', clientId)
+      .order('created_at', { ascending: false }).limit(25)
+      .then(r => { if (alive) setClientInvs((r.data as typeof clientInvs) || []) })
+    return () => { alive = false }
+  }, [audience, clientId])
 
   const load = useCallback(async () => {
     setLoadError('')
@@ -77,9 +90,10 @@ export default function AdminNotificationsPage() {
         body: JSON.stringify({
           user_id: audience === 'one' ? clientId : null, type, title: title.trim(), body: body.trim(),
           cta_label: ctaLabel.trim() || undefined, cta_target: ctaTarget ? `#${ctaTarget}` : undefined,
+          investment_id: audience === 'one' && investmentId ? investmentId : undefined,
         }),
       }))
-      setOk(t('adminNotif.sent')); setTitle(''); setBody(''); setCtaLabel(''); setCtaTarget('')
+      setOk(t('adminNotif.sent')); setTitle(''); setBody(''); setCtaLabel(''); setCtaTarget(''); setInvestmentId('')
       load()
     } catch (err) { setError(errorText(err, t)) } finally { setBusy(false) }
   }
@@ -115,6 +129,15 @@ export default function AdminNotificationsPage() {
               <select value={clientId} onChange={e => setClientId(e.target.value)} className={`${field} mt-1.5`}>
                 <option value="">{t('adminNotif.chooseClient')}</option>
                 {clients.map(c => <option key={c.id} value={c.id}>{c.name ? `${c.name} · ` : ''}{c.email ?? c.id.slice(0, 8)}</option>)}
+              </select>
+            </label>
+          )}
+          {audience === 'one' && clientId && clientInvs.length > 0 && (
+            <label className="block">
+              <span className="text-xs text-slate-400">{t('adminNotif.relatedInvestment')}</span>
+              <select value={investmentId} onChange={e => setInvestmentId(e.target.value)} className={`${field} mt-1.5`}>
+                <option value="">{t('adminNotif.noRelatedInvestment')}</option>
+                {clientInvs.map(i => <option key={i.id} value={i.id}>{i.reference || i.id.slice(0, 8)} · {i.status === 'pending_activation' ? 'pending' : i.status} · ${Number(i.principal).toFixed(2)}</option>)}
               </select>
             </label>
           )}

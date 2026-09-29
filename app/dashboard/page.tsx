@@ -119,6 +119,8 @@ export default function DashboardPage() {
   const [txs, setTxs] = useState<Tx[]>([])
   const [loading, setLoading] = useState(true)
   const [activeNav, setActiveNav] = useState('overview')
+  // Investment to open once the Investment Center has loaded (from a notification or #investments/<id>).
+  const [focusInv, setFocusInv] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [cmdOpen, setCmdOpen] = useState(false)
   // Shortcut hint matches the keyboard: Cmd on Apple devices, Ctrl elsewhere.
@@ -256,7 +258,12 @@ export default function DashboardPage() {
   // Open the section named in the URL (#deposit etc.) after a refresh.
   useEffect(() => {
     const raw = window.location.hash.slice(1)
-    const id = raw === 'investments' ? 'portfolio' : raw
+    // #investments/<id> opens that investment inside the Investment Center. The
+    // id only selects among the signed-in client's OWN investments (the API is
+    // scoped by row level security), so another client's id shows nothing.
+    const deep = /^investments\/([0-9a-f-]{36})$/i.exec(raw)
+    if (deep) setFocusInv(deep[1])
+    const id = deep || raw === 'investments' ? 'portfolio' : raw
     if (NAV_IDS.has(id)) setActiveNav(id)
   }, [])
 
@@ -341,8 +348,9 @@ export default function DashboardPage() {
   // 'investments' is the public name of the Investment Center; it lives in the
   // Portfolio section. Kept as an alias so links and notification buttons can
   // target #investments without depending on the internal section id.
-  const go = (rawId: string) => {
+  const go = (rawId: string, investmentId?: string | null) => {
     const id = rawId === 'investments' ? 'portfolio' : rawId
+    if (investmentId) setFocusInv(investmentId)
     setActiveNav(id); setSidebarOpen(false); window.scrollTo({ top: 0 })
     // Kept in the URL so a refresh or the back button returns to this section.
     try { window.history.replaceState(null, '', id === 'overview' ? '/dashboard' : `/dashboard#${id}`) } catch { /* ignore */ }
@@ -468,7 +476,7 @@ export default function DashboardPage() {
             {activeNav === 'overview' && <OverviewTab name={displayName} account={account} txs={txs} go={go} can={id => !hiddenNav.includes(id)} labelOf={labelOf} />}
             {activeNav === 'markets' && <MarketsTab />}
             {activeNav === 'transactions' && <><TransactionsTab txs={txs} /><div className="mt-4"><LoadMore hasMore={hasMore} loading={loadingMore} onLoadMore={loadMore} /></div></>}
-            {activeNav === 'portfolio' && <div className="space-y-8"><InvestmentCenter go={go} /><PortfolioTab account={account} txs={txs} hasMore={hasMore} go={go} /></div>}
+            {activeNav === 'portfolio' && <div className="space-y-8"><InvestmentCenter go={go} focusId={focusInv} onFocusDone={() => setFocusInv(null)} /><PortfolioTab account={account} txs={txs} hasMore={hasMore} go={go} /></div>}
             {activeNav === 'depositHistory' && <HistoryTab kind="deposit" txs={txs} hasMore={hasMore} loadingMore={loadingMore} onLoadMore={loadMore} go={go} />}
             {activeNav === 'withdrawalHistory' && <HistoryTab kind="withdrawal" txs={txs} hasMore={hasMore} loadingMore={loadingMore} onLoadMore={loadMore} go={go} />}
             {activeNav === 'security' && <SecurityTab user={user} />}

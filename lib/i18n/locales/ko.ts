@@ -545,6 +545,7 @@ const ko: DeepPartial<typeof en> = {
     savedHere: '이 기기에 저장됩니다.',
   },
   nav2: {
+    investments: "투자",
     groupOverview: '개요',
     groupPortfolio: '포트폴리오',
     groupMoney: '자금',
@@ -683,6 +684,7 @@ const ko: DeepPartial<typeof en> = {
     markRead: '읽음으로 표시',
     unread: '읽지 않음',
     types: {
+      investment: "투자",
       account: '계정',
       deposit: '입금 소식',
       withdrawal: '출금 소식',
@@ -691,6 +693,8 @@ const ko: DeepPartial<typeof en> = {
     },
   },
   adminNotif: {
+    relatedInvestment: "관련 투자 (선택)",
+    noRelatedInvestment: "특정 투자 없음",
     title: '알림',
     subtitle: '고객 대시보드에 표시되는 메시지',
     compose: '새 알림',
