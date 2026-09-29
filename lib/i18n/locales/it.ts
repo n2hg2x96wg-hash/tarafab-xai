@@ -816,6 +816,13 @@ const it: DeepPartial<typeof en> = {
     start: 'Data di inizio',
     maturity: 'Data di scadenza',
     f: {
+      expectedReturn: "Rendimento atteso (previsto)",
+      expectedTotal: "Totale atteso (previsto)",
+      credited: "Accreditato finora",
+      projectedNote: "Le cifre previste derivano dai termini del prodotto e non sono garantite. Solo «Accreditato finora» è stato effettivamente aggiunto al tuo conto.",
+      fixedAmount: "{amount} per la durata",
+      projectedOnProduct: "Previsto per l'intera durata secondo i termini del prodotto; non garantito.",
+      expectedForAmount: "Con questo importo: rendimento atteso {ret}, totale atteso {total}",
       investmentAmount: "Importo dell'investimento",
       principalAfter: "Capitale (al netto della commissione)",
       remainingAvailable: "Saldo disponibile residuo",
@@ -898,6 +905,8 @@ const it: DeepPartial<typeof en> = {
       high: 'Rischio alto',
     },
     status: {
+      approved: "Approvato",
+      expired: "Scaduto",
       completed: "Completato",
       suspended: "Sospeso",
       pending_activation: "In attesa di revisione",

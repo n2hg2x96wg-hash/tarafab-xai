@@ -17,11 +17,11 @@ type Version = {
   id: string; product_id: string; version: number; name: string; description: string; currency: string
   min_amount: number; max_amount: number | null; term_days: number | null; duration_value: number | null; duration_unit: string | null
   cancellation_allowed: boolean; cancellation_terms: string | null; risk_level: string
-  risk_disclosure: string; terms_text: string; entry_fee_pct: number; return_type: string; return_rate_pct: number | null
+  risk_disclosure: string; terms_text: string; entry_fee_pct: number; return_type: string; return_rate_pct: number | null; return_amount?: number | null
   eligibility: { kyc_required?: boolean }; published_at: string | null; created_at: string
 }
 type Inv = {
-  id: string; reference: string | null; user_id: string; product_id: string; product_version_id: string; principal: number; fee_amount: number; profit_amount?: number | null; currency: string; status: string
+  id: string; reference: string | null; user_id: string; product_id: string; product_version_id: string; principal: number; fee_amount: number; profit_amount?: number | null; return_type?: string; expected_return?: number | null; expected_total?: number | null; currency: string; status: string
   start_date: string | null; maturity_date: string | null; completed_at: string | null; rejection_reason: string | null; reviewed_by: string | null; reviewed_at: string | null; terms_accepted_at?: string | null; created_at: string
 }
 type Audit = { id: string; action: string; entity: string; entity_id: string; details: Record<string, unknown>; created_at: string }
@@ -31,6 +31,8 @@ const STATUS_STYLE: Record<string, string> = {
   published: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
   paused: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
   archived: 'bg-red-500/10 text-red-400 border-red-500/20',
+  approved: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
+  expired: 'bg-slate-800 text-slate-400 border-white/[0.08]',
   pending_activation: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
   completed: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
   matured: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
@@ -42,7 +44,7 @@ const STATUS_STYLE: Record<string, string> = {
   closed: 'bg-red-500/10 text-red-400 border-red-500/20',
 }
 const PAGE = 25
-const EMPTY_FORM = { product_id: '', code: '', name: '', description: '', min_amount: '', max_amount: '', duration_value: '', duration_unit: 'months', risk_level: 'medium', risk_disclosure: '', terms_text: '', entry_fee_pct: '0', return_type: 'none', return_rate_pct: '', kyc_required: true, cancellation_allowed: false, cancellation_terms: '' }
+const EMPTY_FORM = { product_id: '', code: '', name: '', description: '', min_amount: '', max_amount: '', duration_value: '', duration_unit: 'months', risk_level: 'medium', risk_disclosure: '', terms_text: '', entry_fee_pct: '0', return_type: 'none', return_rate_pct: '', return_amount: '', kyc_required: true, cancellation_allowed: false, cancellation_terms: '' }
 const FINAL = ['archived', 'closed']
 const profitOf = (i: { profit_amount?: number | null }) => Number(i.profit_amount || 0)
 const signedMoney = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}$${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -138,7 +140,7 @@ function ProductsTab() {
       duration_value: latest.duration_value ? String(latest.duration_value) : latest.term_days ? String(latest.term_days) : '',
       duration_unit: latest.duration_unit || (latest.term_days ? 'days' : 'months'), risk_level: latest.risk_level,
       risk_disclosure: latest.risk_disclosure, terms_text: latest.terms_text, entry_fee_pct: String(Number(latest.entry_fee_pct) * 100),
-      return_type: latest.return_type, return_rate_pct: latest.return_rate_pct === null ? '' : String(latest.return_rate_pct),
+      return_type: latest.return_type, return_rate_pct: latest.return_rate_pct === null ? '' : String(latest.return_rate_pct), return_amount: latest.return_amount == null ? '' : String(latest.return_amount),
       kyc_required: latest.eligibility?.kyc_required !== false,
       cancellation_allowed: !!latest.cancellation_allowed, cancellation_terms: latest.cancellation_terms || '',
     })
@@ -188,10 +190,11 @@ function ProductsTab() {
             </Field>
             <Field label="Entry fee (%)"><input className="input-field" inputMode="decimal" value={form.entry_fee_pct} onChange={e => setForm({ ...form, entry_fee_pct: e.target.value })} /></Field>
             <Field label="Stated return">
-              <select className="input-field" value={form.return_type} onChange={e => setForm({ ...form, return_type: e.target.value, return_rate_pct: e.target.value === 'none' ? '' : form.return_rate_pct })}>
-                <option value="none">No stated return</option><option value="fixed_rate">Fixed rate for the term</option>
+              <select className="input-field" value={form.return_type} onChange={e => setForm({ ...form, return_type: e.target.value, return_rate_pct: e.target.value === 'fixed_rate' ? form.return_rate_pct : '', return_amount: e.target.value === 'fixed_amount' ? form.return_amount : '' })}>
+                <option value="none">No stated return</option><option value="fixed_rate">Fixed rate for the term (% of principal)</option><option value="fixed_amount">Fixed amount for the term (USD)</option>
               </select>
             </Field>
+            {form.return_type === 'fixed_amount' && <Field label="Configured return for the term (USD)"><input className="input-field" inputMode="decimal" value={form.return_amount} onChange={e => setForm({ ...form, return_amount: e.target.value })} /></Field>}
             {form.return_type === 'fixed_rate' && <Field label="Rate for the whole term (%)"><input className="input-field" inputMode="decimal" value={form.return_rate_pct} onChange={e => setForm({ ...form, return_rate_pct: e.target.value })} /></Field>}
             <label className="flex items-center gap-2 text-sm text-slate-300 sm:col-span-2">
               <input type="checkbox" checked={form.kyc_required} onChange={e => setForm({ ...form, kyc_required: e.target.checked })} /> Verified KYC required to invest
@@ -204,7 +207,7 @@ function ProductsTab() {
           <Field label="Risk disclosure (shown before investing)"><textarea className="input-field" rows={3} value={form.risk_disclosure} onChange={e => setForm({ ...form, risk_disclosure: e.target.value })} /></Field>
           <Field label="Terms"><textarea className="input-field" rows={5} value={form.terms_text} onChange={e => setForm({ ...form, terms_text: e.target.value })} /></Field>
           <Field label={form.cancellation_allowed ? 'Cancellation rules and fee' : 'Cancellation note (optional)'}><textarea className="input-field" rows={2} value={form.cancellation_terms} onChange={e => setForm({ ...form, cancellation_terms: e.target.value })} placeholder={form.cancellation_allowed ? 'e.g. Early cancellation returns the principal less a 2% fee.' : 'Pending requests can always be cancelled before review.'} /></Field>
-          {form.return_type === 'fixed_rate' && <p className="text-xs text-yellow-300">A stated rate is shown to clients as a term of the product. The system never credits returns automatically.</p>}
+          {form.return_type !== 'none' && <p className="text-xs text-yellow-300">The configured return is shown to clients as a projection (expected return and expected total), copied onto each investment when it is made. The system never credits returns automatically; credited returns are recorded per investment by an admin.</p>}
           <div className="flex gap-3">
             <button onClick={() => setForm(null)} disabled={busy} className="btn btn-sm btn-outline">Cancel</button>
             <button onClick={save} disabled={busy} className="btn btn-sm btn-solid">{busy ? 'Saving…' : 'Save draft'}</button>
@@ -306,7 +309,7 @@ function InvestmentsTab() {
     ;(async () => {
       setLoading(true)
       let q = supabase.from('client_investments')
-        .select('id, reference, user_id, product_id, product_version_id, principal, fee_amount, profit_amount, currency, status, start_date, maturity_date, completed_at, rejection_reason, reviewed_by, reviewed_at, created_at', { count: 'exact' })
+        .select('id, reference, user_id, product_id, product_version_id, principal, fee_amount, profit_amount, return_type, expected_return, expected_total, currency, status, start_date, maturity_date, completed_at, rejection_reason, reviewed_by, reviewed_at, created_at', { count: 'exact' })
         .order(sort.split('.')[0], { ascending: sort.endsWith('.asc') }).order('created_at', { ascending: false }).range(page * PAGE, page * PAGE + PAGE - 1)
       if (status) q = q.eq('status', status)
       const numOr = (v: string) => v.trim() !== '' && Number.isFinite(Number(v)) ? Number(v) : null
@@ -346,7 +349,7 @@ function InvestmentsTab() {
 
   const code = (id: string) => products.find(p => p.id === id)?.code || '—'
   const d = (iso: string | null) => iso ? new Date(iso).toLocaleDateString() : '—'
-  const statuses = [['pending_activation', 'Pending'], ['active', 'Active'], ['completed', 'Completed'], ['rejected', 'Rejected'], ['cancelled', 'Cancelled'], ['suspended', 'Suspended'], ['', 'All']] as const
+  const statuses = [['pending_activation', 'Pending'], ['approved', 'Approved'], ['active', 'Active'], ['completed', 'Completed'], ['rejected', 'Rejected'], ['cancelled', 'Cancelled'], ['expired', 'Expired'], ['suspended', 'Suspended'], ['', 'All']] as const
   return (
     <div className="space-y-4">
       <div className="flex gap-1.5 overflow-x-auto pb-1" role="tablist" aria-label="Status">
@@ -397,14 +400,14 @@ function InvestmentsTab() {
           </ul>
           <div className="panel overflow-x-auto hidden md:block">
             <table className="w-full text-sm">
-              <thead><tr className="text-left text-xs text-slate-500 border-b border-white/[0.06]">{['Client', 'Reference', 'Product', 'Principal', 'Current value', 'Profit / return', 'Status', 'Submitted', 'Maturity', ''].map(h => <th key={h} className="px-4 py-3 font-medium">{h}</th>)}</tr></thead>
+              <thead><tr className="text-left text-xs text-slate-500 border-b border-white/[0.06]">{['Client', 'Reference', 'Product', 'Principal', 'Expected return', 'Credited return', 'Status', 'Submitted', 'Maturity', ''].map(h => <th key={h} className="px-4 py-3 font-medium">{h}</th>)}</tr></thead>
               <tbody>{rows.map(r => (
                 <tr key={r.id} className="border-b border-white/[0.04]">
                   <td className="px-4 py-3 text-white">{names[r.user_id] || r.user_id.slice(0, 8)}</td>
                   <td className="px-4 py-3 font-mono text-xs text-slate-400">{r.reference || r.id.slice(0, 8)}</td>
                   <td className="px-4 py-3 text-slate-300">{code(r.product_id)}</td>
                   <td className="px-4 py-3 text-white tabular-nums">{money(r.principal)}</td>
-                  <td className="px-4 py-3 text-white tabular-nums">{money(Number(r.principal) + profitOf(r))}</td>
+                  <td className="px-4 py-3 text-slate-300 tabular-nums">{Number(r.expected_return || 0) > 0 ? money(Number(r.expected_return)) : '—'}</td>
                   <td className={`px-4 py-3 tabular-nums ${pClass(profitOf(r))}`}>{signedMoney(profitOf(r))} <span className="text-xs text-slate-500">{pct(profitOf(r), Number(r.principal))}</span></td>
                   <td className="px-4 py-3"><span className={`text-[11px] px-2 py-0.5 rounded-full border capitalize ${STATUS_STYLE[r.status] || ''}`}>{label(r.status)}</span></td>
                   <td className="px-4 py-3 text-slate-400">{d(r.created_at)}</td>
@@ -438,7 +441,7 @@ type LinkedTx = { kind: string; transactions: { id: string; type: string; amount
 function ReviewPanel({ inv, client, productCode, onClose, onDone }: { inv: Inv; client?: string; productCode: string; onClose: () => void; onDone: () => void }) {
   const supabase = createClient()
   const [info, setInfo] = useState<{ kyc: string; email: string | null; available: number | null; pending: number | null; version: Version | null; events: Ev[]; txs: LinkedTx[]; reviewer: string | null; adjustments: AdjRow[]; admins: Record<string, string> } | null>(null)
-  const [mode, setMode] = useState<'' | 'reject' | 'complete' | 'return' | 'profit' | 'profit-review'>('')
+  const [mode, setMode] = useState<'' | 'reject' | 'complete' | 'expire' | 'return' | 'profit' | 'profit-review'>('')
   const [newProfit, setNewProfit] = useState('')
   const [amount, setAmount] = useState('')
   // One key per return being recorded: a double click or retry cannot credit twice.
@@ -507,8 +510,11 @@ function ReviewPanel({ inv, client, productCode, onClose, onDone }: { inv: Inv; 
           {row('Product version', info?.version ? `v${info.version.version}` : '…')}
           {row(inv.status === 'pending_activation' ? 'Amount requested' : 'Investment amount', money(Number(inv.principal) + (inv.status === 'pending_activation' ? 0 : Number(inv.fee_amount))))}
           {inv.status !== 'pending_activation' && row('Principal', money(inv.principal))}
+          {row('Configured return', inv.return_type === 'fixed_rate' ? 'Fixed rate' : inv.return_type === 'fixed_amount' ? 'Fixed amount' : 'None stated')}
+          {row('Expected return (projected)', Number(inv.expected_return || 0) > 0 ? money(Number(inv.expected_return)) : '—')}
+          {row('Expected total (projected)', money(Number(inv.expected_total || 0)))}
+          {running && row('Actual credited return', <span className={pClass(profit)}>{signedMoney(profit)}</span>)}
           {running && row('Current value', money(Number(inv.principal) + profit))}
-          {running && row('Current profit / return', <span className={pClass(profit)}>{signedMoney(profit)}</span>)}
           {running && row('Return', <span className={pClass(profit)}>{pct(profit, Number(inv.principal))}</span>)}
           {Number(inv.fee_amount) > 0 && row(inv.status === 'pending_activation' ? 'Entry fee on approval' : 'Entry fee', money(inv.fee_amount))}
           {row('Submitted', new Date(inv.created_at).toLocaleString())}
@@ -536,6 +542,7 @@ function ReviewPanel({ inv, client, productCode, onClose, onDone }: { inv: Inv; 
         {inv.status === 'pending_activation' && mode === '' && (
           <div className="flex gap-3">
             <button disabled={busy} onClick={() => setMode('reject')} className="btn btn-outline flex-1">Reject</button>
+            <button disabled={busy} onClick={() => setMode('expire')} className="btn btn-outline flex-1">Expire</button>
             <button disabled={busy || !info} onClick={() => { if (confirm(`Approve ${inv.reference || 'this investment'} for ${money(inv.principal)}?`)) go({ action: 'review', decision: 'approve' }) }} className="btn btn-solid flex-1">{busy ? 'Working…' : 'Approve'}</button>
           </div>
         )}
@@ -596,14 +603,15 @@ function ReviewPanel({ inv, client, productCode, onClose, onDone }: { inv: Inv; 
             )}
           </div>
         )}
-        {(mode === 'reject' || mode === 'complete') && (
+        {(mode === 'reject' || mode === 'complete' || mode === 'expire') && (
           <div className="space-y-3">
             <textarea className="input-field" rows={2} placeholder={mode === 'reject' ? 'Reason for rejection (required, shown to the client)' : 'Reason (required, recorded in the audit log)'} value={reason} onChange={e => setReason(e.target.value)} />
             {mode === 'reject' && <p className="text-xs text-slate-500">The held amount returns to the client&apos;s available balance.</p>}
+            {mode === 'expire' && <p className="text-xs text-slate-500">The request is marked Expired, the held amount returns to the client&apos;s available balance, and the record is kept.</p>}
             {mode === 'complete' && <p className="text-xs text-slate-500">The principal moves from invested back to available. No return is recorded here.</p>}
             <div className="flex gap-3">
               <button disabled={busy} onClick={() => { setMode(''); setReason('') }} className="btn btn-outline flex-1">Back</button>
-              <button disabled={busy || !reason.trim()} onClick={() => go(mode === 'reject' ? { action: 'review', decision: 'reject', reason } : { action: 'complete', reason })} className="btn btn-solid flex-1">{busy ? 'Working…' : mode === 'reject' ? 'Confirm rejection' : 'Confirm completion'}</button>
+              <button disabled={busy || !reason.trim()} onClick={() => go(mode === 'reject' ? { action: 'review', decision: 'reject', reason } : mode === 'expire' ? { action: 'expire', reason } : { action: 'complete', reason })} className="btn btn-solid flex-1">{busy ? 'Working…' : mode === 'reject' ? 'Confirm rejection' : mode === 'expire' ? 'Confirm expiry' : 'Confirm completion'}</button>
             </div>
           </div>
         )}

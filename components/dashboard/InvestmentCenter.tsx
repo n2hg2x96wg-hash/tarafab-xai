@@ -21,14 +21,14 @@ import { fmt } from '@/components/dashboard/shared'
 
 type Version = {
   id: string; product_id: string; version: number; name: string; description: string; currency: string
-  min_amount: number; max_amount: number | null; term_days: number | null; duration_value?: number | null; duration_unit?: 'days' | 'weeks' | 'months' | 'years' | null
+  min_amount: number; max_amount: number | null; term_days: number | null; return_amount?: number | null; duration_value?: number | null; duration_unit?: 'days' | 'weeks' | 'months' | 'years' | null
   cancellation_allowed?: boolean; cancellation_terms?: string | null; risk_level: 'low' | 'medium' | 'high'
-  risk_disclosure: string; terms_text: string; entry_fee_pct: number; return_type: 'none' | 'fixed_rate'
+  risk_disclosure: string; terms_text: string; entry_fee_pct: number; return_type: 'none' | 'fixed_rate' | 'fixed_amount'
   return_rate_pct: number | null; eligibility: { kyc_required?: boolean }; published_at: string | null
 }
 type Product = { id: string; code: string; status: string; current_version_id: string | null }
 type Investment = {
-  id: string; reference?: string | null; product_id: string; product_version_id: string; principal: number; fee_amount: number; profit_amount?: number | null; currency: string
+  id: string; reference?: string | null; product_id: string; product_version_id: string; principal: number; fee_amount: number; profit_amount?: number | null; return_type?: string; expected_return?: number | null; expected_total?: number | null; currency: string
   status: string; start_date: string | null; maturity_date: string | null; completed_at?: string | null; rejection_reason?: string | null; reviewed_at?: string | null; created_at: string
 }
 type Ev = { id: number; client_investment_id: string; from_status: string | null; to_status: string; reason: string | null; created_at: string }
@@ -277,7 +277,7 @@ function ProductDetail({ v, kycVerified, balance, onClose, onSubmitted, go }: { 
     ['inv.currency', v.currency],
     ['inv.duration', durationText(v, t)],
     ['inv.fee', feeText(v, t)],
-    ['inv.statedReturn', v.return_type === 'fixed_rate' && v.return_rate_pct !== null ? t('inv.fixedRate', { rate: Number(v.return_rate_pct).toFixed(2) }) : t('inv.noStatedReturn')],
+    ['inv.statedReturn', v.return_type === 'fixed_rate' && v.return_rate_pct !== null ? t('inv.fixedRate', { rate: Number(v.return_rate_pct).toFixed(2) }) : v.return_type === 'fixed_amount' && v.return_amount != null ? t('inv.f.fixedAmount', { amount: money(Number(v.return_amount)) }) : t('inv.noStatedReturn')],
     ['inv.riskLabel', t(`inv.risk.${v.risk_level}` as TKey)],
     ['inv.termsVersion', t('inv.versionN', { n: v.version })],
   ]
@@ -300,7 +300,7 @@ function ProductDetail({ v, kycVerified, balance, onClose, onSubmitted, go }: { 
       <dl className="mt-5 divide-y divide-ink-700 text-sm">
         {rows.map(([k, val]) => <div key={k} className="flex justify-between gap-4 py-2.5"><dt className="text-fg-faint">{t(k)}</dt><dd className="text-fg text-right">{val}</dd></div>)}
       </dl>
-      {v.return_type === 'fixed_rate' && <p className="mt-2 text-xs text-fg-faint">{t('inv.statedReturnNote')}</p>}
+      {v.return_type !== 'none' && <p className="mt-2 text-xs text-fg-faint">{t('inv.f.projectedOnProduct')}</p>}
 
       <h3 className="mt-6 text-sm font-semibold text-fg flex items-center gap-2"><IconAlert />{t('inv.riskDisclosure')}</h3>
       <p className="mt-2 text-sm text-fg-muted leading-relaxed whitespace-pre-line">{v.risk_disclosure}</p>
@@ -337,6 +337,8 @@ function InvestForm({ v, balance, onBack, onDone }: { v: Version; balance: Balan
   const n = Number(amount)
   const valid = /^\d+(\.\d{1,2})?$/.test(amount.trim()) && n > 0
   const fee = valid ? Math.round(n * Number(v.entry_fee_pct) * 100) / 100 : 0
+  // Same formula the database uses; the stored figure always comes from the server.
+  const projRet = !valid ? 0 : v.return_type === 'fixed_rate' ? Math.round((n - fee) * Number(v.return_rate_pct || 0)) / 100 : v.return_type === 'fixed_amount' ? Number(v.return_amount || 0) : 0
   const available = balance?.available ?? null
   const problem =
     !amount ? '' :
@@ -386,6 +388,9 @@ function InvestForm({ v, balance, onBack, onDone }: { v: Version; balance: Balan
         {row('inv.f.principalAfter', valid ? money(Math.round((n - fee) * 100) / 100) : '—', true)}
         {row('inv.duration', durationText(v, t))}
       </dl>
+      {v.return_type !== 'none' && valid && (
+        <p className="text-xs text-fg-muted rounded-xl border border-ink-700 px-4 py-2.5">{t('inv.f.expectedForAmount', { ret: money(projRet), total: money(Math.round((n - fee + projRet) * 100) / 100) })} · {t('inv.f.projectedOnProduct')}</p>
+      )}
       <div className="rounded-xl border border-ink-700 bg-ink-900/50 px-4 py-3">
         <div className="flex justify-between gap-4 text-sm"><span className="text-fg-muted">{t('inv.f.remainingAvailable')}</span><span className="text-fg font-semibold tabular-nums">{available === null || !valid ? '—' : money(Math.max(0, Math.round((available - n) * 100) / 100))}</span></div>
         <p className="mt-1.5 text-xs text-fg-faint leading-relaxed">{t('inv.f.remainingNote')}</p>
@@ -417,6 +422,8 @@ function InvestmentDetail({ inv, v, adjustments, events, txs, onClose, onChanged
   const running = ['active', 'completed', 'matured'].includes(inv.status)
   const profit = running ? profitOf(inv) : 0
   const tone = profit > 0 ? 'price-up' : profit < 0 ? 'price-down' : 'text-fg'
+  const expRet = Number(inv.expected_return || 0), expTotal = Number(inv.expected_total || 0)
+  const hasProjection = inv.return_type !== undefined && inv.return_type !== 'none' && expRet > 0
   const dt = (iso: string | null | undefined) => iso ? new Date(iso).toLocaleString(intl, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : t('inv.notSet')
   const date = (iso: string | null | undefined) => iso ? new Date(iso).toLocaleDateString(intl, { day: 'numeric', month: 'short', year: 'numeric' }) : t('inv.notSet')
   const rows: [TKey, React.ReactNode][] = [
@@ -467,9 +474,16 @@ function InvestmentDetail({ inv, v, adjustments, events, txs, onClose, onChanged
         <div className="grid grid-cols-2 gap-2">
           {tile('inv.f.kPrincipal', money(principal))}
           {tile('inv.f.currentValue', money(principal + profit))}
-          {tile('inv.f.profit', signed(profit), tone)}
+          {tile('inv.f.credited', signed(profit), tone)}
           {tile('inv.f.returnPct', running ? pctOf(profit, principal) : '—', tone)}
         </div>
+        {hasProjection && (
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            {tile('inv.f.expectedReturn', money(expRet))}
+            {tile('inv.f.expectedTotal', money(expTotal))}
+          </div>
+        )}
+        {hasProjection && <p className="mt-2 text-xs text-fg-faint">{t('inv.f.projectedNote')}</p>}
         {running && profit === 0 && adjustments.length === 0 && <p className="mt-2 text-xs text-fg-faint">{t('inv.f.noPerformance')}</p>}
       </section>
       <dl className="mt-4 divide-y divide-ink-700 text-sm">
@@ -575,7 +589,7 @@ export function ActiveInvestmentsCard({ go }: { go: (id: string) => void }) {
                   <StatusBadge status={i.status} />
                 </div>
                 <dl className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
-                  {([['inv.f.kPrincipal', money(principal), 'text-fg'], ['inv.f.currentValue', money(principal + p), 'text-fg'], ['inv.f.profit', signed(p), tone], ['inv.f.returnPct', pctOf(p, principal), tone]] as [TKey, string, string][]).map(([k, val, cls]) => (
+                  {([['inv.f.kPrincipal', money(principal), 'text-fg'], ['inv.f.expectedTotal', Number(i.expected_return || 0) > 0 ? money(Number(i.expected_total || 0)) : '—', 'text-fg'], ['inv.f.credited', signed(p), tone], ['inv.f.returnPct', pctOf(p, principal), tone]] as [TKey, string, string][]).map(([k, val, cls]) => (
                     <div key={k} className="rounded-lg bg-ink-950/40 border border-ink-700/70 px-2.5 py-2 min-w-0">
                       <dt className="text-[11px] text-fg-faint truncate">{t(k)}</dt>
                       <dd className={`font-semibold tabular-nums truncate ${cls}`}>{val}</dd>

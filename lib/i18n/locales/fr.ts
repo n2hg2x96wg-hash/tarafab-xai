@@ -816,6 +816,13 @@ const fr: DeepPartial<typeof en> = {
     start: 'Date de début',
     maturity: "Date d'échéance",
     f: {
+      expectedReturn: "Rendement attendu (prévisionnel)",
+      expectedTotal: "Total attendu (prévisionnel)",
+      credited: "Crédité à ce jour",
+      projectedNote: "Les chiffres prévisionnels proviennent des conditions du produit et ne sont pas garantis. Seul « Crédité à ce jour » a réellement été ajouté à votre compte.",
+      fixedAmount: "{amount} pour la durée",
+      projectedOnProduct: "Prévision sur toute la durée selon les conditions du produit ; non garantie.",
+      expectedForAmount: "Pour ce montant : rendement attendu {ret}, total attendu {total}",
       investmentAmount: "Montant investi",
       principalAfter: "Capital (après frais)",
       remainingAvailable: "Solde disponible restant",
@@ -898,6 +905,8 @@ const fr: DeepPartial<typeof en> = {
       high: 'Risque élevé',
     },
     status: {
+      approved: "Approuvé",
+      expired: "Expiré",
       completed: "Terminé",
       suspended: "Suspendu",
       pending_activation: "En attente d'examen",

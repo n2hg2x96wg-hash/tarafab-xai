@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
   const [products, investments, kyc, account] = await Promise.all([
     supabase.from('investment_products').select('id, code, status, current_version_id').eq('status', 'active').order('created_at'),
     supabase.from('client_investments')
-      .select('id, reference, product_id, product_version_id, principal, fee_amount, profit_amount, currency, status, start_date, maturity_date, completed_at, rejection_reason, reviewed_at, created_at')
+      .select('id, reference, product_id, product_version_id, principal, fee_amount, profit_amount, return_type, expected_return, expected_total, currency, status, start_date, maturity_date, completed_at, rejection_reason, reviewed_at, created_at')
       .eq('user_id', auth.user.id).order('created_at', { ascending: false }).limit(100),
     supabase.rpc('client_kyc_status'),
     // The one existing balance record; nothing here recalculates it.
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
   ])) as string[]
   const versions = versionIds.length
     ? await supabase.from('investment_product_versions')
-        .select('id, product_id, version, name, description, currency, min_amount, max_amount, term_days, duration_value, duration_unit, cancellation_allowed, cancellation_terms, risk_level, risk_disclosure, terms_text, entry_fee_pct, return_type, return_rate_pct, eligibility, published_at')
+        .select('id, product_id, version, name, description, currency, min_amount, max_amount, term_days, return_amount, duration_value, duration_unit, cancellation_allowed, cancellation_terms, risk_level, risk_disclosure, terms_text, entry_fee_pct, return_type, return_rate_pct, eligibility, published_at')
         .in('id', versionIds)
     : { data: [], error: null }
   if (versions.error) return dbError(versions.error)

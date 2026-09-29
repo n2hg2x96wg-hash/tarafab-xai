@@ -816,6 +816,13 @@ const de: DeepPartial<typeof en> = {
     start: 'Beginn',
     maturity: 'Fälligkeit',
     f: {
+      expectedReturn: "Erwarteter Ertrag (prognostiziert)",
+      expectedTotal: "Erwarteter Gesamtbetrag (prognostiziert)",
+      credited: "Bisher gutgeschrieben",
+      projectedNote: "Prognosewerte stammen aus den Produktbedingungen und sind nicht garantiert. Nur „Bisher gutgeschrieben“ wurde Ihrem Konto tatsächlich gutgeschrieben.",
+      fixedAmount: "{amount} für die Laufzeit",
+      projectedOnProduct: "Für die gesamte Laufzeit nach den Produktbedingungen prognostiziert; keine Garantie.",
+      expectedForAmount: "Bei diesem Betrag: erwarteter Ertrag {ret}, erwarteter Gesamtbetrag {total}",
       investmentAmount: "Anlagebetrag",
       principalAfter: "Kapital (nach Gebühr)",
       remainingAvailable: "Verbleibendes verfügbares Guthaben",
@@ -898,6 +905,8 @@ const de: DeepPartial<typeof en> = {
       high: 'Hohes Risiko',
     },
     status: {
+      approved: "Genehmigt",
+      expired: "Abgelaufen",
       completed: "Abgeschlossen",
       suspended: "Ausgesetzt",
       pending_activation: "Prüfung ausstehend",

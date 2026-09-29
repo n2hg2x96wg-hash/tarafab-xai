@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
   if (body.action === 'save') {
     const minAmount = num(body.min_amount)
     if (minAmount === null || !Number.isFinite(minAmount)) return NextResponse.json({ error: 'Minimum investment is required' }, { status: 400 })
-    const { data, error } = await supabase.rpc('admin_save_product_draft_v2', {
+    const { data, error } = await supabase.rpc('admin_save_product_draft_v3', {
       p_product_id: str(body.product_id),
       p_code: str(body.code),
       p_name: str(body.name),
@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
       p_entry_fee_pct: num(body.entry_fee_pct) ?? 0,
       p_return_type: str(body.return_type) || 'none',
       p_return_rate_pct: num(body.return_rate_pct),
+      p_return_amount: num(body.return_amount),
       p_kyc_required: body.kyc_required !== false,
       p_cancellation_allowed: body.cancellation_allowed === true,
       p_cancellation_terms: str(body.cancellation_terms),
@@ -69,6 +70,12 @@ export async function POST(request: NextRequest) {
     })
     if (error) return dbError(friendly(error))
     return NextResponse.json({ investment: data })
+  }
+
+  if (body.action === 'expire') {
+    const { data, error } = await supabase.rpc('admin_expire_investment', { p_investment_id: str(body.investment_id), p_reason: str(body.reason) })
+    if (error) return dbError(friendly(error))
+    return NextResponse.json({ status: data })
   }
 
   if (body.action === 'set_profit') {

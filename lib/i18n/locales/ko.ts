@@ -819,6 +819,13 @@ const ko: DeepPartial<typeof en> = {
     start: '시작일',
     maturity: '만기일',
     f: {
+      expectedReturn: "예상 수익 (예상치)",
+      expectedTotal: "예상 총액 (예상치)",
+      credited: "현재까지 지급된 금액",
+      projectedNote: "예상 수치는 상품 약관에서 산출되며 보장되지 않습니다. \"현재까지 지급된 금액\"만 실제로 계정에 반영된 금액입니다.",
+      fixedAmount: "기간 동안 {amount}",
+      projectedOnProduct: "상품 약관에 따른 전체 기간 예상치이며 보장되지 않습니다.",
+      expectedForAmount: "이 금액 기준: 예상 수익 {ret}, 예상 총액 {total}",
       investmentAmount: "투자 금액",
       principalAfter: "원금 (수수료 차감 후)",
       remainingAvailable: "남은 사용 가능 잔액",
@@ -901,6 +908,8 @@ const ko: DeepPartial<typeof en> = {
       high: '높은 위험',
     },
     status: {
+      approved: "승인됨",
+      expired: "만료됨",
       completed: "완료",
       suspended: "중지됨",
       pending_activation: "검토 대기 중",

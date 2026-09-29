@@ -816,6 +816,13 @@ const es: DeepPartial<typeof en> = {
     start: 'Fecha de inicio',
     maturity: 'Fecha de vencimiento',
     f: {
+      expectedReturn: "Rendimiento esperado (proyectado)",
+      expectedTotal: "Total esperado (proyectado)",
+      credited: "Acreditado hasta ahora",
+      projectedNote: "Las cifras proyectadas provienen de las condiciones del producto y no están garantizadas. Solo «Acreditado hasta ahora» se ha añadido realmente a tu cuenta.",
+      fixedAmount: "{amount} por el plazo",
+      projectedOnProduct: "Proyectado para todo el plazo según las condiciones del producto; no garantizado.",
+      expectedForAmount: "Con este importe: rendimiento esperado {ret}, total esperado {total}",
       investmentAmount: "Importe de la inversión",
       principalAfter: "Capital (tras la comisión)",
       remainingAvailable: "Saldo disponible restante",
@@ -898,6 +905,8 @@ const es: DeepPartial<typeof en> = {
       high: 'Riesgo alto',
     },
     status: {
+      approved: "Aprobada",
+      expired: "Expirada",
       completed: "Completada",
       suspended: "Suspendida",
       pending_activation: "Pendiente de revisión",

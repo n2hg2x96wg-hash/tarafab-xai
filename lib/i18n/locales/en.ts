@@ -817,6 +817,13 @@ const en = {
     start: 'Start date',
     maturity: 'Maturity date',
     f: {
+      expectedReturn: "Expected return (projected)",
+      expectedTotal: "Expected total (projected)",
+      credited: "Credited so far",
+      projectedNote: "Projected figures come from this product's terms and are not guaranteed. Only \"Credited so far\" has actually been added to your account.",
+      fixedAmount: "{amount} for the term",
+      projectedOnProduct: "Projected for the full term from the product terms; not a guarantee.",
+      expectedForAmount: "At this amount: expected return {ret}, expected total {total}",
       investmentAmount: "Investment amount",
       principalAfter: "Principal (after fee)",
       remainingAvailable: "Remaining available balance",
@@ -899,6 +906,8 @@ const en = {
       high: 'High risk',
     },
     status: {
+      approved: "Approved",
+      expired: "Expired",
       completed: "Completed",
       suspended: "Suspended",
       pending_activation: "Pending review",
