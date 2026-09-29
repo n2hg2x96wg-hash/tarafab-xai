@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { clientForRequest, dbError, unauthorized } from '@/lib/supabase/request'
+import { clientForRequest, dbError, idempotencyKey, unauthorized } from '@/lib/supabase/request'
 
 // Admin product management. Each action is a database function that checks
 // the caller is an admin, validates the input and writes an audit entry.
@@ -71,6 +71,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ investment: data })
   }
 
+  if (body.action === 'record_return') {
+    const key = idempotencyKey(request, body as { idempotency_key?: unknown })
+    if (!key) return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
+    const { data, error } = await supabase.rpc('admin_record_investment_return', {
+      p_investment_id: str(body.investment_id), p_amount: num(body.amount), p_reason: str(body.reason), p_idempotency_key: key,
+    })
+    if (error) return dbError(friendly(error))
+    return NextResponse.json({ profit_balance: data })
+  }
+
   return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
 }
 
@@ -78,7 +88,7 @@ export async function POST(request: NextRequest) {
 // The raw message is still logged for developers.
 function friendly(error: { message?: string; code?: string }) {
   const m = error.message || ''
-  if (error.code === '23505' && /code/.test(m)) return { ...error, message: 'That product code is already used' }
+  if (error.code === '23505' && /code/.test(m)) return { ...error, code: 'P0001', message: 'That product code is already used' }
   if (error.code === '23514') {
     console.error('investments: constraint failed:', m)
     const hint =
@@ -93,7 +103,7 @@ function friendly(error: { message?: string; code?: string }) {
       /entry_fee/.test(m) ? 'The fee must be between 0% and 99.99%' :
       /return/.test(m) ? 'A fixed rate needs both a rate and a duration; "no stated return" must not have a rate' :
       'Some of the values are not valid'
-    return { ...error, message: hint }
+    return { ...error, code: 'P0001', message: hint }
   }
   return error
 }

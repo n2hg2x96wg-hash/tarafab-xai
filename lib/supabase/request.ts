@@ -31,13 +31,30 @@ export function dbError(err: { message?: string; code?: string } | null) {
     console.error('db: token rejected:', msg)
     return NextResponse.json({ error: 'Please sign in again.' }, { status: 401 })
   }
+  const code = err?.code || ''
   const status =
-    err?.code === 'PGRST301' || /jwt/i.test(msg) ? 401
-    : /^admins only|^only admins/i.test(msg) ? 403
-    : err?.code === '40001' ? 409 // changed by someone else since it was loaded
+    code === 'PGRST301' || /jwt/i.test(msg) ? 401
+    : /^admins only|^only admins|^not authorized/i.test(msg) || code === '42501' ? 403
+    : code === '40001' ? 409 // changed by someone else since it was loaded
+    : code === '23505' ? 409
     : /^too many/i.test(msg) ? 429
-    : 400
-  return NextResponse.json({ error: status === 401 ? 'Please sign in again.' : msg }, { status })
+    : code === '57014' || code === '53300' || code === '08006' || /fetch failed|ECONNRESET|timeout/i.test(msg) ? 503
+    : !code || code === 'P0001' || code === '23514' || code === '22023' || code === 'P0002' ? 400
+    : 500
+  if (status === 401) return NextResponse.json({ error: 'Please sign in again.' }, { status })
+  // Only messages written by our own database functions (raise exception,
+  // SQLSTATE P0001, or a mapped constraint) are shown. Anything else is an
+  // internal detail: it is logged for developers and replaced with plain text.
+  const ours = code === 'P0001' || code === '40001' || (code === '42501' && /^not authorized/i.test(msg)) || /^admins only|^only admins|^too many/i.test(msg)
+    || (!code && status === 400 && !/relation|column|syntax|permission denied|violates|postgres|pgrst|schema|fetch|typeerror/i.test(msg))
+  if (ours) return NextResponse.json({ error: msg }, { status })
+  console.error('db error:', code, msg)
+  const safe =
+    status === 403 ? 'You do not have permission to do that.'
+    : status === 409 ? 'This request was already submitted or changed. Refresh and try again.'
+    : status === 503 ? 'Connection temporarily unavailable. Please try again.'
+    : 'Something went wrong. Please try again.'
+  return NextResponse.json({ error: safe }, { status })
 }
 
 // Client-generated key that makes a repeated submit return the original

@@ -1,10 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import AdminLayout from '@/components/AdminLayout'
 import { AdminLoadError } from '@/components/AdminLoadError'
-import { authFetch, errorText, readJson } from '@/lib/authFetch'
+import { authFetch, errorText, newRequestKey, readJson } from '@/lib/authFetch'
 
 // Admin Investment Center. Reads use row level security (admins see all);
 // every change goes through /api/admin/investments, whose database functions
@@ -403,7 +403,10 @@ type LinkedTx = { kind: string; transactions: { id: string; type: string; amount
 function ReviewPanel({ inv, client, productCode, onClose, onDone }: { inv: Inv; client?: string; productCode: string; onClose: () => void; onDone: () => void }) {
   const supabase = createClient()
   const [info, setInfo] = useState<{ kyc: string; available: number | null; pending: number | null; version: Version | null; events: Ev[]; txs: LinkedTx[]; reviewer: string | null } | null>(null)
-  const [mode, setMode] = useState<'' | 'reject' | 'complete'>('')
+  const [mode, setMode] = useState<'' | 'reject' | 'complete' | 'return'>('')
+  const [amount, setAmount] = useState('')
+  // One key per return being recorded: a double click or retry cannot credit twice.
+  const returnKey = useRef(newRequestKey())
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
@@ -436,7 +439,7 @@ function ReviewPanel({ inv, client, productCode, onClose, onDone }: { inv: Inv; 
   const go = async (body: Record<string, unknown>) => {
     setBusy(true); setErr('')
     try { await act({ ...body, investment_id: inv.id }); onDone() }
-    catch (e) { setErr(errorText(e)) }
+    catch (e) { setErr(errorText(e)); if (body.action === 'record_return') returnKey.current = newRequestKey() }
     finally { setBusy(false) }
   }
   const row = (k: string, v: React.ReactNode) => <div className="flex justify-between gap-3 py-1.5 border-b border-white/[0.04] text-sm"><span className="text-slate-500 shrink-0">{k}</span><span className="text-white text-right break-all">{v}</span></div>
@@ -486,7 +489,23 @@ function ReviewPanel({ inv, client, productCode, onClose, onDone }: { inv: Inv; 
         {inv.status === 'active' && mode === '' && (
           <button disabled={busy} onClick={() => setMode('complete')} className="btn btn-outline w-full">Mark completed (return principal)</button>
         )}
-        {mode && (
+        {['active', 'completed', 'matured'].includes(inv.status) && mode === '' && (
+          <button disabled={busy} onClick={() => setMode('return')} className="btn btn-outline w-full">Record return</button>
+        )}
+        {mode === 'return' && (
+          <div className="space-y-3">
+            <input className="input-field" inputMode="decimal" placeholder="Return amount (USD)" value={amount} onChange={e => setAmount(e.target.value.replace(',', '.'))} />
+            <textarea className="input-field" rows={2} placeholder="Reason (required, shown in the client's history and the audit log)" value={reason} onChange={e => setReason(e.target.value)} />
+            <p className="text-xs text-slate-500">Credits the client&apos;s profit balance and account total, creates a ledger entry linked to this investment and records the previous and new values in the audit log. Only record returns that were actually earned.</p>
+            <div className="flex gap-3">
+              <button disabled={busy} onClick={() => { setMode(''); setReason(''); setAmount('') }} className="btn btn-outline flex-1">Back</button>
+              <button disabled={busy || !reason.trim() || !/^\d+(\.\d{1,2})?$/.test(amount) || Number(amount) <= 0}
+                onClick={() => { if (confirm(`Credit ${money(Number(amount))} to this client as a return on ${inv.reference || 'this investment'}?`)) go({ action: 'record_return', amount, reason, idempotency_key: returnKey.current }) }}
+                className="btn btn-solid flex-1">{busy ? 'Working…' : 'Confirm return'}</button>
+            </div>
+          </div>
+        )}
+        {(mode === 'reject' || mode === 'complete') && (
           <div className="space-y-3">
             <textarea className="input-field" rows={2} placeholder={mode === 'reject' ? 'Reason for rejection (required, shown to the client)' : 'Reason (required, recorded in the audit log)'} value={reason} onChange={e => setReason(e.target.value)} />
             {mode === 'reject' && <p className="text-xs text-slate-500">The held amount returns to the client&apos;s available balance.</p>}

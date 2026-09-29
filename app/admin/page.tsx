@@ -19,42 +19,82 @@ type Client = {
   } | null
 }
 
+type Stats = { total_customers: number; total_account_usd: number; customers_with_accounts: number }
+type Recon = { user_id: string; full_name: string | null; check_name: string; expected: number; actual: number; difference: number }
+const RECON_LABEL: Record<string, string> = {
+  total_vs_parts: 'Account total differs from the sum of its balances',
+  negative_balance: 'A stored balance is negative',
+  pending_investments_not_held: 'Pending investment requests exceed the held balance',
+  active_investments_not_invested: 'Active investments exceed the invested balance',
+}
+
+// Totals come from the database (admin_stats) and the list is a small,
+// server-filtered page, so the dashboard stays fast however many clients exist.
 export default function AdminPage() {
   const supabase = createClient()
   const [clients, setClients] = useState<Client[]>([])
+  const [stats, setStats] = useState<Stats | null>(null)
+  const [recon, setRecon] = useState<Recon[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [term, setTerm] = useState('')
 
   const [loadError, setLoadError] = useState('')
   const [reload, setReload] = useState(0)
 
+  // Debounced: one query after typing pauses, not one per keystroke.
+  useEffect(() => { const t = setTimeout(() => setTerm(search.trim()), 300); return () => clearTimeout(t) }, [search])
+
   useEffect(() => {
-    const fetch = async () => {
-      const { data, error } = await (supabase.from('profiles') as any)
+    supabase.rpc('admin_stats').then(({ data, error }) => { if (!error && data) setStats(data as Stats) })
+    supabase.rpc('admin_reconciliation').then(({ data, error }) => setRecon(error ? null : (data as Recon[]) || []))
+  }, [supabase, reload])
+
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      setLoading(true)
+      let q = (supabase.from('profiles') as any)
         .select('id, full_name, role, created_at, accounts(account_balance, available_balance, invested_balance, pending_balance)')
-        .order('created_at', { ascending: false }) as { data: Client[] | null; error: unknown }
+        .eq('role', 'customer').order('created_at', { ascending: false }).limit(term ? 25 : 5)
+      if (term) {
+        const safe = term.replace(/[%_,()]/g, '')
+        q = /^[0-9a-f-]{36}$/i.test(term) ? q.eq('id', term) : q.ilike('full_name', `%${safe}%`)
+      }
+      const { data, error } = await q as { data: Client[] | null; error: unknown }
+      if (!alive) return
       // A failed load keeps the previous list rather than showing zero clients.
       if (error) setLoadError('Client data could not be loaded. Figures below may be incomplete.')
       else { setClients(data || []); setLoadError('') }
       setLoading(false)
-    }
-    fetch()
-  }, [reload])
+    })()
+    return () => { alive = false }
+  }, [supabase, term, reload])
 
-  const customers = clients.filter(c => c.role === 'customer')
-  const totalAUM = customers.reduce((sum, c) => sum + (c.accounts?.account_balance || 0), 0)
-  const activeAccounts = customers.filter(c => c.accounts).length
-  const recentClients = customers.slice(0, 5)
-
-  const filtered = clients.filter(c =>
-    c.role === 'customer' &&
-    ((c.full_name?.toLowerCase() || '').includes(search.toLowerCase()) ||
-    c.id.toLowerCase().includes(search.toLowerCase()))
-  )
+  const filtered = clients
+  const recentClients = clients
+  const totalAUM = Number(stats?.total_account_usd || 0)
+  const customers = { length: Number(stats?.total_customers || 0) }
+  const activeAccounts = Number(stats?.customers_with_accounts || 0)
 
   return (
     <AdminLayout title="Admin Dashboard" subtitle="Manage client accounts and platform activity">
       {loadError && <AdminLoadError message={loadError} onRetry={() => setReload(n => n + 1)} />}
+      {recon && recon.length > 0 && (
+        <div role="alert" className="mb-6 rounded-2xl border border-yellow-500/30 bg-yellow-500/[0.06] p-4">
+          <p className="text-sm font-semibold text-yellow-300">Reconciliation: {recon.length} item{recon.length === 1 ? '' : 's'} need review</p>
+          <p className="text-xs text-slate-400 mt-1">Stored figures that do not agree. Nothing has been changed automatically; investigate and correct through an audited adjustment if needed.</p>
+          <ul className="mt-3 space-y-1.5 text-xs">
+            {recon.map((r, i) => (
+              <li key={i} className="flex flex-wrap gap-x-2 text-slate-300">
+                <Link href={`/admin/clients/${r.user_id}`} className="text-violet-300 hover:underline">{r.full_name || r.user_id.slice(0, 8)}</Link>
+                <span>· {RECON_LABEL[r.check_name] || r.check_name}</span>
+                <span className="text-slate-500 tabular-nums">expected ${Number(r.expected).toFixed(2)}, stored ${Number(r.actual).toFixed(2)} (difference {Number(r.difference).toFixed(2)})</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         {[
@@ -67,7 +107,7 @@ export default function AdminPage() {
               <p className="text-slate-400 text-xs">{stat.label}</p>
               <span className="text-violet-400 text-lg">{stat.icon}</span>
             </div>
-            <p className="text-2xl font-bold text-white">{loading ? '—' : stat.value}</p>
+            <p className="text-2xl font-bold text-white">{stats ? stat.value : '—'}</p>
             <p className="text-slate-600 text-xs mt-1">{stat.sub}</p>
           </div>
         ))}

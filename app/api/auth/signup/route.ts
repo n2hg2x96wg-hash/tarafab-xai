@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
       options: { data: { full_name: fullName || '' } },
     })
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    if (error) return NextResponse.json({ error: error.status === 429 ? 'Too many attempts. Please wait a moment and try again.' : error.message }, { status: error.status === 429 ? 429 : 400 })
 
     const needsVerification = data.user && !data.session
     return NextResponse.json({
@@ -39,7 +39,8 @@ export async function POST(request: NextRequest) {
       refresh_token: data.session?.refresh_token,
     })
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e)
-    return NextResponse.json({ error: msg }, { status: 500 })
+    // Details stay in the server log; the client gets plain text.
+    console.error('auth route failed:', e instanceof Error ? e.message : String(e))
+    return NextResponse.json({ error: 'Connection temporarily unavailable. Please try again.' }, { status: 503 })
   }
 }

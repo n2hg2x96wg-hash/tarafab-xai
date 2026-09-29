@@ -32,6 +32,10 @@ const STATUS_STYLE: Record<string, string> = {
   pending_blockchain_confirmation: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
 }
 
+const PAGE = 50
+const KNOWN_TYPES = ['deposit', 'withdrawal', 'adjustment', 'return', 'investment', 'fee', 'transfer_in', 'transfer_out']
+const KNOWN_STATUSES = ['pending', 'pending_review', 'pending_verification', 'pending_blockchain_confirmation', 'requested', 'under_review', 'approved', 'processing', 'completed', 'rejected', 'failed', 'cancelled']
+
 export default function TransactionsPage() {
   const supabase = createClient()
   const [txs, setTxs] = useState<Tx[]>([])
@@ -52,17 +56,44 @@ export default function TransactionsPage() {
   const [loadError, setLoadError] = useState('')
   const [reload, setReload] = useState(0)
 
-  const fetchTxs = async () => {
-    const { data, error } = await (supabase.from('transactions') as any)
+  const [hasMore, setHasMore] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [term, setTerm] = useState('')
+  // Debounced so typing sends one query, not one per keystroke.
+  useEffect(() => { const t = setTimeout(() => setTerm(search.trim()), 300); return () => clearTimeout(t) }, [search])
+
+  // Type, status and ID/reference search are applied by the database, then
+  // results are paged newest-first, so older pending items are never hidden
+  // behind a fixed row cap. Name search also narrows the loaded rows below.
+  const fetchTxs = async (before?: string) => {
+    let q = (supabase.from('transactions') as any)
       .select('id, user_id, type, method, amount, fee, status, notes, reference, address, created_at, profiles(full_name)')
       .order('created_at', { ascending: false })
-      .limit(200) as { data: Tx[] | null; error: unknown }
+      .limit(PAGE + 1)
+    if (filterType) q = q.eq('type', filterType)
+    if (filterStatus) q = q.eq('status', filterStatus)
+    if (before) q = q.lt('created_at', before)
+    if (term && /^[0-9a-f-]{36}$/i.test(term)) q = q.or(`id.eq.${term},user_id.eq.${term}`)
+    else if (term && /^[A-Za-z]{2,4}-[A-Za-z0-9-]+$/.test(term)) q = q.ilike('reference', `${term.replace(/[%_,()]/g, '')}%`)
+    const { data, error } = await q as { data: Tx[] | null; error: unknown }
     if (error) setLoadError('Transactions could not be loaded. The list may be out of date.')
-    else { setTxs(data || []); setLoadError('') }
+    else {
+      const rows = data || []
+      setHasMore(rows.length > PAGE)
+      const page = rows.slice(0, PAGE)
+      setTxs(prev => before ? [...prev, ...page.filter(r => !prev.some(x => x.id === r.id))] : page)
+      setLoadError('')
+    }
     setLoading(false)
   }
+  const loadMore = async () => {
+    const last = txs[txs.length - 1]?.created_at
+    if (!last || loadingMore) return
+    setLoadingMore(true)
+    try { await fetchTxs(last) } finally { setLoadingMore(false) }
+  }
 
-  useEffect(() => { fetchTxs() }, [reload])
+  useEffect(() => { fetchTxs() }, [reload, filterType, filterStatus, term])
 
   const handleReview = async () => {
     if (!reviewingId || !reviewAction) return
@@ -117,14 +148,15 @@ export default function TransactionsPage() {
 
   const filtered = txs.filter(tx => {
     const name = tx.profiles?.full_name?.toLowerCase() || ''
-    const matchSearch = !search || name.includes(search.toLowerCase()) || tx.id.toLowerCase().includes(search.toLowerCase()) || tx.user_id.toLowerCase().includes(search.toLowerCase())
+    const s = search.toLowerCase()
+    const matchSearch = !search || name.includes(s) || tx.id.toLowerCase().includes(s) || tx.user_id.toLowerCase().includes(s) || (tx.reference || '').toLowerCase().includes(s)
     const matchStatus = !filterStatus || tx.status === filterStatus
     const matchType = !filterType || tx.type === filterType
     return matchSearch && matchStatus && matchType
   })
 
-  const allStatuses = Array.from(new Set(txs.map(t => t.status))).sort()
-  const allTypes = Array.from(new Set(txs.map(t => t.type))).sort()
+  const allStatuses = Array.from(new Set([...KNOWN_STATUSES, ...txs.map(t => t.status), ...(filterStatus ? [filterStatus] : [])])).sort()
+  const allTypes = Array.from(new Set([...KNOWN_TYPES, ...txs.map(t => t.type), ...(filterType ? [filterType] : [])])).sort()
 
   return (
     <AdminLayout title="Transactions" subtitle="All platform transactions">
@@ -318,7 +350,10 @@ export default function TransactionsPage() {
 
         {!loading && (
           <div className="px-5 py-3 border-t border-white/[0.06] text-xs text-slate-600">
-            Showing {filtered.length} of {txs.length} transactions
+            <div className="flex items-center justify-between gap-3">
+              <span>Showing {filtered.length} of {txs.length} loaded{hasMore ? '' : ' (all matching)'}</span>
+              {hasMore && <button onClick={loadMore} disabled={loadingMore} className="btn btn-sm btn-outline">{loadingMore ? 'Loading…' : 'Load more'}</button>}
+            </div>
           </div>
         )}
       </div>

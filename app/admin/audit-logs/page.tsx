@@ -13,6 +13,8 @@ type Log = {
   created_at: string
 }
 
+const PAGE = 100
+
 export default function AuditLogsPage() {
   const supabase = createClient()
   const [logs, setLogs] = useState<Log[]>([])
@@ -23,18 +25,33 @@ export default function AuditLogsPage() {
   const [loadError, setLoadError] = useState('')
   const [reload, setReload] = useState(0)
 
-  useEffect(() => {
-    const fetch = async () => {
-      const { data, error } = await (supabase.from('audit_logs') as any)
-        .select('id, user_id, action, details, created_at')
-        .order('created_at', { ascending: false })
-        .limit(200) as { data: Log[] | null; error: unknown }
-      if (error) setLoadError('Audit logs could not be loaded.')
-      else { setLogs(data || []); setLoadError('') }
-      setLoading(false)
+  const [hasMore, setHasMore] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  // Paged newest-first; older entries load on request instead of all at once.
+  const fetchPage = async (before?: string) => {
+    let q = (supabase.from('audit_logs') as any)
+      .select('id, user_id, action, details, created_at')
+      .order('created_at', { ascending: false })
+      .limit(PAGE + 1)
+    if (before) q = q.lt('created_at', before)
+    const { data, error } = await q as { data: Log[] | null; error: unknown }
+    if (error) setLoadError('Audit logs could not be loaded.')
+    else {
+      const rows = data || []
+      setHasMore(rows.length > PAGE)
+      const page = rows.slice(0, PAGE)
+      setLogs(prev => before ? [...prev, ...page.filter(r => !prev.some(x => x.id === r.id))] : page)
+      setLoadError('')
     }
-    fetch()
-  }, [reload])
+    setLoading(false)
+  }
+  const loadMore = async () => {
+    const last = logs[logs.length - 1]?.created_at
+    if (!last || loadingMore) return
+    setLoadingMore(true)
+    try { await fetchPage(last) } finally { setLoadingMore(false) }
+  }
+  useEffect(() => { fetchPage() }, [reload]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const filtered = logs.filter(log => {
     if (!search) return true
@@ -114,7 +131,10 @@ export default function AuditLogsPage() {
 
         {!loading && (
           <div className="px-5 py-3 border-t border-white/[0.06] text-xs text-slate-600">
-            Showing {filtered.length} of {logs.length} entries
+            <div className="flex items-center justify-between gap-3">
+              <span>Showing {filtered.length} of {logs.length} loaded{hasMore ? '' : ' (all)'}</span>
+              {hasMore && <button onClick={loadMore} disabled={loadingMore} className="btn btn-sm btn-outline">{loadingMore ? 'Loading…' : 'Load older entries'}</button>}
+            </div>
           </div>
         )}
       </div>

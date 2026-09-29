@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import AdminLayout from '@/components/AdminLayout'
@@ -21,6 +21,8 @@ type Client = {
   } | null
 }
 
+const PAGE = 50
+
 export default function ClientsPage() {
   const supabase = createClient()
   const [clients, setClients] = useState<Client[]>([])
@@ -38,27 +40,54 @@ export default function ClientsPage() {
   const [loadError, setLoadError] = useState('')
   const [reload, setReload] = useState(0)
 
-  useEffect(() => {
-    const fetch = async () => {
-      const [{ data, error }, { data: emails }] = await Promise.all([
-        (supabase.from('profiles') as any)
-          .select('id, full_name, role, created_at, accounts(account_balance, available_balance, invested_balance, pending_balance, profit_balance)')
-          .order('created_at', { ascending: false }) as Promise<{ data: Client[] | null; error: unknown }>,
-        // Registration email lives in the auth record; this admin-only function
-        // reads it there rather than duplicating it into a second table.
-        supabase.rpc('admin_client_emails') as unknown as Promise<{ data: { id: string; email: string }[] | null }>,
-      ])
-      if (error) {
-        setLoadError('The client list could not be loaded.')
-      } else {
-        const byId = new Map((emails || []).map(e => [e.id, e.email]))
-        setClients((data || []).map(c => ({ ...c, email: byId.get(c.id) ?? null })))
-        setLoadError('')
-      }
-      setLoading(false)
+  const [term, setTerm] = useState('')
+  const [hasMore, setHasMore] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  useEffect(() => { const t = setTimeout(() => setTerm(search.trim()), 300); return () => clearTimeout(t) }, [search])
+
+  // One page at a time, role filter applied by the database. A search runs
+  // server-side (name, email or ID) through admin_list_customers, so matches
+  // are found among all clients, not only the rows already loaded.
+  const fetchPage = async (before?: string) => {
+    let ids: string[] | null = null
+    if (term) {
+      const r = await (supabase.rpc as any)('admin_list_customers', { p_search: term }) as { data: { id: string }[] | null; error: unknown }
+      if (r.error) { setLoadError('The client list could not be loaded.'); setLoading(false); return }
+      ids = (r.data || []).map(x => x.id)
+      if (!ids.length) { setClients([]); setHasMore(false); setLoadError(''); setLoading(false); return }
     }
-    fetch()
-  }, [reload])
+    let q = (supabase.from('profiles') as any)
+      .select('id, full_name, role, created_at, accounts(account_balance, available_balance, invested_balance, pending_balance, profit_balance)')
+      .order('created_at', { ascending: false }).limit(PAGE + 1)
+    if (filter !== 'all') q = q.eq('role', filter)
+    if (ids) q = q.in('id', ids.slice(0, 500))
+    if (before) q = q.lt('created_at', before)
+    const [{ data, error }, emails] = await Promise.all([
+      q as Promise<{ data: Client[] | null; error: unknown }>,
+      // Registration email lives in the auth record; this admin-only function
+      // reads it there rather than duplicating it into a second table.
+      emailMap.current ? Promise.resolve(emailMap.current)
+        : (supabase.rpc('admin_client_emails') as unknown as Promise<{ data: { id: string; email: string }[] | null }>)
+            .then(r => (emailMap.current = new Map((r.data || []).map(e => [e.id, e.email])))),
+    ])
+    if (error) {
+      setLoadError('The client list could not be loaded.')
+    } else {
+      const rows = (data || []).slice(0, PAGE).map(c => ({ ...c, email: emails.get(c.id) ?? null }))
+      setHasMore((data || []).length > PAGE)
+      setClients(prev => before ? [...prev, ...rows.filter(r => !prev.some(x => x.id === r.id))] : rows)
+      setLoadError('')
+    }
+    setLoading(false)
+  }
+  const emailMap = useRef<Map<string, string> | null>(null)
+  const loadMore = async () => {
+    const last = clients[clients.length - 1]?.created_at
+    if (!last || loadingMore) return
+    setLoadingMore(true)
+    try { await fetchPage(last) } finally { setLoadingMore(false) }
+  }
+  useEffect(() => { emailMap.current = reload ? null : emailMap.current; fetchPage() }, [reload, term, filter]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const filtered = clients.filter(c => {
     const matchRole = filter === 'all' || c.role === filter
@@ -231,7 +260,10 @@ export default function ClientsPage() {
 
         {!loading && filtered.length > 0 && (
           <div className="px-5 py-3 border-t border-white/[0.06] text-xs text-slate-600">
-            Showing {filtered.length} of {clients.length} profiles
+            <div className="flex items-center justify-between gap-3">
+              <span>Showing {filtered.length} of {clients.length} loaded{hasMore ? '' : ' (all matching)'}</span>
+              {hasMore && <button onClick={loadMore} disabled={loadingMore} className="btn btn-sm btn-outline">{loadingMore ? 'Loading…' : 'Load more'}</button>}
+            </div>
           </div>
         )}
       </div>
