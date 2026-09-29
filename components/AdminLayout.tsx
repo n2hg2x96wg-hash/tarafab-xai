@@ -108,7 +108,7 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
         <span className="ml-auto text-[10px] bg-violet-600/20 text-violet-400 border border-violet-500/30 px-1.5 py-0.5 rounded font-medium shrink-0">{t('admin.badge')}</span>
       </div>
 
-      <nav className="flex flex-col gap-1 p-4 flex-1">
+      <nav className="flex flex-col gap-1 p-4 flex-1 min-h-0 overflow-y-auto overscroll-contain">
         {navItems.map(item => {
           const [path, query] = item.href.split('?')
           const type = search.get('type')
@@ -131,7 +131,7 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
         })}
       </nav>
 
-      <div className="border-t border-white/[0.06] p-4">
+      <div className="shrink-0 border-t border-white/[0.06] p-4" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
         <div className="flex items-center gap-3 mb-3">
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-600 to-blue-500 flex items-center justify-center text-xs font-bold shrink-0 text-[#fff]">
             {adminName.charAt(0).toUpperCase()}
@@ -147,7 +147,7 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
         </div>
         <button
           onClick={handleSignOut}
-          className="w-full text-left text-xs text-slate-500 hover:text-red-400 transition-colors px-3 py-2 rounded-lg hover:bg-red-500/5"
+          className="w-full text-left text-sm text-slate-400 hover:text-red-400 transition-colors px-3 min-h-11 rounded-lg hover:bg-red-500/5"
         >
           {t('common.signOut')}
         </button>
@@ -158,7 +158,7 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
   return (
     <div className="min-h-screen bg-ink-950 text-white flex">
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex w-64 shrink-0 border-r border-white/[0.06] flex-col">
+      <aside className="hidden lg:flex w-64 shrink-0 border-r border-white/[0.06] flex-col sticky top-0 h-screen">
         <SidebarContent />
       </aside>
 
@@ -171,7 +171,7 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
       )}
 
       {/* Mobile sidebar drawer */}
-      <aside className={`lg:hidden fixed top-0 left-0 h-full w-72 z-50 bg-ink-900 border-r border-white/[0.08] flex flex-col transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`lg:hidden fixed top-0 left-0 h-[100dvh] w-72 z-50 bg-ink-900 border-r border-white/[0.08] flex flex-col transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex items-center justify-end px-4 pt-4">
           <button
             onClick={() => setSidebarOpen(false)}
@@ -204,6 +204,9 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
             <span className="font-bold text-white text-sm">Tarafab<span className="text-violet-400">.XAi</span></span>
           </div>
           <span className="ml-auto text-[10px] bg-violet-600/20 text-violet-400 border border-violet-500/30 px-1.5 py-0.5 rounded font-medium">{t('admin.badge')}</span>
+          <button onClick={handleSignOut} className="h-9 px-3 rounded-lg text-xs text-slate-300 border border-white/[0.08] hover:text-red-400 hover:border-red-500/30 transition-colors">
+            {t('common.signOut')}
+          </button>
         </header>
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-auto">

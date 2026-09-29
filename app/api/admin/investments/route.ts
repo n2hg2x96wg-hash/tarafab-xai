@@ -3,7 +3,8 @@ import { clientForRequest, dbError, unauthorized } from '@/lib/supabase/request'
 
 // Admin product management. Each action is a database function that checks
 // the caller is an admin, validates the input and writes an audit entry.
-// None of them touches client balances or creates client investments.
+// Reviewing a client investment (approve / reject / complete) moves money only
+// between the client's existing account fields, inside the database function.
 export async function POST(request: NextRequest) {
   const { supabase } = clientForRequest(request)
   if (!supabase) return unauthorized()
@@ -17,14 +18,15 @@ export async function POST(request: NextRequest) {
   if (body.action === 'save') {
     const minAmount = num(body.min_amount)
     if (minAmount === null || !Number.isFinite(minAmount)) return NextResponse.json({ error: 'Minimum investment is required' }, { status: 400 })
-    const { data, error } = await supabase.rpc('admin_save_product_draft', {
+    const { data, error } = await supabase.rpc('admin_save_product_draft_v2', {
       p_product_id: str(body.product_id),
       p_code: str(body.code),
       p_name: str(body.name),
       p_description: str(body.description),
       p_min_amount: minAmount,
       p_max_amount: num(body.max_amount),
-      p_term_days: num(body.term_days),
+      p_duration_value: num(body.duration_value),
+      p_duration_unit: str(body.duration_unit),
       p_risk_level: str(body.risk_level),
       p_risk_disclosure: str(body.risk_disclosure),
       p_terms_text: str(body.terms_text),
@@ -32,6 +34,8 @@ export async function POST(request: NextRequest) {
       p_return_type: str(body.return_type) || 'none',
       p_return_rate_pct: num(body.return_rate_pct),
       p_kyc_required: body.kyc_required !== false,
+      p_cancellation_allowed: body.cancellation_allowed === true,
+      p_cancellation_terms: str(body.cancellation_terms),
     })
     if (error) return dbError(friendly(error))
     return NextResponse.json({ version: data })
@@ -49,6 +53,22 @@ export async function POST(request: NextRequest) {
     })
     if (error) return dbError(friendly(error))
     return NextResponse.json({ status: data })
+  }
+
+  if (body.action === 'review') {
+    const { data, error } = await supabase.rpc('admin_review_investment', {
+      p_investment_id: str(body.investment_id), p_action: str(body.decision), p_reason: str(body.reason),
+    })
+    if (error) return dbError(friendly(error))
+    return NextResponse.json({ investment: data })
+  }
+
+  if (body.action === 'complete') {
+    const { data, error } = await supabase.rpc('admin_complete_investment', {
+      p_investment_id: str(body.investment_id), p_reason: str(body.reason),
+    })
+    if (error) return dbError(friendly(error))
+    return NextResponse.json({ investment: data })
   }
 
   return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
@@ -69,7 +89,7 @@ function friendly(error: { message?: string; code?: string }) {
       /terms_text_check/.test(m) ? 'The terms must be at least 20 characters' :
       /max_amount/.test(m) ? 'The maximum must be at least the minimum' :
       /min_amount/.test(m) ? 'The minimum must be greater than zero' :
-      /term_days/.test(m) ? 'The duration must be between 1 and 3650 days' :
+      /term_days|duration/.test(m) ? 'Enter a duration (1 or more) with a unit, up to 10 years' :
       /entry_fee/.test(m) ? 'The fee must be between 0% and 99.99%' :
       /return/.test(m) ? 'A fixed rate needs both a rate and a duration; "no stated return" must not have a rate' :
       'Some of the values are not valid'

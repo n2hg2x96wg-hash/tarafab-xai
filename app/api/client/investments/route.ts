@@ -1,20 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { clientForRequest, dbError, unauthorized } from '@/lib/supabase/request'
+import { clientForRequest, dbError, idempotencyKey, unauthorized } from '@/lib/supabase/request'
 
 // Read-only view of the Investment Center for the signed-in client. Every
 // query runs as the client, so row level security decides what is visible:
 // active products with their current published terms, and only this client's
-// own investments. There is no write endpoint: investing is not enabled.
+// own investments. Writes (submit / cancel a pending request) go through
+// database functions that re-check everything server-side: sign-in, KYC,
+// product status, limits and the real account balance.
 export async function GET(request: NextRequest) {
   const { supabase } = clientForRequest(request)
   if (!supabase) return unauthorized()
 
-  const [products, investments, kyc] = await Promise.all([
+  const { data: auth } = await supabase.auth.getUser()
+  if (!auth?.user) return unauthorized()
+
+  const [products, investments, kyc, account] = await Promise.all([
     supabase.from('investment_products').select('id, code, status, current_version_id').eq('status', 'active').order('created_at'),
     supabase.from('client_investments')
-      .select('id, product_id, product_version_id, principal, fee_amount, currency, status, start_date, maturity_date, created_at')
-      .order('created_at', { ascending: false }).limit(100),
+      .select('id, reference, product_id, product_version_id, principal, fee_amount, currency, status, start_date, maturity_date, completed_at, rejection_reason, reviewed_at, created_at')
+      .eq('user_id', auth.user.id).order('created_at', { ascending: false }).limit(100),
     supabase.rpc('client_kyc_status'),
+    // The one existing balance record; nothing here recalculates it.
+    supabase.from('accounts').select('available_balance, pending_balance, invested_balance').eq('user_id', auth.user.id).maybeSingle(),
   ])
   if (products.error) return dbError(products.error)
   if (investments.error) return dbError(investments.error)
@@ -28,7 +35,7 @@ export async function GET(request: NextRequest) {
   ])) as string[]
   const versions = versionIds.length
     ? await supabase.from('investment_product_versions')
-        .select('id, product_id, version, name, description, currency, min_amount, max_amount, term_days, risk_level, risk_disclosure, terms_text, entry_fee_pct, return_type, return_rate_pct, eligibility, published_at')
+        .select('id, product_id, version, name, description, currency, min_amount, max_amount, term_days, duration_value, duration_unit, cancellation_allowed, cancellation_terms, risk_level, risk_disclosure, terms_text, entry_fee_pct, return_type, return_rate_pct, eligibility, published_at')
         .in('id', versionIds)
     : { data: [], error: null }
   if (versions.error) return dbError(versions.error)
@@ -46,14 +53,70 @@ export async function GET(request: NextRequest) {
       .map(({ l, tx }) => ({ client_investment_id: l.client_investment_id, amount: Number(tx!.amount) }))
   }
 
+  // Timeline and linked ledger rows for the client's own investments.
+  let events: unknown[] = []
+  let txs: unknown[] = []
+  if (invs.length) {
+    const ids = invs.map(i => i.id)
+    const [ev, tl] = await Promise.all([
+      supabase.from('client_investment_events').select('id, client_investment_id, from_status, to_status, reason, created_at')
+        .in('client_investment_id', ids).order('created_at'),
+      supabase.from('investment_transactions').select('client_investment_id, kind, transactions(id, type, amount, status, reference, created_at)')
+        .in('client_investment_id', ids),
+    ])
+    if (!ev.error) events = ev.data || []
+    if (!tl.error) txs = (tl.data || []).map(l => ({ client_investment_id: l.client_investment_id, kind: l.kind, tx: Array.isArray(l.transactions) ? l.transactions[0] : l.transactions }))
+  }
+
   const kycStatus = kyc.error ? null : (kyc.data as { status?: string; has_submission?: boolean } | null)
   return NextResponse.json({
     products: products.data || [],
     versions: versions.data || [],
     investments: invs,
     returns,
+    events,
+    transactions: txs,
+    balance: account.data ? {
+      available: Number(account.data.available_balance), pending: Number(account.data.pending_balance), invested: Number(account.data.invested_balance),
+    } : null,
     kyc_verified: !!kycStatus && kycStatus.has_submission !== false && kycStatus.status === 'verified',
-    // Stated plainly so the interface never implies otherwise.
-    investing_enabled: false,
+    // Investing opens only once an admin has made at least one product active.
+    investing_enabled: (products.data || []).some(p => p.current_version_id),
   })
+}
+
+// Submit a new investment request or cancel one of the client's own pending
+// requests. The amount is held from the available balance by the database
+// function; the browser never calculates or sends a balance.
+export async function POST(request: NextRequest) {
+  const { supabase } = clientForRequest(request)
+  if (!supabase) return unauthorized()
+
+  let body: Record<string, unknown>
+  try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid request' }, { status: 400 }) }
+
+  if (body.action === 'submit') {
+    const amount = Number(body.amount)
+    const key = idempotencyKey(request, body)
+    if (!Number.isFinite(amount) || amount <= 0) return NextResponse.json({ error: 'Enter a valid amount' }, { status: 400 })
+    if (!key) return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
+    const { data, error } = await supabase.rpc('client_submit_investment', {
+      p_version_id: typeof body.version_id === 'string' ? body.version_id : null,
+      p_amount: amount,
+      p_accept_terms: body.accept_terms === true,
+      p_idempotency_key: key,
+    })
+    if (error) return dbError(error)
+    return NextResponse.json({ investment: data })
+  }
+
+  if (body.action === 'cancel') {
+    const { data, error } = await supabase.rpc('client_cancel_investment', {
+      p_investment_id: typeof body.investment_id === 'string' ? body.investment_id : null,
+    })
+    if (error) return dbError(error)
+    return NextResponse.json({ investment: data })
+  }
+
+  return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
 }
