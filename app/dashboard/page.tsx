@@ -668,15 +668,18 @@ function OverviewTab({ name, account, txs, go, can, labelOf }: { name: string; a
           <p className="relative mt-2 text-[36px] sm:text-[44px] leading-none font-semibold tracking-[-0.03em] text-fg tabular-nums">
             <AnimatedPrice value={Number(account?.available_balance ?? 0)} format={money} />
           </p>
-          <dl className="relative mt-5 grid grid-cols-3 gap-2">
+          {/* Phones: one row per figure so full amounts are always readable
+              (a six-figure profit does not fit in a third of the width);
+              from sm up they sit side by side. */}
+          <dl className="relative mt-5 grid grid-cols-1 sm:grid-cols-3 gap-2">
             {([
               ['dash.profit', account?.profit_balance ?? 0],
               ['dash.invested', account?.invested_balance ?? 0],
               ['dash.pending', account?.pending_balance ?? 0],
             ] as [TKey, number][]).map(([label, value]) => (
-              <div key={label} className="rounded-xl bg-ink-950/55 border border-ink-700/70 px-3 py-2.5 min-w-0 backdrop-blur-sm">
-                <dt className="text-[11px] text-fg-faint truncate">{t(label)}</dt>
-                <dd className="text-[15px] font-semibold text-fg tabular-nums mt-0.5 truncate">{money(Number(value))}</dd>
+              <div key={label} className="rounded-xl bg-ink-950/55 border border-ink-700/70 px-3 py-2.5 min-w-0 backdrop-blur-sm flex items-center justify-between gap-3 sm:block">
+                <dt className="text-[12px] sm:text-[11px] text-fg-faint truncate">{t(label)}</dt>
+                <dd className="text-[15px] font-semibold text-fg tabular-nums sm:mt-0.5 sm:truncate text-right sm:text-left">{money(Number(value))}</dd>
               </div>
             ))}
           </dl>
