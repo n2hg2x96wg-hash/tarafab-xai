@@ -34,6 +34,8 @@ import { ReceiptField } from '@/components/dashboard/ReceiptField'
 import { isAllowedUpload, MAX_UPLOAD_BYTES, prepareUpload } from '@/lib/uploadFile'
 import { VerificationTab } from '@/components/dashboard/VerificationTab'
 import { useToast } from '@/components/Toast'
+import { ConfirmModal } from '@/components/ConfirmModal'
+import { CommandSearch, type CommandItem } from '@/components/dashboard/CommandSearch'
 import { MarketActivityTab, PriceHistoryTab } from '@/components/dashboard/MarketTabs'
 
 const BTC_ADDRESS = 'bc1qvpwmdln4nm6xa2k9q26l84pg4ud0uuqzk83053'
@@ -117,6 +119,12 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [activeNav, setActiveNav] = useState('overview')
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [cmdOpen, setCmdOpen] = useState(false)
+  // Shortcut hint matches the keyboard: Cmd on Apple devices, Ctrl elsewhere.
+  const [shortcut, setShortcut] = useState('Ctrl K')
+  useEffect(() => { if (/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)) setShortcut('⌘K') }, [])
+  // Desktop sidebar can be narrowed to icons; remembered on this device only.
+  const [collapsed, setCollapsed] = useState(false)
   const [loadError, setLoadError] = useState('')
   const [txError, setTxError] = useState('')
   const [refreshing, setRefreshing] = useState(false)
@@ -232,6 +240,18 @@ export default function DashboardPage() {
     }
   }, [fetchData])
 
+  useEffect(() => {
+    try { setCollapsed(localStorage.getItem('tarafab.sidebarCollapsed') === '1') } catch { /* storage unavailable */ }
+    // Lets the stylesheet lift the support chat bubble above the phone
+    // bottom bar while the dashboard is open.
+    document.body.classList.add('has-bottom-nav')
+    return () => document.body.classList.remove('has-bottom-nav')
+  }, [])
+  const toggleCollapsed = () => setCollapsed(c => {
+    try { localStorage.setItem('tarafab.sidebarCollapsed', c ? '0' : '1') } catch { /* ignore */ }
+    return !c
+  })
+
   // Open the section named in the URL (#deposit etc.) after a refresh.
   useEffect(() => {
     const id = window.location.hash.slice(1)
@@ -336,15 +356,24 @@ export default function DashboardPage() {
     )
   }
 
+  // Same sections as the menu, including admin ordering and labels, minus
+  // anything hidden, so search can never reach more than the menu can.
+  const commandItems: CommandItem[] = NAV_GROUPS.flatMap(g => g.items
+    .filter(i => i.core || !hiddenNav.includes(i.id))
+    .map(i => ({ id: i.id, label: labelOf(i), group: t(g.label), icon: i.icon })))
+
   const displayName = user?.full_name || user?.email?.split('@')[0] || 'there'
   const initials = initialsOf(displayName)
   const current = navItems.find(n => n.id === activeNav)
 
   return (
     <div className="site min-h-screen bg-ink-950 text-fg lg:flex">
-      <aside className={`fixed inset-y-0 left-0 z-40 w-[min(18rem,85vw)] lg:w-64 h-[100dvh] safe-top bg-ink-900 border-r border-ink-700 flex flex-col transition-transform duration-300 ease-[cubic-bezier(.2,.7,.2,1)] lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:shadow-none ${sidebarOpen ? 'translate-x-0 drawer-shadow' : '-translate-x-full'}`}>
-        <div className="h-16 flex items-center justify-between px-5 border-b border-ink-700">
-          <Link href="/" aria-label={t('common.home')}><Logo /></Link>
+      <aside className={`fixed inset-y-0 left-0 z-40 w-[min(18rem,85vw)] ${collapsed ? 'lg:w-[72px]' : 'lg:w-64'} h-[100dvh] safe-top bg-ink-900 border-r border-ink-700 flex flex-col transition-[transform,width] duration-300 ease-[cubic-bezier(.2,.7,.2,1)] lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:shadow-none ${sidebarOpen ? 'translate-x-0 drawer-shadow' : '-translate-x-full'}`}>
+        <div className={`h-16 flex items-center justify-between border-b border-ink-700 ${collapsed ? 'lg:px-0 lg:justify-center px-5' : 'px-5'}`}>
+          <Link href="/" aria-label={t('common.home')} className={collapsed ? 'lg:hidden' : ''}><Logo /></Link>
+          <button onClick={toggleCollapsed} className="hidden lg:flex w-9 h-9 rounded-md items-center justify-center text-fg-faint hover:text-fg hover:bg-ink-850" aria-label={collapsed ? t('shell.expand') : t('shell.collapse')} aria-expanded={!collapsed}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16" /></svg>
+          </button>
           <button onClick={() => setSidebarOpen(false)} className="lg:hidden -mr-2 w-10 h-10 rounded-md flex items-center justify-center text-fg-muted hover:text-fg hover:bg-ink-850" aria-label={t('common.closeMenu')}><IconClose /></button>
         </div>
         <nav className="flex-1 px-3 py-3 overflow-y-auto overscroll-contain" aria-label={t('dash.dashboard')}>
@@ -353,21 +382,22 @@ export default function DashboardPage() {
             if (!items.length) return null
             return (
               <div key={group.label} className="mb-3 last:mb-0">
-                <p className="px-3 pt-2 pb-1 text-[11px] font-medium uppercase tracking-[0.12em] text-fg-faint">{t(group.label)}</p>
+                <p className={`px-3 pt-2 pb-1 text-[11px] font-medium uppercase tracking-[0.12em] text-fg-faint ${collapsed ? 'lg:sr-only' : ''}`}>{t(group.label)}</p>
                 <div className="space-y-0.5">
                   {items.map(({ icon: I, label, id }) => (
                     <button
                       key={id}
                       onClick={() => go(id)}
-                      className={`w-full flex items-center gap-3 px-3 min-h-11 lg:min-h-10 py-2 rounded-md text-sm transition-colors text-left ${
+                      title={collapsed ? labelOf({ id, label }) : undefined}
+                      className={`relative w-full flex items-center gap-3 px-3 min-h-11 lg:min-h-10 py-2 rounded-md text-sm transition-colors text-left ${collapsed ? 'lg:justify-center lg:px-0' : ''} ${
                         activeNav === id ? 'nav-item-on font-medium' : 'nav-item'
                       }`}
                       aria-current={activeNav === id ? 'page' : undefined}
                     >
                       <I width={17} height={17} className={`shrink-0 ${activeNav === id ? 'text-brand-300' : ''}`} aria-hidden="true" />
-                      <span className="flex-1 min-w-0">{labelOf({ id, label })}</span>
+                      <span className={`flex-1 min-w-0 ${collapsed ? 'lg:sr-only' : ''}`}>{labelOf({ id, label })}</span>
                       {id === 'notifications' && unread > 0 && (
-                        <span className="shrink-0 min-w-5 h-5 px-1.5 rounded-full bg-brand-500/15 text-brand-300 text-[11px] font-semibold tabular-nums inline-flex items-center justify-center">
+                        <span className={`shrink-0 min-w-5 h-5 px-1.5 rounded-full ${collapsed ? 'lg:absolute lg:top-0.5 lg:right-2 lg:min-w-4 lg:h-4 lg:px-1 lg:text-[10px]' : ''} bg-brand-500/15 text-brand-300 text-[11px] font-semibold tabular-nums inline-flex items-center justify-center`}>
                           {unread}<span className="sr-only"> {t('notices.newCount', { n: unread })}</span>
                         </span>
                       )}
@@ -378,20 +408,21 @@ export default function DashboardPage() {
             )
           })}
         </nav>
-        <div className="p-3 border-t border-ink-700 safe-bottom">
-          <div className="flex items-center gap-3 px-2 py-2 mb-1">
+        <div className={`p-3 border-t border-ink-700 safe-bottom ${collapsed ? 'lg:px-2' : ''}`}>
+          <SystemStatus collapsed={collapsed} ok={!loadError} />
+          <div className={`flex items-center gap-3 px-2 py-2 mb-1 ${collapsed ? 'lg:hidden' : ''}`}>
             <span className="w-8 h-8 rounded-md bg-ink-800 border border-ink-700 flex items-center justify-center text-xs font-semibold text-fg shrink-0">{initials}</span>
             <div className="min-w-0">
               <p className="text-sm text-fg truncate">{displayName}</p>
               <p className="text-xs text-fg-faint truncate">{user?.email}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 px-2 mb-2">
+          <div className={`flex items-center gap-2 px-2 mb-2 ${collapsed ? 'lg:hidden' : ''}`}>
             <LanguageSelector align="left" direction="up" />
             <ThemeSelector align="left" direction="up" />
           </div>
           <button onClick={handleSignOut} disabled={signingOut} aria-busy={signingOut} className="w-full flex items-center gap-3 px-3 min-h-11 lg:min-h-10 rounded-md text-sm text-fg-muted hover:text-fg hover:bg-ink-850 transition-colors disabled:opacity-60">
-            {signingOut ? <Spinner /> : <IconLogOut width={17} height={17} />}{t('common.signOut')}
+            {signingOut ? <Spinner /> : <IconLogOut width={17} height={17} />}<span className={collapsed ? 'lg:sr-only' : ''}>{t('common.signOut')}</span>
           </button>
         </div>
       </aside>
@@ -404,6 +435,11 @@ export default function DashboardPage() {
             <button onClick={() => setSidebarOpen(true)} className="lg:hidden -ml-2 w-10 h-10 rounded-md flex items-center justify-center text-fg-muted hover:text-fg hover:bg-ink-850" aria-label={t('common.openMenu')} aria-expanded={sidebarOpen}><IconMenu width={22} height={22} /></button>
             <h1 className="text-[15px] font-semibold text-fg truncate">{current ? labelOf(current) : t('dash.dashboard')}</h1>
           </div>
+          <button onClick={() => setCmdOpen(true)} className="hidden md:flex items-center gap-2 h-9 pl-3 pr-2 rounded-lg border border-ink-700 bg-ink-900/60 text-[13px] text-fg-faint hover:text-fg-muted hover:border-ink-600 transition-colors w-64 lg:w-72 mr-auto ml-6" aria-label={t('cmd.title')}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+            <span className="flex-1 text-left">{t('cmd.placeholder')}</span>
+            <kbd className="text-[11px] border border-ink-600 rounded px-1.5 py-0.5 whitespace-nowrap">{shortcut}</kbd>
+          </button>
           <div className="text-right shrink-0">
             <div className="text-[11px] text-fg-faint leading-none mb-1 whitespace-nowrap">{t('dash.accountBalance')}</div>
             <div className="text-sm font-semibold text-fg tabular-nums leading-none">${fmt(account?.account_balance ?? 0)}</div>
@@ -443,6 +479,63 @@ export default function DashboardPage() {
           </ErrorBoundary>
         </main>
       </div>
+
+      <CommandSearch items={commandItems} open={cmdOpen} onOpenChange={setCmdOpen} onGo={go} />
+      <BottomNav active={activeNav} can={id => !hiddenNav.includes(id)} go={go} onMenu={() => setSidebarOpen(true)} unread={unread} t={t} />
+    </div>
+  )
+}
+
+/* Phone navigation: the four places people go most, plus the full menu.
+   Hidden sections drop out; the bar is a phone layout, not a shrunken sidebar. */
+function BottomNav({ active, can, go, onMenu, unread, t }: {
+  active: string; can: (id: string) => boolean; go: (id: string) => void; onMenu: () => void; unread: number; t: (k: TKey) => string
+}) {
+  const items = ([
+    ['overview', 'shell.home', IconGrid],
+    ['markets', 'dash.nav.markets', IconChart],
+    ['portfolio', 'nav2.portfolio', IconPie],
+    ['transactions', 'shell.activity', IconList],
+  ] as [string, TKey, Icon][]).filter(([id]) => id === 'overview' || can(id))
+  return (
+    <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 glass-bar border-t border-ink-700/80" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }} aria-label={t('shell.quickNav')}>
+      <ul className="flex">
+        {items.map(([id, label, I]) => {
+          const on = active === id
+          return (
+            <li key={id} className="flex-1">
+              <button onClick={() => go(id)} aria-current={on ? 'page' : undefined}
+                className={`w-full h-16 flex flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors active:scale-[.97] ${on ? 'text-fg' : 'text-fg-faint'}`}>
+                <span className={`flex items-center justify-center w-10 h-7 rounded-full transition-colors ${on ? 'bg-accent/15 text-accent' : ''}`}><I width={19} height={19} aria-hidden="true" /></span>
+                {t(label)}
+              </button>
+            </li>
+          )
+        })}
+        <li className="flex-1">
+          <button onClick={onMenu} className="relative w-full h-16 flex flex-col items-center justify-center gap-1 text-[11px] font-medium text-fg-faint active:scale-[.97]" aria-label={t('common.openMenu')}>
+            <span className="relative flex items-center justify-center w-10 h-7"><IconMenu width={19} height={19} aria-hidden="true" />
+              {unread > 0 && <span className="absolute top-0.5 right-1.5 w-2 h-2 rounded-full bg-brand-400" aria-hidden="true" />}
+            </span>
+            {t('shell.more')}
+          </button>
+        </li>
+      </ul>
+    </nav>
+  )
+}
+
+/* Reports only what the dashboard itself observed: whether its last request
+   to the account service succeeded. There is no separate monitoring, so it
+   never claims every service is operational. */
+function SystemStatus({ collapsed, ok }: { collapsed: boolean; ok: boolean }) {
+  const { t } = useI18n()
+  return (
+    <div className={`flex items-center gap-2.5 px-2 pb-2 text-xs ${collapsed ? 'lg:justify-center lg:px-0' : ''}`} title={t(ok ? 'shell.statusOkHint' : 'shell.statusIssueHint')}>
+      <span className={`relative flex w-2 h-2 shrink-0`}>
+        <span className={`w-2 h-2 rounded-full ${ok ? 'bg-success-400' : 'bg-warning-400'}`} />
+      </span>
+      <span className={`text-fg-faint ${collapsed ? 'lg:sr-only' : ''}`}>{t('shell.status')}: <span className="text-fg-muted">{t(ok ? 'shell.statusOk' : 'shell.statusIssue')}</span></span>
     </div>
   )
 }
@@ -485,6 +578,39 @@ function DashboardSkeleton({ label }: { label: string }) {
   )
 }
 
+// Read from the visitor's own clock, after load, so it never mismatches the
+// server render.
+function greetingKey(): TKey {
+  const h = new Date().getHours()
+  return h < 5 ? 'overview.evening' : h < 12 ? 'overview.morning' : h < 18 ? 'overview.afternoon' : 'overview.evening'
+}
+
+/* The client's real KYC state from the server. Nothing is shown until it
+   has been read, and "verified" appears only when the server says so. */
+function KycChip({ go }: { go: (id: string) => void }) {
+  const { t } = useI18n()
+  const [state, setState] = useState<{ status: string; has_submission?: boolean } | null>(null)
+  useEffect(() => {
+    let alive = true
+    authFetch('/api/client/kyc').then(r => readJson<{ kyc: { status: string; has_submission?: boolean } }>(r))
+      .then(d => { if (alive) setState(d.kyc) }).catch(() => { /* chip simply stays hidden */ })
+    return () => { alive = false }
+  }, [])
+  if (!state) return null
+  const status = state.has_submission === false ? 'unverified' : state.status
+  const tone = status === 'verified' ? 'border-success-500/35 text-success-300 bg-success-500/[0.07]'
+    : status === 'rejected' ? 'border-danger-400/40 text-danger-300 bg-danger-400/[0.07]'
+    : status === 'unverified' ? 'border-accent/35 text-accent bg-accent/[0.07]'
+    : 'border-warning-500/35 text-warning-300 bg-warning-500/[0.07]'
+  const key: TKey = status === 'verified' ? 'kyc.status.verified' : status === 'rejected' ? 'kyc.step.attention'
+    : status === 'under_review' ? 'kyc.status.underReview' : status === 'pending' ? 'kyc.status.pending' : 'overview.kycStart'
+  return (
+    <button onClick={() => go('verification')} className={`inline-flex items-center gap-2 h-9 px-3 rounded-full border text-[13px] font-medium transition-colors hover:brightness-110 ${tone}`}>
+      <IconShield width={15} height={15} aria-hidden="true" />{key === 'overview.kycStart' ? t(key) : `KYC · ${t(key)}`}
+    </button>
+  )
+}
+
 /* Overview */
 function OverviewTab({ name, account, txs, go, can, labelOf }: { name: string; account: Account | null; txs: Tx[]; go: (id: string) => void; can: (id: string) => boolean; labelOf: (item: { id: string; label: TKey }) => string }) {
   const recentTxs = txs.slice(0, 5)
@@ -502,7 +628,11 @@ function OverviewTab({ name, account, txs, go, can, labelOf }: { name: string; a
   return (
     <div className="space-y-5 panel-in">
       <div className="flex flex-wrap items-end justify-between gap-2">
-        <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-fg">{t('overview.welcome', { name })}</h2>
+        <div className="min-w-0">
+          <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-fg">{t(greetingKey(), { name })}</h2>
+          <p className="text-sm text-fg-faint mt-0.5">{t('overview.subtitle')}</p>
+        </div>
+        {can('verification') && <KycChip go={go} />}
       </div>
 
       {pendingCount > 0 && (
@@ -653,15 +783,60 @@ function MarketsTab() {
 }
 
 /* Transactions */
+// Status groups for the filter, so "Pending" also covers pending_review etc.
+const STATUS_GROUPS: Record<string, string[]> = {
+  pending: OPEN_STATUSES,
+  completed: ['completed', 'approved'],
+  rejected: ['rejected', 'failed'],
+}
+
 function TransactionsTab({ txs }: { txs: Tx[] }) {
   const [filter, setFilter] = useState('')
+  const [query, setQuery] = useState('')
+  const [status, setStatus] = useState('')
+  const [from, setFrom] = useState('')
+  const [to, setTo] = useState('')
   const { t, intl } = useI18n()
-  // Filter on the client-facing label so the tabs match the rows they show.
-  const filtered = filter ? txs.filter(x => txLabel(x, t) === filter) : txs
   const types = Array.from(new Set(txs.map(x => txLabel(x, t))))
+  // Everything filters the records already loaded; nothing is re-fetched.
+  const q = query.trim().toLowerCase()
+  const filtered = txs.filter(x => {
+    // Filter on the client-facing label so the tabs match the rows they show.
+    if (filter && txLabel(x, t) !== filter) return false
+    if (status && !STATUS_GROUPS[status]?.includes(x.status)) return false
+    const day = x.created_at.slice(0, 10)
+    if (from && day < from) return false
+    if (to && day > to) return false
+    if (q && ![x.reference, txLabel(x, t), fmt(x.amount), String(x.amount)].some(v => (v || '').toLowerCase().includes(q))) return false
+    return true
+  })
+  const narrowed = Boolean(q || status || from || to)
 
   return (
     <div className="space-y-4">
+      <div className="panel p-3 sm:p-4 grid gap-3 sm:grid-cols-[1fr_auto] lg:grid-cols-[1fr_auto_auto_auto]">
+        <label className="sr-only" htmlFor="tx-search">{t('txc.search')}</label>
+        <input id="tx-search" type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder={t('txc.search')} className="field" />
+        <label className="sr-only" htmlFor="tx-status">{t('dash.colStatus')}</label>
+        <select id="tx-status" value={status} onChange={e => setStatus(e.target.value)} className="field sm:w-44">
+          <option value="">{t('txc.anyStatus')}</option>
+          <option value="pending">{t('status.pending')}</option>
+          <option value="completed">{t('status.completed')}</option>
+          <option value="rejected">{t('status.rejected')}</option>
+        </select>
+        <div className="grid grid-cols-2 gap-3 sm:col-span-2 lg:col-span-2">
+          <label className="min-w-0"><span className="sr-only">{t('txc.from')}</span>
+            <input type="date" value={from} max={to || undefined} onChange={e => setFrom(e.target.value)} className="field" aria-label={t('txc.from')} /></label>
+          <label className="min-w-0"><span className="sr-only">{t('txc.to')}</span>
+            <input type="date" value={to} min={from || undefined} onChange={e => setTo(e.target.value)} className="field" aria-label={t('txc.to')} /></label>
+        </div>
+      </div>
+      {narrowed && (
+        <div className="flex items-center justify-between gap-3 text-[13px] text-fg-muted">
+          <span>{filtered.length === 1 ? t('dash.txCountOne') : t('dash.txCountMany', { n: filtered.length })}</span>
+          <button onClick={() => { setQuery(''); setStatus(''); setFrom(''); setTo('') }} className="btn btn-sm btn-ghost">{t('txc.clear')}</button>
+        </div>
+      )}
       {types.length > 1 && (
         <div className="seg flex-wrap max-w-full" role="tablist">
           {['', ...types].map(ty => (
@@ -680,7 +855,9 @@ function TransactionsTab({ txs }: { txs: Tx[] }) {
 
       <div className="panel overflow-hidden">
         {filtered.length === 0 ? (
-          <EmptyState title={t('dash.noTx')} body={t('dash.noTxBodyFull')} />
+          txs.length > 0
+            ? <EmptyState title={t('txc.noMatch')} body={t('txc.noMatchBody')} />
+            : <EmptyState title={t('dash.noTx')} body={t('dash.noTxBodyFull')} />
         ) : (
           <>
             <div className="hidden md:block overflow-x-auto">
@@ -945,14 +1122,22 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
   const withdrawable = (src: Source) => Math.max(0, Math.round((balanceOf(src) - reserved(src)) * 100) / 100)
   const max = withdrawable(source)
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Submitting validates and opens a review of exactly what will be sent;
+  // only Confirm in that review makes the request.
+  const [review, setReview] = useState<{ amt: number } | null>(null)
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     const amt = Math.round(parseFloat(amount) * 100) / 100
     if (!amt || amt <= 0) { setError(t('withdraw.errAmount')); return }
     if (amt > max) { setError(t('withdraw.errMax', { max: `$${fmt(max)}` })); return }
     if (!/^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,87}$/.test(address.trim())) { setError(t('withdraw.errAddress')); return }
+    setReview({ amt })
+  }
 
+  const send = async () => {
+    if (!review) return
+    const amt = review.amt
     if (inFlight.current) return
     inFlight.current = true
     setSubmitting(true)
@@ -962,6 +1147,7 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
         headers: { 'Content-Type': 'application/json', 'Idempotency-Key': attemptKey.current },
         body: JSON.stringify({ amount: amt, source, address: address.trim(), notes: notes.trim() || undefined }),
       }))
+      setReview(null)
       setDone(data.withdrawal?.reference || '')
       toast.show(t('withdraw.submitted'))
       setAmount('')
@@ -970,6 +1156,9 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
       onSuccess()
     } catch (err) {
       const offline = err instanceof RequestError && err.status === 0
+      // Close the review so the error is visible next to the form; the same
+      // attempt key is kept, so retrying cannot create a second request.
+      setReview(null)
       setError(offline
         ? `${errorText(err, t)} ${t('errors.noDuplicate')}`
         : errorText(err, t))
@@ -981,6 +1170,23 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
 
   return (
     <div className="grid lg:grid-cols-[1fr_1.2fr] gap-4 items-start">
+      {review && (
+        <ConfirmModal
+          title={t('withdraw.reviewTitle')}
+          confirmLabel={submitting ? t('common.submitting') : t('withdraw.confirm')}
+          cancelLabel={t('withdraw.edit')}
+          busy={submitting}
+          onConfirm={send}
+          onCancel={() => setReview(null)}
+        >
+          <dl className="divide-y divide-ink-700 text-sm">
+            <div className="flex justify-between gap-4 py-2.5"><dt className="text-fg-muted">{t('withdraw.amount')}</dt><dd className="text-fg font-semibold tabular-nums">${fmt(review.amt)}</dd></div>
+            <div className="flex justify-between gap-4 py-2.5"><dt className="text-fg-muted">{t('withdraw.from')}</dt><dd className="text-fg">{t(source === 'profit_balance' ? 'withdraw.profitShort' : 'withdraw.availableShort')}</dd></div>
+            <div className="py-2.5"><dt className="text-fg-muted mb-1">{t('withdraw.yourAddress')}</dt><dd className="text-fg font-mono text-[13px] break-all">{address.trim()}</dd></div>
+          </dl>
+          <p className="mt-4 text-[13px] text-fg-muted leading-relaxed">{t('withdraw.reviewNote')}</p>
+        </ConfirmModal>
+      )}
       <div className="space-y-4">
         <div className="panel p-5 sm:p-6">
           <h3 className="text-[15px] font-semibold text-fg mb-4">{t('withdraw.canWithdraw')}</h3>
@@ -1073,7 +1279,7 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
             </div>
 
             <button type="submit" disabled={submitting || max <= 0} className="btn btn-solid w-full">
-              {submitting ? <><Spinner />{t('common.submitting')}</> : max <= 0 ? t('withdraw.nothing') : t('withdraw.submit')}
+              {submitting ? <><Spinner />{t('common.submitting')}</> : max <= 0 ? t('withdraw.nothing') : t('withdraw.review')}
             </button>
           </form>
         </div>
