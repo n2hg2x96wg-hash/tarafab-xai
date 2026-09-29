@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import AdminLayout from '@/components/AdminLayout'
 import { AdminLoadError } from '@/components/AdminLoadError'
 import { authFetch, errorText, newRequestKey, readJson } from '@/lib/authFetch'
+import { projection, validRatePct } from '@/lib/returns'
 
 // Admin Investment Center. Reads use row level security (admins see all);
 // every change goes through /api/admin/investments, whose database functions
@@ -21,7 +22,7 @@ type Version = {
   eligibility: { kyc_required?: boolean }; published_at: string | null; created_at: string
 }
 type Inv = {
-  id: string; reference: string | null; user_id: string; product_id: string; product_version_id: string; principal: number; fee_amount: number; profit_amount?: number | null; return_type?: string; expected_return?: number | null; expected_total?: number | null; currency: string; status: string
+  id: string; reference: string | null; user_id: string; product_id: string; product_version_id: string; principal: number; fee_amount: number; profit_amount?: number | null; return_type?: string; return_rate_pct?: number | null; expected_return?: number | null; expected_total?: number | null; currency: string; status: string
   start_date: string | null; maturity_date: string | null; completed_at: string | null; rejection_reason: string | null; reviewed_by: string | null; reviewed_at: string | null; terms_accepted_at?: string | null; created_at: string
 }
 type Audit = { id: string; action: string; entity: string; entity_id: string; details: Record<string, unknown>; created_at: string }
@@ -66,7 +67,7 @@ export default function AdminInvestmentsPage() {
       <InvestingBanner />
       <div className="seg mb-5 max-w-full overflow-x-auto" role="tablist">
         {([['products', 'Products'], ['investments', 'Client investments'], ['adjustments', 'Profit / return adjustments'], ['activity', 'Activity & audit']] as const).map(([id, label]) => (
-          <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className={`seg-btn ${tab === id ? 'seg-btn-on' : ''}`}>{label}</button>
+          <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className={`seg-btn whitespace-nowrap ${tab === id ? 'seg-btn-on' : ''}`}>{label}</button>
         ))}
       </div>
       {tab === 'products' && <ProductsTab />}
@@ -176,9 +177,9 @@ function ProductsTab() {
             <Field label="Minimum investment (USD)"><input className="input-field" inputMode="decimal" value={form.min_amount} onChange={e => setForm({ ...form, min_amount: e.target.value })} /></Field>
             <Field label="Maximum investment (USD, optional)"><input className="input-field" inputMode="decimal" value={form.max_amount} onChange={e => setForm({ ...form, max_amount: e.target.value })} /></Field>
             <Field label="Duration (blank = open-ended)">
-              <div className="flex gap-2">
-                <input className="input-field flex-1 min-w-0" inputMode="numeric" value={form.duration_value} onChange={e => setForm({ ...form, duration_value: e.target.value })} />
-                <select className="input-field w-28" value={form.duration_unit} onChange={e => setForm({ ...form, duration_unit: e.target.value })}>
+              <div className="grid grid-cols-2 gap-2">
+                <input className="input-field min-w-0" inputMode="numeric" value={form.duration_value} onChange={e => setForm({ ...form, duration_value: e.target.value })} />
+                <select className="input-field min-w-0" value={form.duration_unit} onChange={e => setForm({ ...form, duration_unit: e.target.value })}>
                   <option value="days">Days</option><option value="weeks">Weeks</option><option value="months">Months</option><option value="years">Years</option>
                 </select>
               </div>
@@ -191,11 +192,19 @@ function ProductsTab() {
             <Field label="Entry fee (%)"><input className="input-field" inputMode="decimal" value={form.entry_fee_pct} onChange={e => setForm({ ...form, entry_fee_pct: e.target.value })} /></Field>
             <Field label="Stated return">
               <select className="input-field" value={form.return_type} onChange={e => setForm({ ...form, return_type: e.target.value, return_rate_pct: e.target.value === 'fixed_rate' ? form.return_rate_pct : '', return_amount: e.target.value === 'fixed_amount' ? form.return_amount : '' })}>
-                <option value="none">No stated return</option><option value="fixed_rate">Fixed rate for the term (% of principal)</option><option value="fixed_amount">Fixed amount for the term (USD)</option>
+                <option value="none">No stated return</option><option value="fixed_amount">Fixed amount for the term (USD)</option><option value="fixed_rate">Percentage of invested amount (%)</option>
               </select>
             </Field>
             {form.return_type === 'fixed_amount' && <Field label="Configured return for the term (USD)"><input className="input-field" inputMode="decimal" value={form.return_amount} onChange={e => setForm({ ...form, return_amount: e.target.value })} /></Field>}
-            {form.return_type === 'fixed_rate' && <Field label="Rate for the whole term (%)"><input className="input-field" inputMode="decimal" value={form.return_rate_pct} onChange={e => setForm({ ...form, return_rate_pct: e.target.value })} /></Field>}
+            {form.return_type === 'fixed_rate' && (
+              <div className="sm:col-span-2">
+                <Field label="Return percentage (%)">
+                  <input className="input-field" inputMode="decimal" value={form.return_rate_pct} aria-invalid={form.return_rate_pct !== '' && !validRatePct(form.return_rate_pct)} onChange={e => setForm({ ...form, return_rate_pct: e.target.value.replace(',', '.') })} placeholder="e.g. 900" />
+                </Field>
+                <p className="mt-1.5 text-xs text-slate-500">Enter the percentage of the invested amount represented by the stated/projected profit for this product term. For a 10× total value, enter 900 (profit 900% + the principal itself = 1000% = 10×).</p>
+                {form.return_rate_pct !== '' && !validRatePct(form.return_rate_pct) && <p role="alert" className="mt-1 text-xs text-red-400">Enter a number from 0 to 9999 with at most 4 decimals.</p>}
+              </div>
+            )}
             <label className="flex items-center gap-2 text-sm text-slate-300 sm:col-span-2">
               <input type="checkbox" checked={form.kyc_required} onChange={e => setForm({ ...form, kyc_required: e.target.checked })} /> Verified KYC required to invest
             </label>
@@ -207,6 +216,7 @@ function ProductsTab() {
           <Field label="Risk disclosure (shown before investing)"><textarea className="input-field" rows={3} value={form.risk_disclosure} onChange={e => setForm({ ...form, risk_disclosure: e.target.value })} /></Field>
           <Field label="Terms"><textarea className="input-field" rows={5} value={form.terms_text} onChange={e => setForm({ ...form, terms_text: e.target.value })} /></Field>
           <Field label={form.cancellation_allowed ? 'Cancellation rules and fee' : 'Cancellation note (optional)'}><textarea className="input-field" rows={2} value={form.cancellation_terms} onChange={e => setForm({ ...form, cancellation_terms: e.target.value })} placeholder={form.cancellation_allowed ? 'e.g. Early cancellation returns the principal less a 2% fee.' : 'Pending requests can always be cancelled before review.'} /></Field>
+          <ReturnPreview form={form} />
           {form.return_type !== 'none' && <p className="text-xs text-yellow-300">The configured return is shown to clients as a projection (expected return and expected total), copied onto each investment when it is made. The system never credits returns automatically; credited returns are recorded per investment by an admin.</p>}
           <div className="flex gap-3">
             <button onClick={() => setForm(null)} disabled={busy} className="btn btn-sm btn-outline">Cancel</button>
@@ -273,6 +283,36 @@ function ProductsTab() {
   )
 }
 
+// Live preview of the configured terms at the minimum and maximum investment.
+// Same arithmetic and accounting rule as the database (return on the principal
+// after the entry fee). It describes terms only; nothing is credited by it.
+function ReturnPreview({ form }: { form: typeof EMPTY_FORM }) {
+  if (form.return_type === 'none') return null
+  const rateOk = form.return_type === 'fixed_rate' ? validRatePct(form.return_rate_pct) : /^\d+(\.\d{1,2})?$/.test(form.return_amount)
+  const fee = form.entry_fee_pct !== '' && Number.isFinite(Number(form.entry_fee_pct)) ? Number(form.entry_fee_pct) / 100 : 0
+  const terms = { type: form.return_type as 'fixed_rate' | 'fixed_amount', ratePct: form.return_rate_pct, amount: form.return_amount }
+  const rows = ([['Minimum', form.min_amount], ['Maximum', form.max_amount]] as const)
+    .filter(([, v]) => v !== '' && Number.isFinite(Number(v)) && Number(v) > 0)
+    .map(([label, v]) => ({ label, amount: Number(v), p: projection(v, fee, terms) }))
+  if (!rateOk || rows.length === 0) return <p className="text-xs text-slate-500">Enter the minimum investment and the return to see a preview.</p>
+  return (
+    <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4" aria-live="polite">
+      <p className="text-xs font-semibold text-white mb-2">Preview (projected terms, not money earned)</p>
+      <div className="grid sm:grid-cols-2 gap-3">
+        {rows.map(r => (
+          <div key={r.label} className="text-sm min-w-0">
+            <p className="text-xs text-slate-500">{r.label} investment</p>
+            <p className="text-white tabular-nums">{money(r.amount)}</p>
+            {r.p.fee > 0 && <p className="text-xs text-slate-500 tabular-nums">− entry fee {money(r.p.fee)} → principal {money(r.p.principal)}</p>}
+            <p className="text-slate-300 tabular-nums break-words">→ {money(r.p.profit)} projected profit</p>
+            <p className="text-emerald-400 tabular-nums break-words">→ {money(r.p.total)} projected total</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return <label className="block"><span className="block text-xs text-slate-400 mb-1">{label}</span>{children}</label>
 }
@@ -309,7 +349,7 @@ function InvestmentsTab() {
     ;(async () => {
       setLoading(true)
       let q = supabase.from('client_investments')
-        .select('id, reference, user_id, product_id, product_version_id, principal, fee_amount, profit_amount, return_type, expected_return, expected_total, currency, status, start_date, maturity_date, completed_at, rejection_reason, reviewed_by, reviewed_at, created_at', { count: 'exact' })
+        .select('id, reference, user_id, product_id, product_version_id, principal, fee_amount, profit_amount, return_type, return_rate_pct, expected_return, expected_total, currency, status, start_date, maturity_date, completed_at, rejection_reason, reviewed_by, reviewed_at, created_at', { count: 'exact' })
         .order(sort.split('.')[0], { ascending: sort.endsWith('.asc') }).order('created_at', { ascending: false }).range(page * PAGE, page * PAGE + PAGE - 1)
       if (status) q = q.eq('status', status)
       const numOr = (v: string) => v.trim() !== '' && Number.isFinite(Number(v)) ? Number(v) : null
@@ -400,7 +440,7 @@ function InvestmentsTab() {
           </ul>
           <div className="panel overflow-x-auto hidden md:block">
             <table className="w-full text-sm">
-              <thead><tr className="text-left text-xs text-slate-500 border-b border-white/[0.06]">{['Client', 'Reference', 'Product', 'Principal', 'Expected return', 'Credited return', 'Status', 'Submitted', 'Maturity', ''].map(h => <th key={h} className="px-4 py-3 font-medium">{h}</th>)}</tr></thead>
+              <thead><tr className="text-left text-xs text-slate-500 border-b border-white/[0.06]">{['Client', 'Reference', 'Product', 'Principal', 'Projected profit', 'Credited profit', 'Status', 'Submitted', 'Maturity', ''].map(h => <th key={h} className="px-4 py-3 font-medium">{h}</th>)}</tr></thead>
               <tbody>{rows.map(r => (
                 <tr key={r.id} className="border-b border-white/[0.04]">
                   <td className="px-4 py-3 text-white">{names[r.user_id] || r.user_id.slice(0, 8)}</td>
@@ -510,10 +550,13 @@ function ReviewPanel({ inv, client, productCode, onClose, onDone }: { inv: Inv; 
           {row('Product version', info?.version ? `v${info.version.version}` : '…')}
           {row(inv.status === 'pending_activation' ? 'Amount requested' : 'Investment amount', money(Number(inv.principal) + (inv.status === 'pending_activation' ? 0 : Number(inv.fee_amount))))}
           {inv.status !== 'pending_activation' && row('Principal', money(inv.principal))}
-          {row('Configured return', inv.return_type === 'fixed_rate' ? 'Fixed rate' : inv.return_type === 'fixed_amount' ? 'Fixed amount' : 'None stated')}
-          {row('Expected return (projected)', Number(inv.expected_return || 0) > 0 ? money(Number(inv.expected_return)) : '—')}
-          {row('Expected total (projected)', money(Number(inv.expected_total || 0)))}
-          {running && row('Actual credited return', <span className={pClass(profit)}>{signedMoney(profit)}</span>)}
+          {row('Return mode', inv.return_type === 'fixed_rate' ? 'Percentage of invested amount' : inv.return_type === 'fixed_amount' ? 'Fixed amount' : 'None stated')}
+          {inv.return_type === 'fixed_rate' && row('Return %', `${Number(inv.return_rate_pct ?? 0)}%`)}
+          <p className="pt-2 text-[10px] uppercase tracking-wider text-slate-500">Projected / stated (from product terms)</p>
+          {row('Projected profit', Number(inv.expected_return || 0) > 0 ? money(Number(inv.expected_return)) : '—')}
+          {row('Projected total value', money(Number(inv.expected_total || 0)))}
+          <p className="pt-2 text-[10px] uppercase tracking-wider text-slate-500">Actual / credited (recorded by admin)</p>
+          {running ? row('Actual credited profit', <span className={pClass(profit)}>{signedMoney(profit)}</span>) : row('Actual credited profit', '$0.00')}
           {running && row('Current value', money(Number(inv.principal) + profit))}
           {running && row('Return', <span className={pClass(profit)}>{pct(profit, Number(inv.principal))}</span>)}
           {Number(inv.fee_amount) > 0 && row(inv.status === 'pending_activation' ? 'Entry fee on approval' : 'Entry fee', money(inv.fee_amount))}

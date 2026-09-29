@@ -817,8 +817,8 @@ const en = {
     start: 'Start date',
     maturity: 'Maturity date',
     f: {
-      expectedReturn: "Expected return (projected)",
-      expectedTotal: "Expected total (projected)",
+      expectedReturn: "Projected profit",
+      expectedTotal: "Projected total value",
       credited: "Credited so far",
       projectedNote: "Projected figures come from this product's terms and are not guaranteed. Only \"Credited so far\" has actually been added to your account.",
       fixedAmount: "{amount} for the term",
@@ -899,6 +899,9 @@ const en = {
       kFee: "Entry fee",
       kPrincipalOut: "Principal returned",
       kReturn: "Return",
+      returnTerms: "Return terms",
+      invested: "Invested",
+      projectedShort: "Projected",
     },
     risk: {
       low: 'Low risk',

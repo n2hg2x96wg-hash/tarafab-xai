@@ -816,8 +816,8 @@ const fr: DeepPartial<typeof en> = {
     start: 'Date de début',
     maturity: "Date d'échéance",
     f: {
-      expectedReturn: "Rendement attendu (prévisionnel)",
-      expectedTotal: "Total attendu (prévisionnel)",
+      expectedReturn: "Profit prévisionnel",
+      expectedTotal: "Valeur totale prévisionnelle",
       credited: "Crédité à ce jour",
       projectedNote: "Les chiffres prévisionnels proviennent des conditions du produit et ne sont pas garantis. Seul « Crédité à ce jour » a réellement été ajouté à votre compte.",
       fixedAmount: "{amount} pour la durée",
@@ -898,6 +898,9 @@ const fr: DeepPartial<typeof en> = {
       kFee: "Frais d'entrée",
       kPrincipalOut: "Capital restitué",
       kReturn: "Rendement",
+      returnTerms: "Conditions de rendement",
+      invested: "Investi",
+      projectedShort: "Prévisionnel",
     },
     risk: {
       low: 'Risque faible',

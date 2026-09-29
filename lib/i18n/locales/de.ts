@@ -816,8 +816,8 @@ const de: DeepPartial<typeof en> = {
     start: 'Beginn',
     maturity: 'Fälligkeit',
     f: {
-      expectedReturn: "Erwarteter Ertrag (prognostiziert)",
-      expectedTotal: "Erwarteter Gesamtbetrag (prognostiziert)",
+      expectedReturn: "Prognostizierter Gewinn",
+      expectedTotal: "Prognostizierter Gesamtwert",
       credited: "Bisher gutgeschrieben",
       projectedNote: "Prognosewerte stammen aus den Produktbedingungen und sind nicht garantiert. Nur „Bisher gutgeschrieben“ wurde Ihrem Konto tatsächlich gutgeschrieben.",
       fixedAmount: "{amount} für die Laufzeit",
@@ -898,6 +898,9 @@ const de: DeepPartial<typeof en> = {
       kFee: "Einstiegsgebühr",
       kPrincipalOut: "Kapital zurückgezahlt",
       kReturn: "Ertrag",
+      returnTerms: "Renditebedingungen",
+      invested: "Investiert",
+      projectedShort: "Prognostiziert",
     },
     risk: {
       low: 'Geringes Risiko',

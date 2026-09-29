@@ -816,8 +816,8 @@ const it: DeepPartial<typeof en> = {
     start: 'Data di inizio',
     maturity: 'Data di scadenza',
     f: {
-      expectedReturn: "Rendimento atteso (previsto)",
-      expectedTotal: "Totale atteso (previsto)",
+      expectedReturn: "Profitto previsto",
+      expectedTotal: "Valore totale previsto",
       credited: "Accreditato finora",
       projectedNote: "Le cifre previste derivano dai termini del prodotto e non sono garantite. Solo «Accreditato finora» è stato effettivamente aggiunto al tuo conto.",
       fixedAmount: "{amount} per la durata",
@@ -898,6 +898,9 @@ const it: DeepPartial<typeof en> = {
       kFee: "Commissione d'ingresso",
       kPrincipalOut: "Capitale restituito",
       kReturn: "Rendimento",
+      returnTerms: "Condizioni di rendimento",
+      invested: "Investito",
+      projectedShort: "Previsto",
     },
     risk: {
       low: 'Rischio basso',

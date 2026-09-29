@@ -18,6 +18,11 @@ export async function POST(request: NextRequest) {
   if (body.action === 'save') {
     const minAmount = num(body.min_amount)
     if (minAmount === null || !Number.isFinite(minAmount)) return NextResponse.json({ error: 'Minimum investment is required' }, { status: 400 })
+    // Malformed money never reaches the database. The database repeats these checks.
+    const maxAmt = num(body.max_amount), rate = num(body.return_rate_pct), fixed = num(body.return_amount)
+    if (maxAmt !== null && (!Number.isFinite(maxAmt) || maxAmt < minAmount)) return NextResponse.json({ error: 'The maximum must be at least the minimum' }, { status: 400 })
+    if (body.return_type === 'fixed_rate' && (rate === null || !Number.isFinite(rate) || rate < 0 || rate > 9999)) return NextResponse.json({ error: 'Enter a return percentage between 0 and 9999' }, { status: 400 })
+    if (body.return_type === 'fixed_amount' && (fixed === null || !Number.isFinite(fixed) || fixed < 0)) return NextResponse.json({ error: 'Enter the configured return amount' }, { status: 400 })
     const { data, error } = await supabase.rpc('admin_save_product_draft_v3', {
       p_product_id: str(body.product_id),
       p_code: str(body.code),
