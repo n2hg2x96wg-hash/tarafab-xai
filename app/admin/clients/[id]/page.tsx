@@ -49,13 +49,13 @@ type AdjustForm = {
   reason: string
 }
 
-// "Account Balance" is the client's spendable balance and is stored in
+// "Available Balance" is the client's spendable balance and is stored in
 // available_balance (the field withdrawals and investments use). The older
 // account_balance column is a recorded total kept for history/accounting; it is
 // still accepted by the database but is no longer offered as an adjustment target.
 const FIELD_LABELS = {
   account_balance: 'Recorded total (legacy)',
-  available_balance: 'Account Balance',
+  available_balance: 'Available Balance',
   invested_balance: 'Invested Balance',
   pending_balance: 'Pending Balance',
   profit_balance: 'Profit Balance',
@@ -372,7 +372,7 @@ export default function ClientDetailPage() {
           {account ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-5">
               {[
-                { label: 'Account Balance', value: account.available_balance, accent: true },
+                { label: 'Available Balance', value: account.available_balance, accent: true },
                 { label: 'Profit', value: account.profit_balance },
                 { label: 'Invested', value: account.invested_balance },
                 { label: 'Pending', value: account.pending_balance },
@@ -450,10 +450,10 @@ export default function ClientDetailPage() {
                 ))}
               </select>
               <p className="mt-1.5 text-[11px] leading-snug text-slate-500">
-                {adjustForm.field === 'available_balance' && 'The client’s spendable balance: what they see as Account Balance and can withdraw or invest.'}
-                {adjustForm.field === 'invested_balance' && 'Principal currently invested. It is separate from the Account Balance and is not spendable.'}
-                {adjustForm.field === 'pending_balance' && 'Amounts held for pending requests. Separate from the Account Balance.'}
-                {adjustForm.field === 'profit_balance' && 'Recorded profit. Separate from the Account Balance; it is not added to it.'}
+                {adjustForm.field === 'available_balance' && 'The client’s spendable balance: what they see as Available Balance and can withdraw or invest.'}
+                {adjustForm.field === 'invested_balance' && 'Principal currently invested. It is separate from the Available Balance and is not spendable.'}
+                {adjustForm.field === 'pending_balance' && 'Amounts held for pending requests. Separate from the Available Balance.'}
+                {adjustForm.field === 'profit_balance' && 'Recorded profit. Separate from the Available Balance; it is not added to it.'}
               </p>
             </div>
 

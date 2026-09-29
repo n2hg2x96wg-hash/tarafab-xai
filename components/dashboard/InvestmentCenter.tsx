@@ -73,6 +73,13 @@ function StatusBadge({ status }: { status: string }) {
   return <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${STATUS_TONE[status] || 'text-fg-muted border-ink-600'}`}>{t(`inv.status.${status}` as TKey)}</span>
 }
 
+type Filter = 'all' | 'active' | 'pending' | 'completed'
+const FILTERS: [Filter, TKey][] = [['all', 'inv.f.filterAll'], ['active', 'inv.status.active'], ['pending', 'inv.f.filterPending'], ['completed', 'inv.f.filterClosed']]
+const matches = (f: Filter, status: string) =>
+  f === 'all' ? true : f === 'active' ? status === 'active'
+  : f === 'pending' ? status === 'pending_activation' || status === 'approved'
+  : !['active', 'pending_activation', 'approved'].includes(status)
+
 export function InvestmentCenter({ go, focusId, onFocusDone }: { go: (id: string) => void; focusId?: string | null; onFocusDone?: () => void }) {
   const { t, intl } = useI18n()
   const [data, setData] = useState<Data | null>(null)
@@ -119,6 +126,8 @@ export function InvestmentCenter({ go, focusId, onFocusDone }: { go: (id: string
   const realised = invs.reduce((s, i) => s + profitOf(i), 0)
   const activeValue = active.reduce((s, i) => s + Number(i.principal) + profitOf(i), 0)
   const hasInvestments = invs.length > 0
+  const [filter, setFilter] = useState<Filter>('all')
+  const shown = invs.filter(x => matches(filter, x.status))
   const date = (iso: string | null | undefined) => iso ? new Date(iso).toLocaleDateString(intl, { day: 'numeric', month: 'short', year: 'numeric' }) : t('inv.notSet')
 
   if (error) {
@@ -204,9 +213,23 @@ export function InvestmentCenter({ go, focusId, onFocusDone }: { go: (id: string
           <h3 id="inv-mine" className="text-[15px] font-semibold text-fg">{t('inv.f.myInvestments')}</h3>
           {hasInvestments && active.length === 0 && <span className="text-xs text-fg-faint">{t('inv.f.noActive')}</span>}
         </div>
+        {hasInvestments && (
+          <div className="px-5 pt-3 flex gap-1.5 overflow-x-auto" role="tablist" aria-label={t('inv.f.myInvestments')}>
+            {FILTERS.map(([id, label]) => {
+              const n = invs.filter(x => matches(id, x.status)).length
+              return (
+                <button key={id} role="tab" aria-selected={filter === id} onClick={() => setFilter(id)}
+                  className={`shrink-0 min-h-9 px-3 rounded-full border text-[12.5px] transition-colors ${filter === id ? 'border-accent/50 bg-accent/10 text-fg' : 'border-ink-700 text-fg-muted hover:text-fg'}`}>
+                  {t(label)} <span className="tabular-nums text-fg-faint">{n}</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+        {hasInvestments && shown.length === 0 && <p className="px-5 py-8 text-center text-sm text-fg-muted">{t('inv.f.noneInFilter')}</p>}
         {hasInvestments ? (
           <ul className="divide-y divide-ink-700">
-            {invs.map(i => {
+            {shown.map(i => {
               const v = versionById.get(i.product_version_id)
               return (
                 <li key={i.id}>

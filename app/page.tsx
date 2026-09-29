@@ -352,29 +352,34 @@ export default function LandingPage() {
         </div></Reveal>
       </section>
 
-      <footer className="max-w-6xl mx-auto px-4 sm:px-6 py-10 chat-clearance">
-        <div className="flex flex-col md:flex-row justify-between gap-8">
-          <div>
+      <footer className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-12 chat-clearance">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-3 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
+          <div className="col-span-2 sm:col-span-3 lg:col-span-1">
             <Logo />
-            <p className="mt-3 text-[13px] text-fg-faint max-w-sm">
-              {t('landing.footerRisk')}
-            </p>
+            <p className="mt-3 text-sm text-fg-muted max-w-xs">{t('landing.footer.tagline')}</p>
+            <p className="mt-3 text-[12.5px] text-fg-faint max-w-sm leading-relaxed">{t('landing.footerRisk')}</p>
           </div>
-          <nav className="grid grid-cols-2 gap-x-8 sm:gap-x-12 gap-y-2 text-sm">
-            <a href="#platform" className="text-fg-muted hover:text-fg">{t('nav.platform')}</a>
-            <a href="#markets" className="text-fg-muted hover:text-fg">{t('nav.markets')}</a>
-            <Link href="/sign-in" className="text-fg-muted hover:text-fg">{t('common.signIn')}</Link>
-            <a href="#how-it-works" className="text-fg-muted hover:text-fg">{t('nav.howItWorks')}</a>
-            <a href="#how-deposits-work" className="text-fg-muted hover:text-fg">{t('nav.howDeposits')}</a>
-            <Link href="/sign-up" className="text-fg-muted hover:text-fg">{t('common.openAccount')}</Link>
-            <a href="#security" className="text-fg-muted hover:text-fg">{t('nav.security')}</a>
-            <Link href="/forgot-password" className="text-fg-muted hover:text-fg">{t('nav.resetPassword')}</Link>
-            <a href="#faq" className="text-fg-muted hover:text-fg">{t('nav.faq')}</a>
-          </nav>
+          {([
+            ['landing.footer.platform', [['#platform', 'nav.platform'], ['#how-it-works', 'nav.howItWorks'], ['#markets', 'nav.markets'], ['/investments', 'landing.footer.investments'], ['#security', 'nav.security']]],
+            ['landing.footer.account', [['/sign-in', 'common.signIn'], ['/sign-up', 'common.openAccount'], ['/forgot-password', 'nav.resetPassword'], ['#how-deposits-work', 'nav.howDeposits']]],
+            ['landing.footer.support', [['#faq', 'nav.faq'], ['/dashboard#support', 'landing.footer.help']]],
+          ] as [TKey, [string, TKey][]][]).map(([title, links]) => (
+            <nav key={title} aria-label={t(title)}>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-fg-faint mb-3">{t(title)}</p>
+              <ul className="space-y-2 text-sm">
+                {links.map(([href, label]) => (
+                  <li key={href}>{href.startsWith('#')
+                    ? <a href={href} className="text-fg-muted hover:text-fg transition-colors">{t(label)}</a>
+                    : <Link href={href} className="text-fg-muted hover:text-fg transition-colors">{t(label)}</Link>}</li>
+                ))}
+              </ul>
+            </nav>
+          ))}
         </div>
-        <div className="mt-10 pt-6 border-t border-ink-700 flex flex-col sm:flex-row sm:justify-between gap-2 text-xs text-fg-faint">
+        <div className="mt-10 pt-6 border-t border-ink-700 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-xs text-fg-faint">
           <p>&copy; {new Date().getFullYear()} Tarafab.XAi</p>
-          <p>{t('sources.footer')}</p>
+          {/* Kept for provider attribution terms; deliberately small. */}
+          <p className="text-[11px] sm:text-right max-w-xl">{t('landing.footer.attr')}</p>
         </div>
       </footer>
     </div>
