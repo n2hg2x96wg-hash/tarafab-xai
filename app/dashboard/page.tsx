@@ -456,7 +456,8 @@ export default function DashboardPage() {
           </button>
           <div className="text-right shrink-0">
             <div className="text-[11px] text-fg-faint leading-none mb-1 whitespace-nowrap">{t('dash.accountBalance')}</div>
-            <div className="text-sm font-semibold text-fg tabular-nums leading-none">${fmt(account?.account_balance ?? 0)}</div>
+            {/* One client-facing balance: the account's spendable balance (available_balance), the same figure withdrawals and investments use. */}
+            <div className="text-sm font-semibold text-fg tabular-nums leading-none">${fmt(account?.available_balance ?? 0)}</div>
           </div>
         </header>
 
@@ -663,13 +664,12 @@ function OverviewTab({ name, account, txs, go, can, labelOf }: { name: string; a
         <section className="relative overflow-hidden rounded-2xl border border-ink-700 p-5 sm:p-6 bg-[linear-gradient(135deg,rgb(var(--accent)/.10),rgb(var(--brand-500)/.05)_55%,transparent),rgb(var(--ink-900))] shadow-[inset_0_1px_0_rgb(var(--contrast)/.06),0_24px_48px_-28px_rgb(var(--shadow)/var(--shadow-strength))]" aria-labelledby="ov-bal">
           {/* Restrained accent light in the corner; decorative only. */}
           <div className="pointer-events-none absolute -top-24 -right-16 w-64 h-64 rounded-full bg-accent/10 blur-3xl" aria-hidden="true" />
-          <p id="ov-bal" className="relative text-[12px] font-medium uppercase tracking-[0.12em] text-fg-faint">{t('overview.accountValue')}</p>
+          <p id="ov-bal" className="relative text-[12px] font-medium uppercase tracking-[0.12em] text-fg-faint">{t('dash.accountBalance')}</p>
           <p className="relative mt-2 text-[36px] sm:text-[44px] leading-none font-semibold tracking-[-0.03em] text-fg tabular-nums">
-            <AnimatedPrice value={Number(account?.account_balance ?? 0)} format={money} />
+            <AnimatedPrice value={Number(account?.available_balance ?? 0)} format={money} />
           </p>
-          <dl className="relative mt-5 grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <dl className="relative mt-5 grid grid-cols-3 gap-2">
             {([
-              ['dash.available', account?.available_balance ?? 0],
               ['dash.profit', account?.profit_balance ?? 0],
               ['dash.invested', account?.invested_balance ?? 0],
               ['dash.pending', account?.pending_balance ?? 0],
@@ -1218,10 +1218,6 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
                 )}
               </div>
             ))}
-            <div className="flex items-center justify-between gap-3 py-3">
-              <dt className="text-sm text-fg-muted">{t('dash.accountBalance')}</dt>
-              <dd className="text-sm text-fg-muted tabular-nums">${fmt(account?.account_balance ?? 0)}</dd>
-            </div>
           </dl>
         </div>
 
@@ -1337,7 +1333,7 @@ function ProfileTab({ user, account }: { user: UserInfo | null; account: Account
     ['common.email', user?.email || t('common.notSet')],
     ['profile.emailConfirmed', user?.email_confirmed === undefined ? t('common.unknown') : user.email_confirmed ? t('common.yes') : t('common.no')],
     ['profile.memberSince', user?.created_at ? new Date(user.created_at).toLocaleDateString(intl, { month: 'long', day: 'numeric', year: 'numeric' }) : t('common.unknown')],
-    ['dash.accountBalance', `$${fmt(account?.account_balance ?? 0)}`],
+    ['dash.accountBalance', `$${fmt(account?.available_balance ?? 0)}`],
     ['withdraw.profitBalance', `$${fmt(account?.profit_balance ?? 0)}`],
   ]
   return (

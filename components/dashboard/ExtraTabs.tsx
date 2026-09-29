@@ -36,9 +36,10 @@ export function PortfolioTab({ account, txs, hasMore, go }: { account: Account |
   const { t } = useI18n()
   const totals = useMemo(() => txTotals(txs), [txs])
 
+  // One client-facing balance, taken from the account's available_balance;
+  // invested, profit and pending stay separate, as before.
   const balances: [string, number][] = [
-    [t('dash.accountBalance'), account?.account_balance ?? 0],
-    [t('withdraw.availableBalance'), account?.available_balance ?? 0],
+    [t('dash.accountBalance'), account?.available_balance ?? 0],
     [t('dash.invested'), account?.invested_balance ?? 0],
     [t('withdraw.profitBalance'), account?.profit_balance ?? 0],
     [t('dash.pending'), account?.pending_balance ?? 0],
