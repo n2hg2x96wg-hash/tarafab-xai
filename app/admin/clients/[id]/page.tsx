@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import AdminLayout from '@/components/AdminLayout'
+import { ClientWallets } from '@/components/admin/ClientWallets'
 import { authFetch, errorText, newRequestKey, readJson, RequestError } from '@/lib/authFetch'
 import { useI18n } from '@/lib/i18n/I18nProvider'
 
@@ -415,6 +416,7 @@ export default function ClientDetailPage() {
             </Link>
           </div>
           <ClientFinancialProfile clientId={clientId} />
+          <ClientWallets clientId={clientId} />
         </div>
       )}
 

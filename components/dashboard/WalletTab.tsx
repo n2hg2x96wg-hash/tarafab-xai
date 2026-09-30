@@ -12,13 +12,19 @@ import {
   NETWORKS, WalletError, chainIdOf, connect, discoverWallets, nativeBalance, networkOf, shortAddress, signMessage, switchChain,
   type Eip1193, type WalletInfo,
 } from '@/lib/wallet/eip1193'
+import {
+  clearPending, endSdkSession, readPending, restoredAccount, savePending, sdkProvider, walletConnectAvailable, type SdkKind,
+} from '@/lib/wallet/sdkProviders'
 
 type Linked = {
   id: string; chain_id: number; network: string; address: string; label: string; wallet_name: string
   status: 'linked' | 'unlinked' | 'revoked'; verification_status: string
   linked_at: string; verified_at: string | null; last_verified_at: string | null; ended_at: string | null; end_reason: string | null
 }
-type Session = { wallet: WalletInfo; address: string; chainId: number }
+// A wallet option: one injected into this browser (extension or wallet-app
+// browser), or an SDK that hands off to a mobile wallet app / passkey wallet.
+type Option = Omit<WalletInfo, 'provider'> & { provider?: Eip1193; sdk?: SdkKind; hint?: string }
+type Session = { wallet: Option & { provider: Eip1193 }; address: string; chainId: number }
 type Bal = { state: 'idle' | 'loading' | 'ok' | 'error'; amount?: string; symbol?: string; at?: number }
 
 // Wallet Center. External, non-custodial wallets the client links by signing
@@ -31,7 +37,7 @@ export function WalletTab({ account }: { account: Account | null }) {
     key.startsWith('wallet.') ? walletText(locale, key.slice(7), vars) : base(key as TKey, vars), [locale, base])
   const [linked, setLinked] = useState<Linked[] | null>(null)
   const [loadError, setLoadError] = useState('')
-  const [wallets, setWallets] = useState<WalletInfo[] | null>(null)
+  const [wallets, setWallets] = useState<Option[] | null>(null)
   const [picking, setPicking] = useState(false)
   const [session, setSession] = useState<Session | null>(null)
   const [targetChain, setTargetChain] = useState(1)
@@ -45,6 +51,8 @@ export function WalletTab({ account }: { account: Account | null }) {
   const [showHistory, setShowHistory] = useState(false)
   const [copied, setCopied] = useState('')
   const flow = useRef(0) // bumps when the account or network changes mid-flow
+  const busyFor = useRef('') // the option a connection is waiting on
+  const [connecting, setConnecting] = useState<Option | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -93,18 +101,81 @@ export function WalletTab({ account }: { account: Account | null }) {
   }, [])
   useEffect(() => { if (session) readBalance(session) }, [session?.address, session?.chainId]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const sdkOptions = useCallback((): Option[] => [
+    { id: 'sdk-coinbase', name: 'Coinbase Wallet', sdk: 'coinbase', hint: t('wallet.hintCoinbase') },
+    ...(walletConnectAvailable() ? [{ id: 'sdk-walletconnect', name: 'WalletConnect', sdk: 'walletconnect' as const, hint: t('wallet.hintWalletConnect') }] : []),
+  ], [t])
+
   const openPicker = async () => {
     setError(''); setDone(''); setPicking(true); setWallets(null)
-    setWallets(await discoverWallets())
+    // Load the SDKs now, so a tap on an option can open the wallet straight
+    // away (Safari blocks wallet pop-ups that are not tied to the tap).
+    sdkOptions().forEach(o => { sdkProvider(o.sdk!).catch(() => {}) })
+    const injected = await discoverWallets()
+    // An injected Coinbase extension and the Coinbase SDK are the same wallet.
+    const sdk = sdkOptions().filter(o => !(o.sdk === 'coinbase' && injected.some(w => /coinbase/i.test(w.id + w.name))))
+    setWallets([...injected, ...sdk])
   }
 
-  const choose = async (w: WalletInfo) => {
+  const choose = async (w: Option) => {
+    busyFor.current = w.id
+    setConnecting(w)
     setBusy('connect'); setError('')
     try {
-      const { address, chainId } = await connect(w.provider)
-      setSession({ wallet: w, address, chainId }); setPicking(false)
+      let provider = w.provider
+      if (w.sdk) {
+        provider = await sdkProvider(w.sdk)
+        // Survives leaving Safari for the wallet app (see restore below).
+        savePending({ kind: w.sdk, chainId: targetChain })
+      }
+      const my = flow.current
+      const { address, chainId } = await connect(provider!)
+      if (my !== flow.current) return
+      setSession({ wallet: { ...w, provider: provider! }, address, chainId }); setPicking(false)
       if (networkOf(chainId)) setTargetChain(chainId)
-    } catch (e) { setError(walletMsg(e)) } finally { setBusy('') }
+    } catch (e) {
+      if (busyFor.current !== w.id) return // cancelled from the UI; message already shown
+      setError(w.sdk && !(e instanceof WalletError) ? t('wallet.sdkFailed') : walletMsg(e))
+    } finally { if (busyFor.current === w.id) { busyFor.current = ''; clearPending(); setBusy(''); setConnecting(null) } }
+  }
+
+  // Returning from the wallet app: if the browser reloaded the page while the
+  // user approved, pick the approved session back up (it never opens a wallet
+  // by itself). Abandoned attempts expire after 15 minutes.
+  useEffect(() => {
+    const pending = readPending()
+    if (!pending) return
+    let alive = true
+    ;(async () => {
+      const address = await restoredAccount(pending.kind)
+      if (!alive) return
+      if (!address) { clearPending(); return }
+      const provider = await sdkProvider(pending.kind)
+      const chainId = await chainIdOf(provider).catch(() => pending.chainId)
+      const opt = sdkOptions().find(o => o.sdk === pending.kind) || { id: 'sdk-' + pending.kind, name: pending.kind, sdk: pending.kind }
+      if (!alive) return
+      setSession({ wallet: { ...opt, provider }, address, chainId })
+      setTargetChain(networkOf(chainId) ? chainId : pending.chainId)
+      clearPending()
+    })()
+    return () => { alive = false }
+  }, [sdkOptions])
+
+  // Abandon a connection that is waiting on the wallet app or window (for
+  // example it was closed or never opened). Ends the SDK request cleanly.
+  const cancelConnect = (w?: Option | null) => {
+    flow.current++
+    busyFor.current = ''
+    setConnecting(null)
+    clearPending()
+    if (w?.sdk) endSdkSession(w.sdk)
+    setBusy(''); setPicking(false); setError(t('wallet.connectCancelled'))
+  }
+
+  const leaveSession = () => {
+    flow.current++
+    if (session?.wallet.sdk) endSdkSession(session.wallet.sdk)
+    setSession(null); setBal({ state: 'idle' }); setError(''); setDone('')
   }
 
   const doSwitch = async () => {
@@ -224,14 +295,22 @@ export function WalletTab({ account }: { account: Account | null }) {
                     <button disabled={!!busy} onClick={() => choose(w)} className="w-full flex items-center gap-3 rounded-lg border border-ink-700 hover:border-ink-500 bg-ink-900/40 px-3 py-3 text-left transition-colors disabled:opacity-60">
                       {/* eslint-disable-next-line @next/next/no-img-element -- the wallet's own data: icon, not a remote image */}
                       {w.icon ? <img src={w.icon} alt="" width={28} height={28} className="rounded" /> : <IconWallet width={22} height={22} />}
-                      <span className="flex-1 text-sm font-medium text-fg truncate">{w.name}</span>
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-sm font-medium text-fg truncate">{w.name}</span>
+                        {w.hint && <span className="block text-[12px] text-fg-faint">{w.hint}</span>}
+                      </span>
                       {busy === 'connect' && <Spinner />}
                     </button>
                   </li>
                 ))}
               </ul>
             )}
-            {picking && <button onClick={() => setPicking(false)} className="mt-3 text-[13px] text-fg-faint hover:text-fg">{t('wallet.cancel')}</button>}
+            {busy === 'connect' && connecting ? (
+              <div className="mt-3 flex flex-wrap items-center gap-3 text-[13px] text-fg-muted" role="status">
+                <Spinner /> <span className="flex-1 min-w-[12rem]">{t('wallet.waitingWallet', { wallet: connecting.name })}</span>
+                <button onClick={() => cancelConnect(connecting)} className="btn btn-sm btn-outline">{t('wallet.cancel')}</button>
+              </div>
+            ) : picking && <button onClick={() => setPicking(false)} className="mt-3 text-[13px] text-fg-faint hover:text-fg">{t('wallet.cancel')}</button>}
           </div>
         ) : (
           <div className="mt-4 space-y-4">
@@ -264,7 +343,7 @@ export function WalletTab({ account }: { account: Account | null }) {
             )}
 
             <div className="flex flex-col-reverse sm:flex-row gap-2">
-              <button onClick={() => { flow.current++; setSession(null); setBal({ state: 'idle' }); setError(''); setDone('') }} disabled={busy === 'verify'} className="btn btn-ghost">{t('wallet.useAnother')}</button>
+              <button onClick={leaveSession} disabled={busy === 'verify'} className="btn btn-ghost">{t('wallet.useAnother')}</button>
               <button onClick={verify} disabled={!!busy || session.chainId !== targetChain} className="btn btn-solid sm:ml-auto">
                 {busy === 'sign' ? <><Spinner /> {t('wallet.waitingSignature')}</> : busy === 'verify' ? <><Spinner /> {t('wallet.verifying')}</> : sessionLinked ? t('wallet.reverify') : t('wallet.verify')}
               </button>

@@ -63,6 +63,11 @@ export function walletError(e: unknown): WalletError {
   if (code === -32002) return new WalletError('Your wallet already has a request open. Open the wallet to finish or dismiss it.', 'pending')
   if (code === 4902) return new WalletError('This network is not added to your wallet yet. Add it in the wallet, then try again.', 'unsupported_chain')
   if (code === 4100) return new WalletError('Your wallet has not authorised this site yet. Connect again.', 'rejected')
+  // WalletConnect / SDK rejections and a closed connection modal.
+  const msg = String((e as { message?: string })?.message || '')
+  if (code === 5000 || code === 5001 || /user (rejected|denied|cancel)|rejected by user|request reset|modal closed|user closed/i.test(msg)) {
+    return new WalletError('You declined the request in your wallet.', 'rejected')
+  }
   return new WalletError('The wallet could not complete the request. Try again.', 'failed')
 }
 

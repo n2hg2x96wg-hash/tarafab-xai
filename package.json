@@ -11,9 +11,11 @@
     "check:deposit": "node scripts/test-deposit-flow.cjs"
   },
   "dependencies": {
+    "@coinbase/wallet-sdk": "^4.4.0",
     "@supabase/auth-helpers-nextjs": "^0.8.7",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.2",
+    "@walletconnect/ethereum-provider": "^2.25.0",
     "autoprefixer": "^10.4.17",
     "next": "^14.2.3",
     "postcss": "^8.4.35",

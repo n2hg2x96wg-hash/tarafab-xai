@@ -6,6 +6,11 @@ import type { Locale } from './config'
 type Strings = { [k: string]: string | Strings }
 const W: Record<Locale, Strings> = {
   "en": {
+    "waitingWallet": "Continue in {wallet}. Approve the connection there, then come back to this page.",
+    "connectCancelled": "Connection cancelled. Nothing was linked.",
+    "hintCoinbase": "Coinbase Wallet app or passkey Smart Wallet",
+    "hintWalletConnect": "MetaMask, Trust, Rainbow and other mobile wallets",
+    "sdkFailed": "The wallet could not be opened. Check your connection and try again.",
     "title": "Wallet Center",
     "subtitle": "Link external wallets you control. Tarafab never holds their keys.",
     "accountNote": "Your Tarafab account balance. External wallets never change it.",
@@ -67,6 +72,11 @@ const W: Record<Locale, Strings> = {
     }
   },
   "fr": {
+    "waitingWallet": "Continuez dans {wallet}. Approuvez la connexion, puis revenez sur cette page.",
+    "connectCancelled": "Connexion annulée. Rien n'a été lié.",
+    "hintCoinbase": "Application Coinbase Wallet ou Smart Wallet par clé d'accès",
+    "hintWalletConnect": "MetaMask, Trust, Rainbow et d'autres portefeuilles mobiles",
+    "sdkFailed": "Le portefeuille n'a pas pu être ouvert. Vérifiez votre connexion et réessayez.",
     "title": "Centre de portefeuilles",
     "subtitle": "Liez des portefeuilles externes que vous contrôlez. Tarafab ne détient jamais leurs clés.",
     "accountNote": "Le solde de votre compte Tarafab. Les portefeuilles externes ne le modifient jamais.",
@@ -128,6 +138,11 @@ const W: Record<Locale, Strings> = {
     }
   },
   "es": {
+    "waitingWallet": "Continúe en {wallet}. Apruebe la conexión allí y vuelva a esta página.",
+    "connectCancelled": "Conexión cancelada. No se vinculó nada.",
+    "hintCoinbase": "App Coinbase Wallet o Smart Wallet con llave de acceso",
+    "hintWalletConnect": "MetaMask, Trust, Rainbow y otras billeteras móviles",
+    "sdkFailed": "No se pudo abrir la billetera. Revise su conexión e inténtelo de nuevo.",
     "title": "Centro de billeteras",
     "subtitle": "Vincule billeteras externas que usted controla. Tarafab nunca guarda sus claves.",
     "accountNote": "El saldo de su cuenta Tarafab. Las billeteras externas nunca lo modifican.",
@@ -189,6 +204,11 @@ const W: Record<Locale, Strings> = {
     }
   },
   "de": {
+    "waitingWallet": "Fahren Sie in {wallet} fort. Bestätigen Sie dort die Verbindung und kehren Sie dann zu dieser Seite zurück.",
+    "connectCancelled": "Verbindung abgebrochen. Es wurde nichts verknüpft.",
+    "hintCoinbase": "Coinbase-Wallet-App oder Smart Wallet mit Passkey",
+    "hintWalletConnect": "MetaMask, Trust, Rainbow und andere mobile Wallets",
+    "sdkFailed": "Die Wallet konnte nicht geöffnet werden. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
     "title": "Wallet-Center",
     "subtitle": "Verknüpfen Sie externe Wallets, die Sie selbst kontrollieren. Tarafab verwahrt niemals deren Schlüssel.",
     "accountNote": "Ihr Tarafab-Kontostand. Externe Wallets verändern ihn nie.",
@@ -250,6 +270,11 @@ const W: Record<Locale, Strings> = {
     }
   },
   "pt": {
+    "waitingWallet": "Continue em {wallet}. Aprove a conexão lá e depois volte a esta página.",
+    "connectCancelled": "Conexão cancelada. Nada foi vinculado.",
+    "hintCoinbase": "App Coinbase Wallet ou Smart Wallet com chave de acesso",
+    "hintWalletConnect": "MetaMask, Trust, Rainbow e outras carteiras móveis",
+    "sdkFailed": "Não foi possível abrir a carteira. Verifique sua conexão e tente novamente.",
     "title": "Central de carteiras",
     "subtitle": "Vincule carteiras externas que você controla. A Tarafab nunca guarda as chaves delas.",
     "accountNote": "O saldo da sua conta Tarafab. Carteiras externas nunca o alteram.",
@@ -311,6 +336,11 @@ const W: Record<Locale, Strings> = {
     }
   },
   "it": {
+    "waitingWallet": "Continua in {wallet}. Approva la connessione lì, poi torna a questa pagina.",
+    "connectCancelled": "Connessione annullata. Nulla è stato collegato.",
+    "hintCoinbase": "App Coinbase Wallet o Smart Wallet con passkey",
+    "hintWalletConnect": "MetaMask, Trust, Rainbow e altri wallet mobili",
+    "sdkFailed": "Impossibile aprire il wallet. Controlla la connessione e riprova.",
     "title": "Centro wallet",
     "subtitle": "Collega wallet esterni che controlli tu. Tarafab non custodisce mai le loro chiavi.",
     "accountNote": "Il saldo del tuo conto Tarafab. I wallet esterni non lo modificano mai.",
@@ -372,6 +402,11 @@ const W: Record<Locale, Strings> = {
     }
   },
   "ko": {
+    "waitingWallet": "{wallet}에서 계속하세요. 연결을 승인한 뒤 이 페이지로 돌아오세요.",
+    "connectCancelled": "연결이 취소되었습니다. 아무것도 연결되지 않았습니다.",
+    "hintCoinbase": "Coinbase Wallet 앱 또는 패스키 스마트 월렛",
+    "hintWalletConnect": "MetaMask, Trust, Rainbow 및 기타 모바일 지갑",
+    "sdkFailed": "지갑을 열 수 없습니다. 연결을 확인하고 다시 시도하세요.",
     "title": "지갑 센터",
     "subtitle": "직접 관리하는 외부 지갑을 연결하세요. Tarafab는 지갑 키를 절대 보관하지 않습니다.",
     "accountNote": "Tarafab 계좌 잔액입니다. 외부 지갑은 이 잔액을 변경하지 않습니다.",

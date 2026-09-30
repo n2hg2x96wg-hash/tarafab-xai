@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import AdminLayout from '@/components/AdminLayout'
 import { AdminLoadError } from '@/components/AdminLoadError'
@@ -34,8 +35,9 @@ export default function AdminWalletsPage() {
   const [rows, setRows] = useState<Wallet[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
-  const [search, setSearch] = useState('')
-  const [term, setTerm] = useState('')
+  const params = useSearchParams()
+  const [search, setSearch] = useState(() => params.get('q') || '')
+  const [term, setTerm] = useState(() => params.get('q') || '')
   const [status, setStatus] = useState('')
   const [chain, setChain] = useState('')
   const [hasMore, setHasMore] = useState(false)
