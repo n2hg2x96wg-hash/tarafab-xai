@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { authFetch, errorText, readJson } from '@/lib/authFetch'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
+import { walletText } from '@/lib/i18n/wallet'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { IconAlert, IconCheck, IconCopy, IconLock, IconWallet } from '@/components/Icons'
 import { Spinner } from '@/components/AuthShell'
@@ -25,7 +26,9 @@ type Bal = { state: 'idle' | 'loading' | 'ok' | 'error'; amount?: string; symbol
 // wallet contains is shown as on-chain information and never changes the
 // Tarafab Account Balance.
 export function WalletTab({ account }: { account: Account | null }) {
-  const { t, intl } = useI18n()
+  const { t: base, intl, locale } = useI18n()
+  const t = useCallback((key: string, vars?: Record<string, string | number>) =>
+    key.startsWith('wallet.') ? walletText(locale, key.slice(7), vars) : base(key as TKey, vars), [locale, base])
   const [linked, setLinked] = useState<Linked[] | null>(null)
   const [loadError, setLoadError] = useState('')
   const [wallets, setWallets] = useState<WalletInfo[] | null>(null)
@@ -52,7 +55,7 @@ export function WalletTab({ account }: { account: Account | null }) {
   useEffect(() => { load() }, [load])
 
   const walletMsg = (e: unknown) => {
-    if (e instanceof WalletError) return t(`wallet.err.${e.code}` as TKey)
+    if (e instanceof WalletError) return t(`wallet.err.${e.code}`)
     return errorText(e)
   }
 
