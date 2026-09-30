@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import AdminLayout from '@/components/AdminLayout'
 import { AdminLoadError } from '@/components/AdminLoadError'
+import CreateClientModal from '@/components/admin/CreateClientModal'
 
 type Client = {
   id: string
@@ -30,6 +31,7 @@ export default function ClientsPage() {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | 'customer' | 'admin'>('customer')
   const [copied, setCopied] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
 
   const copyEmail = (email: string) => {
     navigator.clipboard.writeText(email)
@@ -102,6 +104,15 @@ export default function ClientsPage() {
   return (
     <AdminLayout title="Clients" subtitle="View and manage all registered users">
       {loadError && <AdminLoadError message={loadError} onRetry={() => setReload(n => n + 1)} />}
+      <div className="flex justify-end mb-4">
+        <button
+          onClick={() => setCreating(true)}
+          className="w-full sm:w-auto text-sm font-semibold text-accent-ink bg-accent hover:bg-accent-hover px-5 py-2.5 rounded-xl transition-colors shadow-[0_8px_24px_-10px_rgba(247,147,26,0.6)]"
+        >
+          + Create Client Account
+        </button>
+      </div>
+      {creating && <CreateClientModal onClose={() => setCreating(false)} onCreated={() => setReload(n => n + 1)} />}
       <div className="glass rounded-2xl border border-white/[0.08] overflow-hidden">
         {/* Toolbar */}
         <div className="p-4 sm:p-5 border-b border-white/[0.06] flex flex-col sm:flex-row gap-3">
