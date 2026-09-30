@@ -13,7 +13,7 @@ import {
   type Eip1193, type WalletInfo,
 } from '@/lib/wallet/eip1193'
 import {
-  clearPending, endSdkSession, readPending, restoredAccount, savePending, sdkProvider, walletConnectAvailable, type SdkKind,
+  clearPending, endSdkSession, readPending, readyProvider, restoredAccount, savePending, sdkProvider, walletConnectAvailable, type SdkKind,
 } from '@/lib/wallet/sdkProviders'
 
 type Linked = {
@@ -63,7 +63,7 @@ export function WalletTab({ account }: { account: Account | null }) {
   useEffect(() => { load() }, [load])
 
   const walletMsg = (e: unknown) => {
-    if (e instanceof WalletError) return t(`wallet.err.${e.code}`)
+    if (e instanceof WalletError) return t(`wallet.err.${e.code}`) + (e.code === 'failed' && e.detail ? ` (${e.detail})` : '')
     return errorText(e)
   }
 
@@ -124,7 +124,7 @@ export function WalletTab({ account }: { account: Account | null }) {
     try {
       let provider = w.provider
       if (w.sdk) {
-        provider = await sdkProvider(w.sdk)
+        provider = readyProvider(w.sdk) || await sdkProvider(w.sdk)
         // Survives leaving Safari for the wallet app (see restore below).
         savePending({ kind: w.sdk, chainId: targetChain })
       }

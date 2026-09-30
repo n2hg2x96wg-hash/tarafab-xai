@@ -52,7 +52,8 @@ export function discoverWallets(timeoutMs = 400): Promise<WalletInfo[]> {
 }
 
 export class WalletError extends Error {
-  constructor(message: string, public code: 'rejected' | 'pending' | 'timeout' | 'unsupported_chain' | 'no_account' | 'failed') { super(message) }
+  // detail: the wallet's own error text (never secret), shown to help diagnose.
+  constructor(message: string, public code: 'rejected' | 'pending' | 'timeout' | 'unsupported_chain' | 'no_account' | 'failed', public detail = '') { super(message) }
 }
 
 // Maps provider errors (EIP-1193 / EIP-1474 codes) to plain messages.
@@ -68,7 +69,9 @@ export function walletError(e: unknown): WalletError {
   if (code === 5000 || code === 5001 || /user (rejected|denied|cancel)|rejected by user|request reset|modal closed|user closed/i.test(msg)) {
     return new WalletError('You declined the request in your wallet.', 'rejected')
   }
-  return new WalletError('The wallet could not complete the request. Try again.', 'failed')
+  const detail = [code != null ? `code ${code}` : '', msg].filter(Boolean).join(': ').slice(0, 200)
+  if (typeof console !== 'undefined') console.warn('wallet request failed', detail || e)
+  return new WalletError('The wallet could not complete the request. Try again.', 'failed', detail)
 }
 
 export function withTimeout<T>(p: Promise<T>, ms: number, msg = 'The wallet did not respond in time. Open your wallet and try again.'): Promise<T> {
@@ -77,7 +80,13 @@ export function withTimeout<T>(p: Promise<T>, ms: number, msg = 'The wallet did 
 
 export async function connect(provider: Eip1193): Promise<{ address: string; chainId: number }> {
   try {
-    const accounts = await withTimeout(provider.request({ method: 'eth_requestAccounts' }) as Promise<string[]>, 120_000)
+    // Session-based providers (WalletConnect) must connect first: their
+    // request() only forwards to an existing session, and enable() opens the
+    // wallet selector / deep link and then returns the approved accounts.
+    const p = provider as Eip1193 & { enable?: () => Promise<string[]>; session?: unknown }
+    const needsEnable = typeof p.enable === 'function' && 'session' in p && !p.session
+    const accounts = await withTimeout(
+      (needsEnable ? p.enable!() : provider.request({ method: 'eth_requestAccounts' })) as Promise<string[]>, 180_000)
     const address = Array.isArray(accounts) && typeof accounts[0] === 'string' ? accounts[0].toLowerCase() : ''
     if (!/^0x[0-9a-f]{40}$/.test(address)) throw new WalletError('The wallet did not share an account.', 'no_account')
     return { address, chainId: await chainIdOf(provider) }

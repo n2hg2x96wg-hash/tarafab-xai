@@ -169,6 +169,8 @@ export default function DashboardPage() {
       ])
       if (acc.status === 'fulfilled') {
         userId.current = acc.value.user.id
+        // A client signed in on this device, so it is not (only) a staff device.
+        if (acc.value.user.role !== 'admin') { try { localStorage.removeItem('tarafab.staffDevice') } catch { /* storage blocked */ } }
         setUser(acc.value.user); setAccount(acc.value.account); setLoadError('')
       } else setLoadError(errorText(acc.reason, tRef.current))
       if (tx.status === 'fulfilled') {

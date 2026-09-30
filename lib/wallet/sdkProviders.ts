@@ -20,6 +20,10 @@ type Disconnectable = Eip1193 & { disconnect?: () => Promise<void> | void; accou
 
 const APP = { name: 'Tarafab.XAi', description: 'Tarafab.XAi wallet ownership verification' }
 const cache: Partial<Record<SdkKind, Promise<Disconnectable>>> = {}
+// Providers that have finished loading, so a tap can use them synchronously
+// (Safari only opens a wallet window if it is opened by the tap itself).
+const ready: Partial<Record<SdkKind, Disconnectable>> = {}
+export const readyProvider = (kind: SdkKind) => ready[kind] || null
 
 // Tarafab.xai project on dashboard.reown.com (allowlisted domain:
 // tarafabxai.vercel.app). A public identifier, not a secret; the env var
@@ -34,7 +38,9 @@ function iconUrl() {
 
 export function sdkProvider(kind: SdkKind): Promise<Disconnectable> {
   if (!cache[kind]) {
-    cache[kind] = (kind === 'coinbase' ? coinbase() : walletConnect()).catch(e => { delete cache[kind]; throw e })
+    cache[kind] = (kind === 'coinbase' ? coinbase() : walletConnect())
+      .then(p => { ready[kind] = p; return p })
+      .catch(e => { delete cache[kind]; throw e })
   }
   return cache[kind]!
 }
@@ -63,7 +69,11 @@ async function walletConnect(): Promise<Disconnectable> {
     showQrModal: true,
     methods: ['personal_sign', 'eth_chainId', 'eth_accounts', 'eth_requestAccounts', 'wallet_switchEthereumChain', 'eth_getBalance'],
     events: ['accountsChanged', 'chainChanged', 'disconnect'],
-    metadata: { name: APP.name, description: APP.description, url: window.location.origin, icons: [iconUrl()] },
+    metadata: {
+      name: APP.name, description: APP.description, url: window.location.origin, icons: [iconUrl()],
+      // After approving in the wallet app on a phone, send the user back here.
+      redirect: { universal: `${window.location.origin}/dashboard#wallet` },
+    },
   })
   return provider as unknown as Disconnectable
 }
@@ -88,7 +98,7 @@ export async function endSdkSession(kind: SdkKind) {
   const p = cache[kind]
   if (!p) return
   try { await (await p).disconnect?.() } catch { /* already gone */ }
-  delete cache[kind]
+  delete cache[kind]; delete ready[kind]
 }
 
 // Remembers an in-progress connection across leaving Safari for the wallet
