@@ -2,7 +2,10 @@
 
 import { useEffect } from 'react'
 import { usePathname } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+
+// The auth client is loaded on demand so public pages (landing, sign-in) do
+// not ship it in their initial JavaScript.
+const loadClient = () => import('@/lib/supabase/client').then(m => m.createClient())
 
 // Privacy guard for the signed-in areas (client dashboard and admin).
 //
@@ -34,21 +37,26 @@ export default function SessionGuard() {
   // A fresh sign-in (on any page) starts a new activity window, so an old mark
   // from an earlier session never signs the new one out.
   useEffect(() => {
-    const { data: { subscription } } = createClient().auth.onAuthStateChange(event => {
-      if (event === 'SIGNED_IN') writeLast(Date.now())
-      if (event === 'SIGNED_OUT') { try { localStorage.removeItem(KEY) } catch {} }
+    let unsub = () => {}
+    let alive = true
+    loadClient().then(sb => {
+      if (!alive) return
+      const { data: { subscription } } = sb.auth.onAuthStateChange(event => {
+        if (event === 'SIGNED_IN') writeLast(Date.now())
+        if (event === 'SIGNED_OUT') { try { localStorage.removeItem(KEY) } catch {} }
+      })
+      unsub = () => subscription.unsubscribe()
     })
-    return () => subscription.unsubscribe()
+    return () => { alive = false; unsub() }
   }, [])
 
   useEffect(() => {
     if (!protectedPath) return
-    const supabase = createClient()
     const signInPath = admin ? '/admin/login' : '/sign-in'
     const leave = () => window.location.replace(signInPath)
 
     const recheck = async () => {
-      const { data } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }))
+      const { data } = await (await loadClient()).auth.getSession().catch(() => ({ data: { session: null } }))
       if (!data.session) leave()
     }
 
@@ -56,7 +64,7 @@ export default function SessionGuard() {
     // not already stale (otherwise an old session would be refreshed silently).
     const last = readLast()
     if (last && Date.now() - last > IDLE_MS) {
-      supabase.auth.signOut().catch(() => {}).finally(leave)
+      loadClient().then(sb => sb.auth.signOut()).catch(() => {}).finally(leave)
       return
     }
     writeLast(Date.now())
@@ -67,7 +75,7 @@ export default function SessionGuard() {
       if (now - lastWrite > 15_000) { lastWrite = now; writeLast(now) }
     }
     const checkIdle = () => {
-      if (Date.now() - readLast() > IDLE_MS) supabase.auth.signOut().catch(() => {}).finally(leave)
+      if (Date.now() - readLast() > IDLE_MS) loadClient().then(sb => sb.auth.signOut()).catch(() => {}).finally(leave)
     }
     const onShow = (e: PageTransitionEvent) => { if (e.persisted) { recheck(); checkIdle() } }
     const onVisible = () => { if (document.visibilityState === 'visible') checkIdle() }
