@@ -55,3 +55,12 @@ export function getSupabaseEnv() {
   // never as an Authorization bearer (see isJwt above).
   return { url, anonKey, serviceKey }
 }
+
+// Base URL for this project's Edge Functions (server-side only). The
+// SUPABASE_FUNCTIONS_URL override exists for local testing against a locally
+// served function; it is not a public variable and is unset in production.
+export function functionsUrl() {
+  const override = strip(process.env.SUPABASE_FUNCTIONS_URL || '').replace(/\/+$/, '')
+  if (override && /^https?:\/\/[\w.:-]+(\/[\w./-]*)?$/.test(override)) return override
+  return `${getSupabaseEnv().url}/functions/v1`
+}

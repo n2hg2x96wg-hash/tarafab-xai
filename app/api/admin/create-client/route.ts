@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSupabaseEnv, isJwt } from '@/lib/supabase/env'
+import { functionsUrl, getSupabaseEnv, isJwt } from '@/lib/supabase/env'
 import { clientIp, rateLimited } from '@/lib/rateLimit'
 import { validateNewClient } from '@/lib/clientAccountValidation'
 
@@ -23,9 +23,9 @@ export async function POST(request: NextRequest) {
   const input = validateNewClient(body)
   if (input.error) return NextResponse.json({ error: input.error }, { status: 400 })
 
-  const { url, anonKey } = getSupabaseEnv()
+  const { anonKey } = getSupabaseEnv()
   try {
-    const res = await fetch(`${url}/functions/v1/admin-create-client`, {
+    const res = await fetch(`${functionsUrl()}/admin-create-client`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, apikey: anonKey, 'Content-Type': 'application/json' },
       body: JSON.stringify({ full_name: input.full_name, email: input.email, password: input.password }),

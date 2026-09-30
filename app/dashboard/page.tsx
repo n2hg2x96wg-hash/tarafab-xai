@@ -22,8 +22,9 @@ import { useTheme } from '@/lib/theme/ThemeProvider'
 import {
   IconAlert, IconArrowDown, IconArrowUp, IconChart, IconCheck, IconClose, IconCopy, IconGrid,
   IconInfo, IconList, IconLogOut, IconMail, IconMenu, IconUser, Logo,
-  IconBell, IconHelp, IconHistory, IconPie, IconShield, IconSliders, IconSwap, IconTrend,
+  IconBell, IconHelp, IconHistory, IconPie, IconShield, IconSliders, IconSwap, IconTrend, IconWallet,
 } from '@/components/Icons'
+import { WalletTab } from '@/components/dashboard/WalletTab'
 import {
   HistoryTab, LoadMore, NotificationsTab, PerformanceTab, PortfolioTab, PreferencesTab, SecurityTab, SupportTab, noticesFrom,
   type TeamNotice,
@@ -86,6 +87,7 @@ const NAV_GROUPS: { label: TKey; items: (NavItem & { core?: boolean })[] }[] = [
     { icon: IconTrend, label: 'nav3.performance', id: 'performance' },
   ] },
   { label: 'nav3.groupFunds', items: [
+    { icon: IconWallet, label: 'wallet.nav', id: 'wallet' },
     { icon: IconArrowDown, label: 'dash.nav.deposit', id: 'deposit' },
     { icon: IconArrowUp, label: 'dash.nav.withdraw', id: 'withdraw' },
     { icon: IconHistory, label: 'nav2.depositHistory', id: 'depositHistory' },
@@ -491,6 +493,7 @@ export default function DashboardPage() {
             {activeNav === 'deposit' && <DepositTab onSuccess={fetchData} go={go} can={id => !hiddenNav.includes(id)} />}
             {activeNav === 'withdraw' && <WithdrawTab account={account} txs={txs} onSuccess={fetchData} />}
             {activeNav === 'profile' && <ProfileTab user={user} account={account} />}
+            {activeNav === 'wallet' && <WalletTab account={account} />}
           </ErrorBoundary>
         </main>
       </div>

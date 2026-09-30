@@ -17,7 +17,7 @@ export function AuthShell({ title, subtitle, children, footer }: { title: string
       <div className="hero-light" aria-hidden="true" />
       <div className="hero-grid" aria-hidden="true" />
 
-      <header className="relative z-10 h-16 flex items-center justify-between gap-4 px-4 sm:px-6 border-b border-ink-700/70 glass-bar safe-top">
+      <header className="relative z-30 h-16 flex items-center justify-between gap-4 px-4 sm:px-6 border-b border-ink-700/70 glass-bar safe-top">
         <Link href="/" aria-label={t('common.home')} className="rounded-md"><Logo /></Link>
         <div className="flex items-center gap-2">
           <ThemeSelector />

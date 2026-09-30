@@ -21,6 +21,7 @@ const GROUPS: { label: TKey; items: { id: string; label: TKey; core?: boolean }[
     { id: 'portfolio', label: 'nav2.portfolio' }, { id: 'transactions', label: 'dash.nav.transactions' }, { id: 'performance', label: 'nav3.performance' },
   ] },
   { label: 'nav3.groupFunds', items: [
+    { id: 'wallet', label: 'wallet.nav' },
     { id: 'deposit', label: 'dash.nav.deposit' }, { id: 'withdraw', label: 'dash.nav.withdraw' },
     { id: 'depositHistory', label: 'nav2.depositHistory' }, { id: 'withdrawalHistory', label: 'nav2.withdrawalHistory' },
   ] },

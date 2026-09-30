@@ -17,6 +17,7 @@ const TARGETS: { id: string; label: TKey }[] = [
   { id: 'transactions', label: 'dash.nav.transactions' }, { id: 'investments', label: 'nav2.investments' }, { id: 'depositHistory', label: 'nav2.depositHistory' },
   { id: 'withdrawalHistory', label: 'nav2.withdrawalHistory' }, { id: 'security', label: 'nav2.security' },
   { id: 'profile', label: 'dash.nav.profile' }, { id: 'markets', label: 'dash.nav.markets' }, { id: 'support', label: 'nav2.support' },
+  { id: 'wallet', label: 'wallet.nav' },
 ]
 
 type Sent = { id: string; user_id: string | null; type: NoticeType; title: string; body: string; cta_label: string | null; cta_target: string | null; created_at: string; archived_at: string | null; read_count: number }
