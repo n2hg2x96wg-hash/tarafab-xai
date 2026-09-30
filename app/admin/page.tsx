@@ -101,7 +101,7 @@ export default function AdminPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         {[
           { label: 'Total Clients', value: customers.length.toString(), sub: 'registered users', icon: '◉' },
-          { label: 'Client Available Balances', value: `$${totalAUM.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, sub: 'total spendable balances', icon: '◈' },
+          { label: 'Client Account Balances', value: `$${totalAUM.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, sub: 'total spendable balances', icon: '◈' },
           { label: 'Active Accounts', value: activeAccounts.toString(), sub: 'with account records', icon: '⇄' },
         ].map(stat => (
           <div key={stat.label} className="glass rounded-2xl p-5 border border-white/[0.08]">
@@ -164,7 +164,7 @@ export default function AdminPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-white/[0.06]">
-                    {['Name / ID', 'Available Balance', 'Invested', 'Joined', ''].map(h => (
+                    {['Name / ID', 'Account Balance', 'Invested', 'Joined', ''].map(h => (
                       <th key={h} className="px-5 py-3 text-left text-xs text-slate-500 font-medium">{h}</th>
                     ))}
                   </tr>
@@ -176,7 +176,7 @@ export default function AdminPage() {
                         <p className="text-sm font-medium text-white">{client.full_name || 'Unnamed'}</p>
                         <p className="text-[10px] text-slate-600 mt-0.5 font-mono">{client.id.slice(0, 16)}…</p>
                       </td>
-                      {/* Available Balance = the client's spendable (available) balance, as the client sees it. */}
+                      {/* Account Balance = the client's spendable (available) balance, as the client sees it. */}
                       <td className="px-5 py-4 text-sm text-white font-medium">
                         {client.accounts ? `$${(client.accounts.available_balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : <span className="text-slate-600">—</span>}
                       </td>

@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { cookies } from 'next/headers'
 import SmartsuppWidget from '@/components/SmartsuppWidget'
+import SessionGuard from '@/components/SessionGuard'
 import { ToastProvider } from '@/components/Toast'
 import { I18nProvider } from '@/lib/i18n/I18nProvider'
 import { DEFAULT_LOCALE, LOCALE_COOKIE, isLocale } from '@/lib/i18n/config'
@@ -53,6 +54,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               {children}
             </ToastProvider>
             <SmartsuppWidget />
+            <SessionGuard />
           </I18nProvider>
         </ThemeProvider>
       </body>

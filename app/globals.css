@@ -333,7 +333,7 @@ html:has(.site) ::-webkit-scrollbar-thumb:hover { background: rgb(var(--ink-500)
 
 /* Room at the bottom of scrolling pages on phones so the floating support
    chat bubble never sits on top of the last button or chart. */
-@media (max-width: 767px) { .chat-clearance { padding-bottom: calc(88px + env(safe-area-inset-bottom)); } }
+@media (max-width: 767px) { .chat-clearance { padding-bottom: calc(176px + env(safe-area-inset-bottom)); } }
 
 /* ---------------------------------------------------------------------------
    Motion. Everything here is transform/opacity only (compositor-friendly, no
@@ -374,11 +374,10 @@ html:has(.site) ::-webkit-scrollbar-thumb:hover { background: rgb(var(--ink-500)
 .step-bar-done { background: linear-gradient(90deg, rgb(var(--success-500) / .7), rgb(var(--success-500) / .35)); }
 
 /* Dashboard on phones and small tablets: room for the bottom bar, and the
-   support chat bubble lifted above it rather than covering the last tab.
-   #chat-application is the chat widget's own container. */
+   support chat bubble lifted above it rather than covering the last tab
+   (the lift itself is the widget's offsetY, see SmartsuppWidget). */
 @media (max-width: 1023px) {
-  body.has-bottom-nav .chat-clearance { padding-bottom: calc(160px + env(safe-area-inset-bottom)); }
-  body.has-bottom-nav #chat-application { bottom: calc(72px + env(safe-area-inset-bottom)) !important; }
+  body.has-bottom-nav .chat-clearance { padding-bottom: calc(190px + env(safe-area-inset-bottom)); }
 }
 
 /* Hero floating information panels: slow, small drift; still when motion is reduced. */

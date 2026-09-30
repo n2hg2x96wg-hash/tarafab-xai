@@ -33,7 +33,11 @@ const STATUS_STYLE: Record<string, string> = {
 }
 
 const PAGE = 50
-const KNOWN_TYPES = ['deposit', 'withdrawal', 'adjustment', 'return', 'investment', 'fee', 'transfer_in', 'transfer_out']
+// Stored 'adjustment' (and any legacy 'return') rows are shown and filtered as
+// Profit; the stored type is never rewritten. Transfers are unused, so they only
+// appear if such rows ever exist.
+const KNOWN_TYPES = ['deposit', 'withdrawal', 'profit', 'investment', 'fee']
+const typeKey = (type: string) => (type === 'adjustment' || type === 'return' ? 'profit' : type)
 const KNOWN_STATUSES = ['pending', 'pending_review', 'pending_verification', 'pending_blockchain_confirmation', 'requested', 'under_review', 'approved', 'processing', 'completed', 'rejected', 'failed', 'cancelled']
 
 export default function TransactionsPage() {
@@ -144,19 +148,19 @@ export default function TransactionsPage() {
     }
   }
 
-  const sourceLabel = (tx: Tx) => tx.type === 'withdrawal' ? (tx.method === 'profit_balance' ? 'From profit balance' : 'From available balance') : tx.method
+  const sourceLabel = (tx: Tx) => tx.type === 'withdrawal' ? (tx.method === 'profit_balance' ? 'From profit balance' : 'From account balance') : tx.method
 
   const filtered = txs.filter(tx => {
     const name = tx.profiles?.full_name?.toLowerCase() || ''
     const s = search.toLowerCase()
     const matchSearch = !search || name.includes(s) || tx.id.toLowerCase().includes(s) || tx.user_id.toLowerCase().includes(s) || (tx.reference || '').toLowerCase().includes(s)
     const matchStatus = !filterStatus || tx.status === filterStatus
-    const matchType = !filterType || tx.type === filterType
+    const matchType = !filterType || typeKey(tx.type) === filterType
     return matchSearch && matchStatus && matchType
   })
 
   const allStatuses = Array.from(new Set([...KNOWN_STATUSES, ...txs.map(t => t.status), ...(filterStatus ? [filterStatus] : [])])).sort()
-  const allTypes = Array.from(new Set([...KNOWN_TYPES, ...txs.map(t => t.type), ...(filterType ? [filterType] : [])])).sort()
+  const allTypes = Array.from(new Set([...KNOWN_TYPES, ...txs.map(t => typeKey(t.type)), ...(filterType ? [filterType] : [])])).sort()
 
   return (
     <AdminLayout title="Transactions" subtitle="All platform transactions">
@@ -257,7 +261,7 @@ export default function TransactionsPage() {
                         <p className="text-[10px] text-slate-600 font-mono">{tx.user_id.slice(0, 12)}…</p>
                       </td>
                       <td className="px-5 py-4">
-                        <span className="text-xs text-slate-300 capitalize">{tx.type.replace(/_/g, ' ')}</span>
+                        <span className="text-xs text-slate-300 capitalize">{typeKey(tx.type).replace(/_/g, ' ')}</span>
                         {tx.method && <p className="text-[10px] text-slate-600 mt-0.5">{sourceLabel(tx)}</p>}
                         {tx.address && <p className="text-[10px] text-slate-400 mt-0.5 font-mono break-all max-w-[180px] select-all">{tx.address}</p>}
                         {receiptPath(tx.notes) && (
@@ -311,7 +315,7 @@ export default function TransactionsPage() {
                   <div className="flex items-center justify-between mb-2">
                     <div>
                       <p className="text-sm font-medium text-white">{tx.profiles?.full_name || 'Unknown'}</p>
-                      <p className="text-xs text-slate-500 capitalize">{tx.type.replace(/_/g, ' ')}</p>
+                      <p className="text-xs text-slate-500 capitalize">{typeKey(tx.type).replace(/_/g, ' ')}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-bold text-white">${(tx.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>

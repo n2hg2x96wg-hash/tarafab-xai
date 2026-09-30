@@ -49,13 +49,13 @@ type AdjustForm = {
   reason: string
 }
 
-// "Available Balance" is the client's spendable balance and is stored in
+// "Account Balance" is the client's spendable balance and is stored in
 // available_balance (the field withdrawals and investments use). The older
 // account_balance column is a recorded total kept for history/accounting; it is
 // still accepted by the database but is no longer offered as an adjustment target.
 const FIELD_LABELS = {
   account_balance: 'Recorded total (legacy)',
-  available_balance: 'Available Balance',
+  available_balance: 'Account Balance',
   invested_balance: 'Invested Balance',
   pending_balance: 'Pending Balance',
   profit_balance: 'Profit Balance',
@@ -370,15 +370,14 @@ export default function ClientDetailPage() {
       {tab === 'overview' && (
         <div>
           {account ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-5">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
               {[
-                { label: 'Available Balance', value: account.available_balance, accent: true },
+                { label: 'Account Balance', value: account.available_balance, accent: true },
                 { label: 'Profit', value: account.profit_balance },
                 { label: 'Invested', value: account.invested_balance },
                 { label: 'Pending', value: account.pending_balance },
-                { label: 'Recorded total (legacy)', value: account.account_balance },
               ].map((item, i) => (
-                <div key={item.label} className={`rounded-xl p-4 border ${i === 0 ? 'col-span-2 sm:col-span-1' : ''} ${item.accent ? 'border-orange-500/25 bg-[linear-gradient(160deg,rgba(247,147,26,0.10),rgba(255,255,255,0.01))]' : 'border-white/[0.07] bg-white/[0.02]'}`}>
+                <div key={item.label} className={`rounded-xl p-4 border ${i === 0 ? 'col-span-2 lg:col-span-1' : ''} ${item.accent ? 'border-orange-500/25 bg-[linear-gradient(160deg,rgba(247,147,26,0.10),rgba(255,255,255,0.01))]' : 'border-white/[0.07] bg-white/[0.02]'}`}>
                   <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-1.5">{item.label}</p>
                   <p className="text-lg sm:text-xl font-semibold text-white tabular-nums">${(item.value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                 </div>
@@ -422,7 +421,7 @@ export default function ClientDetailPage() {
       {/* Adjust tab */}
       {tab === 'adjust' && (
         <div className="glass rounded-2xl p-5 sm:p-6 border border-white/[0.08] max-w-lg">
-          <h2 className="text-sm font-semibold text-white mb-1">Balance Adjustment</h2>
+          <h2 className="text-sm font-semibold text-white mb-1">Account Balance &amp; Profit</h2>
           <p className="text-xs text-slate-500 mb-5">All adjustments are logged to the audit trail with full details.</p>
 
           {adjustSuccess && (
@@ -450,10 +449,10 @@ export default function ClientDetailPage() {
                 ))}
               </select>
               <p className="mt-1.5 text-[11px] leading-snug text-slate-500">
-                {adjustForm.field === 'available_balance' && 'The client’s spendable balance: what they see as Available Balance and can withdraw or invest.'}
-                {adjustForm.field === 'invested_balance' && 'Principal currently invested. It is separate from the Available Balance and is not spendable.'}
-                {adjustForm.field === 'pending_balance' && 'Amounts held for pending requests. Separate from the Available Balance.'}
-                {adjustForm.field === 'profit_balance' && 'Recorded profit. Separate from the Available Balance; it is not added to it.'}
+                {adjustForm.field === 'available_balance' && 'The client’s spendable balance: what they see as Account Balance and can withdraw or invest.'}
+                {adjustForm.field === 'invested_balance' && 'Principal currently invested. It is separate from the Account Balance and is not spendable.'}
+                {adjustForm.field === 'pending_balance' && 'Amounts held for pending requests. Separate from the Account Balance.'}
+                {adjustForm.field === 'profit_balance' && 'Recorded profit. Separate from the Account Balance; it is not added to it.'}
               </p>
             </div>
 
@@ -640,7 +639,7 @@ export default function ClientDetailPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-medium text-white capitalize">
-                        {tx.type.replace(/_/g, ' ')}
+                        {(tx.type === 'adjustment' || tx.type === 'return' ? 'profit' : tx.type).replace(/_/g, ' ')}
                         {tx.type === 'adjustment' && tx.method && <span className="text-slate-500 font-normal"> · {tx.method.replace(/_/g, ' ')}</span>}
                       </p>
                       <p className="text-sm font-semibold text-white shrink-0">
@@ -673,7 +672,7 @@ export default function ClientDetailPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowConfirm(false)} />
           <div className="relative z-10 glass rounded-2xl p-6 border border-white/[0.1] max-w-sm w-full">
-            <h3 className="text-base font-bold text-white mb-1">Confirm Adjustment</h3>
+            <h3 className="text-base font-bold text-white mb-1">Confirm Change</h3>
             <p className="text-xs text-slate-500 mb-4">This action will be recorded in the audit log.</p>
             <div className="bg-white/[0.03] rounded-xl p-4 mb-4 space-y-2 text-sm">
               <div className="flex justify-between"><span className="text-slate-400">Client</span><span className="text-white font-medium">{profile.full_name || 'Unnamed'}</span></div>

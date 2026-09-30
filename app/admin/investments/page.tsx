@@ -564,7 +564,7 @@ function ReviewPanel({ inv, client, productCode, onClose, onDone }: { inv: Inv; 
           {row('Status', <span className="capitalize">{label(inv.status)}</span>)}
           {row('Terms accepted', 'Yes, at submission (required)')}
           {row('KYC status', <span className="capitalize">{info ? info.kyc : '…'}</span>)}
-          {row('Available balance', info?.available == null ? '…' : money(info.available))}
+          {row('Account balance', info?.available == null ? '…' : money(info.available))}
           {row('Held for pending requests', info?.pending == null ? '…' : money(info.pending))}
           {inv.start_date && row('Start', new Date(inv.start_date).toLocaleString())}
           {inv.maturity_date && row('Maturity', new Date(inv.maturity_date).toLocaleString())}
@@ -649,8 +649,8 @@ function ReviewPanel({ inv, client, productCode, onClose, onDone }: { inv: Inv; 
         {(mode === 'reject' || mode === 'complete' || mode === 'expire') && (
           <div className="space-y-3">
             <textarea className="input-field" rows={2} placeholder={mode === 'reject' ? 'Reason for rejection (required, shown to the client)' : 'Reason (required, recorded in the audit log)'} value={reason} onChange={e => setReason(e.target.value)} />
-            {mode === 'reject' && <p className="text-xs text-slate-500">The held amount returns to the client&apos;s available balance.</p>}
-            {mode === 'expire' && <p className="text-xs text-slate-500">The request is marked Expired, the held amount returns to the client&apos;s available balance, and the record is kept.</p>}
+            {mode === 'reject' && <p className="text-xs text-slate-500">The held amount returns to the client&apos;s account balance.</p>}
+            {mode === 'expire' && <p className="text-xs text-slate-500">The request is marked Expired, the held amount returns to the client&apos;s account balance, and the record is kept.</p>}
             {mode === 'complete' && <p className="text-xs text-slate-500">The principal moves from invested back to available. No return is recorded here.</p>}
             <div className="flex gap-3">
               <button disabled={busy} onClick={() => { setMode(''); setReason('') }} className="btn btn-outline flex-1">Back</button>

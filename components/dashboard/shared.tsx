@@ -66,10 +66,9 @@ export function fmt(n: number) {
 
 export type T = ReturnType<typeof useI18n>['t']
 export function txLabel(tx: Tx, t: T) {
-  if (tx.type === 'adjustment') {
-    if (tx.direction === 'credit') return t(tx.method === 'profit_balance' ? 'dash.txType.profit' : 'dash.txType.return')
-    return t('dash.txType.adjustment')
-  }
+  // Stored 'adjustment' and legacy 'return' records are shown as Profit; the
+  // stored rows are left untouched (direction still decides the sign).
+  if (tx.type === 'adjustment' || tx.type === 'return') return t('dash.txType.profit')
   return t(`dash.txType.${tx.type}` as TKey) || tx.type.replace(/_/g, ' ')
 }
 

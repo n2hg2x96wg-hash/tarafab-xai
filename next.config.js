@@ -24,6 +24,14 @@ const nextConfig = {
       { source: '/api/client/:path*', headers: privateNoStore },
       { source: '/api/admin/:path*', headers: privateNoStore },
       { source: '/api/auth/:path*', headers: privateNoStore },
+      // Signed-in pages: never kept by shared caches or the back/forward cache.
+      { source: '/dashboard/:path*', headers: privateNoStore },
+      { source: '/dashboard', headers: privateNoStore },
+      { source: '/admin/:path*', headers: privateNoStore },
+      { source: '/admin', headers: privateNoStore },
+      { source: '/investments', headers: privateNoStore },
+      { source: '/verification/:path*', headers: privateNoStore },
+      { source: '/verification', headers: privateNoStore },
     ]
   },
 }
