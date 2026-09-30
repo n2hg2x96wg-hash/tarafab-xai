@@ -21,7 +21,11 @@ type Disconnectable = Eip1193 & { disconnect?: () => Promise<void> | void; accou
 const APP = { name: 'Tarafab.XAi', description: 'Tarafab.XAi wallet ownership verification' }
 const cache: Partial<Record<SdkKind, Promise<Disconnectable>>> = {}
 
-export const walletConnectProjectId = () => (process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '').trim()
+// Tarafab.xai project on dashboard.reown.com (allowlisted domain:
+// tarafabxai.vercel.app). A public identifier, not a secret; the env var
+// overrides it if the project is ever changed.
+const DEFAULT_WALLETCONNECT_PROJECT_ID = '38f139f785accee3a73f85588e5a4f67'
+export const walletConnectProjectId = () => (process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || DEFAULT_WALLETCONNECT_PROJECT_ID).trim()
 export const walletConnectAvailable = () => /^[0-9a-f]{32}$/i.test(walletConnectProjectId())
 
 function iconUrl() {
