@@ -160,11 +160,12 @@ export function LiveTickerBar() {
     const refresh = async () => {
       let requestController: AbortController | undefined
       if (document.visibilityState === 'visible') {
-        requestController = new AbortController()
-        controller = requestController
-        const timeout = setTimeout(() => requestController.abort(), 20_000)
+        const activeController = new AbortController()
+        requestController = activeController
+        controller = activeController
+        const timeout = setTimeout(() => activeController.abort(), 20_000)
         try {
-          const response = await fetch('/api/market/assets', { cache: 'no-store', signal: requestController.signal })
+          const response = await fetch('/api/market/assets', { cache: 'no-store', signal: activeController.signal })
           if (!response.ok) throw new Error('Market data unavailable')
           const body = await response.json() as { assets?: TickerRow[] }
           const usable = Array.isArray(body.assets) ? body.assets.filter(({ asset, quote }) =>
@@ -186,7 +187,7 @@ export function LiveTickerBar() {
             })
           }
         } catch {
-          if (active && controller === requestController) setRows([])
+          if (active && controller === activeController) setRows([])
         } finally {
           clearTimeout(timeout)
         }
