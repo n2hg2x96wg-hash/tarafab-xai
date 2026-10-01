@@ -5,13 +5,8 @@ import { useEffect, useRef, useState } from 'react'
 import { sharedSummary, useBtcHistory } from '@/components/useMarket'
 import { useI18n } from '@/lib/i18n/I18nProvider'
 
-type Product = 'BTC-USD' | 'ETH-USD' | 'SOL-USD'
-const PRODUCTS: Product[] = ['BTC-USD', 'ETH-USD', 'SOL-USD']
-const LABELS: Record<Product, string> = {
-  'BTC-USD': 'Bitcoin',
-  'ETH-USD': 'Ethereum',
-  'SOL-USD': 'Solana',
-}
+type Product = 'BTC-USD'
+const PRODUCTS: Product[] = ['BTC-USD']
 
 export interface Quote { price: number; open24h: number; dir: 'up' | 'down' | null }
 export interface Trade { id: number; price: number; size: number; side: 'buy' | 'sell'; time: string }
@@ -20,8 +15,8 @@ type Status = 'connecting' | 'live' | 'polling' | 'error'
 const usd = (n: number, digits = 2) =>
   `$${n.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits })}`
 
-// Streams real prices and trades from Coinbase's public feed; falls back to
-// CoinGecko polling if the socket can't connect.
+// Streams real Bitcoin prices and trades from Coinbase's public feed; falls
+// back to the shared server-side quote when the socket can't connect.
 export function useLiveMarket() {
   const [quotes, setQuotes] = useState<Partial<Record<Product, Quote>>>({})
   const [trades, setTrades] = useState<Trade[]>([])
@@ -72,21 +67,7 @@ export function useLiveMarket() {
     const startPolling = () => {
       if (pollTimer || closed) return
       const poll = async () => {
-        // Status follows Bitcoin, the price this panel is about. Ethereum and
-        // Solana are best-effort extras for the ticker bar.
         const btcOk = await btcFromServer().catch(() => false)
-        try {
-          const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum,solana&vs_currencies=usd&include_24hr_change=true')
-          if (res.ok) {
-            const j = await res.json()
-            const map: [Product, string][] = [['ETH-USD', 'ethereum'], ['SOL-USD', 'solana']]
-            for (const [p, id] of map) {
-              const price = j[id]?.usd
-              const ch = j[id]?.usd_24h_change
-              if (price) pendingQuotes.current[p] = { price, open24h: price / (1 + (ch ?? 0) / 100) }
-            }
-          }
-        } catch { /* extras only */ }
         if (!closed) setStatus(btcOk ? 'polling' : 'error')
       }
       poll()
@@ -178,9 +159,10 @@ export function LiveTickerBar() {
     let controller: AbortController | undefined
     const refresh = async () => {
       if (document.visibilityState === 'visible') {
-        controller = new AbortController()
+        const requestController = new AbortController()
+        controller = requestController
         try {
-          const response = await fetch('/api/market/assets', { cache: 'no-store', signal: controller.signal })
+          const response = await fetch('/api/market/assets', { cache: 'no-store', signal: requestController.signal })
           if (!response.ok) throw new Error('Market data unavailable')
           const body = await response.json() as { assets?: TickerRow[] }
           const usable = Array.isArray(body.assets) ? body.assets.filter(({ asset, quote }) =>
@@ -188,9 +170,9 @@ export function LiveTickerBar() {
             quote?.price !== null && Number.isFinite(quote?.price) && quote.price > 0 &&
             (quote.status === 'live' || quote.status === 'delayed'),
           ) : []
-          if (active) setRows(usable)
+          if (active && controller === requestController) setRows(usable)
         } catch {
-          if (active) setRows([])
+          if (active && controller === requestController && !requestController.signal.aborted) setRows([])
         }
       }
       if (active) timer = setTimeout(refresh, 30_000)
@@ -199,6 +181,7 @@ export function LiveTickerBar() {
     const onVisible = () => {
       if (document.visibilityState === 'visible') {
         if (timer) clearTimeout(timer)
+        controller?.abort()
         void refresh()
       }
     }
