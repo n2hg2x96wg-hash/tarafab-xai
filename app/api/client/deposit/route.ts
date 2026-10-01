@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       p_method: method.trim(),
       p_receipt_path: receipt_path || null,
       p_notes: notes?.trim() || null,
-      p_idempotency_key: idempotencyKey(request, body),
+      p_idempotency_key: idempotencyKey(request, body) ?? crypto.randomUUID(),
     })
     if (error) return dbError(error)
     return NextResponse.json({ deposit: { id: data.id, reference: data.reference, status: data.status, created_at: data.created_at } })

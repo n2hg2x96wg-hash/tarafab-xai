@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import AdminLayout from '@/components/AdminLayout'
+import { WalletDepositConfig } from '@/components/admin/WalletDepositConfig'
 import { ThemeSelector } from '@/components/ThemeSelector'
 import { LanguageSelector } from '@/components/LanguageSelector'
 import { AdminLoadError } from '@/components/AdminLoadError'
@@ -209,6 +210,7 @@ export default function AdminSettingsPage() {
             </>
           )}
         </section>
+        <div className="lg:col-span-2"><WalletDepositConfig /></div>
       </div>
     </AdminLayout>
   )

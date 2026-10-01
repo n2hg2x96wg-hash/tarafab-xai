@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import AdminLayout from '@/components/AdminLayout'
 import { AdminLoadError } from '@/components/AdminLoadError'
+import { WalletDepositConfig } from '@/components/admin/WalletDepositConfig'
 
 type Wallet = {
   id: string; user_id: string; full_name: string | null; email: string | null; chain_id: number; network: string; address: string
@@ -92,6 +93,7 @@ export default function AdminWalletsPage() {
 
   return (
     <AdminLayout title="Wallets" subtitle="External wallets linked by clients (public metadata only)">
+      <WalletDepositConfig />
       {loadError && <AdminLoadError message={loadError} onRetry={() => setReload(n => n + 1)} />}
       <div className="glass rounded-2xl border border-white/[0.08] overflow-hidden">
         <div className="p-4 sm:p-5 border-b border-white/[0.06] grid gap-3 sm:grid-cols-[1fr_auto_auto]">

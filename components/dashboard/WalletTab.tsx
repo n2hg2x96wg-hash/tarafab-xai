@@ -7,6 +7,7 @@ import { walletText } from '@/lib/i18n/wallet'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { IconAlert, IconCheck, IconCopy, IconLock, IconWallet } from '@/components/Icons'
 import { Spinner } from '@/components/AuthShell'
+import { WalletDepositPanel } from '@/components/dashboard/WalletDepositPanel'
 import { fmt, type Account } from '@/components/dashboard/shared'
 import {
   NETWORKS, WalletError, chainIdOf, connect, discoverWallets, nativeBalance, networkOf, shortAddress, signMessage, switchChain,
@@ -403,6 +404,15 @@ export function WalletTab({ account }: { account: Account | null }) {
         {error && <div role="alert" className="alert alert-danger mt-4 text-sm"><IconAlert width={16} height={16} className="shrink-0 mt-px" /><span>{error}</span></div>}
         {done && <div role="status" className="alert alert-success mt-4 text-sm"><IconCheck width={16} height={16} className="shrink-0 mt-px" /><span>{done}</span></div>}
       </div>
+
+      {session && sessionLinked && (
+        <WalletDepositPanel
+          provider={session.wallet.provider}
+          address={session.address}
+          chainId={session.chainId}
+          walletId={sessionLinked.id}
+        />
+      )}
 
       {/* Linked wallets */}
       <div className="panel overflow-hidden">
