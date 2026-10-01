@@ -17,15 +17,20 @@ const RECON_LABEL: Record<string, string> = {
 export default function ReconciliationPage() {
   const supabase = createClient()
   const [items, setItems] = useState<Recon[]>([])
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [reload, setReload] = useState(0)
 
   useEffect(() => {
     let active = true
-    supabase.rpc('admin_reconciliation').then(({ data, error }) => {
+    setLoading(true)
+    Promise.resolve(supabase.rpc('admin_reconciliation')).then(({ data, error }) => {
       if (!active) return
+      setLoading(false)
       if (error) setError('Reconciliation data could not be loaded. Please try again.')
       else { setItems((data as Recon[]) || []); setError('') }
+    }).catch(() => {
+      if (active) { setLoading(false); setError('Reconciliation data could not be loaded. Please try again.') }
     })
     return () => { active = false }
   }, [supabase, reload])
@@ -33,11 +38,12 @@ export default function ReconciliationPage() {
   return (
     <AdminLayout title="Reconciliation audit" subtitle="Restricted accounting review of stored balance discrepancies">
       {error && <AdminLoadError message={error} onRetry={() => setReload(value => value + 1)} />}
-      {!error && items.length === 0 ? (
+      {loading && <p role="status" className="text-sm text-slate-400">Loading reconciliation report…</p>}
+      {!loading && !error && items.length === 0 ? (
         <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5 text-sm text-slate-300">
           Reconciliation is clean. No items need review.
         </div>
-      ) : items.length > 0 ? (
+      ) : !loading && !error && items.length > 0 ? (
         <div className="overflow-hidden rounded-2xl border border-white/[0.08]">
           <div className="border-b border-white/[0.06] px-5 py-4 text-sm text-slate-400">
             {items.length} item{items.length === 1 ? '' : 's'} need review. This report is read-only; corrections require an audited admin adjustment.
