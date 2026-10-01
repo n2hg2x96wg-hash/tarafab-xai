@@ -12,6 +12,7 @@ import {
   NETWORKS, WalletError, chainIdOf, connect, discoverWallets, nativeBalance, networkOf, shortAddress, signMessage, switchChain,
   type Eip1193, type WalletInfo,
 } from '@/lib/wallet/eip1193'
+import { WalletDepositPanel } from '@/components/dashboard/WalletDepositPanel'
 import {
   clearPending, endSdkSession, readPending, readyProvider, restoredAccount, savePending, sdkProvider, walletConnectAvailable, type SdkKind,
 } from '@/lib/wallet/sdkProviders'
@@ -403,6 +404,15 @@ export function WalletTab({ account }: { account: Account | null }) {
         {error && <div role="alert" className="alert alert-danger mt-4 text-sm"><IconAlert width={16} height={16} className="shrink-0 mt-px" /><span>{error}</span></div>}
         {done && <div role="status" className="alert alert-success mt-4 text-sm"><IconCheck width={16} height={16} className="shrink-0 mt-px" /><span>{done}</span></div>}
       </div>
+
+      {session && sessionLinked && (
+        <WalletDepositPanel
+          provider={session.wallet.provider}
+          address={session.address}
+          chainId={session.chainId}
+          walletId={sessionLinked.id}
+        />
+      )}
 
       {/* Linked wallets */}
       <div className="panel overflow-hidden">
