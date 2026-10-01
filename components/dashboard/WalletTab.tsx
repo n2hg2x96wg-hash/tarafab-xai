@@ -63,6 +63,38 @@ export function WalletTab({ account }: { account: Account | null }) {
   }, [])
   useEffect(() => { load() }, [load])
 
+  // Silently restore the on-chain balance view after a normal page reload.
+  // Only reattaches to a wallet that is both already authorised for this site
+  // (eth_accounts never prompts, unlike eth_requestAccounts) and already
+  // verified/linked in the database - it never opens a wallet, never asks for
+  // a new permission, and never auto-connects an SDK wallet (those only
+  // resume through the pending-redirect flow above).
+  const silentRestoreDone = useRef(false)
+  useEffect(() => {
+    if (silentRestoreDone.current || !linked || session) return
+    const live = linked.filter(w => w.status === 'linked')
+    if (!live.length) return
+    silentRestoreDone.current = true
+    let alive = true
+    ;(async () => {
+      const injected = await discoverWallets()
+      for (const w of injected) {
+        try {
+          const accounts = await w.provider.request({ method: 'eth_accounts' }) as string[]
+          const address = Array.isArray(accounts) && typeof accounts[0] === 'string' ? accounts[0].toLowerCase() : ''
+          const match = address && live.find(l => l.address.toLowerCase() === address)
+          if (!match || !alive) continue
+          const chainId = await chainIdOf(w.provider).catch(() => match.chain_id)
+          if (!alive) return
+          setSession({ wallet: w, address, chainId })
+          setTargetChain(networkOf(chainId) ? chainId : match.chain_id)
+          return
+        } catch { /* a silent probe failing is not an error the user needs to see */ }
+      }
+    })()
+    return () => { alive = false }
+  }, [linked, session])
+
   const walletMsg = (e: unknown) => {
     if (e instanceof WalletError) return t(`wallet.err.${e.code}`) + (e.code === 'failed' && e.detail ? ` (${e.detail})` : '')
     return errorText(e)
