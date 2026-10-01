@@ -19,8 +19,7 @@ In **Authentication → Providers → Email**:
 - Keep email/password enabled.
 - Keep **Confirm email** enabled for production.
 - In **Authentication → URL Configuration**, add the deployed application URL to **Site URL**.
-- Add the deployed login URL to **Redirect URLs**. For GitHub Pages this is normally:
-  `https://YOUR_GITHUB_USERNAME.github.io/tarafab-xai/login`
+- Add the deployed sign-in URL to **Redirect URLs**: `https://YOUR_DOMAIN/sign-in`.
 
 If verification emails are not arriving, configure a custom SMTP provider in Supabase. Apple Private Relay addresses can also delay or filter messages; test with a normal mailbox while configuring delivery.
 
@@ -40,15 +39,13 @@ The scheduled Supabase Edge Function `evaluate-market-automations` must use serv
 ## 4. Build and deploy
 
 ```bash
-npm install
+npm ci
 npm run lint
 npm run build
 ```
 
-Deploy the generated `dist` directory using a static host such as Vercel, Netlify, or GitHub Pages.
-
-For GitHub Pages, the project already uses the `/tarafab-xai/` base path during GitHub Actions builds and aligns React Router with that base path.
+Deploy the complete Next.js application to Vercel with its server runtime enabled. Do not deploy a static `dist` directory: API routes, server-side Supabase access, and authentication require the Next.js server runtime.
 
 ## 5. Current scope
 
-The frontend currently supports Supabase session restoration, registration, login, dashboard reads, and transaction reads. The existing deposit, withdrawal, and transfer screens still require trusted backend/API or Supabase Edge Function implementations before they can safely process financial writes.
+The application uses Next.js API routes and Supabase Edge Functions alongside Supabase Auth and Postgres. Production financial workflows depend on the existing trusted database functions and Row Level Security policies; verify all migrations and server-side secrets before enabling live transactions.
