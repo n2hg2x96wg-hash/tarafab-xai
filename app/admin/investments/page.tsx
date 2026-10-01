@@ -55,6 +55,13 @@ const label = (s: string) => s === 'pending_activation' ? 'pending' : s.replace(
 const money = (n: number | null | undefined) => `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 const duration = (v: { duration_value?: number | null; duration_unit?: string | null; term_days?: number | null }) =>
   v.duration_value && v.duration_unit ? `${v.duration_value} ${v.duration_value === 1 ? v.duration_unit.replace(/s$/, '') : v.duration_unit}` : v.term_days ? `${v.term_days} days` : 'Open-ended'
+const configuredProfit = (version: Version | null, principal: number) => {
+  if (version?.return_type === 'fixed_rate' && version.return_rate_pct != null) {
+    return Math.round(principal * Number(version.return_rate_pct)) / 100
+  }
+  if (version?.return_type === 'fixed_amount' && version.return_amount != null) return Number(version.return_amount)
+  return null
+}
 
 export default function AdminInvestmentsPage() {
   const [tab, setTab] = useState<'products' | 'investments' | 'adjustments' | 'activity'>('products')
@@ -530,6 +537,9 @@ function ReviewPanel({ inv, client, productCode, onClose, onDone }: { inv: Inv; 
   }
   const running = ['active', 'completed', 'matured'].includes(inv.status)
   const profit = profitOf(inv)
+  const completionProfit = configuredProfit(info?.version || null, Number(inv.principal))
+  const autoProfit = completionProfit !== null && profit === 0 ? completionProfit : 0
+  const completionEligible = !inv.maturity_date || Date.parse(inv.maturity_date) <= Date.now()
   const np = newProfit.trim() === '' ? NaN : Number(newProfit)
   const npValid = /^-?\d+(\.\d{1,2})?$/.test(newProfit.trim()) && np >= -Number(inv.principal) && np !== profit
   const row = (k: string, v: React.ReactNode) => <div className="flex justify-between gap-3 py-1.5 border-b border-white/[0.04] text-sm"><span className="text-slate-500 shrink-0">{k}</span><span className="text-white text-right break-all">{v}</span></div>
@@ -590,7 +600,10 @@ function ReviewPanel({ inv, client, productCode, onClose, onDone }: { inv: Inv; 
           </div>
         )}
         {inv.status === 'active' && mode === '' && (
-          <button disabled={busy} onClick={() => setMode('complete')} className="btn btn-outline w-full">Mark completed (return principal)</button>
+          <div className="space-y-2">
+            {!completionEligible && <p className="text-xs text-amber-300">Completion is available on {new Date(inv.maturity_date!).toLocaleString()}.</p>}
+            <button disabled={busy || !completionEligible} onClick={() => setMode('complete')} className="btn btn-outline w-full">Review completion</button>
+          </div>
         )}
         {running && mode === '' && (
           <button disabled={busy} onClick={() => { setMode('profit'); setNewProfit(''); setReason(''); setErr('') }} className="btn btn-outline w-full">Edit profit / return</button>
@@ -648,10 +661,26 @@ function ReviewPanel({ inv, client, productCode, onClose, onDone }: { inv: Inv; 
         )}
         {(mode === 'reject' || mode === 'complete' || mode === 'expire') && (
           <div className="space-y-3">
+            {mode === 'complete' && (
+              <div className="rounded-xl border border-white/[0.08] p-3 text-sm">
+                <p className="mb-2 font-semibold text-white">Completion preview · current status: {label(inv.status)}</p>
+                {row('Principal returned to available', money(Number(inv.principal)))}
+                {row('Configured profit', completionProfit === null ? 'No calculable return in the stored product version' : money(completionProfit))}
+                {row('Profit to post automatically', autoProfit > 0 ? money(autoProfit) : 'No new automatic credit')}
+                {row('Profit already credited', signedMoney(profit))}
+                {row('Resulting value', money(Number(inv.principal) + profit + autoProfit))}
+                <p className="mt-2 text-xs text-slate-400">
+                  {completionProfit === null
+                    ? 'Completion returns principal only. Any additional profit requires a separate explicit admin profit decision.'
+                    : profit !== 0 && profit !== completionProfit
+                      ? 'Existing credited profit differs from the configured terms; it will not be overwritten automatically. Review it explicitly if needed.'
+                      : 'The configured return is taken from the immutable version linked to this investment. Principal returns to available balance; new Profit is credited to Profit balance.'}
+                </p>
+              </div>
+            )}
             <textarea className="input-field" rows={2} placeholder={mode === 'reject' ? 'Reason for rejection (required, shown to the client)' : 'Reason (required, recorded in the audit log)'} value={reason} onChange={e => setReason(e.target.value)} />
             {mode === 'reject' && <p className="text-xs text-slate-500">The held amount returns to the client&apos;s account balance.</p>}
             {mode === 'expire' && <p className="text-xs text-slate-500">The request is marked Expired, the held amount returns to the client&apos;s account balance, and the record is kept.</p>}
-            {mode === 'complete' && <p className="text-xs text-slate-500">The principal moves from invested back to available. No return is recorded here.</p>}
             <div className="flex gap-3">
               <button disabled={busy} onClick={() => { setMode(''); setReason('') }} className="btn btn-outline flex-1">Back</button>
               <button disabled={busy || !reason.trim()} onClick={() => go(mode === 'reject' ? { action: 'review', decision: 'reject', reason } : mode === 'expire' ? { action: 'expire', reason } : { action: 'complete', reason })} className="btn btn-solid flex-1">{busy ? 'Working…' : mode === 'reject' ? 'Confirm rejection' : mode === 'expire' ? 'Confirm expiry' : 'Confirm completion'}</button>

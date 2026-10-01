@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
   const [products, investments, kyc, account] = await Promise.all([
     supabase.from('investment_products').select('id, code, status, current_version_id').eq('status', 'active').order('created_at'),
     supabase.from('client_investments')
-      .select('id, reference, product_id, product_version_id, principal, fee_amount, profit_amount, return_type, expected_return, expected_total, currency, status, start_date, maturity_date, completed_at, rejection_reason, reviewed_at, created_at')
+      .select('id, reference, product_id, product_version_id, principal, fee_amount, profit_amount, return_type, return_rate_pct, return_amount, expected_return, expected_total, currency, status, start_date, maturity_date, completed_at, rejection_reason, reviewed_at, created_at')
       .eq('user_id', auth.user.id).order('created_at', { ascending: false }).limit(100),
     supabase.rpc('client_kyc_status'),
     // The one existing balance record; nothing here recalculates it.
@@ -62,10 +62,10 @@ export async function GET(request: NextRequest) {
     const [ev, tl, adj] = await Promise.all([
       supabase.from('client_investment_events').select('id, client_investment_id, from_status, to_status, reason, created_at')
         .in('client_investment_id', ids).order('created_at'),
-      supabase.from('investment_transactions').select('client_investment_id, kind, transactions(id, type, amount, status, reference, created_at)')
+      supabase.from('investment_transactions').select('client_investment_id, kind, transactions(id, type, amount, direction, status, reference, notes, created_at)')
         .in('client_investment_id', ids),
       // Profit history for the client's own investments (who adjusted it is not shown).
-      supabase.from('investment_profit_adjustments').select('id, investment_id, previous_profit, new_profit, previous_value, new_value, reason, created_at')
+      supabase.from('investment_profit_adjustments').select('id, investment_id, transaction_id, previous_profit, new_profit, previous_value, new_value, reason, created_at')
         .in('investment_id', ids).order('created_at'),
     ])
     if (!adj.error) adjustments = adj.data || []
