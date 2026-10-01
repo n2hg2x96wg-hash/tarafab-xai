@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import AdminLayout from '@/components/AdminLayout'
 import { ClientWallets } from '@/components/admin/ClientWallets'
+import { parseEffective, toLocalInput } from '@/lib/effectiveDate'
 import { authFetch, errorText, newRequestKey, readJson, RequestError } from '@/lib/authFetch'
 import { useI18n } from '@/lib/i18n/I18nProvider'
 
@@ -41,6 +42,7 @@ type Transaction = {
   status: string
   notes: string | null
   created_at: string
+  effective_at?: string
 }
 
 type AdjustForm = {
@@ -48,6 +50,7 @@ type AdjustForm = {
   operation: 'credit' | 'debit' | 'set'
   amount: string
   reason: string
+  effective: string // '' = now; otherwise a datetime-local value (backdating)
 }
 
 // "Account Balance" is the client's spendable balance and is stored in
@@ -91,6 +94,7 @@ export default function ClientDetailPage() {
     operation: 'credit',
     amount: '',
     reason: '',
+    effective: '',
   })
   const [adjusting, setAdjusting] = useState(false)
   const [adjustError, setAdjustError] = useState('')
@@ -113,7 +117,7 @@ export default function ClientDetailPage() {
 
   // A different adjustment gets a different key; an unchanged form retried
   // after a network error keeps its key and cannot be applied twice.
-  useEffect(() => { adjustKey.current = newRequestKey() }, [adjustForm.field, adjustForm.operation, adjustForm.amount, adjustForm.reason])
+  useEffect(() => { adjustKey.current = newRequestKey() }, [adjustForm.field, adjustForm.operation, adjustForm.amount, adjustForm.reason, adjustForm.effective])
 
   useEffect(() => {
     const t = setInterval(() => setTick(n => n + 1), 15_000)
@@ -129,9 +133,9 @@ export default function ClientDetailPage() {
       (supabase.from('accounts') as any)
         .select('*').eq('user_id', id).maybeSingle() as Promise<{ data: Account | null; error: { message: string } | null }>,
       (supabase.from('transactions') as any)
-        .select('id, type, method, direction, amount, status, notes, created_at')
+        .select('id, type, method, direction, amount, status, notes, created_at, effective_at')
         .eq('user_id', id)
-        .order('created_at', { ascending: false })
+        .order('effective_at', { ascending: false })
         .limit(20) as Promise<{ data: Transaction[] | null; error: { message: string } | null }>,
       supabase.rpc('admin_client_emails') as unknown as Promise<{ data: { id: string; email: string }[] | null }>,
     ])
@@ -228,6 +232,7 @@ export default function ClientDetailPage() {
     const amt = parseFloat(adjustForm.amount)
     if (!amt || amt <= 0) { setAdjustError('Amount must be greater than 0'); return }
     if (!adjustForm.reason.trim()) { setAdjustError('Reason is required'); return }
+    if (parseEffective(adjustForm.effective).error) { setAdjustError(parseEffective(adjustForm.effective).error); return }
     const newVal = computeNewValue()
     if (newVal === null || newVal < 0) { setAdjustError('Resulting balance cannot be negative'); return }
     setShowConfirm(true)
@@ -248,13 +253,14 @@ export default function ClientDetailPage() {
           operation: adjustForm.operation,
           amount: parseFloat(adjustForm.amount),
           reason: adjustForm.reason.trim(),
+          effective_at: parseEffective(adjustForm.effective).iso,
           // Rejected if the balances changed after this page loaded them.
           expected_updated_at: account?.updated_at,
         }),
       }))
 
       setAdjustSuccess(`${FIELD_LABELS[adjustForm.field]} updated successfully.`)
-      setAdjustForm({ field: 'available_balance', operation: 'credit', amount: '', reason: '' })
+      setAdjustForm({ field: 'available_balance', operation: 'credit', amount: '', reason: '', effective: '' })
       adjustKey.current = newRequestKey()
       await load()
     } catch (err) {
@@ -516,6 +522,21 @@ export default function ClientDetailPage() {
                 disabled={adjusting}
               />
             </div>
+
+            <div>
+              <label htmlFor="adj-effective" className="block text-xs font-medium text-slate-400 mb-1.5">Effective date</label>
+              <input
+                id="adj-effective"
+                type="datetime-local"
+                value={adjustForm.effective}
+                max={toLocalInput(new Date())}
+                min="2020-01-01T00:00"
+                onChange={e => setAdjustForm(f => ({ ...f, effective: e.target.value }))}
+                className="input-field text-sm"
+                disabled={adjusting}
+              />
+              <p className="text-[11px] text-slate-500 mt-1">Leave empty for now. Set an earlier date to record the transaction on the date it applies to; the client sees that date. The recording time and your name are kept in the audit log only.</p>
+            </div>
           </div>
 
           <button
@@ -659,7 +680,7 @@ export default function ClientDetailPage() {
                       </span>
                     </div>
                     <p className="text-[10px] text-slate-600 mt-0.5">
-                      {new Date(tx.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                      {new Date(tx.effective_at || tx.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}{tx.effective_at && tx.effective_at !== tx.created_at ? ` · recorded ${new Date(tx.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}
                     </p>
                   </div>
                 </div>
@@ -682,6 +703,7 @@ export default function ClientDetailPage() {
               <div className="flex justify-between"><span className="text-slate-400">Operation</span><span className="text-white capitalize">{adjustForm.operation}</span></div>
               <div className="flex justify-between"><span className="text-slate-400">Amount</span><span className="text-white">${parseFloat(adjustForm.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span></div>
               <div className="flex justify-between"><span className="text-slate-400">New Value</span><span className="text-emerald-400 font-semibold">${(newVal ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span></div>
+              <div className="flex justify-between"><span className="text-slate-400">Effective date</span><span className="text-white">{adjustForm.effective ? new Date(adjustForm.effective).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : 'Now'}</span></div>
               <div className="flex justify-between gap-3"><span className="text-slate-400 shrink-0">Reason</span><span className="text-white text-right text-xs">{adjustForm.reason}</span></div>
             </div>
             <div className="flex gap-3">

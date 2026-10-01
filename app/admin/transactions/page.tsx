@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import AdminLayout from '@/components/AdminLayout'
 import { AdminLoadError } from '@/components/AdminLoadError'
 import { authFetch, errorText, readJson, RequestError } from '@/lib/authFetch'
+import { EffectiveDateModal } from '@/components/admin/EffectiveDateModal'
 
 type Tx = {
   id: string
@@ -19,6 +20,7 @@ type Tx = {
   reference: string | null
   address: string | null
   created_at: string
+  effective_at: string
   profiles: { full_name: string | null } | null
 }
 
@@ -52,6 +54,7 @@ export default function TransactionsPage() {
   const [filterType, setFilterType] = useState(typeParam === 'deposit' || typeParam === 'withdrawal' ? typeParam : '')
   useEffect(() => { setFilterType(typeParam === 'deposit' || typeParam === 'withdrawal' ? typeParam : '') }, [typeParam])
   const [reviewingId, setReviewingId] = useState<string | null>(null)
+  const [dating, setDating] = useState<Tx | null>(null)
   const [reviewAction, setReviewAction] = useState<'approve' | 'reject' | null>(null)
   const [reviewReason, setReviewReason] = useState('')
   const [reviewLoading, setReviewLoading] = useState(false)
@@ -71,12 +74,12 @@ export default function TransactionsPage() {
   // behind a fixed row cap. Name search also narrows the loaded rows below.
   const fetchTxs = async (before?: string) => {
     let q = (supabase.from('transactions') as any)
-      .select('id, user_id, type, method, amount, fee, status, notes, reference, address, created_at, profiles(full_name)')
-      .order('created_at', { ascending: false })
+      .select('id, user_id, type, method, amount, fee, status, notes, reference, address, created_at, effective_at, profiles(full_name)')
+      .order('effective_at', { ascending: false }).order('id', { ascending: false })
       .limit(PAGE + 1)
     if (filterType) q = q.eq('type', filterType)
     if (filterStatus) q = q.eq('status', filterStatus)
-    if (before) q = q.lt('created_at', before)
+    if (before) q = q.lt('effective_at', before)
     if (term && /^[0-9a-f-]{36}$/i.test(term)) q = q.or(`id.eq.${term},user_id.eq.${term}`)
     else if (term && /^[A-Za-z]{2,4}-[A-Za-z0-9-]+$/.test(term)) q = q.ilike('reference', `${term.replace(/[%_,()]/g, '')}%`)
     const { data, error } = await q as { data: Tx[] | null; error: unknown }
@@ -91,7 +94,7 @@ export default function TransactionsPage() {
     setLoading(false)
   }
   const loadMore = async () => {
-    const last = txs[txs.length - 1]?.created_at
+    const last = txs[txs.length - 1]?.effective_at || txs[txs.length - 1]?.created_at
     if (!last || loadingMore) return
     setLoadingMore(true)
     try { await fetchTxs(last) } finally { setLoadingMore(false) }
@@ -284,7 +287,9 @@ export default function TransactionsPage() {
                         <span className="block truncate" title={noteText(tx.notes)}>{noteText(tx.notes) || '—'}</span>
                       </td>
                       <td className="px-5 py-4 text-xs text-slate-500 whitespace-nowrap">
-                        {new Date(tx.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        <span className="block text-slate-300">{new Date(tx.effective_at || tx.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                        {tx.effective_at && tx.effective_at !== tx.created_at && <span className="block text-[10px] text-slate-600" title="Internal recording time">recorded {new Date(tx.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
+                        <button onClick={() => setDating({ ...tx, effective_at: tx.effective_at || tx.created_at })} className="text-[10px] text-violet-300 hover:text-violet-200">Change date</button>
                       </td>
                       <td className="px-5 py-4">
                         {canReview(tx) ? (
@@ -331,8 +336,10 @@ export default function TransactionsPage() {
                   {receiptPath(tx.notes) && (
                     <button onClick={() => openReceipt(receiptPath(tx.notes)!)} className="mt-1 text-xs font-medium text-sky-400 hover:text-sky-300 underline underline-offset-2">View receipt</button>
                   )}
-                  <p className="text-[10px] text-slate-600 mt-1">
-                    {new Date(tx.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    {new Date(tx.effective_at || tx.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                    {tx.effective_at && tx.effective_at !== tx.created_at && <span className="text-slate-600"> · recorded {new Date(tx.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
+                    {' · '}<button onClick={() => setDating({ ...tx, effective_at: tx.effective_at || tx.created_at })} className="text-violet-300 hover:text-violet-200">Change date</button>
                   </p>
                   {canReview(tx) && (
                     <div className="flex gap-2 mt-3">
@@ -361,6 +368,7 @@ export default function TransactionsPage() {
           </div>
         )}
       </div>
+      {dating && <EffectiveDateModal tx={dating} onClose={() => setDating(null)} onSaved={() => { setDating(null); setReload(n => n + 1) }} />}
     </AdminLayout>
   )
 }

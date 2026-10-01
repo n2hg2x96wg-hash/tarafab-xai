@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
       reason: string
       idempotency_key?: string
       expected_updated_at?: string
+      effective_at?: string
     }
     const { target_user_id, field, operation, amount, reason, expected_updated_at } = body
 
@@ -34,7 +35,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Reason is required' }, { status: 400 })
     }
 
-    const { data, error } = await supabase.rpc('admin_adjust_balance', {
+    // Optional effective (business) date for the recorded transaction. The
+    // database rejects future dates and dates before 2020 and audits it.
+    let effectiveAt: string | null = null
+    if (body.effective_at) {
+      const ms = Date.parse(body.effective_at)
+      if (Number.isNaN(ms)) return NextResponse.json({ error: 'Enter a valid effective date.' }, { status: 400 })
+      effectiveAt = new Date(ms).toISOString()
+    }
+
+    const { data, error } = await supabase.rpc(effectiveAt ? 'admin_adjust_balance_effective' : 'admin_adjust_balance', {
       p_user_id: target_user_id,
       p_field: field,
       p_operation: operation,
@@ -42,6 +52,7 @@ export async function POST(request: NextRequest) {
       p_reason: reason.trim(),
       p_idempotency_key: idempotencyKey(request, body),
       p_expected_updated_at: expected_updated_at || null,
+      ...(effectiveAt ? { p_effective_at: effectiveAt } : {}),
     })
     if (error) return dbError(error)
     return NextResponse.json({ success: true, field, new_value: data })
