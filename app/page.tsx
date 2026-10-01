@@ -175,7 +175,13 @@ export default function LandingPage() {
             this section much taller than the banner it is meant to sit
             behind; without a cap the node network and price wave spread
             across that extra height and strand isolated marks over
-            unrelated content (e.g. just under the sign-in button). */}
+            unrelated content (e.g. just under the sign-in button).
+            760px approximates the stacked badge+title+body+CTAs+risk text
+            column on a phone; it only needs to roughly bound the banner, not
+            match it exactly, since the network/wave are a diffuse texture
+            rather than content that must align to a pixel. Reverts to the
+            full section (`lg:inset-0 lg:h-auto`) once the grid is
+            side-by-side and the section height already matches the banner. */}
         <div className="absolute inset-x-0 top-0 h-[760px] lg:inset-0 lg:h-auto overflow-hidden" aria-hidden="true">
           <div className="hero-light" aria-hidden="true" />
           <div className="hero-grid" aria-hidden="true" />

@@ -51,11 +51,13 @@ async function stooqQuote(symbol: string) {
   })
   if (!response.ok) throw new Error(`provider responded ${response.status}`)
   const text = await response.text()
-  // Header row, then one data row: Symbol,Date,Time,Open,High,Low,Close,Volume.
-  // A symbol Stooq does not recognize returns "N/D" fields instead of an error.
-  const row = text.trim().split(/\r?\n/)[1]?.split(',') || []
-  const open = Number(row[3])
-  const price = Number(row[6])
+  // Header row, then one data row. The `f=sd2t2ohlcv` query parameter fixes
+  // this column order: 0 Symbol, 1 Date, 2 Time, 3 Open, 4 High, 5 Low,
+  // 6 Close, 7 Volume. A symbol Stooq does not recognize returns "N/D"
+  // fields instead of an error.
+  const [, , , openCol, , , closeCol] = text.trim().split(/\r?\n/)[1]?.split(',') || []
+  const open = Number(openCol)
+  const price = Number(closeCol)
   if (!Number.isFinite(price) || price <= 0) throw new Error('malformed provider response')
   return { price, change24h: Number.isFinite(open) && open > 0 ? ((price - open) / open) * 100 : null }
 }
