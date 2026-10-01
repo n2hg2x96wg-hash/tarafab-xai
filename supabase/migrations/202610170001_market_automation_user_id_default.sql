@@ -10,5 +10,12 @@
 -- (the `with check` clauses are unchanged and still enforce
 -- user_id = auth.uid(); a client that tried to pass a different user_id
 -- would still be rejected).
+--
+-- Note: auth.uid() resolves to NULL outside of an authenticated request
+-- context (e.g. a service-role job with no user JWT). The `not null`
+-- constraint on these columns is unchanged, so such an insert still fails
+-- loudly (NOT NULL violation) rather than silently persisting a NULL
+-- user_id; this default only affects inserts made on behalf of a signed-in
+-- user, which is the only path the client API ever uses for these tables.
 alter table public.market_watchlists alter column user_id set default auth.uid();
 alter table public.market_automations alter column user_id set default auth.uid();

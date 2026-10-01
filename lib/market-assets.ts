@@ -63,6 +63,7 @@ async function stooqQuote(symbol: string) {
   const cells = text.trim().split(/\r?\n/)[1]?.split(',') || []
   if (cells.length !== STOOQ_COLUMNS.length) throw new Error('malformed provider response')
   const row = Object.fromEntries(STOOQ_COLUMNS.map((name, i) => [name, cells[i]])) as Record<typeof STOOQ_COLUMNS[number], string | undefined>
+  if (row.close === 'N/D' || row.open === 'N/D') throw new Error('provider does not recognize symbol')
   const open = Number(row.open)
   const price = Number(row.close)
   if (!Number.isFinite(price) || price <= 0) throw new Error('malformed provider response')
