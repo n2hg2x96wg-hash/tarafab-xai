@@ -69,8 +69,12 @@ export function walletError(e: unknown): WalletError {
   if (code === 5000 || code === 5001 || /user (rejected|denied|cancel)|rejected by user|request reset|modal closed|user closed/i.test(msg)) {
     return new WalletError('You declined the request in your wallet.', 'rejected')
   }
-  const detail = [code != null ? `code ${code}` : '', msg].filter(Boolean).join(': ').slice(0, 200)
-  if (typeof console !== 'undefined') console.warn('wallet request failed', detail || e)
+  const safeMessage = msg
+    .replace(/https?:\/\/\S+/gi, '[provider URL]')
+    .replace(/\bwc:[^\s]+/gi, '[WalletConnect request]')
+    .replace(/0x[a-f\d]{32,}/gi, '[redacted value]')
+    .slice(0, 120)
+  const detail = [code != null ? `code ${code}` : '', safeMessage].filter(Boolean).join(': ')
   return new WalletError('The wallet could not complete the request. Try again.', 'failed', detail)
 }
 

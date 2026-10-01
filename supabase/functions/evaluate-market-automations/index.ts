@@ -20,7 +20,7 @@ type Quote = { price: number; change: number | null; volume: number | null; upda
 
 const TIMEOUT_MS = 8_000
 const CRYPTO_MAX_AGE_MS = 10 * 60_000
-const STOOQ_MAX_AGE_MS = 72 * 60 * 60_000
+const STOOQ_MAX_AGE_MS = 24 * 60 * 60_000
 
 function optionalNumber(value: unknown): number | null {
   if (typeof value !== 'number' && (typeof value !== 'string' || !value.trim())) return null

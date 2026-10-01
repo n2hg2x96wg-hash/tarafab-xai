@@ -15,9 +15,14 @@ while its prerequisites are missing:
 - `supabase/migrations/202610170002_index_market_data_provider.sql`
 - `supabase/migrations/202610180001_automation_idempotency_market_alerts.sql`
 - `supabase/migrations/202610190001_idempotent_configured_investment_completion.sql`
+- `supabase/migrations/202610200001_equity_market_data_provider.sql`
 
 The index provider migration only fills provider fields that are still null;
 NDX/DJI remain unavailable if the selected provider returns no valid quote.
+The equity provider migration only fills null provider mappings and adds
+Stooq end-of-day quotes for TSLA, AAPL, NVDA, MSFT, and AMZN. These quotes are
+marked delayed and are rejected as stale after 24 hours; their availability
+depends on Stooq returning a valid quote.
 The investment completion migration is additive and does not rewrite existing
 investment or transaction rows.
 

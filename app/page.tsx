@@ -165,7 +165,7 @@ export default function LandingPage() {
       )}
 
       <div className="pt-16">
-        <ErrorBoundary label={t('trust.marketData')}><LiveTickerBar quotes={market.quotes} /></ErrorBoundary>
+        <ErrorBoundary label={t('trust.marketData')}><LiveTickerBar /></ErrorBoundary>
       </div>
 
       {/* Hero */}
