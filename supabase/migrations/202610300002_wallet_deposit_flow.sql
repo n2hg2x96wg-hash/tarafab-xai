@@ -31,6 +31,10 @@ create table if not exists public.wallet_deposit_intents (
   actual_amount numeric(30,18),
   fee_amount numeric(30,18) not null default 0 check (fee_amount >= 0),
   net_amount numeric(30,18),
+  usd_rate numeric(30,10),
+  usd_gross_amount numeric(30,2),
+  usd_fee_amount numeric(30,2),
+  usd_net_amount numeric(30,2),
   status text not null default 'awaiting_transfer'
     check (status in ('awaiting_transfer','pending_verification','completed','failed','expired')),
   tx_hash text unique,
@@ -137,6 +141,10 @@ begin
   v_usd_fee := round(v_fee * p_usd_rate, 2);
   v_usd_net := round(v_net * p_usd_rate, 2);
   if v_usd_net <= 0 then raise exception 'The net USD value is too small to credit.'; end if;
+  v_usd_gross := round(p_actual_amount * p_usd_rate, 2);
+  v_usd_fee := round(v_fee * p_usd_rate, 2);
+  v_usd_net := round(v_net * p_usd_rate, 2);
+  if v_usd_net <= 0 then raise exception 'The verified transfer value is too small to credit.'; end if;
   select * into v_acc from public.accounts where user_id=v_intent.user_id for update;
   if not found then raise exception 'Client account not found.'; end if;
   update public.accounts set account_balance=account_balance+v_usd_net,available_balance=available_balance+v_usd_net,updated_at=now() where id=v_acc.id;
@@ -153,7 +161,7 @@ begin
     tx_hash=lower(p_tx_hash),transaction_id=v_tx.id,updated_at=now(),error_message=null where id=v_intent.id;
   insert into public.audit_logs(user_id,actor_id,target_user_id,action,entity,entity_id,details,result)
   values(v_intent.user_id,v_intent.user_id,v_intent.user_id,'WALLET_DEPOSIT_CREDITED','wallet_deposit',v_intent.id::text,
-    jsonb_build_object('tx_hash',lower(p_tx_hash),'gross_amount',p_actual_amount,'fee_amount',v_fee,'net_amount',v_net,
+    jsonb_build_object('tx_hash',lower(p_tx_hash),'gross_amount',p_actual_amount,'fee_amount',v_fee,'net_amount',v_net,'usd_rate',p_usd_rate,'usd_gross_amount',v_usd_gross,'usd_fee_amount',v_usd_fee,'usd_net_amount',v_usd_net,
       'network',v_intent.network,'wallet_id',v_intent.wallet_id),'success');
   return jsonb_build_object('status','completed','transaction_id',v_tx.id,'gross_amount',p_actual_amount,'fee_amount',v_fee,'net_amount',v_net,'usd_rate',p_usd_rate,'usd_net',v_usd_net);
 end $$;
@@ -229,22 +237,22 @@ notify pgrst,'reload schema';
   if v_net <= 0 then raise exception 'The service fee is greater than the received amount.'; end if;
   select * into v_acc from public.accounts where user_id=v_intent.user_id for update;
   if not found then raise exception 'Client account not found.'; end if;
-  update public.accounts set account_balance=account_balance+v_net,available_balance=available_balance+v_net,updated_at=now() where id=v_acc.id;
+  update public.accounts set account_balance=account_balance+v_usd_net,available_balance=available_balance+v_usd_net,updated_at=now() where id=v_acc.id;
   insert into public.transactions
     (user_id,type,method,amount,fee,asset,address,network,status,reference,notes)
   values
-    (v_intent.user_id,'deposit','wallet_transfer',round(v_net,2),round(v_fee,2),v_intent.symbol,v_intent.from_address,v_intent.network,'completed',
+    (v_intent.user_id,'deposit','wallet_transfer',v_usd_net,v_usd_fee,'USD',v_intent.from_address,v_intent.network,'completed',
      'WDEP-'||upper(substr(replace(gen_random_uuid()::text,'-',''),1,10)),
      'External wallet transfer · gross '||trim(to_char(p_actual_amount,'FM999999999990.##################'))||' '||v_intent.symbol||
-     ' · Tarafab service fee '||trim(to_char(v_fee,'FM999999999990.##################'))||' '||v_intent.symbol||' · on-chain tx '||lower(p_tx_hash))
+     ' · USD rate '||trim(to_char(p_usd_rate,'FM999999999990.##########'))||' · Tarafab service fee '||trim(to_char(v_fee,'FM999999999990.##################'))||' '||v_intent.symbol||' · on-chain tx '||lower(p_tx_hash))
   returning * into v_tx;
-  update public.wallet_deposit_intents set actual_amount=p_actual_amount,fee_amount=v_fee,net_amount=v_net,status='completed',
+  update public.wallet_deposit_intents set actual_amount=p_actual_amount,fee_amount=v_fee,net_amount=v_net,usd_rate=p_usd_rate,usd_gross_amount=v_usd_gross,usd_fee_amount=v_usd_fee,usd_net_amount=v_usd_net,status='completed',
     tx_hash=lower(p_tx_hash),transaction_id=v_tx.id,updated_at=now(),error_message=null where id=v_intent.id;
   insert into public.audit_logs(user_id,actor_id,target_user_id,action,entity,entity_id,details,result)
   values(v_intent.user_id,v_intent.user_id,v_intent.user_id,'WALLET_DEPOSIT_CREDITED','wallet_deposit',v_intent.id::text,
     jsonb_build_object('tx_hash',lower(p_tx_hash),'gross_amount',p_actual_amount,'fee_amount',v_fee,'net_amount',v_net,
       'network',v_intent.network,'wallet_id',v_intent.wallet_id),'success');
-  return jsonb_build_object('status','completed','transaction_id',v_tx.id,'gross_amount',p_actual_amount,'fee_amount',v_fee,'net_amount',v_net);
+  return jsonb_build_object('status','completed','transaction_id',v_tx.id,'gross_amount',p_actual_amount,'fee_amount',v_fee,'net_amount',v_net,'usd_rate',p_usd_rate,'usd_gross_amount',v_usd_gross,'usd_fee_amount',v_usd_fee,'usd_net_amount',v_usd_net);
 end $$;
 
 create or replace function public.admin_upsert_wallet_deposit_config(
@@ -286,11 +294,11 @@ begin
 end $$;
 
 revoke all on function public.client_create_wallet_deposit_intent(uuid,numeric,text) from public,anon;
-revoke all on function public.wallet_credit_verified_deposit(uuid,text,numeric) from public,anon,authenticated;
+revoke all on function public.wallet_credit_verified_deposit(uuid,text,numeric,numeric) from public,anon,authenticated;
 revoke all on function public.admin_upsert_wallet_deposit_config(integer,text,boolean,integer,numeric,numeric,numeric,integer) from public,anon,authenticated;
 revoke all on function public.admin_list_wallet_deposit_configs() from public,anon,authenticated;
 grant execute on function public.client_create_wallet_deposit_intent(uuid,numeric,text) to authenticated;
-grant execute on function public.wallet_credit_verified_deposit(uuid,text,numeric) to service_role;
+grant execute on function public.wallet_credit_verified_deposit(uuid,text,numeric,numeric) to service_role;
 grant execute on function public.admin_upsert_wallet_deposit_config(integer,text,boolean,integer,numeric,numeric,numeric,integer) to authenticated;
 grant execute on function public.admin_list_wallet_deposit_configs() to authenticated;
 notify pgrst,'reload schema';
