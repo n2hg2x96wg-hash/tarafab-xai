@@ -64,8 +64,8 @@ begin
       v_condition := case v_auto.condition
         when 'price_above' then 'price above'
         when 'price_below' then 'price below'
-        when 'change_above' then '24h change above'
-        when 'change_below' then '24h change below'
+        when 'change_above' then 'change above'
+        when 'change_below' then 'change below'
         when 'volume_above' then '24h volume above'
       end;
       v_threshold := case when v_auto.condition like 'price_%' or v_auto.condition = 'volume_above' then '$' else '' end

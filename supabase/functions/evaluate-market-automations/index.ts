@@ -41,10 +41,11 @@ async function quote(asset: Asset | null): Promise<Quote> {
   if (!asset?.provider || !asset.provider_symbol) throw new Error('Market data unavailable')
   if (asset.provider === 'coinbase') {
     const base = Deno.env.get('MARKET_COINBASE_BASE') || 'https://api.exchange.coinbase.com'
-    const [ticker, stats] = await Promise.all([
+    const [ticker, statsResponse] = await Promise.all([
       fetchJson<Record<string, unknown>>(`${base}/products/${encodeURIComponent(asset.provider_symbol)}/ticker`),
-      fetchJson<Record<string, unknown>>(`${base}/products/${encodeURIComponent(asset.provider_symbol)}/stats`),
+      fetchJson<Record<string, unknown>>(`${base}/products/${encodeURIComponent(asset.provider_symbol)}/stats`).catch(() => null),
     ])
+    const stats = statsResponse || {}
     const price = Number(ticker.price)
     const open = Number(stats.open)
     const volume = Number(stats.volume)
@@ -78,7 +79,9 @@ async function quote(asset: Asset | null): Promise<Quote> {
     })
     if (!response.ok) throw new Error(`Market data request failed (${response.status})`)
     const row = (await response.text()).trim().split(/\r?\n/)[1]?.split(',') || []
-    if (row.length !== 8 || row[6] === 'N/D' || row[4] === 'N/D') throw new Error('Market data unavailable')
+    if (row.length !== 8 || row[0]?.toLowerCase() !== asset.provider_symbol.toLowerCase() || row[6] === 'N/D' || row[3] === 'N/D') {
+      throw new Error('Market data unavailable')
+    }
     const open = Number(row[3])
     const price = Number(row[6])
     const updatedAt = new Date(`${row[1]}T${row[2] || '00:00:00'}Z`).toISOString()

@@ -10,7 +10,7 @@ type AssetRow = { asset: Asset; quote: Quote }
 type Automation = { id: string; condition: string; threshold: number; status: 'active' | 'paused' | 'triggered' | 'error'; market_assets?: { symbol: string; name: string; icon: string }; market_automation_events?: { id: string; status: string; observed_at: string; observed_value: number | null }[] }
 
 const money = (value: number | null) => value == null ? 'Unavailable' : `$${value.toLocaleString('en-US', { maximumFractionDigits: value < 1 ? 6 : 2 })}`
-const conditionLabels: Record<string, string> = { price_above: 'Price above', price_below: 'Price below', change_above: '24h change above', change_below: '24h change below', volume_above: 'Volume above' }
+const conditionLabels: Record<string, string> = { price_above: 'Price above', price_below: 'Price below', change_above: 'Change above', change_below: 'Change below', volume_above: 'Volume above' }
 
 export function AssetCenter() {
   const { t, intl } = useI18n()
@@ -69,6 +69,13 @@ export function AssetCenter() {
     `${asset.name} ${asset.symbol}`.toLowerCase().includes(query.toLowerCase()),
   ), [rows, category, query])
 
+  const openAutomation = (row: AssetRow) => {
+    setSelected(row)
+    setCondition('price_above')
+    setThreshold('')
+    setMessage('')
+  }
+
   const toggleWatchlist = async (row: AssetRow) => {
     if (!row.asset.id) return
     const remove = watchlist.includes(row.asset.id)
@@ -118,7 +125,7 @@ export function AssetCenter() {
         ))}
       </div>
       {message && <p role="status" className="text-sm text-accent">{message}</p>}
-      {assetsLoading && rows.length === 0 && <p role="status" className="text-sm text-fg-muted">Updating market data…</p>}
+      {rows.length === 0 && <p role="status" className="text-sm text-fg-muted">{assetsLoading ? t('common.loading') : t('market.unavailable')}</p>}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {visible.map(row => {
           const watched = !!row.asset.id && watchlist.includes(row.asset.id)
@@ -139,7 +146,7 @@ export function AssetCenter() {
             </div>
             <div className="mt-3 flex items-center justify-between gap-2 text-xs text-fg-faint">
               <span>{status}{row.quote.updatedAt ? ` · ${t('common.updated', { time: new Date(row.quote.updatedAt).toLocaleTimeString(intl, { hour: '2-digit', minute: '2-digit' }) })}` : ''}</span>
-              <button onClick={() => setSelected(row)} disabled={!usable} title={usable ? undefined : 'Automation requires usable market data.'} className="text-accent hover:underline disabled:cursor-not-allowed disabled:text-fg-faint disabled:no-underline">Automate</button>
+              <button onClick={() => openAutomation(row)} disabled={!usable} title={usable ? undefined : 'Automation requires usable market data.'} className="text-accent hover:underline disabled:cursor-not-allowed disabled:text-fg-faint disabled:no-underline">Automate</button>
             </div>
             {!usable && <p className="mt-2 text-xs text-fg-faint">Automation requires usable market data.</p>}
           </article>

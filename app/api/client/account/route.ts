@@ -40,8 +40,8 @@ export async function GET(request: NextRequest) {
     // Count its open ledger row for the transaction summary, but don't add its
     // amount again. Other pending financial transactions have not moved into
     // that balance and are included once here.
-    const pendingAmount = pendingOperations.reduce((sum, tx) =>
-      sum + (tx.type === 'investment' ? 0 : Number(tx.amount)), 0)
+    const pendingAmountCents = pendingOperations.reduce((sum, tx) =>
+      sum + (tx.type === 'investment' ? 0 : Math.round(Number(tx.amount) * 100)), 0)
     const savedAccount = account || {
       account_balance: 0,
       available_balance: 0,
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
       },
       account: {
         ...savedAccount,
-        pending_balance: Number(savedAccount.pending_balance) + pendingAmount,
+        pending_balance: Math.round((Number(savedAccount.pending_balance) * 100) + pendingAmountCents) / 100,
         pending_transaction_count: pendingOperations.length,
       },
     })

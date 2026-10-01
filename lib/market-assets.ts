@@ -63,11 +63,12 @@ async function stooqQuote(symbol: string) {
   const cells = text.trim().split(/\r?\n/)[1]?.split(',') || []
   if (cells.length !== STOOQ_COLUMNS.length) throw new Error('malformed provider response')
   const row = Object.fromEntries(STOOQ_COLUMNS.map((name, i) => [name, cells[i]])) as Record<typeof STOOQ_COLUMNS[number], string | undefined>
+  if (row.symbol?.toLowerCase() !== symbol.toLowerCase()) throw new Error('provider returned a different symbol')
   if (row.close === 'N/D' || row.open === 'N/D') throw new Error('provider does not recognize symbol')
   const open = Number(row.open)
   const price = Number(row.close)
   const updatedAt = new Date(`${row.date}T${row.time || '00:00:00'}Z`)
-  if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(updatedAt.getTime())) throw new Error('malformed provider response')
+  if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(updatedAt.getTime()) || updatedAt.getTime() > Date.now() + 60_000) throw new Error('malformed provider response')
   if (Date.now() - updatedAt.getTime() > 7 * 24 * 60 * 60 * 1000) throw new Error('provider quote is too old')
   return { price, change24h: Number.isFinite(open) && open > 0 ? ((price - open) / open) * 100 : null, updatedAt: updatedAt.toISOString() }
 }
@@ -77,7 +78,9 @@ const FRESH_FOR_MS = 3 * 60_000
 function freshness(updatedAt: string) {
   const time = Date.parse(updatedAt)
   if (!Number.isFinite(time) || time > Date.now() + 60_000) throw new Error('malformed provider timestamp')
-  return Date.now() - time <= FRESH_FOR_MS ? 'live' as const : 'delayed' as const
+  const age = Date.now() - time
+  if (age > 10 * 60_000) throw new Error('provider quote is too old')
+  return age <= FRESH_FOR_MS ? 'live' as const : 'delayed' as const
 }
 
 export async function quoteAsset(asset: Asset): Promise<AssetQuote> {
@@ -92,14 +95,12 @@ export async function quoteAsset(asset: Asset): Promise<AssetQuote> {
     if (asset.provider === 'coinbase') {
       const base = process.env.MARKET_COINBASE_BASE || 'https://api.exchange.coinbase.com'
       const [tickerResponse, statsResponse] = await Promise.all([
-        fetch(`${base}/products/${asset.provider_symbol}/ticker`, { cache: 'no-store', headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) }),
-        fetch(`${base}/products/${asset.provider_symbol}/stats`, { cache: 'no-store', headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) }),
+        fetch(`${base}/products/${encodeURIComponent(asset.provider_symbol)}/ticker`, { cache: 'no-store', headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) }),
+        fetch(`${base}/products/${encodeURIComponent(asset.provider_symbol)}/stats`, { cache: 'no-store', headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) }).catch(() => null),
       ])
-      if (!tickerResponse.ok || !statsResponse.ok) throw new Error('provider request failed')
-      const [ticker, stats] = await Promise.all([
-        tickerResponse.json() as Promise<Record<string, unknown>>,
-        statsResponse.json() as Promise<Record<string, unknown>>,
-      ])
+      if (!tickerResponse.ok) throw new Error('provider request failed')
+      const ticker = await tickerResponse.json() as Record<string, unknown>
+      const stats = statsResponse?.ok ? await statsResponse.json() as Record<string, unknown> : {}
       const price = Number(ticker.price)
       const open = Number(stats.open)
       const volume = Number(stats.volume)
