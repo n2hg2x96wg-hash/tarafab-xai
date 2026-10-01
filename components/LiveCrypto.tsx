@@ -158,11 +158,14 @@ export function LiveTickerBar() {
     let timer: ReturnType<typeof setTimeout> | undefined
     let controller: AbortController | undefined
     const refresh = async () => {
+      let requestController: AbortController | undefined
       if (document.visibilityState === 'visible') {
-        const requestController = new AbortController()
-        controller = requestController
+        const activeController = new AbortController()
+        requestController = activeController
+        controller = activeController
+        const timeout = setTimeout(() => activeController.abort(), 20_000)
         try {
-          const response = await fetch('/api/market/assets', { cache: 'no-store', signal: requestController.signal })
+          const response = await fetch('/api/market/assets', { cache: 'no-store', signal: activeController.signal })
           if (!response.ok) throw new Error('Market data unavailable')
           const body = await response.json() as { assets?: TickerRow[] }
           const usable = Array.isArray(body.assets) ? body.assets.filter(({ asset, quote }) =>
@@ -170,12 +173,26 @@ export function LiveTickerBar() {
             quote?.price !== null && Number.isFinite(quote?.price) && quote.price > 0 &&
             (quote.status === 'live' || quote.status === 'delayed'),
           ) : []
-          if (active && controller === requestController) setRows(usable)
+          if (active && controller === requestController) {
+            setRows(previous => {
+              const unchanged = previous.length === usable.length && previous.every((row, index) => {
+                const next = usable[index]
+                return row.asset.symbol === next?.asset.symbol &&
+                  row.asset.name === next?.asset.name &&
+                  row.quote.price === next?.quote.price &&
+                  row.quote.change24h === next?.quote.change24h &&
+                  row.quote.status === next?.quote.status
+              })
+              return unchanged ? previous : usable
+            })
+          }
         } catch {
-          if (active && controller === requestController && !requestController.signal.aborted) setRows([])
+          if (active && controller === activeController) setRows([])
+        } finally {
+          clearTimeout(timeout)
         }
       }
-      if (active) timer = setTimeout(refresh, 30_000)
+      if (active && (!requestController || controller === requestController)) timer = setTimeout(refresh, 30_000)
     }
     void refresh()
     const onVisible = () => {
@@ -259,9 +276,9 @@ export function HeroLivePanel({ quotes, trades, status }: ReturnType<typeof useL
       </div>
 
       <div className="mt-4 mb-5 -mx-1">
-        {series ? <LineChart points={series} positive={(ch ?? 0) >= 0} /> : day.status !== 'error' ? <div className="skeleton h-28" /> : (
+        {series ? <LineChart points={series} positive={(ch ?? 0) >= 0} /> : day.status === 'loading' ? <div className="skeleton h-28" /> : (
           <div className="h-28 flex flex-col items-center justify-center gap-2 text-xs text-fg-faint">
-            {t('market.chart24hFailed')}
+            {day.status === 'error' ? t('market.chart24hFailed') : t('common.unavailable')}
             <button onClick={day.retry} className="underline underline-offset-2 hover:text-fg">{t('common.tryAgain')}</button>
           </div>
         )}

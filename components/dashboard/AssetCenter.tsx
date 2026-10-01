@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { authFetch, errorText, newRequestKey, readJson } from '@/lib/authFetch'
 import { useI18n } from '@/lib/i18n/I18nProvider'
 
@@ -15,7 +15,7 @@ const conditionLabels: Record<string, string> = { price_above: 'Price above', pr
 export function AssetCenter() {
   const { t, intl } = useI18n()
   const [rows, setRows] = useState<AssetRow[]>([])
-  const [assetsLoading, setAssetsLoading] = useState(true)
+  const [marketLoadState, setMarketLoadState] = useState<'loading' | 'loaded' | 'error'>('loading')
   const [automationLoadState, setAutomationLoadState] = useState<'loading' | 'loaded' | 'error'>('loading')
   const [watchlist, setWatchlist] = useState<string[]>([])
   const [automations, setAutomations] = useState<Automation[]>([])
@@ -27,47 +27,81 @@ export function AssetCenter() {
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
   const requestKey = useRef(newRequestKey())
+  const active = useRef(true)
+  const marketRequest = useRef<AbortController | null>(null)
+  const automationRequest = useRef(false)
+  const watchlistPending = useRef(new Set<string>())
+  const [watchlistPendingIds, setWatchlistPendingIds] = useState<string[]>([])
 
-  const load = async (includeUserData = true) => {
+  const loadMarket = useCallback(async () => {
+    if (marketRequest.current && !marketRequest.current.signal.aborted) return
+    const controller = new AbortController()
+    marketRequest.current = controller
+    const timeout = setTimeout(() => controller.abort(), 20_000)
+    setMarketLoadState('loading')
     try {
-      const response = await fetch('/api/market/assets', { cache: 'no-store' })
+      const response = await fetch('/api/market/assets', { cache: 'no-store', signal: controller.signal })
       if (!response.ok) throw new Error('Market data unavailable')
       const market = await response.json()
       if (!Array.isArray(market?.assets)) throw new Error('Market data unavailable')
-      setRows(market.assets)
+      if (active.current && marketRequest.current === controller) {
+        setRows(market.assets)
+        setMarketLoadState('loaded')
+      }
     } catch {
-      setRows(current => current.map(row => ({
-        ...row,
-        asset: { ...row.asset, automation_enabled: false },
-        quote: { price: null, change24h: null, volume24hUsd: null, updatedAt: null, status: 'unavailable' },
-      })))
+      if (active.current && marketRequest.current === controller) {
+        setRows(current => current.map(row => ({
+          ...row,
+          asset: { ...row.asset, automation_enabled: false },
+          quote: { price: null, change24h: null, volume24hUsd: null, updatedAt: null, status: 'unavailable' },
+        })))
+        setMarketLoadState('error')
+      }
     } finally {
-      setAssetsLoading(false)
+      clearTimeout(timeout)
+      if (marketRequest.current === controller) marketRequest.current = null
     }
-    if (!includeUserData) return
-    const [w, a] = await Promise.all([
-      authFetch('/api/client/watchlist').then(r => readJson<{ watchlist: { asset_id: string }[] }>(r)).catch(() => null),
-      authFetch('/api/client/automations').then(r => readJson<{ automations: Automation[] }>(r)).catch(() => null),
-    ])
-    if (w) setWatchlist(w.watchlist.map(item => item.asset_id))
-    if (a && Array.isArray(a.automations)) {
-      setAutomations(a.automations)
-      setAutomationLoadState('loaded')
-    } else {
-      setAutomationLoadState('error')
-    }
-  }
-  useEffect(() => {
-    void load()
-    const timer = setInterval(() => { void load(false) }, 30_000)
-    return () => clearInterval(timer)
   }, [])
+
+  const loadUserData = useCallback(async () => {
+    if (automationRequest.current) return
+    automationRequest.current = true
+    setAutomationLoadState('loading')
+    const [watchlistResult, automationResult] = await Promise.allSettled([
+      authFetch('/api/client/watchlist').then(r => readJson<{ watchlist: { asset_id: string }[] }>(r)),
+      authFetch('/api/client/automations').then(r => readJson<{ automations: Automation[] }>(r)),
+    ])
+    if (active.current) {
+      if (watchlistResult.status === 'fulfilled') setWatchlist(watchlistResult.value.watchlist.map(item => item.asset_id))
+      if (automationResult.status === 'fulfilled' && Array.isArray(automationResult.value.automations)) {
+        setAutomations(automationResult.value.automations)
+        setAutomationLoadState('loaded')
+      } else {
+        setAutomationLoadState('error')
+      }
+    }
+    automationRequest.current = false
+  }, [])
+
+  useEffect(() => {
+    active.current = true
+    void loadMarket()
+    void loadUserData()
+    const timer = setInterval(() => { void loadMarket() }, 30_000)
+    return () => {
+      active.current = false
+      clearInterval(timer)
+      marketRequest.current?.abort()
+      marketRequest.current = null
+    }
+  }, [loadMarket, loadUserData])
   useEffect(() => { requestKey.current = newRequestKey() }, [selected?.asset.id, condition, threshold])
 
   const visible = useMemo(() => rows.filter(({ asset }) =>
     (category === 'all' || asset.category === category) &&
     `${asset.name} ${asset.symbol}`.toLowerCase().includes(query.toLowerCase()),
   ), [rows, category, query])
+  const hasMarketQuote = rows.some(({ quote }) => quote.price !== null && quote.status !== 'unavailable')
 
   const openAutomation = (row: AssetRow) => {
     setSelected(row)
@@ -77,11 +111,25 @@ export function AssetCenter() {
   }
 
   const toggleWatchlist = async (row: AssetRow) => {
-    if (!row.asset.id) return
-    const remove = watchlist.includes(row.asset.id)
-    setWatchlist(list => remove ? list.filter(id => id !== row.asset.id) : [...list, row.asset.id!])
-    const response = await authFetch('/api/client/watchlist', { method: 'POST', body: JSON.stringify({ asset_id: row.asset.id, remove }) })
-    if (!response.ok) setMessage('Watchlist could not be updated.')
+    const id = row.asset.id
+    if (!id || watchlistPending.current.has(id)) return
+    const remove = watchlist.includes(id)
+    watchlistPending.current.add(id)
+    setWatchlistPendingIds(current => [...current, id])
+    setWatchlist(list => remove ? list.filter(item => item !== id) : [...list, id])
+    try {
+      await readJson(await authFetch('/api/client/watchlist', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ asset_id: id, remove }),
+      }))
+    } catch {
+      setWatchlist(current => remove
+        ? current.includes(id) ? current : [...current, id]
+        : current.filter(item => item !== id))
+      setMessage('Watchlist could not be updated.')
+    } finally {
+      watchlistPending.current.delete(id)
+      setWatchlistPendingIds(current => current.filter(item => item !== id))
+    }
   }
 
   const createAutomation = async () => {
@@ -125,20 +173,31 @@ export function AssetCenter() {
         ))}
       </div>
       {message && <p role="status" className="text-sm text-accent">{message}</p>}
-      {rows.length === 0 && <p role="status" className="text-sm text-fg-muted">{assetsLoading ? t('common.loading') : t('market.unavailable')}</p>}
+      {rows.length === 0 && <div className="flex flex-wrap items-center gap-3 text-sm text-fg-muted" role="status">
+        <span>{marketLoadState === 'loading' ? t('common.loading') : 'Market data unavailable.'}</span>
+        {marketLoadState === 'error' && <button onClick={() => void loadMarket()} className="btn btn-sm btn-outline">{t('common.tryAgain')}</button>}
+      </div>}
+      {rows.length > 0 && marketLoadState === 'error' && <div className="flex flex-wrap items-center gap-3 text-sm text-fg-muted" role="status">
+        <span>Market data unavailable.</span>
+        <button onClick={() => void loadMarket()} className="btn btn-sm btn-outline">{t('common.tryAgain')}</button>
+      </div>}
+      {rows.length > 0 && marketLoadState === 'loaded' && !hasMarketQuote && <div className="flex flex-wrap items-center gap-3 text-sm text-fg-muted" role="status">
+        <span>Market data unavailable.</span>
+        <button onClick={() => void loadMarket()} className="btn btn-sm btn-outline">{t('common.tryAgain')}</button>
+      </div>}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {visible.map(row => {
           const watched = !!row.asset.id && watchlist.includes(row.asset.id)
           const change = row.quote.change24h
           const usable = row.asset.automation_enabled === true && row.quote.price !== null
-          const status = assetsLoading && row.quote.status === 'unavailable' ? t('common.loading') : row.quote.status === 'live' ? t('status.live') : row.quote.status === 'delayed' ? t('status.delayed') : t('status.dataUnavailable')
+          const status = marketLoadState === 'loading' && row.quote.status === 'unavailable' ? t('common.loading') : row.quote.status === 'live' ? t('status.live') : row.quote.status === 'delayed' ? t('status.delayed') : t('status.dataUnavailable')
           return <article key={row.asset.symbol} className="panel panel-lift p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3 text-left">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-lg text-accent">{row.asset.icon}</span>
                 <span className="min-w-0"><strong className="block truncate text-sm text-fg">{row.asset.name}</strong><span className="text-xs text-fg-faint">{row.asset.symbol}</span></span>
               </div>
-              <button onClick={() => toggleWatchlist(row)} aria-label={`${watched ? 'Remove' : 'Add'} ${row.asset.symbol} ${watched ? 'from' : 'to'} watchlist`} className="text-lg text-fg-muted hover:text-accent">{watched ? '★' : '☆'}</button>
+              <button onClick={() => toggleWatchlist(row)} disabled={!!row.asset.id && watchlistPendingIds.includes(row.asset.id)} aria-label={`${watched ? 'Remove' : 'Add'} ${row.asset.symbol} ${watched ? 'from' : 'to'} watchlist`} className="text-lg text-fg-muted hover:text-accent disabled:opacity-50">{watched ? '★' : '☆'}</button>
             </div>
             <div className="mt-5 flex items-end justify-between">
               <span className="text-lg font-semibold tabular-nums text-fg">{money(row.quote.price)}</span>
@@ -158,7 +217,7 @@ export function AssetCenter() {
       </div>
       <div className="panel p-5">
         <div className="flex items-center justify-between"><h3 className="font-medium text-fg">My automations</h3><span className="text-xs text-fg-faint">{automationLoadState === 'loading' ? 'Loading…' : automationLoadState === 'error' ? 'Error' : `${automations.length} configured`}</span></div>
-        {automationLoadState === 'error' ? <div className="mt-3 flex flex-wrap items-center justify-between gap-2"><p role="status" className="text-sm text-fg-muted">Unable to load automations. Please try again.</p><button onClick={() => { setAutomationLoadState('loading'); void load() }} className="btn btn-sm btn-outline">Try again</button></div>
+        {automationLoadState === 'error' ? <div className="mt-3 flex flex-wrap items-center justify-between gap-2"><p role="status" className="text-sm text-fg-muted">Unable to load automations. Please try again.</p><button onClick={() => void loadUserData()} className="btn btn-sm btn-outline">Try again</button></div>
           : automationLoadState === 'loading' ? <p role="status" className="mt-3 text-sm text-fg-muted">Loading automations…</p>
           : automations.length === 0 ? <p className="mt-3 text-sm text-fg-muted">No automations yet. Create a condition from an asset with usable market data. Notifications are based on scheduled market-data evaluations.</p>
           : <div className="mt-3 grid gap-2">{automations.map(item => <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-ink-850 px-3 py-2 text-sm"><span className="text-fg">{item.market_assets?.icon} {item.market_assets?.symbol} · {conditionLabels[item.condition]} {item.threshold}</span><span className="text-right text-xs text-fg-faint"><span className="block">{item.status === 'triggered' ? 'Alert sent' : item.status === 'error' ? 'Evaluation unavailable' : 'Configured'}</span><span>{item.market_automation_events?.length || 0} recorded events</span></span></div>)}</div>}

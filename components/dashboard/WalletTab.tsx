@@ -52,6 +52,7 @@ export function WalletTab({ account }: { account: Account | null }) {
   const [copied, setCopied] = useState('')
   const flow = useRef(0) // bumps when the account or network changes mid-flow
   const busyFor = useRef('') // the option a connection is waiting on
+  const balanceRequest = useRef(0)
   const [connecting, setConnecting] = useState<Option | null>(null)
 
   const load = useCallback(async () => {
@@ -91,15 +92,21 @@ export function WalletTab({ account }: { account: Account | null }) {
   // External on-chain balance of the connected account, read through the
   // user's own wallet on its current network. Shown as external information.
   const readBalance = useCallback(async (s: Session) => {
+    const request = ++balanceRequest.current
     const net = networkOf(s.chainId)
     if (!net) { setBal({ state: 'error' }); return }
     setBal({ state: 'loading' })
     try {
       const amount = await nativeBalance(s.wallet.provider, s.address, net.decimals)
+      if (request !== balanceRequest.current) return
       setBal({ state: 'ok', amount, symbol: net.symbol, at: Date.now() })
-    } catch { setBal({ state: 'error' }) }
+    } catch { if (request === balanceRequest.current) setBal({ state: 'error' }) }
   }, [])
-  useEffect(() => { if (session) readBalance(session) }, [session?.address, session?.chainId]) // eslint-disable-line react-hooks/exhaustive-deps
+  const invalidateBalance = useCallback(() => { balanceRequest.current++ }, [])
+  useEffect(() => {
+    if (session) void readBalance(session)
+    return invalidateBalance
+  }, [session, readBalance, invalidateBalance])
 
   const sdkOptions = useCallback((): Option[] => [
     { id: 'sdk-coinbase', name: 'Coinbase Wallet', sdk: 'coinbase', hint: t('wallet.hintCoinbase') },
@@ -263,13 +270,16 @@ export function WalletTab({ account }: { account: Account | null }) {
             <>
               <p className="mt-1 text-2xl font-semibold tabular-nums text-fg break-all">{bal.amount} <span className="text-base text-fg-muted">{bal.symbol}</span></p>
               <p className="mt-1 text-[12px] text-fg-faint">
-                {t('wallet.onChainOn', { network: currentNet?.name || '' })} · {shortAddress(session.address)} · {t('wallet.updatedAt', { time: new Date(bal.at!).toLocaleTimeString(intl, { hour: '2-digit', minute: '2-digit' }) })}
+                {t('wallet.onChainOn', { network: currentNet?.name || '' })} (chain {session.chainId}) · {shortAddress(session.address)} · {t('wallet.updatedAt', { time: new Date(bal.at!).toLocaleTimeString(intl, { hour: '2-digit', minute: '2-digit' }) })}
                 {' · '}<button onClick={() => readBalance(session)} className="underline underline-offset-2 hover:text-fg">{t('common.refresh')}</button>
               </p>
               <p className="mt-1 text-[12px] text-fg-faint">{t('wallet.noFiat')}</p>
             </>
           ) : (
-            <p className="mt-2 text-sm text-fg-muted">{currentNet ? t('wallet.balanceUnavailable') : t('wallet.unsupportedNetwork')}</p>
+            <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-fg-muted">
+              <span>{currentNet ? t('wallet.balanceUnavailable') : t('wallet.unsupportedNetwork')}</span>
+              {currentNet && <button onClick={() => readBalance(session)} className="underline underline-offset-2 hover:text-fg">{t('common.tryAgain')}</button>}
+            </div>
           )}
         </div>
       </div>
@@ -324,7 +334,7 @@ export function WalletTab({ account }: { account: Account | null }) {
               <span className="w-2 h-2 rounded-full bg-emerald-400" aria-hidden="true" />
               <span className="text-sm font-medium text-fg">{session.wallet.name}</span>
               <span className="font-mono text-[13px] text-fg-muted break-all">{session.address}</span>
-              <span className="text-[12px] text-fg-faint">{currentNet ? currentNet.name : t('wallet.unknownChain', { id: session.chainId })}</span>
+              <span className="text-[12px] text-fg-faint">{currentNet ? `${currentNet.name} · chain ${session.chainId}` : t('wallet.unknownChain', { id: session.chainId })}</span>
               {sessionLinked && <span className="tag text-emerald-400 border-emerald-500/30">{t('wallet.statusVerified')}</span>}
             </div>
 
