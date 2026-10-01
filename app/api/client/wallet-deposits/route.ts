@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     const walletId = String(body.wallet_id || '').trim()
     const amount = Number(body.amount)
     if (!/^[0-9a-f-]{36}$/i.test(walletId) || !Number.isFinite(amount) || amount <= 0) return NextResponse.json({ error: 'Choose a wallet and enter a valid amount.' }, { status: 400 })
-    const key = idempotencyKey(request, body)
+    const key: string = idempotencyKey(request, body) ?? crypto.randomUUID()
     const { data, error } = await supabase.rpc('client_create_wallet_deposit_intent', { p_wallet_id: walletId, p_amount: amount, p_idempotency_key: key })
     if (error) return dbError(error)
     return NextResponse.json({ intent: data }, { headers: { 'Cache-Control': 'no-store' } })
