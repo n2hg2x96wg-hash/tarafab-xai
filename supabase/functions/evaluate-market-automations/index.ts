@@ -11,6 +11,7 @@ type Automation = {
   threshold: number
   cooldown_minutes: number
   evaluation_interval_minutes: number
+  last_evaluated_at: string | null
   last_triggered_at: string | null
   market_assets: { symbol: string; provider: string | null; provider_symbol: string | null } | null
 }
