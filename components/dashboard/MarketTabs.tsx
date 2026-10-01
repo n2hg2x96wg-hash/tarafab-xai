@@ -7,6 +7,9 @@ import { Converter, NetworkFacts, PriceHistory } from '@/components/LandingExtra
 import { LatestBlocks } from '@/components/LiveCrypto'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { useI18n } from '@/lib/i18n/I18nProvider'
+import { AssetCenter } from '@/components/dashboard/AssetCenter'
+
+export { AssetCenter }
 
 export function MarketActivityTab() {
   const { t } = useI18n()
