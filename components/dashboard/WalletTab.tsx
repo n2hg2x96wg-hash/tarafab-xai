@@ -7,6 +7,7 @@ import { walletText } from '@/lib/i18n/wallet'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { IconAlert, IconCheck, IconCopy, IconLock, IconWallet } from '@/components/Icons'
 import { Spinner } from '@/components/AuthShell'
+import { WalletDepositPanel } from '@/components/dashboard/WalletDepositPanel'
 import { fmt, type Account } from '@/components/dashboard/shared'
 import {
   NETWORKS, WalletError, chainIdOf, connect, discoverWallets, nativeBalance, networkOf, shortAddress, signMessage, switchChain,
