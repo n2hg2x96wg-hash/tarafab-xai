@@ -286,6 +286,10 @@ export default function LandingPage() {
             <Reveal className="h-full"><ErrorBoundary label={t('market.bitcoinMarket')}><BitcoinMarketCard /></ErrorBoundary></Reveal>
             <Reveal delay={100}><ErrorBoundary label={t('market.blocksTitle')}><LatestBlocks /></ErrorBoundary></Reveal>
           </div>
+          <div className="mt-4 flex flex-col gap-1 text-[11px] text-fg-faint sm:flex-row sm:items-center sm:justify-between">
+            <p>{t('landing.footer.attr')}</p>
+            <a href="https://www.coingecko.com/en/api" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-fg">{t('landing.footer.coinGecko')}</a>
+          </div>
         </div>
       </section>
 
@@ -392,10 +396,6 @@ export default function LandingPage() {
         </div>
         <div className="mt-10 pt-6 border-t border-ink-700 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-xs text-fg-faint">
           <p>&copy; {new Date().getFullYear()} Tarafab.XAi</p>
-          <div className="flex flex-col gap-1 text-[11px] sm:text-right max-w-xl">
-            <p>{t('landing.footer.attr')}</p>
-            <a href="https://www.coingecko.com/" target="_blank" rel="noopener noreferrer" className="hover:text-fg underline underline-offset-2">{t('landing.footer.coinGecko')}</a>
-          </div>
         </div>
       </footer>
     </div>

@@ -44,14 +44,20 @@ export async function GET(request: NextRequest) {
   let returns: { client_investment_id: string; amount: number }[] = []
   if (invs.length) {
     const links = await supabase.from('investment_transactions')
-      .select('client_investment_id, kind, transactions(amount, status)')
+      .select('client_investment_id, kind, transactions(amount, direction, status)')
       .in('client_investment_id', invs.map(i => i.id)).eq('kind', 'return')
     if (links.error) return dbError(links.error)
     returns = (links.data || [])
-      .map(l => ({ l, tx: Array.isArray(l.transactions) ? l.transactions[0] : l.transactions as { amount: number; status: string } | null }))
-      .filter(({ tx }) => tx && ['completed', 'approved'].includes(tx.status))
-      .map(({ l, tx }) => ({ client_investment_id: l.client_investment_id, amount: Number(tx!.amount) }))
+      .map(l => ({ l, tx: Array.isArray(l.transactions) ? l.transactions[0] : l.transactions as { amount: number; direction: string | null; status: string } | null }))
+      .filter(({ tx }) => tx && ['completed', 'approved'].includes(tx.status) && ['credit', 'debit'].includes(tx.direction || ''))
+      .map(({ l, tx }) => ({ client_investment_id: l.client_investment_id, amount: Number(tx!.amount) * (tx!.direction === 'debit' ? -1 : 1) }))
   }
+  const profitByInvestment = new Map<string, number>()
+  for (const row of returns) profitByInvestment.set(row.client_investment_id, (profitByInvestment.get(row.client_investment_id) || 0) + row.amount)
+  const investmentsWithLedgerProfit = invs.map(inv => ({
+    ...inv,
+    profit_amount: profitByInvestment.get(inv.id) || 0,
+  }))
 
   // Timeline and linked ledger rows for the client's own investments.
   let events: unknown[] = []
@@ -77,7 +83,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     products: products.data || [],
     versions: versions.data || [],
-    investments: invs,
+    investments: investmentsWithLedgerProfit,
     returns,
     events,
     transactions: txs,

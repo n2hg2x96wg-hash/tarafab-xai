@@ -16,6 +16,8 @@ declare
   v_tx uuid;
   v_completion_key text;
   v_configured_profit numeric;
+  v_ledger_profit numeric;
+  v_unknown_ledger_direction boolean;
 begin
   if not public.is_admin() then raise exception 'Admins only'; end if;
   if coalesce(trim(p_reason), '') = '' then raise exception 'A reason is required'; end if;
@@ -44,6 +46,24 @@ begin
     end;
   end if;
 
+  select coalesce(sum(case when t.direction = 'debit' then -t.amount else t.amount end), 0)
+    into v_ledger_profit
+    from public.investment_transactions it
+    join public.transactions t on t.id = it.transaction_id
+   where it.client_investment_id = v_inv.id
+     and it.kind = 'return'
+     and t.status in ('completed', 'approved')
+     and t.direction in ('credit', 'debit');
+  select exists (
+    select 1
+      from public.investment_transactions it
+      join public.transactions t on t.id = it.transaction_id
+     where it.client_investment_id = v_inv.id
+       and it.kind = 'return'
+       and t.status in ('completed', 'approved')
+       and t.direction is null
+  ) into v_unknown_ledger_direction;
+
   v_completion_key := 'inv-complete-' || replace(v_inv.id::text, '-', '');
   update public.accounts
      set invested_balance = invested_balance - v_inv.principal,
@@ -68,7 +88,8 @@ begin
 
   -- Post a configured return once, only when no profit has already been
   -- recorded. A previously credited amount is never silently replaced.
-  if v_configured_profit is not null and v_configured_profit > 0 and v_inv.profit_amount = 0 then
+  if v_configured_profit is not null and v_configured_profit > 0
+     and v_inv.profit_amount = 0 and v_ledger_profit = 0 and not v_unknown_ledger_direction then
     perform public.admin_set_investment_profit(
       v_inv.id,
       v_configured_profit,
@@ -87,7 +108,10 @@ begin
        'product_version_id', v_inv.product_version_id,
        'configured_profit', v_configured_profit,
        'profit_before_completion', v_inv.profit_amount,
-       'profit_posted', v_configured_profit is not null and v_configured_profit > 0 and v_inv.profit_amount = 0,
+       'profit_ledger_before_completion', v_ledger_profit,
+       'profit_ledger_direction_missing', v_unknown_ledger_direction,
+       'profit_posted', v_configured_profit is not null and v_configured_profit > 0
+         and v_inv.profit_amount = 0 and v_ledger_profit = 0 and not v_unknown_ledger_direction,
        'reason', trim(p_reason)
      ));
   return 'completed';

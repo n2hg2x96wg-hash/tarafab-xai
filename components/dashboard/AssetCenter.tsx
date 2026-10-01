@@ -152,6 +152,10 @@ export function AssetCenter() {
           </article>
         })}
       </div>
+      <div className="flex flex-col gap-1 text-[11px] text-fg-faint sm:flex-row sm:items-center sm:justify-between">
+        <p>{t('landing.footer.attr')}</p>
+        <a href="https://www.coingecko.com/en/api" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-fg">{t('landing.footer.coinGecko')}</a>
+      </div>
       <div className="panel p-5">
         <div className="flex items-center justify-between"><h3 className="font-medium text-fg">My automations</h3><span className="text-xs text-fg-faint">{automationLoadState === 'loading' ? 'Loading…' : automationLoadState === 'error' ? 'Unavailable' : `${automations.length} configured`}</span></div>
         {automationLoadState === 'error' ? <div className="mt-3 flex flex-wrap items-center justify-between gap-2"><p role="status" className="text-sm text-fg-muted">Saved automations could not be loaded.</p><button onClick={() => { setAutomationLoadState('loading'); void load() }} className="btn btn-sm btn-outline">Try again</button></div>
