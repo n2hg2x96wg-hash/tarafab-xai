@@ -13,7 +13,6 @@ import {
   NETWORKS, WalletError, chainIdOf, connect, discoverWallets, nativeBalance, networkOf, shortAddress, signMessage, switchChain,
   type Eip1193, type WalletInfo,
 } from '@/lib/wallet/eip1193'
-import { WalletDepositPanel } from '@/components/dashboard/WalletDepositPanel'
 import {
   clearPending, endSdkSession, readPending, readyProvider, restoredAccount, savePending, sdkProvider, walletConnectAvailable, type SdkKind,
 } from '@/lib/wallet/sdkProviders'
