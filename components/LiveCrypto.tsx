@@ -225,7 +225,7 @@ export function LiveTickerBar() {
 
   return (
     <div className="relative overflow-hidden border-b border-ink-700 bg-ink-900 h-10 flex items-center marquee-mask" aria-label={t('market.livePrices')}>
-      <div className="flex w-max animate-marquee">
+      <div className={`flex w-max ${rows.length > 1 ? 'animate-marquee' : ''}`}>
         {rows.length ? <>{renderItems(0)}<div className="flex" aria-hidden="true">{renderItems(1)}</div></> : null}
       </div>
     </div>
