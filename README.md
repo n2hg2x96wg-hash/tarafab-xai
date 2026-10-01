@@ -244,6 +244,12 @@ EMAIL_KEY=<sendgrid_key>
 The platform includes stubs for market data integration:
 
 - **CoinGecko API** (free): Real Bitcoin prices, 24h change, volume
+- **Coinbase Exchange** (free, no key): Bitcoin/Ethereum price, candles
+- **Stooq** (free, no key): end-of-day quotes for indices (S&P 500, Nasdaq
+  100, Dow Jones) that Coinbase/CoinGecko do not cover. Override the base URL
+  with `MARKET_STOOQ_BASE` if needed. As with every other source here, a
+  failed or malformed response is shown as "unavailable", never a fabricated
+  price.
 
 ### Market automation scheduler
 
