@@ -236,15 +236,17 @@ The market endpoints above are optional and default to public feeds. Never expos
 
 ## Market Data
 
-The platform includes stubs for market data integration:
+Market quotes are fetched server-side from configured providers. Coinbase
+Exchange supplies supported crypto pairs, CoinGecko supplies configured crypto
+assets, and Stooq supplies end-of-day index quotes (including NDX and DJI when
+the provider migration is applied). `MARKET_COINBASE_BASE`,
+`MARKET_COINGECKO_BASE`, and `MARKET_STOOQ_BASE` are optional server-side
+endpoint overrides. Unsupported, stale, malformed, or unavailable quotes stay
+unavailable; the application does not manufacture prices.
 
-- **CoinGecko API** (free): Real Bitcoin prices, 24h change, volume
-- **Coinbase Exchange** (free, no key): Bitcoin/Ethereum price, candles
-- **Stooq** (free, no key): end-of-day quotes for indices (S&P 500, Nasdaq
-  100, Dow Jones) that Coinbase/CoinGecko do not cover. Override the base URL
-  with `MARKET_STOOQ_BASE` if needed. As with every other source here, a
-  failed or malformed response is shown as "unavailable", never a fabricated
-  price.
+CoinGecko attribution is displayed with the market-data disclosure because its
+API requires linked attribution. See `SUPABASE_DEPLOYMENT.md` for safe
+production migration and provider configuration.
 
 ### Market automation scheduler
 
@@ -255,10 +257,8 @@ Supabase service role secret and invoke it from a trusted scheduler (for
 example, Supabase scheduled functions or an external cron) at the desired
 frequency. The function records successful and failed evaluations, applies a
 cooldown event key, and never invents a trigger when market data is
-unavailable. No scheduler is enabled by this repository, so deployment
-configuration and operational monitoring remain an explicit production step.
-- **Environment toggle**: `MARKET_DATA_ENABLED=true/false`
-- **Fallback behavior**: If disabled, shows "Market data unavailable" rather than fake prices
+unavailable. No scheduler is enabled by this repository, so deployment configuration and
+operational monitoring remain an explicit production step.
 
 ## Next Steps
 

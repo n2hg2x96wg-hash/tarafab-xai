@@ -36,10 +36,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Your account could not be loaded right now.' }, { status: 503 })
     }
     const pendingOperations = pendingTransactions || []
-    // Pending investment principal is already held in accounts.pending_balance.
-    // Count its open ledger row for the transaction summary, but don't add its
-    // amount again. Other pending financial transactions have not moved into
-    // that balance and are included once here.
+    // Pending is the gross amount of unresolved financial operations, not an
+    // amount added to the credited account balance. Investment principal is
+    // already held in accounts.pending_balance; count its ledger row but do not
+    // add it twice. Other supported pending operation types are included once.
     const pendingAmountCents = pendingOperations.reduce((sum, tx) =>
       sum + (tx.type === 'investment' ? 0 : Math.round(Number(tx.amount) * 100)), 0)
     const savedAccount = account || {

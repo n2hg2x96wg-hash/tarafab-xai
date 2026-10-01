@@ -55,6 +55,17 @@ const label = (s: string) => s === 'pending_activation' ? 'pending' : s.replace(
 const money = (n: number | null | undefined) => `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 const duration = (v: { duration_value?: number | null; duration_unit?: string | null; term_days?: number | null }) =>
   v.duration_value && v.duration_unit ? `${v.duration_value} ${v.duration_value === 1 ? v.duration_unit.replace(/s$/, '') : v.duration_unit}` : v.term_days ? `${v.term_days} days` : 'Open-ended'
+const configuredProfit = (version: Version | null, principal: number, expected?: number | null) => {
+  if (version?.return_type === 'fixed_rate' && version.return_rate_pct != null) {
+    if (expected != null && Number.isFinite(Number(expected))) return Number(expected)
+    return Math.round(principal * Number(version.return_rate_pct)) / 100
+  }
+  if (version?.return_type === 'fixed_amount' && version.return_amount != null) {
+    if (expected != null && Number.isFinite(Number(expected))) return Number(expected)
+    return Number(version.return_amount)
+  }
+  return null
+}
 
 export default function AdminInvestmentsPage() {
   const [tab, setTab] = useState<'products' | 'investments' | 'adjustments' | 'activity'>('products')
@@ -475,12 +486,12 @@ function InvestmentsTab() {
 
 type AdjRow = { id: string; admin_id: string; previous_profit: number; new_profit: number; previous_value: number; new_value: number; reason: string; created_at: string }
 type Ev = { id: number; from_status: string | null; to_status: string; reason: string | null; created_at: string }
-type LinkedTx = { kind: string; transactions: { id: string; type: string; amount: number; status: string; reference: string | null; created_at: string } | null }
+type LinkedTx = { kind: string; transactions: { id: string; type: string; amount: number; direction: 'credit' | 'debit' | null; status: string; reference: string | null; notes: string | null; created_at: string } | null }
 
 // Everything an admin needs to decide, loaded fresh for one investment.
 function ReviewPanel({ inv, client, productCode, onClose, onDone }: { inv: Inv; client?: string; productCode: string; onClose: () => void; onDone: () => void }) {
   const supabase = createClient()
-  const [info, setInfo] = useState<{ kyc: string; email: string | null; available: number | null; pending: number | null; version: Version | null; events: Ev[]; txs: LinkedTx[]; reviewer: string | null; adjustments: AdjRow[]; admins: Record<string, string> } | null>(null)
+  const [info, setInfo] = useState<{ kyc: string; email: string | null; available: number | null; pending: number | null; version: Version | null; events: Ev[]; txs: LinkedTx[]; ledgerLoaded: boolean; reviewer: string | null; adjustments: AdjRow[]; admins: Record<string, string> } | null>(null)
   const [mode, setMode] = useState<'' | 'reject' | 'complete' | 'expire' | 'return' | 'profit' | 'profit-review'>('')
   const [newProfit, setNewProfit] = useState('')
   const [amount, setAmount] = useState('')
@@ -498,7 +509,7 @@ function ReviewPanel({ inv, client, productCode, onClose, onDone }: { inv: Inv; 
         supabase.from('accounts').select('available_balance, pending_balance').eq('user_id', inv.user_id).maybeSingle(),
         supabase.from('investment_product_versions').select('*').eq('id', inv.product_version_id).maybeSingle(),
         supabase.from('client_investment_events').select('id, from_status, to_status, reason, created_at').eq('client_investment_id', inv.id).order('created_at'),
-        supabase.from('investment_transactions').select('kind, transactions(id, type, amount, status, reference, created_at)').eq('client_investment_id', inv.id),
+        supabase.from('investment_transactions').select('kind, transactions(id, type, amount, direction, status, reference, notes, created_at)').eq('client_investment_id', inv.id),
         inv.reviewed_by ? supabase.from('profiles').select('full_name').eq('id', inv.reviewed_by).maybeSingle() : Promise.resolve({ data: null }),
         supabase.from('investment_profit_adjustments').select('id, admin_id, previous_profit, new_profit, previous_value, new_value, reason, created_at').eq('investment_id', inv.id).order('created_at', { ascending: false }),
         (supabase.rpc as any)('admin_list_customers', { p_search: inv.user_id }) as Promise<{ data: { id: string; email: string }[] | null }>,
@@ -514,6 +525,7 @@ function ReviewPanel({ inv, client, productCode, onClose, onDone }: { inv: Inv; 
         version: (v.data as unknown as Version) || null, events: (e.data as Ev[]) || [],
         txs: ((t.data || []) as unknown as { kind: string; transactions: LinkedTx['transactions'] | LinkedTx['transactions'][] }[])
           .map(x => ({ kind: x.kind, transactions: Array.isArray(x.transactions) ? x.transactions[0] : x.transactions })),
+        ledgerLoaded: !t.error,
         reviewer: (rv.data as { full_name?: string } | null)?.full_name || null,
         adjustments: adjRows, admins: Object.fromEntries(admins.map(x => [x.id, x.full_name || x.id.slice(0, 8)])),
         email: (em.data || []).find(x => x.id === inv.user_id)?.email || null,
@@ -529,7 +541,17 @@ function ReviewPanel({ inv, client, productCode, onClose, onDone }: { inv: Inv; 
     finally { setBusy(false) }
   }
   const running = ['active', 'completed', 'matured'].includes(inv.status)
-  const profit = profitOf(inv)
+  const profit = info?.ledgerLoaded ? info.txs
+    .filter(x => x.kind === 'return' && x.transactions && ['completed', 'approved'].includes(x.transactions.status) && ['credit', 'debit'].includes(x.transactions.direction || ''))
+    .reduce((sum, x) => sum + Number(x.transactions!.amount) * (x.transactions!.direction === 'debit' ? -1 : 1), 0)
+    : profitOf(inv)
+  const noUnknownDirection = !!info?.ledgerLoaded && info.txs.every(x =>
+    x.kind !== 'return' || !x.transactions || !['completed', 'approved'].includes(x.transactions.status) || ['credit', 'debit'].includes(x.transactions.direction || ''),
+  )
+  const profitLedgerMatches = noUnknownDirection && Math.abs(profit - profitOf(inv)) < 0.005
+  const completionProfit = configuredProfit(info?.version || null, Number(inv.principal), inv.expected_return)
+  const autoProfit = completionProfit !== null && profit === 0 && profitLedgerMatches ? completionProfit : 0
+  const completionEligible = !inv.maturity_date || Date.parse(inv.maturity_date) <= Date.now()
   const np = newProfit.trim() === '' ? NaN : Number(newProfit)
   const npValid = /^-?\d+(\.\d{1,2})?$/.test(newProfit.trim()) && np >= -Number(inv.principal) && np !== profit
   const row = (k: string, v: React.ReactNode) => <div className="flex justify-between gap-3 py-1.5 border-b border-white/[0.04] text-sm"><span className="text-slate-500 shrink-0">{k}</span><span className="text-white text-right break-all">{v}</span></div>
@@ -551,12 +573,13 @@ function ReviewPanel({ inv, client, productCode, onClose, onDone }: { inv: Inv; 
           {row(inv.status === 'pending_activation' ? 'Amount requested' : 'Investment amount', money(Number(inv.principal) + (inv.status === 'pending_activation' ? 0 : Number(inv.fee_amount))))}
           {inv.status !== 'pending_activation' && row('Principal', money(inv.principal))}
           {row('Return mode', inv.return_type === 'fixed_rate' ? 'Percentage of invested amount' : inv.return_type === 'fixed_amount' ? 'Fixed amount' : 'None stated')}
-          {inv.return_type === 'fixed_rate' && row('Return %', `${Number(inv.return_rate_pct ?? 0)}%`)}
+          {info?.version?.return_type === 'fixed_rate' && row('Configured return terms', `${Number(info.version.return_rate_pct ?? inv.return_rate_pct ?? 0)}%`)}
+          {info?.version?.return_type === 'fixed_amount' && row('Configured return terms', money(info.version.return_amount))}
           <p className="pt-2 text-[10px] uppercase tracking-wider text-slate-500">Projected / stated (from product terms)</p>
           {row('Projected profit', Number(inv.expected_return || 0) > 0 ? money(Number(inv.expected_return)) : '—')}
           {row('Projected total value', money(Number(inv.expected_total || 0)))}
           <p className="pt-2 text-[10px] uppercase tracking-wider text-slate-500">Actual / credited (recorded by admin)</p>
-          {running ? row('Actual credited profit', <span className={pClass(profit)}>{signedMoney(profit)}</span>) : row('Actual credited profit', '$0.00')}
+          {running ? row('Actual credited profit', info?.ledgerLoaded ? <span className={pClass(profit)}>{signedMoney(profit)}</span> : 'Ledger unavailable') : row('Actual credited profit', '$0.00')}
           {running && row('Current value', money(Number(inv.principal) + profit))}
           {running && row('Return', <span className={pClass(profit)}>{pct(profit, Number(inv.principal))}</span>)}
           {Number(inv.fee_amount) > 0 && row(inv.status === 'pending_activation' ? 'Entry fee on approval' : 'Entry fee', money(inv.fee_amount))}
@@ -590,10 +613,13 @@ function ReviewPanel({ inv, client, productCode, onClose, onDone }: { inv: Inv; 
           </div>
         )}
         {inv.status === 'active' && mode === '' && (
-          <button disabled={busy} onClick={() => setMode('complete')} className="btn btn-outline w-full">Mark completed (return principal)</button>
+          <div className="space-y-2">
+            {!completionEligible && <p className="text-xs text-amber-300">Completion is available on {new Date(inv.maturity_date!).toLocaleString()}.</p>}
+            <button disabled={busy || !info?.ledgerLoaded || !completionEligible} onClick={() => setMode('complete')} className="btn btn-outline w-full">Review completion</button>
+          </div>
         )}
         {running && mode === '' && (
-          <button disabled={busy} onClick={() => { setMode('profit'); setNewProfit(''); setReason(''); setErr('') }} className="btn btn-outline w-full">Edit profit / return</button>
+        <button disabled={busy || !info?.ledgerLoaded || !profitLedgerMatches} onClick={() => { setMode('profit'); setNewProfit(''); setReason(''); setErr('') }} className="btn btn-outline w-full">Edit profit / return</button>
         )}
         {mode === 'profit' && (
           <div className="space-y-3 rounded-xl border border-white/[0.08] p-4">
@@ -648,10 +674,31 @@ function ReviewPanel({ inv, client, productCode, onClose, onDone }: { inv: Inv; 
         )}
         {(mode === 'reject' || mode === 'complete' || mode === 'expire') && (
           <div className="space-y-3">
+            {mode === 'complete' && (
+              <div className="rounded-xl border border-white/[0.08] p-3 text-sm">
+                <p className="mb-2 font-semibold text-white">Completion preview · current status: {label(inv.status)}</p>
+                {row('Principal returned to available', money(Number(inv.principal)))}
+                {row('Configured profit', completionProfit === null ? 'No calculable return in the stored product version' : money(completionProfit))}
+                {row('Profit to post automatically', autoProfit > 0 ? money(autoProfit) : 'No new automatic credit')}
+                {row('Profit already credited', signedMoney(profit))}
+                {row('Resulting value', money(Number(inv.principal) + profit + autoProfit))}
+                {!inv.maturity_date && <p className="mt-2 text-xs text-slate-400">This investment has no maturity date; completion is an explicit admin decision and requires a reason.</p>}
+                <p className="mt-2 text-xs text-slate-400">
+                  {!noUnknownDirection
+                    ? 'A completed Profit ledger entry is missing its direction. Automatic Profit posting is disabled; reconcile the ledger before taking action.'
+                    : !profitLedgerMatches
+                      ? 'The linked Profit ledger and investment summary do not agree. Automatic Profit posting is disabled; reconcile the records before making any manual profit change.'
+                      : completionProfit === null
+                        ? 'Completion returns principal only. Any additional profit requires a separate explicit admin profit decision.'
+                        : profit !== 0 && profit !== completionProfit
+                          ? 'Existing credited profit differs from the configured terms; it will not be overwritten automatically. Review it explicitly if needed.'
+                          : 'The configured return is taken from the immutable version linked to this investment. Principal returns to available balance; new Profit is credited to Profit balance.'}
+                </p>
+              </div>
+            )}
             <textarea className="input-field" rows={2} placeholder={mode === 'reject' ? 'Reason for rejection (required, shown to the client)' : 'Reason (required, recorded in the audit log)'} value={reason} onChange={e => setReason(e.target.value)} />
             {mode === 'reject' && <p className="text-xs text-slate-500">The held amount returns to the client&apos;s account balance.</p>}
             {mode === 'expire' && <p className="text-xs text-slate-500">The request is marked Expired, the held amount returns to the client&apos;s account balance, and the record is kept.</p>}
-            {mode === 'complete' && <p className="text-xs text-slate-500">The principal moves from invested back to available. No return is recorded here.</p>}
             <div className="flex gap-3">
               <button disabled={busy} onClick={() => { setMode(''); setReason('') }} className="btn btn-outline flex-1">Back</button>
               <button disabled={busy || !reason.trim()} onClick={() => go(mode === 'reject' ? { action: 'review', decision: 'reject', reason } : mode === 'expire' ? { action: 'expire', reason } : { action: 'complete', reason })} className="btn btn-solid flex-1">{busy ? 'Working…' : mode === 'reject' ? 'Confirm rejection' : mode === 'expire' ? 'Confirm expiry' : 'Confirm completion'}</button>

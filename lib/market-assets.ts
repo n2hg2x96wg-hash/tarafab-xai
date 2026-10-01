@@ -69,11 +69,18 @@ async function stooqQuote(symbol: string) {
   const price = Number(row.close)
   const updatedAt = new Date(`${row.date}T${row.time || '00:00:00'}Z`)
   if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(updatedAt.getTime()) || updatedAt.getTime() > Date.now() + 60_000) throw new Error('malformed provider response')
-  if (Date.now() - updatedAt.getTime() > 7 * 24 * 60 * 60 * 1000) throw new Error('provider quote is too old')
+  if (Date.now() - updatedAt.getTime() > STOOQ_MAX_AGE_MS) throw new Error('provider quote is too old')
   return { price, change24h: Number.isFinite(open) && open > 0 ? ((price - open) / open) * 100 : null, updatedAt: updatedAt.toISOString() }
 }
 
 const FRESH_FOR_MS = 3 * 60_000
+const STOOQ_MAX_AGE_MS = 72 * 60 * 60_000
+
+function optionalNumber(value: unknown): number | null {
+  if (typeof value !== 'number' && (typeof value !== 'string' || !value.trim())) return null
+  const result = Number(value)
+  return Number.isFinite(result) ? result : null
+}
 
 function freshness(updatedAt: string) {
   const time = Date.parse(updatedAt)
@@ -102,14 +109,14 @@ export async function quoteAsset(asset: Asset): Promise<AssetQuote> {
       const ticker = await tickerResponse.json() as Record<string, unknown>
       const stats = statsResponse?.ok ? await statsResponse.json() as Record<string, unknown> : {}
       const price = Number(ticker.price)
-      const open = Number(stats.open)
-      const volume = Number(stats.volume)
+      const open = optionalNumber(stats.open)
+      const volume = optionalNumber(stats.volume)
       const updatedAt = typeof ticker.time === 'string' ? ticker.time : ''
       if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(Date.parse(updatedAt))) throw new Error('malformed provider response')
       return {
         price,
-        change24h: Number.isFinite(open) && open > 0 ? ((price - open) / open) * 100 : null,
-        volume24hUsd: Number.isFinite(volume) && volume >= 0 ? volume * price : null,
+        change24h: open !== null && open > 0 ? ((price - open) / open) * 100 : null,
+        volume24hUsd: volume !== null && volume >= 0 ? volume * price : null,
         updatedAt,
         status: freshness(updatedAt),
       }
@@ -125,11 +132,12 @@ export async function quoteAsset(asset: Asset): Promise<AssetQuote> {
       const price = Number(row.usd)
       const timestamp = Number(row.last_updated_at)
       const updatedAt = Number.isFinite(timestamp) && timestamp > 0 ? new Date(timestamp * 1000).toISOString() : ''
+      const volume = optionalNumber(row.usd_24h_vol)
       if (!Number.isFinite(price) || price <= 0 || !updatedAt) throw new Error('malformed provider response')
       return {
         price,
-        change24h: Number.isFinite(Number(row.usd_24h_change)) ? Number(row.usd_24h_change) : null,
-        volume24hUsd: Number.isFinite(Number(row.usd_24h_vol)) ? Number(row.usd_24h_vol) : null,
+        change24h: optionalNumber(row.usd_24h_change),
+        volume24hUsd: volume !== null && volume >= 0 ? volume : null,
         updatedAt,
         status: freshness(updatedAt),
       }

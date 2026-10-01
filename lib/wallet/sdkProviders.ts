@@ -7,8 +7,7 @@
 //   to Coinbase Smart Wallet (passkey, keys.coinbase.com). Needs no key.
 // - WalletConnect (Reown): QR code on desktop, deep/universal links to
 //   MetaMask, Trust, Rainbow and other wallets on mobile. Needs a WalletConnect
-//   Cloud project ID in NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID (a public
-//   identifier, not a secret); without it this option is not offered.
+//   production project ID in NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID.
 //
 // Both expose a standard EIP-1193 provider, so the existing connect → sign →
 // server-verify flow is unchanged. SDKs load only when chosen.
@@ -25,11 +24,9 @@ const cache: Partial<Record<SdkKind, Promise<Disconnectable>>> = {}
 const ready: Partial<Record<SdkKind, Disconnectable>> = {}
 export const readyProvider = (kind: SdkKind) => ready[kind] || null
 
-// Tarafab.xai project on dashboard.reown.com (allowlisted domain:
-// tarafabxai.vercel.app). A public identifier, not a secret; the env var
-// overrides it if the project is ever changed.
-const DEFAULT_WALLETCONNECT_PROJECT_ID = '38f139f785accee3a73f85588e5a4f67'
-export const walletConnectProjectId = () => (process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || DEFAULT_WALLETCONNECT_PROJECT_ID).trim()
+// Project IDs are public identifiers, but the configured project's origin
+// allowlist must match the deployed application.
+export const walletConnectProjectId = () => (process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '').trim()
 export const walletConnectAvailable = () => /^[0-9a-f]{32}$/i.test(walletConnectProjectId())
 
 function iconUrl() {
