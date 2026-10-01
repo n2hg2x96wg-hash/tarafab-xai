@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { clientForRequest, dbError, idempotencyKey, unauthorized } from '@/lib/supabase/request'
 
-export async function GET() {
-  const { supabase } = clientForRequest(new NextRequest('http://localhost'))
+export async function GET(request: NextRequest) {
+  const { supabase } = clientForRequest(request)
   if (!supabase) return unauthorized()
   const { data, error } = await supabase.from('wallet_deposit_configs')
     .select('id,chain_id,network,asset,symbol,receiving_address,fee_bps,fixed_fee,min_amount,max_amount,confirmations')
