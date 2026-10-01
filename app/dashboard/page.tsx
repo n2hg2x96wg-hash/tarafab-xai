@@ -38,7 +38,7 @@ import { useToast } from '@/components/Toast'
 import { ActiveInvestmentsCard, InvestmentCenter } from '@/components/dashboard/InvestmentCenter'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { CommandSearch, type CommandItem } from '@/components/dashboard/CommandSearch'
-import { MarketActivityTab, PriceHistoryTab } from '@/components/dashboard/MarketTabs'
+import { AssetCenter, MarketActivityTab, PriceHistoryTab } from '@/components/dashboard/MarketTabs'
 
 const BTC_ADDRESS = 'bc1qvpwmdln4nm6xa2k9q26l84pg4ud0uuqzk83053'
 
@@ -792,6 +792,7 @@ function MarketsTab() {
   const { t } = useI18n()
   return (
     <div className="space-y-4 panel-in">
+      <AssetCenter />
       <div className="grid xl:grid-cols-[1.7fr_1fr] gap-4 items-start">
         <div className="panel overflow-hidden">
           <div className="flex items-center justify-between px-4 h-11 border-b border-ink-700 text-[13px]">
