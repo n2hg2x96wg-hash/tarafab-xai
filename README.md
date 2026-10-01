@@ -238,8 +238,10 @@ The market endpoints above are optional and default to public feeds. Never expos
 
 Market quotes are fetched server-side from configured providers. Coinbase
 Exchange supplies supported crypto pairs, CoinGecko supplies configured crypto
-assets, and Stooq supplies end-of-day index quotes (including NDX and DJI when
-the provider migration is applied). `MARKET_COINBASE_BASE`,
+assets, and Stooq supplies delayed end-of-day quotes for configured US equities
+and indices (including NDX and DJI when the provider migrations are applied).
+Stooq quotes older than 24 hours remain unavailable, including when its feed
+does not return a valid quote. `MARKET_COINBASE_BASE`,
 `MARKET_COINGECKO_BASE`, and `MARKET_STOOQ_BASE` are optional server-side
 endpoint overrides. Unsupported, stale, malformed, or unavailable quotes stay
 unavailable; the application does not manufacture prices.

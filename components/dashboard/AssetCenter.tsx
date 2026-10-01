@@ -157,10 +157,10 @@ export function AssetCenter() {
         <a href="https://www.coingecko.com/en/api" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-fg">{t('landing.footer.coinGecko')}</a>
       </div>
       <div className="panel p-5">
-        <div className="flex items-center justify-between"><h3 className="font-medium text-fg">My automations</h3><span className="text-xs text-fg-faint">{automationLoadState === 'loading' ? 'Loading…' : automationLoadState === 'error' ? 'Unavailable' : `${automations.length} configured`}</span></div>
-        {automationLoadState === 'error' ? <div className="mt-3 flex flex-wrap items-center justify-between gap-2"><p role="status" className="text-sm text-fg-muted">Saved automations could not be loaded.</p><button onClick={() => { setAutomationLoadState('loading'); void load() }} className="btn btn-sm btn-outline">Try again</button></div>
-          : automationLoadState === 'loading' ? <p role="status" className="mt-3 text-sm text-fg-muted">Loading saved automations…</p>
-          : automations.length === 0 ? <p className="mt-3 text-sm text-fg-muted">Create a condition from an asset with usable market data. Notifications are based on scheduled market-data evaluations.</p>
+        <div className="flex items-center justify-between"><h3 className="font-medium text-fg">My automations</h3><span className="text-xs text-fg-faint">{automationLoadState === 'loading' ? 'Loading…' : automationLoadState === 'error' ? 'Error' : `${automations.length} configured`}</span></div>
+        {automationLoadState === 'error' ? <div className="mt-3 flex flex-wrap items-center justify-between gap-2"><p role="status" className="text-sm text-fg-muted">Unable to load automations. Please try again.</p><button onClick={() => { setAutomationLoadState('loading'); void load() }} className="btn btn-sm btn-outline">Try again</button></div>
+          : automationLoadState === 'loading' ? <p role="status" className="mt-3 text-sm text-fg-muted">Loading automations…</p>
+          : automations.length === 0 ? <p className="mt-3 text-sm text-fg-muted">No automations yet. Create a condition from an asset with usable market data. Notifications are based on scheduled market-data evaluations.</p>
           : <div className="mt-3 grid gap-2">{automations.map(item => <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-ink-850 px-3 py-2 text-sm"><span className="text-fg">{item.market_assets?.icon} {item.market_assets?.symbol} · {conditionLabels[item.condition]} {item.threshold}</span><span className="text-right text-xs text-fg-faint"><span className="block">{item.status === 'triggered' ? 'Alert sent' : item.status === 'error' ? 'Evaluation unavailable' : 'Configured'}</span><span>{item.market_automation_events?.length || 0} recorded events</span></span></div>)}</div>}
       </div>
       {selected && <div className="panel border-accent/40 p-5">

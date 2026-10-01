@@ -164,23 +164,69 @@ function TickPrice({ quote, className = '' }: { quote?: Quote; className?: strin
   return <span className={`tabular-nums price-tick ${dir === 'up' ? 'price-up' : dir === 'down' ? 'price-down' : ''} ${className}`}>{usd(quote.price)}</span>
 }
 
-export function LiveTickerBar({ quotes }: { quotes: Partial<Record<Product, Quote>> }) {
+type TickerRow = {
+  asset: { symbol: string; name: string }
+  quote: { price: number | null; change24h: number | null; status: 'live' | 'delayed' | 'unavailable' }
+}
+
+export function LiveTickerBar() {
   const { t } = useI18n()
-  const items = PRODUCTS.map(p => {
-    const q = quotes[p]
-    return (
-      <div key={p} className="flex items-center gap-3 px-8 shrink-0 text-[13px]">
-        <span className="text-fg-muted">{LABELS[p]}</span>
-        <span className="text-fg-faint">{p.replace('-USD', '')}</span>
-        {q ? <span className="text-fg font-medium tabular-nums">{usd(q.price)}</span> : <span className="skeleton inline-block w-20 h-3" />}
-        <Change value={pctChange(q)} />
-      </div>
-    )
-  })
+  const [rows, setRows] = useState<TickerRow[]>([])
+  useEffect(() => {
+    let active = true
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let controller: AbortController | undefined
+    const refresh = async () => {
+      if (document.visibilityState === 'visible') {
+        controller = new AbortController()
+        try {
+          const response = await fetch('/api/market/assets', { cache: 'no-store', signal: controller.signal })
+          if (!response.ok) throw new Error('Market data unavailable')
+          const body = await response.json() as { assets?: TickerRow[] }
+          const usable = Array.isArray(body.assets) ? body.assets.filter(({ asset, quote }) =>
+            typeof asset?.symbol === 'string' && typeof asset?.name === 'string' &&
+            quote?.price !== null && Number.isFinite(quote?.price) && quote.price > 0 &&
+            (quote.status === 'live' || quote.status === 'delayed'),
+          ) : []
+          if (active) setRows(usable)
+        } catch {
+          if (active) setRows([])
+        }
+      }
+      if (active) timer = setTimeout(refresh, 30_000)
+    }
+    void refresh()
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        if (timer) clearTimeout(timer)
+        void refresh()
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      active = false
+      if (timer) clearTimeout(timer)
+      controller?.abort()
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [])
+
+  const renderItems = (copy: number) => rows.map(({ asset, quote }) => (
+    <div key={`${copy}-${asset.symbol}`} className="flex items-center gap-2 sm:gap-3 px-5 sm:px-8 shrink-0 text-[12px] sm:text-[13px]">
+      <span className="text-fg-muted">{asset.name}</span>
+      <span className="text-fg-faint">{asset.symbol}</span>
+      <span className="min-w-[5.5rem] text-right text-fg font-medium tabular-nums">{usd(quote.price!)}</span>
+      <Change value={quote.change24h} />
+      <span className={`text-[10px] uppercase tracking-wide ${quote.status === 'live' ? 'text-emerald-400' : 'text-amber-400'}`}>
+        {quote.status === 'live' ? t('status.live') : t('status.delayed')}
+      </span>
+    </div>
+  ))
+
   return (
     <div className="relative overflow-hidden border-b border-ink-700 bg-ink-900 h-10 flex items-center marquee-mask" aria-label={t('market.livePrices')}>
       <div className="flex w-max animate-marquee">
-        {items}{items}{items}{items}
+        {rows.length ? <>{renderItems(0)}<div className="flex" aria-hidden="true">{renderItems(1)}</div></> : null}
       </div>
     </div>
   )

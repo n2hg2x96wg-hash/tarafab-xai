@@ -29,11 +29,11 @@ export const DEFAULT_ASSETS: Asset[] = [
   ['SOL', 'Solana', 'crypto', 'A high-throughput digital asset network.', 'S', 'coingecko', 'solana', false],
   ['XRP', 'XRP', 'crypto', 'A digital asset built for fast settlement.', 'X', 'coingecko', 'ripple', false],
   ['USDT', 'Tether', 'crypto', 'A dollar-denominated digital asset.', '₮', 'coingecko', 'tether', false],
-  ['TSLA', 'Tesla', 'equity', 'Tesla common stock.', 'T', null, null, false],
-  ['AAPL', 'Apple', 'equity', 'Apple common stock.', 'A', null, null, false],
-  ['NVDA', 'NVIDIA', 'equity', 'NVIDIA common stock.', 'N', null, null, false],
-  ['MSFT', 'Microsoft', 'equity', 'Microsoft common stock.', 'M', null, null, false],
-  ['AMZN', 'Amazon', 'equity', 'Amazon common stock.', 'A', null, null, false],
+  ['TSLA', 'Tesla', 'equity', 'Tesla common stock.', 'T', 'stooq', 'tsla.us', false],
+  ['AAPL', 'Apple', 'equity', 'Apple common stock.', 'A', 'stooq', 'aapl.us', false],
+  ['NVDA', 'NVIDIA', 'equity', 'NVIDIA common stock.', 'N', 'stooq', 'nvda.us', false],
+  ['MSFT', 'Microsoft', 'equity', 'Microsoft common stock.', 'M', 'stooq', 'msft.us', false],
+  ['AMZN', 'Amazon', 'equity', 'Amazon common stock.', 'A', 'stooq', 'amzn.us', false],
   ['SPX', 'S&P 500', 'index', 'A broad US large-cap market index.', 'S', 'stooq', '^spx', true],
   ['NDX', 'Nasdaq 100', 'index', 'A technology-focused large-cap index.', 'N', 'stooq', '^ndx', false],
   ['DJI', 'Dow Jones', 'index', 'A major US equity market index.', 'D', 'stooq', '^dji', false],
@@ -74,7 +74,7 @@ async function stooqQuote(symbol: string) {
 }
 
 const FRESH_FOR_MS = 3 * 60_000
-const STOOQ_MAX_AGE_MS = 72 * 60 * 60_000
+const STOOQ_MAX_AGE_MS = 24 * 60 * 60_000
 
 function optionalNumber(value: unknown): number | null {
   if (typeof value !== 'number' && (typeof value !== 'string' || !value.trim())) return null

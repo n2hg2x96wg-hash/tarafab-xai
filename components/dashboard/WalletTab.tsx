@@ -108,13 +108,19 @@ export function WalletTab({ account }: { account: Account | null }) {
 
   const openPicker = async () => {
     setError(''); setDone(''); setPicking(true); setWallets(null)
-    // Load the SDKs now, so a tap on an option can open the wallet straight
-    // away (Safari blocks wallet pop-ups that are not tied to the tap).
-    sdkOptions().forEach(o => { sdkProvider(o.sdk!).catch(() => {}) })
+    // Finish loading the SDKs before showing their options. This keeps the
+    // wallet-app handoff inside the user's later tap, which mobile Safari
+    // otherwise may block if provider initialization is still in progress.
+    const options = sdkOptions()
+    const warmups = Promise.allSettled(options.map(o => sdkProvider(o.sdk!)))
     const injected = await discoverWallets()
+    const results = await warmups
     // An injected Coinbase extension and the Coinbase SDK are the same wallet.
-    const sdk = sdkOptions().filter(o => !(o.sdk === 'coinbase' && injected.some(w => /coinbase/i.test(w.id + w.name))))
+    const ready = options.filter((_, i) => results[i].status === 'fulfilled')
+    const failed = results.find((result): result is PromiseRejectedResult => result.status === 'rejected')
+    const sdk = ready.filter(o => !(o.sdk === 'coinbase' && injected.some(w => /coinbase/i.test(w.id + w.name))))
     setWallets([...injected, ...sdk])
+    if (failed) setError(walletMsg(failed.reason))
   }
 
   const choose = async (w: Option) => {
@@ -135,7 +141,7 @@ export function WalletTab({ account }: { account: Account | null }) {
       if (networkOf(chainId)) setTargetChain(chainId)
     } catch (e) {
       if (busyFor.current !== w.id) return // cancelled from the UI; message already shown
-      setError(w.sdk && !(e instanceof WalletError) ? t('wallet.sdkFailed') : walletMsg(e))
+      setError(walletMsg(e))
     } finally { if (busyFor.current === w.id) { busyFor.current = ''; clearPending(); setBusy(''); setConnecting(null) } }
   }
 
