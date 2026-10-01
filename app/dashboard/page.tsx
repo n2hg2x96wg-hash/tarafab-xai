@@ -241,7 +241,9 @@ export default function DashboardPage() {
     }
     document.addEventListener('visibilitychange', maybeRefresh)
     window.addEventListener('online', maybeRefresh)
+    const timer = window.setInterval(maybeRefresh, 30_000)
     return () => {
+      window.clearInterval(timer)
       document.removeEventListener('visibilitychange', maybeRefresh)
       window.removeEventListener('online', maybeRefresh)
     }
@@ -634,7 +636,7 @@ function KycChip({ go }: { go: (id: string) => void }) {
 /* Overview */
 function OverviewTab({ name, account, txs, go, can, labelOf }: { name: string; account: Account | null; txs: Tx[]; go: (id: string) => void; can: (id: string) => boolean; labelOf: (item: { id: string; label: TKey }) => string }) {
   const recentTxs = txs.slice(0, 5)
-  const pendingCount = txs.filter(x => x.status.startsWith('pending')).length
+  const pendingCount = account?.pending_transaction_count ?? txs.filter(x => x.status.startsWith('pending')).length
   const { t, intl } = useI18n()
   const totals = txTotals(txs)
   const money = (n: number) => `$${fmt(n)}`

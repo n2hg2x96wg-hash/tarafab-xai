@@ -10,6 +10,7 @@ export interface Account {
   available_balance: number
   invested_balance: number
   pending_balance: number
+  pending_transaction_count?: number
   profit_balance?: number
   trading_status?: 'active' | 'inactive' | null
   trading_strategy_name?: string | null
@@ -93,4 +94,3 @@ export function EmptyState({ title, body }: { title: string; body?: string }) {
     </div>
   )
 }
-
