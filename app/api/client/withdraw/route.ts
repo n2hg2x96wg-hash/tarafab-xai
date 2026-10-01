@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     const { amount, source, address, wallet_id, notes } = body
     if (typeof amount !== 'number' || !(amount > 0)) return NextResponse.json({ error: 'Enter an amount greater than zero.' }, { status: 400 })
 
-    const key = idempotencyKey(request, body)
+    const key: string = idempotencyKey(request, body) ?? crypto.randomUUID()
     const { data, error } = wallet_id
       ? await supabase.rpc('client_request_withdrawal_to_wallet', {
         p_amount: amount,
