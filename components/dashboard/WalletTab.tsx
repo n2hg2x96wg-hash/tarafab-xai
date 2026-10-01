@@ -102,10 +102,11 @@ export function WalletTab({ account }: { account: Account | null }) {
       setBal({ state: 'ok', amount, symbol: net.symbol, at: Date.now() })
     } catch { if (request === balanceRequest.current) setBal({ state: 'error' }) }
   }, [])
+  const invalidateBalance = useCallback(() => { balanceRequest.current++ }, [])
   useEffect(() => {
     if (session) void readBalance(session)
-    return () => { balanceRequest.current++ }
-  }, [session?.address, session?.chainId]) // eslint-disable-line react-hooks/exhaustive-deps
+    return invalidateBalance
+  }, [session, readBalance, invalidateBalance])
 
   const sdkOptions = useCallback((): Option[] => [
     { id: 'sdk-coinbase', name: 'Coinbase Wallet', sdk: 'coinbase', hint: t('wallet.hintCoinbase') },
