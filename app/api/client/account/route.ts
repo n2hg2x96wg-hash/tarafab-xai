@@ -18,17 +18,39 @@ export async function GET(request: NextRequest) {
     const { data: { user }, error: authErr } = await supabase.auth.getUser(token)
     if (authErr || !user) return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
 
-    const [{ data: profile, error: profileErr }, { data: account, error: accountErr }] = await Promise.all([
+    const [{ data: profile, error: profileErr }, { data: account, error: accountErr }, { data: pendingTransactions, error: pendingErr }] = await Promise.all([
       supabase.from('profiles').select('full_name, role').eq('id', user.id).maybeSingle(),
       supabase
         .from('accounts')
         .select('account_balance, available_balance, invested_balance, pending_balance, profit_balance, trading_status, trading_strategy_name, trading_status_updated_at')
         .eq('user_id', user.id)
         .maybeSingle(),
+      supabase.from('transactions')
+        .select('id, type, amount')
+        .eq('user_id', user.id)
+        .in('status', ['pending_review', 'pending', 'requested', 'under_review', 'pending_verification', 'pending_blockchain_confirmation'])
+        .in('type', ['deposit', 'withdrawal', 'transfer_out', 'transfer_in', 'fee', 'investment']),
     ])
     // A failed read must not be shown as a zero balance.
-    if (profileErr || accountErr) {
+    if (profileErr || accountErr || pendingErr) {
       return NextResponse.json({ error: 'Your account could not be loaded right now.' }, { status: 503 })
+    }
+    const pendingOperations = pendingTransactions || []
+    // Pending investment principal is already held in accounts.pending_balance.
+    // Count its open ledger row for the transaction summary, but don't add its
+    // amount again. Other pending financial transactions have not moved into
+    // that balance and are included once here.
+    const pendingAmountCents = pendingOperations.reduce((sum, tx) =>
+      sum + (tx.type === 'investment' ? 0 : Math.round(Number(tx.amount) * 100)), 0)
+    const savedAccount = account || {
+      account_balance: 0,
+      available_balance: 0,
+      invested_balance: 0,
+      pending_balance: 0,
+      profit_balance: 0,
+      trading_status: null,
+      trading_strategy_name: null,
+      trading_status_updated_at: null,
     }
 
     return NextResponse.json({
@@ -41,15 +63,10 @@ export async function GET(request: NextRequest) {
         created_at: user.created_at,
         last_sign_in_at: user.last_sign_in_at ?? null,
       },
-      account: account || {
-        account_balance: 0,
-        available_balance: 0,
-        invested_balance: 0,
-        pending_balance: 0,
-        profit_balance: 0,
-        trading_status: null,
-        trading_strategy_name: null,
-        trading_status_updated_at: null,
+      account: {
+        ...savedAccount,
+        pending_balance: Math.round((Number(savedAccount.pending_balance) * 100) + pendingAmountCents) / 100,
+        pending_transaction_count: pendingOperations.length,
       },
     })
   } catch (e: unknown) {

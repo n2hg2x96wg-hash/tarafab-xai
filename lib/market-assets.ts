@@ -20,7 +20,7 @@ export type AssetQuote = {
   change24h: number | null
   volume24hUsd: number | null
   updatedAt: string | null
-  status: 'live' | 'unavailable' | 'stale'
+  status: 'live' | 'delayed' | 'unavailable'
 }
 
 export const DEFAULT_ASSETS: Asset[] = [
@@ -63,11 +63,24 @@ async function stooqQuote(symbol: string) {
   const cells = text.trim().split(/\r?\n/)[1]?.split(',') || []
   if (cells.length !== STOOQ_COLUMNS.length) throw new Error('malformed provider response')
   const row = Object.fromEntries(STOOQ_COLUMNS.map((name, i) => [name, cells[i]])) as Record<typeof STOOQ_COLUMNS[number], string | undefined>
+  if (row.symbol?.toLowerCase() !== symbol.toLowerCase()) throw new Error('provider returned a different symbol')
   if (row.close === 'N/D' || row.open === 'N/D') throw new Error('provider does not recognize symbol')
   const open = Number(row.open)
   const price = Number(row.close)
-  if (!Number.isFinite(price) || price <= 0) throw new Error('malformed provider response')
-  return { price, change24h: Number.isFinite(open) && open > 0 ? ((price - open) / open) * 100 : null }
+  const updatedAt = new Date(`${row.date}T${row.time || '00:00:00'}Z`)
+  if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(updatedAt.getTime()) || updatedAt.getTime() > Date.now() + 60_000) throw new Error('malformed provider response')
+  if (Date.now() - updatedAt.getTime() > 7 * 24 * 60 * 60 * 1000) throw new Error('provider quote is too old')
+  return { price, change24h: Number.isFinite(open) && open > 0 ? ((price - open) / open) * 100 : null, updatedAt: updatedAt.toISOString() }
+}
+
+const FRESH_FOR_MS = 3 * 60_000
+
+function freshness(updatedAt: string) {
+  const time = Date.parse(updatedAt)
+  if (!Number.isFinite(time) || time > Date.now() + 60_000) throw new Error('malformed provider timestamp')
+  const age = Date.now() - time
+  if (age > 10 * 60_000) throw new Error('provider quote is too old')
+  return age <= FRESH_FOR_MS ? 'live' as const : 'delayed' as const
 }
 
 export async function quoteAsset(asset: Asset): Promise<AssetQuote> {
@@ -76,25 +89,53 @@ export async function quoteAsset(asset: Asset): Promise<AssetQuote> {
   }
   try {
     if (asset.provider === 'stooq') {
-      const { price, change24h } = await stooqQuote(asset.provider_symbol)
-      return { price, change24h, volume24hUsd: null, updatedAt: new Date().toISOString(), status: 'live' }
+      const { price, change24h, updatedAt } = await stooqQuote(asset.provider_symbol)
+      return { price, change24h, volume24hUsd: null, updatedAt, status: 'delayed' }
     }
-    const base = asset.provider === 'coinbase'
-      ? `${process.env.MARKET_COINBASE_BASE || 'https://api.exchange.coinbase.com'}/products/${asset.provider_symbol}/ticker`
-      : `${process.env.MARKET_COINGECKO_BASE || 'https://api.coingecko.com/api/v3'}/simple/price?vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true&ids=${asset.provider_symbol}`
-    const response = await fetch(base, { cache: 'no-store', headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) })
-    if (!response.ok) throw new Error(`provider responded ${response.status}`)
-    const data = await response.json() as Record<string, any>
     if (asset.provider === 'coinbase') {
-      const price = Number(data.price)
-      if (!Number.isFinite(price)) throw new Error('malformed provider response')
-      return { price, change24h: null, volume24hUsd: Number(data.volume) * price || null, updatedAt: data.time || new Date().toISOString(), status: 'live' }
+      const base = process.env.MARKET_COINBASE_BASE || 'https://api.exchange.coinbase.com'
+      const [tickerResponse, statsResponse] = await Promise.all([
+        fetch(`${base}/products/${encodeURIComponent(asset.provider_symbol)}/ticker`, { cache: 'no-store', headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) }),
+        fetch(`${base}/products/${encodeURIComponent(asset.provider_symbol)}/stats`, { cache: 'no-store', headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) }).catch(() => null),
+      ])
+      if (!tickerResponse.ok) throw new Error('provider request failed')
+      const ticker = await tickerResponse.json() as Record<string, unknown>
+      const stats = statsResponse?.ok ? await statsResponse.json() as Record<string, unknown> : {}
+      const price = Number(ticker.price)
+      const open = Number(stats.open)
+      const volume = Number(stats.volume)
+      const updatedAt = typeof ticker.time === 'string' ? ticker.time : ''
+      if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(Date.parse(updatedAt))) throw new Error('malformed provider response')
+      return {
+        price,
+        change24h: Number.isFinite(open) && open > 0 ? ((price - open) / open) * 100 : null,
+        volume24hUsd: Number.isFinite(volume) && volume >= 0 ? volume * price : null,
+        updatedAt,
+        status: freshness(updatedAt),
+      }
     }
-    const row = data[asset.provider_symbol] || {}
-    const price = Number(row.usd)
-    if (!Number.isFinite(price)) throw new Error('malformed provider response')
-    return { price, change24h: Number.isFinite(Number(row.usd_24h_change)) ? Number(row.usd_24h_change) : null, volume24hUsd: Number(row.usd_24h_vol) || null, updatedAt: new Date().toISOString(), status: 'live' }
-  } catch {
-    return { price: null, change24h: null, volume24hUsd: null, updatedAt: null, status: 'unavailable' }
+    if (asset.provider === 'coingecko') {
+      const base = process.env.MARKET_COINGECKO_BASE || 'https://api.coingecko.com/api/v3'
+      const response = await fetch(`${base}/simple/price?vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true&include_last_updated_at=true&ids=${encodeURIComponent(asset.provider_symbol)}`, {
+        cache: 'no-store', headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000),
+      })
+      if (!response.ok) throw new Error('provider request failed')
+      const data = await response.json() as Record<string, Record<string, unknown>>
+      const row = data[asset.provider_symbol] || {}
+      const price = Number(row.usd)
+      const timestamp = Number(row.last_updated_at)
+      const updatedAt = Number.isFinite(timestamp) && timestamp > 0 ? new Date(timestamp * 1000).toISOString() : ''
+      if (!Number.isFinite(price) || price <= 0 || !updatedAt) throw new Error('malformed provider response')
+      return {
+        price,
+        change24h: Number.isFinite(Number(row.usd_24h_change)) ? Number(row.usd_24h_change) : null,
+        volume24hUsd: Number.isFinite(Number(row.usd_24h_vol)) ? Number(row.usd_24h_vol) : null,
+        updatedAt,
+        status: freshness(updatedAt),
+      }
+    }
+  } catch (error) {
+    console.error(`Market quote unavailable for ${asset.symbol}:`, error)
   }
+  return { price: null, change24h: null, volume24hUsd: null, updatedAt: null, status: 'unavailable' }
 }
