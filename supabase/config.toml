@@ -1,0 +1,2 @@
+[functions.wallet-deposit-verify]
+verify_jwt = false
