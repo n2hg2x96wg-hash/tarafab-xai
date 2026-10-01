@@ -260,7 +260,7 @@ export function noticesFrom(txs: Tx[]): Notice[] {
 }
 
 export type TeamNotice = {
-  id: string; type: 'account' | 'deposit' | 'withdrawal' | 'security' | 'announcement' | 'investment'
+  id: string; type: 'account' | 'deposit' | 'withdrawal' | 'security' | 'announcement' | 'investment' | 'market'
   title: string; body: string; cta_label: string | null; cta_target: string | null; investment_id?: string | null; created_at: string; read: boolean
 }
 
@@ -271,6 +271,7 @@ const NOTICE_TONE: Record<TeamNotice['type'], string> = {
   security: 'text-amber-400 border-amber-500/30',
   announcement: 'text-fg-muted border-ink-600',
   investment: 'text-accent border-accent/30',
+  market: 'text-sky-400 border-sky-500/30',
 }
 
 export function NotificationsTab({ notices, seenAt, team, onRead, go }: {
