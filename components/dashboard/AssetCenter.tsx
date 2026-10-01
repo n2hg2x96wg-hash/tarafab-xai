@@ -30,6 +30,8 @@ export function AssetCenter() {
   const active = useRef(true)
   const marketRequest = useRef<AbortController | null>(null)
   const automationRequest = useRef(false)
+  const watchlistPending = useRef(new Set<string>())
+  const [watchlistPendingIds, setWatchlistPendingIds] = useState<string[]>([])
 
   const loadMarket = useCallback(async () => {
     if (marketRequest.current && !marketRequest.current.signal.aborted) return
@@ -109,17 +111,24 @@ export function AssetCenter() {
   }
 
   const toggleWatchlist = async (row: AssetRow) => {
-    if (!row.asset.id) return
-    const remove = watchlist.includes(row.asset.id)
-    const previous = watchlist
-    setWatchlist(list => remove ? list.filter(id => id !== row.asset.id) : [...list, row.asset.id!])
+    const id = row.asset.id
+    if (!id || watchlistPending.current.has(id)) return
+    const remove = watchlist.includes(id)
+    watchlistPending.current.add(id)
+    setWatchlistPendingIds(current => [...current, id])
+    setWatchlist(list => remove ? list.filter(item => item !== id) : [...list, id])
     try {
       await readJson(await authFetch('/api/client/watchlist', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ asset_id: row.asset.id, remove }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ asset_id: id, remove }),
       }))
     } catch {
-      setWatchlist(previous)
+      setWatchlist(current => remove
+        ? current.includes(id) ? current : [...current, id]
+        : current.filter(item => item !== id))
       setMessage('Watchlist could not be updated.')
+    } finally {
+      watchlistPending.current.delete(id)
+      setWatchlistPendingIds(current => current.filter(item => item !== id))
     }
   }
 
@@ -188,7 +197,7 @@ export function AssetCenter() {
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-lg text-accent">{row.asset.icon}</span>
                 <span className="min-w-0"><strong className="block truncate text-sm text-fg">{row.asset.name}</strong><span className="text-xs text-fg-faint">{row.asset.symbol}</span></span>
               </div>
-              <button onClick={() => toggleWatchlist(row)} aria-label={`${watched ? 'Remove' : 'Add'} ${row.asset.symbol} ${watched ? 'from' : 'to'} watchlist`} className="text-lg text-fg-muted hover:text-accent">{watched ? '★' : '☆'}</button>
+              <button onClick={() => toggleWatchlist(row)} disabled={!!row.asset.id && watchlistPendingIds.includes(row.asset.id)} aria-label={`${watched ? 'Remove' : 'Add'} ${row.asset.symbol} ${watched ? 'from' : 'to'} watchlist`} className="text-lg text-fg-muted hover:text-accent disabled:opacity-50">{watched ? '★' : '☆'}</button>
             </div>
             <div className="mt-5 flex items-end justify-between">
               <span className="text-lg font-semibold tabular-nums text-fg">{money(row.quote.price)}</span>
