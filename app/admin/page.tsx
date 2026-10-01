@@ -122,6 +122,7 @@ export default function AdminPage() {
           { label: 'Transactions', href: '/admin/transactions', color: 'blue' },
           { label: 'Audit Logs', href: '/admin/audit-logs', color: 'slate' },
           { label: 'Market Data Health', href: '/admin/market-data', color: 'blue' },
+          { label: 'Automation Center', href: '/admin/automations', color: 'violet' },
           { label: 'Admin Login', href: '/admin/login', color: 'slate' },
         ].map(link => (
           <Link

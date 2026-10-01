@@ -6,7 +6,7 @@ import { authFetch, readJson } from '@/lib/authFetch'
 type Asset = { id?: string; symbol: string; name: string; category: 'crypto' | 'equity' | 'index'; description: string; icon: string; featured?: boolean }
 type Quote = { price: number | null; change24h: number | null; volume24hUsd: number | null; status: 'live' | 'unavailable' | 'stale' }
 type AssetRow = { asset: Asset; quote: Quote }
-type Automation = { id: string; condition: string; threshold: number; status: 'active' | 'paused' | 'triggered' | 'error'; market_assets?: { symbol: string; name: string; icon: string } }
+type Automation = { id: string; condition: string; threshold: number; status: 'active' | 'paused' | 'triggered' | 'error'; market_assets?: { symbol: string; name: string; icon: string }; market_automation_events?: { id: string; status: string; observed_at: string }[] }
 
 const money = (value: number | null) => value == null ? 'Unavailable' : `$${value.toLocaleString('en-US', { maximumFractionDigits: value < 1 ? 6 : 2 })}`
 const conditionLabels: Record<string, string> = { price_above: 'Price above', price_below: 'Price below', change_above: '24h change above', change_below: '24h change below', volume_above: 'Volume above' }
@@ -96,7 +96,7 @@ export function AssetCenter() {
       </div>
       <div className="panel p-5">
         <div className="flex items-center justify-between"><h3 className="font-medium text-fg">My automations</h3><span className="text-xs text-fg-faint">{automations.length} configured</span></div>
-        {automations.length === 0 ? <p className="mt-3 text-sm text-fg-muted">Create a condition from any asset card. Automations remain paused until market data can be evaluated.</p> : <div className="mt-3 grid gap-2">{automations.map(item => <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-ink-850 px-3 py-2 text-sm"><span className="text-fg">{item.market_assets?.icon} {item.market_assets?.symbol} · {conditionLabels[item.condition]} {item.threshold}</span><span className="text-xs text-fg-faint">{item.status}</span></div>)}</div>}
+        {automations.length === 0 ? <p className="mt-3 text-sm text-fg-muted">Create a condition from any asset card. Automations remain configured until a scheduled evaluation confirms a trigger.</p> : <div className="mt-3 grid gap-2">{automations.map(item => <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-ink-850 px-3 py-2 text-sm"><span className="text-fg">{item.market_assets?.icon} {item.market_assets?.symbol} · {conditionLabels[item.condition]} {item.threshold}</span><span className="text-right text-xs text-fg-faint"><span className="block">{item.status === 'triggered' ? 'Executed' : item.status === 'error' ? 'Evaluation failed' : 'Configured'}</span><span>{item.market_automation_events?.length || 0} recorded events</span></span></div>)}</div>}
       </div>
       {selected && <div className="panel border-accent/40 p-5">
         <div className="flex items-center justify-between gap-3"><h3 className="font-medium text-fg">Automate {selected.asset.name}</h3><button onClick={() => setSelected(null)} className="text-fg-muted">Close</button></div>

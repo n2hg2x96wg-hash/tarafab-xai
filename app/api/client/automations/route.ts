@@ -6,7 +6,7 @@ const conditions = new Set(['price_above', 'price_below', 'change_above', 'chang
 export async function GET(request: NextRequest) {
   const { supabase } = clientForRequest(request)
   if (!supabase) return unauthorized()
-  const { data, error } = await supabase.from('market_automations').select('*, market_assets(symbol,name,icon)').order('created_at', { ascending: false })
+  const { data, error } = await supabase.from('market_automations').select('*, market_assets(symbol,name,icon), market_automation_events(id,status,observed_at,observed_value,error)').order('created_at', { ascending: false })
   if (error) return dbError(error)
   return NextResponse.json({ automations: data || [] })
 }

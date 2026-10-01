@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter } from 'next/font/google'
 import './globals.css'
 import { cookies } from 'next/headers'
 import SmartsuppWidget from '@/components/SmartsuppWidget'
@@ -9,15 +8,6 @@ import { I18nProvider } from '@/lib/i18n/I18nProvider'
 import { DEFAULT_LOCALE, LOCALE_COOKIE, isLocale } from '@/lib/i18n/config'
 import { ThemeProvider } from '@/lib/theme/ThemeProvider'
 import { THEME_COOKIE, isThemePreference, themeInitScript } from '@/lib/theme/config'
-
-// Served from this site at build time rather than fetched from Google on each
-// visit: no render-blocking request to another origin before text appears,
-// and the fallback is size-adjusted so nothing jumps when Inter arrives.
-const inter = Inter({
-  subsets: ['latin', 'latin-ext'],
-  display: 'swap',
-  variable: '--font-inter',
-})
 
 export const metadata: Metadata = {
   title: 'Tarafab.XAi | Bitcoin deposits and account tracking',
@@ -43,7 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   // Light/dark is known on the server; "system" is settled by the head script
   // before paint. suppressHydrationWarning: that script may change data-theme.
   return (
-    <html lang={locale} className={`scroll-smooth ${inter.variable}`} data-theme={themePref === 'light' ? 'light' : 'dark'} suppressHydrationWarning>
+    <html lang={locale} className="scroll-smooth" data-theme={themePref === 'light' ? 'light' : 'dark'} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>

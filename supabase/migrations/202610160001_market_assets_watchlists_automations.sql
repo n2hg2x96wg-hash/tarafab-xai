@@ -64,6 +64,9 @@ create table if not exists public.market_automations (
   condition text not null check (condition in ('price_above', 'price_below', 'change_above', 'change_below', 'volume_above')),
   threshold numeric(30, 8) not null check (threshold >= 0),
   status text not null default 'active' check (status in ('active', 'paused', 'triggered', 'error')),
+  evaluation_interval_minutes integer not null default 15 check (evaluation_interval_minutes between 1 and 10080),
+  notify_in_app boolean not null default true,
+  notify_email boolean not null default false,
   cooldown_minutes integer not null default 60 check (cooldown_minutes between 1 and 10080),
   last_evaluated_at timestamptz,
   last_triggered_at timestamptz,
@@ -71,6 +74,9 @@ create table if not exists public.market_automations (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+alter table public.market_automations add column if not exists evaluation_interval_minutes integer not null default 15;
+alter table public.market_automations add column if not exists notify_in_app boolean not null default true;
+alter table public.market_automations add column if not exists notify_email boolean not null default false;
 create index if not exists market_automations_user_idx on public.market_automations(user_id, created_at desc);
 alter table public.market_automations enable row level security;
 drop policy if exists market_automations_own on public.market_automations;
@@ -80,3 +86,37 @@ create policy market_automations_own on public.market_automations
 drop policy if exists market_automations_admin_read on public.market_automations;
 create policy market_automations_admin_read on public.market_automations
   for select to authenticated using (public.is_admin());
+
+create table if not exists public.market_automation_events (
+  id uuid primary key default gen_random_uuid(),
+  automation_id uuid not null references public.market_automations(id) on delete cascade,
+  observed_at timestamptz not null default now(),
+  observed_value numeric(30, 8),
+  event_key text not null unique,
+  status text not null check (status in ('triggered', 'failed')),
+  error text,
+  created_at timestamptz not null default now()
+);
+create index if not exists market_automation_events_automation_idx on public.market_automation_events(automation_id, created_at desc);
+alter table public.market_automation_events enable row level security;
+drop policy if exists market_automation_events_own on public.market_automation_events;
+create policy market_automation_events_own on public.market_automation_events
+  for select to authenticated using (exists (
+    select 1 from public.market_automations a
+    where a.id = automation_id and (a.user_id = (select auth.uid()) or public.is_admin())
+  ));
+drop policy if exists market_automation_events_admin_insert on public.market_automation_events;
+create policy market_automation_events_admin_insert on public.market_automation_events
+  for insert to authenticated with check (public.is_admin());
+
+create table if not exists public.market_notification_preferences (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  in_app_enabled boolean not null default true,
+  email_enabled boolean not null default false,
+  updated_at timestamptz not null default now()
+);
+alter table public.market_notification_preferences enable row level security;
+drop policy if exists market_notification_preferences_own on public.market_notification_preferences;
+create policy market_notification_preferences_own on public.market_notification_preferences
+  for all to authenticated using (user_id = (select auth.uid()))
+  with check (user_id = (select auth.uid()));

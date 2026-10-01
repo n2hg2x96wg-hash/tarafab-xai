@@ -244,6 +244,18 @@ EMAIL_KEY=<sendgrid_key>
 The platform includes stubs for market data integration:
 
 - **CoinGecko API** (free): Real Bitcoin prices, 24h change, volume
+
+### Market automation scheduler
+
+Client automations are persisted in `market_automations` and remain configured
+until the evaluator records a real event. Deploy the
+`supabase/functions/evaluate-market-automations` Edge Function with the
+Supabase service role secret and invoke it from a trusted scheduler (for
+example, Supabase scheduled functions or an external cron) at the desired
+frequency. The function records successful and failed evaluations, applies a
+cooldown event key, and never invents a trigger when market data is
+unavailable. No scheduler is enabled by this repository, so deployment
+configuration and operational monitoring remain an explicit production step.
 - **Environment toggle**: `MARKET_DATA_ENABLED=true/false`
 - **Fallback behavior**: If disabled, shows "Market data unavailable" rather than fake prices
 
