@@ -210,7 +210,7 @@ export default function AdminSettingsPage() {
             </>
           )}
         </section>
-        <WalletDepositConfig />
+        <div className="lg:col-span-2"><WalletDepositConfig /></div>
       </div>
     </AdminLayout>
   )
