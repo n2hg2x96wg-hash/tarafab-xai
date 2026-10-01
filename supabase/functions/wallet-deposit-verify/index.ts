@@ -5,27 +5,6 @@ const CHAINS = { 1: mainnet, 8453: base, 42161: arbitrum, 10: optimism, 137: pol
 const PUBLIC_RPC: Record<number,string> = { 1:'https://ethereum-rpc.publicnode.com',8453:'https://mainnet.base.org',42161:'https://arb1.arbitrum.io/rpc',10:'https://mainnet.optimism.io',137:'https://polygon-bor-rpc.publicnode.com',56:'https://bsc-dataseed.bnbchain.org' }
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}})
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, HASH=/^0x[0-9a-fA-F]{64}$/
-async function usdRate(symbol: string) {
-  if (symbol === 'ETH') {
-    const base = Deno.env.get('MARKET_COINBASE_BASE') || 'https://api.exchange.coinbase.com'
-    const r = await fetch(base + '/products/ETH-USD/ticker', { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) })
-    if (!r.ok) throw new Error('ETH price unavailable')
-    const j = await r.json() as Record<string, unknown>
-    const price = Number(j.price)
-    if (!Number.isFinite(price) || price <= 0) throw new Error('ETH price unavailable')
-    return price
-  }
-  const id = symbol === 'BNB' ? 'binancecoin' : symbol === 'POL' ? 'polygon-ecosystem-token' : ''
-  if (!id) throw new Error('USD valuation unavailable for asset')
-  const base = Deno.env.get('MARKET_COINGECKO_BASE') || 'https://api.coingecko.com/api/v3'
-  const r = await fetch(base + '/simple/price?ids=' + encodeURIComponent(id) + '&vs_currencies=usd&include_last_updated_at=true', { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) })
-  if (!r.ok) throw new Error('USD price unavailable')
-  const j = await r.json() as Record<string, Record<string, unknown>>
-  const price = Number(j[id]?.usd), updated = Number(j[id]?.last_updated_at || 0)
-  if (!Number.isFinite(price) || price <= 0) throw new Error('USD price unavailable')
-  if (updated && Math.abs(Date.now()/1000 - updated) > 10 * 60) throw new Error('USD price is stale')
-  return price
-}
 const SUPABASE_URL=Deno.env.get('SUPABASE_URL')!, ANON_KEY=Deno.env.get('SUPABASE_ANON_KEY')!, SERVICE_KEY=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const COINGECKO_IDS: Record<number,string> = { 1:'ethereum', 8453:'ethereum', 42161:'ethereum', 10:'ethereum', 137:'polygon-ecosystem-token', 56:'binancecoin' }
 async function usdRate(chainId:number) {
