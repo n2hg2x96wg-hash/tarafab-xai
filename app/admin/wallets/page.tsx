@@ -48,6 +48,16 @@ export default function AdminWalletsPage() {
   const [revoking, setRevoking] = useState(false)
   const [actionError, setActionError] = useState('')
   const [reload, setReload] = useState(0)
+  const [copiedAddress, setCopiedAddress] = useState(false)
+
+  const copyAddress = async () => {
+    if (!open) return
+    try {
+      await navigator.clipboard.writeText(open.address)
+      setCopiedAddress(true)
+      setTimeout(() => setCopiedAddress(false), 1500)
+    } catch { setCopiedAddress(false) }
+  }
 
   useEffect(() => { const t = setTimeout(() => setTerm(search.trim()), 300); return () => clearTimeout(t) }, [search])
 
@@ -65,7 +75,7 @@ export default function AdminWalletsPage() {
   useEffect(() => { setLoading(true); fetchPage().finally(() => setLoading(false)) }, [fetchPage, reload])
 
   const openWallet = async (w: Wallet) => {
-    setOpen(w); setEvents(null); setReason(''); setActionError('')
+    setOpen(w); setEvents(null); setReason(''); setActionError(''); setCopiedAddress(false)
     const { data, error } = await (supabase.rpc as any)('admin_wallet_events', { p_wallet: w.id }) as { data: Event[] | null; error: unknown }
     setEvents(error ? [] : data || [])
   }
@@ -136,13 +146,19 @@ export default function AdminWalletsPage() {
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => !revoking && setOpen(null)} />
           <div className="relative z-10 glass w-full sm:max-w-lg max-h-[92vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl border border-white/[0.1] p-5 sm:p-6" style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}>
             <h3 id="wallet-title" className="text-base font-bold text-white">Wallet link</h3>
-            <p className="font-mono text-[12px] text-slate-300 break-all mt-1">{open.address}</p>
+            <div className="mt-2 rounded-xl border border-white/[0.08] bg-black/10 p-3">
+              <p className="text-[10px] font-semibold tracking-[0.12em] text-slate-500">WALLET ADDRESS</p>
+              <p className="mt-1 font-mono text-[12px] text-slate-200 break-all">{open.address}</p>
+              <button onClick={copyAddress} className="mt-2 text-xs text-violet-300 hover:text-violet-200 underline underline-offset-2">
+                {copiedAddress ? 'Address copied' : 'Copy address'}
+              </button>
+            </div>
             <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
-              <div><dt className="text-slate-500">Client</dt><dd className="text-white"><Link href={`/admin/clients/${open.user_id}`} className="hover:underline">{open.full_name || open.user_id.slice(0, 8)}</Link></dd></div>
-              <div><dt className="text-slate-500">Network</dt><dd className="text-white">{open.network} (chain {open.chain_id})</dd></div>
+              <div><dt className="text-slate-500">Client</dt><dd className="text-white"><Link href={`/admin/clients/${open.user_id}`} className="hover:underline">{open.full_name || open.user_id.slice(0, 8)}</Link></dd><dd className="mt-0.5 break-all text-slate-400">{open.email || 'Email unavailable'}</dd></div>
+              <div><dt className="text-slate-500">Wallet provider</dt><dd className="text-white">{open.wallet_name || '—'}</dd></div>
+              <div><dt className="text-slate-500">Network</dt><dd className="text-white">{open.network}</dd><dd className="mt-0.5 text-slate-400">Chain ID {open.chain_id}</dd></div>
               <div><dt className="text-slate-500">Status</dt><dd className="text-white capitalize">{open.status === 'unlinked' ? 'disconnected' : open.status}</dd></div>
-              <div><dt className="text-slate-500">Verification</dt><dd className="text-white">{open.status === 'linked' ? 'Verified by signed message' : 'Not active'}</dd></div>
-              <div><dt className="text-slate-500">Wallet app</dt><dd className="text-white">{open.wallet_name || '—'}</dd></div>
+              <div><dt className="text-slate-500">Verification</dt><dd className="text-white">{open.verification_status === 'verified' ? 'Verified' : 'Unverified'}</dd></div>
               <div><dt className="text-slate-500">Label</dt><dd className="text-white">{open.label || '—'}</dd></div>
               <div><dt className="text-slate-500">Linked</dt><dd className="text-white">{when(open.linked_at)}</dd></div>
               <div><dt className="text-slate-500">Last verified</dt><dd className="text-white">{when(open.last_verified_at)}</dd></div>
