@@ -44,6 +44,9 @@ export const DEFAULT_ASSETS: Asset[] = [
 // Stooq publishes free, no-key end-of-day quotes for major indices (as well
 // as equities and crypto), via a plain CSV snapshot. Used only for the index
 // assets (e.g. Nasdaq 100, Dow Jones) that Coinbase/CoinGecko do not offer.
+// The `f=sd2t2ohlcv` query parameter fixes this column order.
+const STOOQ_COLUMNS = ['symbol', 'date', 'time', 'open', 'high', 'low', 'close', 'volume'] as const
+
 async function stooqQuote(symbol: string) {
   const base = process.env.MARKET_STOOQ_BASE || 'https://stooq.com'
   const response = await fetch(`${base}/q/l/?s=${encodeURIComponent(symbol)}&f=sd2t2ohlcv&h&e=csv`, {
@@ -51,13 +54,12 @@ async function stooqQuote(symbol: string) {
   })
   if (!response.ok) throw new Error(`provider responded ${response.status}`)
   const text = await response.text()
-  // Header row, then one data row. The `f=sd2t2ohlcv` query parameter fixes
-  // this column order: 0 Symbol, 1 Date, 2 Time, 3 Open, 4 High, 5 Low,
-  // 6 Close, 7 Volume. A symbol Stooq does not recognize returns "N/D"
-  // fields instead of an error.
-  const [, , , openCol, , , closeCol] = text.trim().split(/\r?\n/)[1]?.split(',') || []
-  const open = Number(openCol)
-  const price = Number(closeCol)
+  // Header row, then one data row. A symbol Stooq does not recognize returns
+  // "N/D" fields instead of an error.
+  const cells = text.trim().split(/\r?\n/)[1]?.split(',') || []
+  const row = Object.fromEntries(STOOQ_COLUMNS.map((name, i) => [name, cells[i]])) as Record<typeof STOOQ_COLUMNS[number], string | undefined>
+  const open = Number(row.open)
+  const price = Number(row.close)
   if (!Number.isFinite(price) || price <= 0) throw new Error('malformed provider response')
   return { price, change24h: Number.isFinite(open) && open > 0 ? ((price - open) / open) * 100 : null }
 }
