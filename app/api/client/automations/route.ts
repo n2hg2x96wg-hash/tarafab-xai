@@ -28,12 +28,26 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null) as Record<string, unknown> | null
   const asset_id = typeof body?.asset_id === 'string' ? body.asset_id : ''
   const condition = typeof body?.condition === 'string' ? body.condition : ''
-  const threshold = Number(body?.threshold)
+  const thresholdInput = body?.threshold
+  const threshold = typeof thresholdInput === 'string' && thresholdInput.trim()
+    ? Number(thresholdInput)
+    : typeof thresholdInput === 'number' ? thresholdInput : NaN
   const key = idempotencyKey(request, body ?? undefined)
   if (!/^[0-9a-f-]{36}$/i.test(asset_id) || !conditions.has(condition) || !Number.isFinite(threshold) || threshold < 0) {
     return NextResponse.json({ error: 'Choose an asset, condition, and valid threshold.' }, { status: 400 })
   }
   if (!key) return NextResponse.json({ error: 'This request could not be safely submitted. Please try again.' }, { status: 400 })
+
+  const { data: existing, error: existingError } = await supabase.from('market_automations')
+    .select('*, market_assets(symbol,name,icon)')
+    .eq('user_id', user.id).eq('idempotency_key', key).maybeSingle()
+  if (existingError) return dbError(existingError)
+  if (existing) {
+    const sameRequest = existing.asset_id === asset_id && existing.condition === condition && Number(existing.threshold) === threshold
+    return sameRequest
+      ? NextResponse.json({ automation: existing }, { status: 200 })
+      : NextResponse.json({ error: 'This request key was already used. Please try again.' }, { status: 409 })
+  }
 
   const { data: asset, error: assetError } = await supabase.from('market_assets')
     .select('id,symbol,name,category,description,icon,provider,provider_symbol,enabled,automation_enabled')

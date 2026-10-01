@@ -68,6 +68,7 @@ const es: DeepPartial<typeof en> = {
   status: {
     live: 'En directo',
     delayed: 'Con retraso',
+    dataUnavailable: 'Datos no disponibles',
     current: 'Actual',
     connecting: 'Conectando',
     offline: 'Sin conexión',
@@ -104,7 +105,8 @@ const es: DeepPartial<typeof en> = {
       support: "Soporte",
       investments: "Inversiones",
       help: "Ayuda y soporte",
-      attr: "Datos de mercado de proveedores externos (Coinbase, CoinGecko, mempool.space, TradingView). Los precios son informativos.",
+      attr: 'Los datos de mercado se ofrecen únicamente con fines informativos. Los precios pueden tener retraso o no estar disponibles.',
+      coinGecko: 'Datos proporcionados por CoinGecko',
     },
     adminBar: "Has iniciado sesión como administrador. Ir al panel de administración →",
     status: {
@@ -636,7 +638,7 @@ const es: DeepPartial<typeof en> = {
     usingDefaults: 'Aún no hay ajustes guardados. Se muestran todas las secciones.',
   },
   sources: {
-    footer: 'Datos de mercado: Coinbase Exchange, CoinGecko, mempool.space, TradingView',
+    footer: 'Los datos de mercado se ofrecen únicamente con fines informativos. Los precios pueden tener retraso o no estar disponibles.',
   },
   nav3: {
     groupMarkets: 'Mercados',
@@ -696,6 +698,7 @@ const es: DeepPartial<typeof en> = {
       withdrawal: 'Novedad de retirada',
       security: 'Seguridad',
       announcement: 'Anuncio',
+      market: 'Alerta de mercado',
     },
   },
   adminNotif: {

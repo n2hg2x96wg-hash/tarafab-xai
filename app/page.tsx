@@ -191,7 +191,7 @@ export default function LandingPage() {
             price={market.quotes['BTC-USD']?.price}
             change={market.quotes['BTC-USD']?.open24h ? ((market.quotes['BTC-USD']!.price / market.quotes['BTC-USD']!.open24h) - 1) * 100 : undefined}
           />
-          <div className="market-line" aria-hidden="true">
+          <div className="market-line hidden lg:block" aria-hidden="true">
             <svg viewBox="0 0 3200 180" preserveAspectRatio="none">
               <defs>
                 <linearGradient id="heroWave" x1="0" x2="0" y1="0" y2="1">
@@ -392,8 +392,10 @@ export default function LandingPage() {
         </div>
         <div className="mt-10 pt-6 border-t border-ink-700 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-xs text-fg-faint">
           <p>&copy; {new Date().getFullYear()} Tarafab.XAi</p>
-          {/* Kept for provider attribution terms; deliberately small. */}
-          <p className="text-[11px] sm:text-right max-w-xl">{t('landing.footer.attr')}</p>
+          <div className="flex flex-col gap-1 text-[11px] sm:text-right max-w-xl">
+            <p>{t('landing.footer.attr')}</p>
+            <a href="https://www.coingecko.com/" target="_blank" rel="noopener noreferrer" className="hover:text-fg underline underline-offset-2">{t('landing.footer.coinGecko')}</a>
+          </div>
         </div>
       </footer>
     </div>

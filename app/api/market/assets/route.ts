@@ -12,7 +12,7 @@ export async function GET() {
   const quotes = await Promise.all(assets.map(async asset => {
     const quote = await quoteAsset(asset)
     return {
-      asset: { ...asset, automation_enabled: asset.automation_enabled !== false && quote.price !== null && quote.status !== 'unavailable' },
+      asset: { ...asset, automation_enabled: Boolean(asset.id && asset.automation_enabled !== false && quote.price !== null && quote.status !== 'unavailable') },
       quote,
     }
   }))

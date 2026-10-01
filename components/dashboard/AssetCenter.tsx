@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { authFetch, errorText, newRequestKey, readJson } from '@/lib/authFetch'
+import { useI18n } from '@/lib/i18n/I18nProvider'
 
 type Asset = { id?: string; symbol: string; name: string; category: 'crypto' | 'equity' | 'index'; description: string; icon: string; featured?: boolean; automation_enabled?: boolean }
 type Quote = { price: number | null; change24h: number | null; volume24hUsd: number | null; updatedAt: string | null; status: 'live' | 'delayed' | 'unavailable' }
@@ -12,6 +13,7 @@ const money = (value: number | null) => value == null ? 'Unavailable' : `$${valu
 const conditionLabels: Record<string, string> = { price_above: 'Price above', price_below: 'Price below', change_above: '24h change above', change_below: '24h change below', volume_above: 'Volume above' }
 
 export function AssetCenter() {
+  const { t, intl } = useI18n()
   const [rows, setRows] = useState<AssetRow[]>([])
   const [assetsLoading, setAssetsLoading] = useState(true)
   const [automationLoadError, setAutomationLoadError] = useState(false)
@@ -122,7 +124,7 @@ export function AssetCenter() {
           const watched = !!row.asset.id && watchlist.includes(row.asset.id)
           const change = row.quote.change24h
           const usable = row.asset.automation_enabled === true && row.quote.price !== null
-          const status = assetsLoading && row.quote.status === 'unavailable' ? 'Updating' : row.quote.status === 'live' ? 'Live' : row.quote.status === 'delayed' ? 'Delayed' : 'Data unavailable'
+          const status = assetsLoading && row.quote.status === 'unavailable' ? t('common.loading') : row.quote.status === 'live' ? t('status.live') : row.quote.status === 'delayed' ? t('status.delayed') : t('status.dataUnavailable')
           return <article key={row.asset.symbol} className="panel panel-lift p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3 text-left">
@@ -136,7 +138,7 @@ export function AssetCenter() {
               {change == null ? <span className="text-xs text-fg-faint">—</span> : <span className={`text-xs ${change >= 0 ? 'price-up' : 'price-down'}`}>{change >= 0 ? '▲' : '▼'} {Math.abs(change).toFixed(2)}%</span>}
             </div>
             <div className="mt-3 flex items-center justify-between gap-2 text-xs text-fg-faint">
-              <span>{status}{row.quote.updatedAt ? ` · Updated ${new Date(row.quote.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}</span>
+              <span>{status}{row.quote.updatedAt ? ` · ${t('common.updated', { time: new Date(row.quote.updatedAt).toLocaleTimeString(intl, { hour: '2-digit', minute: '2-digit' }) })}` : ''}</span>
               <button onClick={() => setSelected(row)} disabled={!usable} title={usable ? undefined : 'Automation requires usable market data.'} className="text-accent hover:underline disabled:cursor-not-allowed disabled:text-fg-faint disabled:no-underline">Automate</button>
             </div>
             {!usable && <p className="mt-2 text-xs text-fg-faint">Automation requires usable market data.</p>}

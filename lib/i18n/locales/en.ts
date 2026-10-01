@@ -69,6 +69,7 @@ const en = {
   status: {
     live: 'Live',
     delayed: 'Delayed',
+    dataUnavailable: 'Data unavailable',
     current: 'Current',
     connecting: 'Connecting',
     offline: 'Offline',
@@ -105,7 +106,8 @@ const en = {
       support: "Support",
       investments: "Investments",
       help: "Help & support",
-      attr: "Market data from third-party providers (Coinbase, CoinGecko, mempool.space, TradingView). Prices are informational.",
+      attr: 'Market data is provided for informational purposes only. Prices may be delayed or unavailable.',
+      coinGecko: 'Powered by CoinGecko',
     },
     adminBar: "You are signed in as an administrator. Go to the Admin dashboard →",
     status: {
@@ -637,7 +639,7 @@ const en = {
     usingDefaults: 'No settings saved yet. All sections are shown.',
   },
   sources: {
-    footer: 'Market data: Coinbase Exchange, CoinGecko, mempool.space, TradingView',
+    footer: 'Market data is provided for informational purposes only. Prices may be delayed or unavailable.',
   },
   nav3: {
     groupMarkets: 'Markets',
@@ -697,6 +699,7 @@ const en = {
       withdrawal: 'Withdrawal update',
       security: 'Security',
       announcement: 'Announcement',
+      market: 'Market alert',
     },
   },
   adminNotif: {
