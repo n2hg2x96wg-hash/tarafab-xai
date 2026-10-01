@@ -6,6 +6,17 @@ const PUBLIC_RPC: Record<number,string> = { 1:'https://ethereum-rpc.publicnode.c
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}})
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, HASH=/^0x[0-9a-fA-F]{64}$/
 const SUPABASE_URL=Deno.env.get('SUPABASE_URL')!, ANON_KEY=Deno.env.get('SUPABASE_ANON_KEY')!, SERVICE_KEY=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const COINGECKO_IDS: Record<number,string> = { 1:'ethereum', 8453:'ethereum', 42161:'ethereum', 10:'ethereum', 137:'polygon-ecosystem-token', 56:'binancecoin' }
+async function usdRate(chainId:number) {
+  const id=COINGECKO_IDS[chainId]
+  if(!id) throw new Error('No USD quote mapping')
+  const res=await fetch('https://api.coingecko.com/api/v3/simple/price?ids='+encodeURIComponent(id)+'&vs_currencies=usd',{headers:{accept:'application/json'},signal:AbortSignal.timeout(8000),cache:'no-store'})
+  if(!res.ok) throw new Error('USD quote unavailable')
+  const data=await res.json() as Record<string,{usd?:number}>
+  const rate=Number(data[id]?.usd)
+  if(!Number.isFinite(rate)||rate<=0) throw new Error('Invalid USD quote')
+  return rate
+}
 Deno.serve(async req=>{
   if(req.method!=='POST') return json({error:'Method not allowed.'},405)
   const auth=req.headers.get('Authorization')||''
@@ -46,7 +57,8 @@ Deno.serve(async req=>{
       await service.from('wallet_deposit_intents').update({status:'pending_verification',tx_hash:txHash.toLowerCase(),updated_at:new Date().toISOString()}).eq('id',intent.id)
       return json({status:'pending_verification',confirmations,required_confirmations:required})
     }
-    const {data,error}=await service.rpc('wallet_credit_verified_deposit',{p_intent_id:intent.id,p_tx_hash:txHash.toLowerCase(),p_actual_amount:actual})
+    const rate=await usdRate(intent.chain_id)
+    const {data,error}=await service.rpc('wallet_credit_verified_deposit',{p_intent_id:intent.id,p_tx_hash:txHash.toLowerCase(),p_actual_amount:actual,p_usd_rate:rate})
     if(error) return json({error:'The deposit could not be credited.',status:'failed'},409)
     return json(data||{status:'completed'})
   }catch(e){console.error('wallet-deposit-verify:',e instanceof Error?e.name:'provider error');return json({error:'The blockchain could not be reached right now. Try verification again shortly.',status:'provider_unavailable'},503)}
