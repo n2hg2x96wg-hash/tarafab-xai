@@ -170,25 +170,33 @@ export default function LandingPage() {
 
       {/* Hero */}
       <section className="relative border-b border-ink-700 overflow-hidden">
-        <div className="hero-light" aria-hidden="true" />
-        <div className="hero-grid" aria-hidden="true" />
-        {ambient && <AmbientField className="opacity-90" />}
-        <HeroFloatPanels
-          live={market.status === 'live' || market.status === 'polling'}
-          price={market.quotes['BTC-USD']?.price}
-          change={market.quotes['BTC-USD']?.open24h ? ((market.quotes['BTC-USD']!.price / market.quotes['BTC-USD']!.open24h) - 1) * 100 : undefined}
-        />
-        <div className="market-line" aria-hidden="true">
-          <svg viewBox="0 0 3200 180" preserveAspectRatio="none">
-            <defs>
-              <linearGradient id="heroWave" x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0" stopColor="rgb(var(--accent))" stopOpacity=".22" />
-                <stop offset="1" stopColor="rgb(var(--accent))" stopOpacity="0" />
-              </linearGradient>
-            </defs>
-            <path d={`${HERO_WAVE} L3200,180 L0,180 Z`} fill="url(#heroWave)" />
-            <path d={HERO_WAVE} fill="none" stroke="rgb(var(--accent))" strokeOpacity=".45" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
-          </svg>
+        {/* Decorative layer, capped to the hero banner's own height. On
+            phones the two grid columns below stack vertically, which makes
+            this section much taller than the banner it is meant to sit
+            behind; without a cap the node network and price wave spread
+            across that extra height and strand isolated marks over
+            unrelated content (e.g. just under the sign-in button). */}
+        <div className="absolute inset-x-0 top-0 h-[760px] lg:inset-0 lg:h-auto overflow-hidden" aria-hidden="true">
+          <div className="hero-light" aria-hidden="true" />
+          <div className="hero-grid" aria-hidden="true" />
+          {ambient && <AmbientField className="opacity-90" />}
+          <HeroFloatPanels
+            live={market.status === 'live' || market.status === 'polling'}
+            price={market.quotes['BTC-USD']?.price}
+            change={market.quotes['BTC-USD']?.open24h ? ((market.quotes['BTC-USD']!.price / market.quotes['BTC-USD']!.open24h) - 1) * 100 : undefined}
+          />
+          <div className="market-line" aria-hidden="true">
+            <svg viewBox="0 0 3200 180" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="heroWave" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0" stopColor="rgb(var(--accent))" stopOpacity=".22" />
+                  <stop offset="1" stopColor="rgb(var(--accent))" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              <path d={`${HERO_WAVE} L3200,180 L0,180 Z`} fill="url(#heroWave)" />
+              <path d={HERO_WAVE} fill="none" stroke="rgb(var(--accent))" strokeOpacity=".45" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+            </svg>
+          </div>
         </div>
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-12 pb-14 lg:pt-20 lg:pb-20 grid lg:grid-cols-[1.08fr_1fr] gap-10 lg:gap-12 items-center">
           <div>

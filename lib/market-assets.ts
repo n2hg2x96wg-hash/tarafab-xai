@@ -34,18 +34,41 @@ export const DEFAULT_ASSETS: Asset[] = [
   ['NVDA', 'NVIDIA', 'equity', 'NVIDIA common stock.', 'N', null, null, false],
   ['MSFT', 'Microsoft', 'equity', 'Microsoft common stock.', 'M', null, null, false],
   ['AMZN', 'Amazon', 'equity', 'Amazon common stock.', 'A', null, null, false],
-  ['SPX', 'S&P 500', 'index', 'A broad US large-cap market index.', 'S', null, null, true],
-  ['NDX', 'Nasdaq 100', 'index', 'A technology-focused large-cap index.', 'N', null, null, false],
-  ['DJI', 'Dow Jones', 'index', 'A major US equity market index.', 'D', null, null, false],
+  ['SPX', 'S&P 500', 'index', 'A broad US large-cap market index.', 'S', 'stooq', '^spx', true],
+  ['NDX', 'Nasdaq 100', 'index', 'A technology-focused large-cap index.', 'N', 'stooq', '^ndx', false],
+  ['DJI', 'Dow Jones', 'index', 'A major US equity market index.', 'D', 'stooq', '^dji', false],
 ].map(([symbol, name, category, description, icon, provider, provider_symbol, featured]) => ({
   symbol, name, category, description, icon, provider, provider_symbol, featured,
 } as Asset))
+
+// Stooq publishes free, no-key end-of-day quotes for major indices (as well
+// as equities and crypto), via a plain CSV snapshot. Used only for the index
+// assets (e.g. Nasdaq 100, Dow Jones) that Coinbase/CoinGecko do not offer.
+async function stooqQuote(symbol: string) {
+  const base = process.env.MARKET_STOOQ_BASE || 'https://stooq.com'
+  const response = await fetch(`${base}/q/l/?s=${encodeURIComponent(symbol)}&f=sd2t2ohlcv&h&e=csv`, {
+    cache: 'no-store', headers: { Accept: 'text/csv' }, signal: AbortSignal.timeout(8000),
+  })
+  if (!response.ok) throw new Error(`provider responded ${response.status}`)
+  const text = await response.text()
+  // Header row, then one data row: Symbol,Date,Time,Open,High,Low,Close,Volume.
+  // A symbol Stooq does not recognize returns "N/D" fields instead of an error.
+  const row = text.trim().split(/\r?\n/)[1]?.split(',') || []
+  const open = Number(row[3])
+  const price = Number(row[6])
+  if (!Number.isFinite(price) || price <= 0) throw new Error('malformed provider response')
+  return { price, change24h: Number.isFinite(open) && open > 0 ? ((price - open) / open) * 100 : null }
+}
 
 export async function quoteAsset(asset: Asset): Promise<AssetQuote> {
   if (!asset.provider || !asset.provider_symbol) {
     return { price: null, change24h: null, volume24hUsd: null, updatedAt: null, status: 'unavailable' }
   }
   try {
+    if (asset.provider === 'stooq') {
+      const { price, change24h } = await stooqQuote(asset.provider_symbol)
+      return { price, change24h, volume24hUsd: null, updatedAt: new Date().toISOString(), status: 'live' }
+    }
     const base = asset.provider === 'coinbase'
       ? `${process.env.MARKET_COINBASE_BASE || 'https://api.exchange.coinbase.com'}/products/${asset.provider_symbol}/ticker`
       : `${process.env.MARKET_COINGECKO_BASE || 'https://api.coingecko.com/api/v3'}/simple/price?vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true&ids=${asset.provider_symbol}`
