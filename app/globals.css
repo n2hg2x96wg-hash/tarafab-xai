@@ -418,3 +418,42 @@ body.dialog-open #chat-application { visibility: hidden !important; }
   .premium-glow, .usage-fill, .alloc-seg { animation: none; }
   .plan-card, .plan-card:hover { transition: none; transform: none; }
 }
+
+/* Automation flow. Layout: vertical on phones, a row on wide screens.
+   Motion: one staggered reveal when scrolled into view (transform/opacity
+   only), a gentle 3D tilt on capable screens, and a moving connector only
+   between stages that are actually live. */
+.flow-track { display: grid; gap: 0; grid-template-columns: 1fr; }
+.flow-step { position: relative; display: flex; flex-direction: column; }
+.flow-link { display: block; align-self: center; width: 2px; height: 18px; background: rgb(var(--ink-600, 60 66 80)); opacity: .6; }
+.flow-link-live { background: linear-gradient(180deg, rgba(52, 211, 153, .15), rgba(52, 211, 153, .9), rgba(52, 211, 153, .15)); background-size: 100% 200%; animation: flowY 1.6s linear infinite; opacity: 1; }
+@keyframes flowY { from { background-position: 0 0 } to { background-position: 0 -200% } }
+@keyframes flowX { from { background-position: 0 0 } to { background-position: -200% 0 } }
+@media (min-width: 1024px) {
+  .flow-track { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0; }
+  .flow-step { flex-direction: row; align-items: center; }
+  .flow-step .flow-node { flex: 1; min-width: 0; }
+  .flow-link { width: 14px; height: 2px; flex: none; }
+  .flow-link-live { background: linear-gradient(90deg, rgba(52, 211, 153, .15), rgba(52, 211, 153, .9), rgba(52, 211, 153, .15)); background-size: 200% 100%; animation-name: flowX; }
+}
+.flow .flow-step { opacity: 0; transform: translateY(14px); transition: opacity .5s ease, transform .6s cubic-bezier(.2,.7,.2,1); transition-delay: calc(var(--i) * 110ms); }
+.flow.flow-in .flow-step { opacity: 1; transform: none; }
+.flow-3d .flow-track { perspective: 900px; }
+.flow-3d .flow-node { transform: rotateX(10deg) translateZ(0); transform-origin: center bottom; transition: transform .35s ease, box-shadow .35s ease; box-shadow: 0 10px 24px -14px rgba(0,0,0,.6); }
+.flow-3d.flow-in .flow-node { transform: rotateX(0deg) translateZ(0); transition-delay: calc(var(--i) * 110ms + 200ms); }
+.flow-3d .flow-node:hover { transform: translateY(-3px) translateZ(12px); box-shadow: 0 16px 30px -16px rgba(0,0,0,.7); }
+.flow-node[data-state="ok"], .flow-node[data-state="done"] { box-shadow: inset 0 0 0 1px rgba(255,255,255,.02), 0 0 22px -12px rgba(52, 211, 153, .45); }
+@keyframes statusPing { 0% { transform: scale(1); opacity: .6 } 80%, 100% { transform: scale(2.4); opacity: 0 } }
+.status-ping { animation: statusPing 2s cubic-bezier(0,0,.2,1) infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .flow .flow-step { opacity: 1; transform: none; transition: none; }
+  .flow-link-live, .status-ping { animation: none; }
+  .flow-3d .flow-node, .flow-3d .flow-node:hover { transform: none; transition: none; }
+}
+@media (min-width: 1024px) {
+  .flow-v .flow-track { grid-template-columns: 1fr; }
+  .flow-v .flow-step { flex-direction: column; align-items: stretch; }
+  .flow-v .flow-link { width: 2px; height: 14px; align-self: center; }
+  .flow-v .flow-link-live { background: linear-gradient(180deg, rgba(52, 211, 153, .15), rgba(52, 211, 153, .9), rgba(52, 211, 153, .15)); background-size: 100% 200%; animation-name: flowY; }
+}
+.btc-auto { background-image: radial-gradient(90% 70% at 0% 0%, rgba(247, 147, 26, 0.07), transparent 60%); }

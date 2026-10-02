@@ -4,6 +4,9 @@
 import type { Locale } from './config'
 
 const en: Record<string, string> = {
+  'ft.soon': 'Coming soon',
+  'ft.comingSoon': 'This feature is coming soon.',
+  'ft.unavailable': 'This feature is not available right now.',
   'tr.title': 'Transfer to Tarafab',
   'tr.subtitle': 'Move funds from your verified external wallet into your Tarafab Account Balance. You approve the transaction in your own wallet.',
   'tr.direction': 'External wallet → Tarafab Account Balance',
@@ -122,6 +125,9 @@ const en: Record<string, string> = {
 }
 
 const de: Record<string, string> = {
+  'ft.soon': 'Demnächst',
+  'ft.comingSoon': 'Diese Funktion ist bald verfügbar.',
+  'ft.unavailable': 'Diese Funktion ist derzeit nicht verfügbar.',
   'tr.title': 'Auf Tarafab übertragen',
   'tr.subtitle': 'Übertragen Sie Guthaben von Ihrer verifizierten externen Wallet auf Ihren Tarafab-Kontostand. Sie bestätigen die Transaktion in Ihrer eigenen Wallet.',
   'tr.direction': 'Externe Wallet → Tarafab-Kontostand',
@@ -239,6 +245,9 @@ const de: Record<string, string> = {
 }
 
 const es: Record<string, string> = {
+  'ft.soon': 'Próximamente',
+  'ft.comingSoon': 'Esta función estará disponible pronto.',
+  'ft.unavailable': 'Esta función no está disponible en este momento.',
   'tr.title': 'Transferir a Tarafab',
   'tr.subtitle': 'Mueva fondos de su billetera externa verificada a su Saldo de la cuenta Tarafab. Usted aprueba la transacción en su propia billetera.',
   'tr.direction': 'Billetera externa → Saldo de la cuenta Tarafab',
@@ -356,6 +365,9 @@ const es: Record<string, string> = {
 }
 
 const fr: Record<string, string> = {
+  'ft.soon': 'Bientôt',
+  'ft.comingSoon': 'Cette fonctionnalité arrive bientôt.',
+  'ft.unavailable': 'Cette fonctionnalité n’est pas disponible pour le moment.',
   'tr.title': 'Transférer vers Tarafab',
   'tr.subtitle': 'Transférez des fonds de votre portefeuille externe vérifié vers votre Solde du compte Tarafab. Vous approuvez la transaction dans votre propre portefeuille.',
   'tr.direction': 'Portefeuille externe → Solde du compte Tarafab',
@@ -473,6 +485,9 @@ const fr: Record<string, string> = {
 }
 
 const it: Record<string, string> = {
+  'ft.soon': 'In arrivo',
+  'ft.comingSoon': 'Questa funzione sarà disponibile a breve.',
+  'ft.unavailable': 'Questa funzione non è disponibile al momento.',
   'tr.title': 'Trasferisci su Tarafab',
   'tr.subtitle': 'Sposta fondi dal tuo wallet esterno verificato al tuo Saldo del conto Tarafab. Approvi la transazione nel tuo wallet.',
   'tr.direction': 'Wallet esterno → Saldo del conto Tarafab',
@@ -590,6 +605,9 @@ const it: Record<string, string> = {
 }
 
 const ko: Record<string, string> = {
+  'ft.soon': '곧 제공',
+  'ft.comingSoon': '이 기능은 곧 제공됩니다.',
+  'ft.unavailable': '이 기능은 현재 사용할 수 없습니다.',
   'tr.title': 'Tarafab으로 이체',
   'tr.subtitle': '인증된 외부 지갑의 자금을 Tarafab 계정 잔액으로 옮깁니다. 거래는 본인의 지갑에서 직접 승인합니다.',
   'tr.direction': '외부 지갑 → Tarafab 계정 잔액',
@@ -707,6 +725,9 @@ const ko: Record<string, string> = {
 }
 
 const pt: Record<string, string> = {
+  'ft.soon': 'Em breve',
+  'ft.comingSoon': 'Este recurso estará disponível em breve.',
+  'ft.unavailable': 'Este recurso não está disponível no momento.',
   'tr.title': 'Transferir para a Tarafab',
   'tr.subtitle': 'Transfira fundos da sua carteira externa verificada para o seu Saldo da conta Tarafab. Você aprova a transação na sua própria carteira.',
   'tr.direction': 'Carteira externa → Saldo da conta Tarafab',

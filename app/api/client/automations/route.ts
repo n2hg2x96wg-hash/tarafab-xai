@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { clientForRequest, dbError, idempotencyKey, unauthorized } from '@/lib/supabase/request'
 import { clientIp, rateLimited } from '@/lib/rateLimit'
+import { featureBlocked } from '@/lib/features'
 
 const KINDS = ['price_above', 'price_below', 'pct_up', 'pct_down', 'move_abs']
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -32,6 +33,7 @@ export async function POST(request: NextRequest) {
   const id = String(b.id ?? '')
   switch (b.action) {
     case 'create': {
+      const blocked = await featureBlocked(supabase, 'automations'); if (blocked) return blocked
       if (!/^[A-Z0-9.]{1,12}$/.test(String(b.asset ?? '')) || !KINDS.includes(String(b.kind)) || !(target > 0)) return NextResponse.json({ error: 'Check the asset, condition and target.' }, { status: 400 })
       const { data, error } = await supabase.rpc('client_automation_create', { p_asset: b.asset, p_kind: b.kind, p_target: target, p_name: name, p_idempotency_key: idempotencyKey(request, b as { idempotency_key?: unknown }) })
       if (error) return dbError(error)

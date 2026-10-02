@@ -27,7 +27,9 @@ import {
 import { WalletTab } from '@/components/dashboard/WalletTab'
 import { AssetCenter } from '@/components/markets/AssetCenter'
 import { AutomationCenter } from '@/components/markets/AutomationCenter'
-import { FeeRows, PremiumCenter, PremiumGateHost, useServiceFee } from '@/components/premium/Premium'
+import { FeeRows, PremiumCenter, PremiumGateHost, useServiceFee, usePt } from '@/components/premium/Premium'
+import { hiddenState, useFeatures } from '@/components/ui/features'
+import { StateView } from '@/components/ui/State'
 import {
   HistoryTab, LoadMore, NotificationsTab, PerformanceTab, PortfolioTab, PreferencesTab, SecurityTab, SupportTab, noticesFrom,
   type TeamNotice,
@@ -143,7 +145,15 @@ export default function DashboardPage() {
   const [loadingMore, setLoadingMore] = useState(false)
   // Optional sections an admin has hidden; empty (all shown) until loaded
   // and if the setting cannot be read.
-  const [hiddenNav, setHiddenNav] = useState<string[]>([])
+  const [savedHiddenNav, setHiddenNav] = useState<string[]>([])
+  // Sections switched off by the server-side feature states join the admin's
+  // hidden sections; "coming soon" stays visible but shows no unfinished UI.
+  const feature = useFeatures()
+  const pt = usePt()
+  const NAV_FEATURE = { automations: 'automations', premium: 'premium' } as const
+  const hiddenNav = useMemo(() => [...savedHiddenNav, ...Object.entries(NAV_FEATURE).filter(([, k]) => hiddenState(feature(k))).map(([id]) => id)],
+    [savedHiddenNav, feature]) // eslint-disable-line react-hooks/exhaustive-deps
+  const soon = (id: string) => id in NAV_FEATURE && feature(NAV_FEATURE[id as keyof typeof NAV_FEATURE]) === 'coming_soon'
   const [navOrder, setNavOrder] = useState<string[]>([])
   const [autoAsset, setAutoAsset] = useState<string | null>(null)
   const [navLabels, setNavLabels] = useState<Record<string, string>>({})
@@ -489,8 +499,9 @@ export default function DashboardPage() {
           <ErrorBoundary key={activeNav} label={current ? labelOf(current) : undefined}>
             {activeNav === 'overview' && <OverviewTab name={displayName} account={account} txs={txs} go={go} can={id => !hiddenNav.includes(id)} labelOf={labelOf} />}
             {activeNav === 'markets' && <div className="space-y-10"><AssetCenter onAutomate={id => { setAutoAsset(id); go('automations') }} /><MarketsTab /></div>}
-            {activeNav === 'automations' && <AutomationCenter presetAsset={autoAsset} onPresetUsed={() => setAutoAsset(null)} />}
-            {activeNav === 'premium' && <PremiumCenter account={account} txs={txs} />}
+            {soon(activeNav) && <StateView state="unavailable" title={pt('ft.soon')} body={pt('ft.comingSoon')} />}
+            {activeNav === 'automations' && !soon('automations') && <AutomationCenter presetAsset={autoAsset} onPresetUsed={() => setAutoAsset(null)} />}
+            {activeNav === 'premium' && !soon('premium') && <PremiumCenter account={account} txs={txs} />}
             {activeNav === 'transactions' && <><TransactionsTab txs={txs} /><div className="mt-4"><LoadMore hasMore={hasMore} loading={loadingMore} onLoadMore={loadMore} /></div></>}
             {activeNav === 'portfolio' && <div className="space-y-8"><InvestmentCenter go={go} focusId={focusInv} onFocusDone={() => setFocusInv(null)} /><PortfolioTab account={account} txs={txs} hasMore={hasMore} go={go} /></div>}
             {activeNav === 'depositHistory' && <HistoryTab kind="deposit" txs={txs} hasMore={hasMore} loadingMore={loadingMore} onLoadMore={loadMore} go={go} />}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { clientForRequest, dbError, idempotencyKey, unauthorized } from '@/lib/supabase/request'
 import { functionsUrl, getSupabaseEnv } from '@/lib/supabase/env'
 import { clientIp, rateLimited } from '@/lib/rateLimit'
+import { featureBlocked } from '@/lib/features'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const COLS = 'id, reference, wallet_id, chain_id, network, asset, token_contract, decimals, from_address, to_address, quoted_amount, usd_rate, quoted_usd, quoted_fee_usd, quoted_credit_usd, quote_expires_at, tx_hash, submitted_at, required_confirmations, confirmations, received_amount, credit_rate, gross_usd, fee_usd, credited_usd, status, error, created_at, credited_at'
@@ -31,6 +32,8 @@ export async function POST(request: NextRequest) {
   const id = String(b.id ?? '')
   switch (b.action) {
     case 'quote': {
+      // New transfers only; a transaction already sent can always be recorded.
+      const blocked = await featureBlocked(supabase, 'wallet_transfer'); if (blocked) return blocked
       const amount = String(b.amount ?? '')
       if (!UUID.test(String(b.wallet_id ?? '')) || !UUID.test(String(b.destination_id ?? '')) || !/^\d+(\.\d{1,18})?$/.test(amount) || !(Number(amount) > 0)) {
         return NextResponse.json({ error: 'Check the wallet, asset and amount.' }, { status: 400 })

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { clientForRequest, dbError, unauthorized } from '@/lib/supabase/request'
 import { functionsUrl, getSupabaseEnv } from '@/lib/supabase/env'
 import { clientIp, rateLimited } from '@/lib/rateLimit'
+import { featureBlocked } from '@/lib/features'
 
 async function billing(token: string, body: Record<string, unknown>) {
   const res = await fetch(`${functionsUrl()}/billing`, {
@@ -32,6 +33,7 @@ export async function POST(request: NextRequest) {
   let b: Record<string, unknown>
   try { b = await request.json() } catch { return NextResponse.json({ error: 'Invalid request.' }, { status: 400 }) }
   if (!['checkout', 'cancel', 'resume'].includes(String(b.action))) return NextResponse.json({ error: 'Unknown action.' }, { status: 400 })
+  if (b.action === 'checkout') { const blocked = await featureBlocked(supabase, 'premium'); if (blocked) return blocked }
   if (b.action === 'checkout' && !/^[a-z0-9_-]{2,40}$/.test(String(b.plan_id ?? ''))) return NextResponse.json({ error: 'Choose a plan.' }, { status: 400 })
   try {
     const r = await billing(token, { action: b.action, plan_id: b.plan_id })

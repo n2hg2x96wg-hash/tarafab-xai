@@ -9,6 +9,7 @@ import { IconAlert, IconCheck, IconClose } from '@/components/Icons'
 import { Spinner } from '@/components/AuthShell'
 import { StatusBadge, useMk } from './AssetCenter'
 import { useAssets } from './useAssets'
+import { AutomationFlow, FlowDots } from '@/components/automation/AutomationFlow'
 
 type Kind = 'price_above' | 'price_below' | 'pct_up' | 'pct_down' | 'move_abs'
 type Auto = {
@@ -33,6 +34,8 @@ export function AutomationCenter({ presetAsset, onPresetUsed }: { presetAsset: s
   const [deleting, setDeleting] = useState<Auto | null>(null)
   const [filter, setFilter] = useState<'all' | Auto['status']>('all')
   const [justArmed, setJustArmed] = useState('')
+  const [openFlow, setOpenFlow] = useState('')
+  const [btcPick, setBtcPick] = useState('')
 
   const load = useCallback(async () => {
     try {
@@ -82,6 +85,34 @@ export function AutomationCenter({ presetAsset, onPresetUsed }: { presetAsset: s
         <div className="panel p-3 col-span-2 sm:col-span-1"><p className="text-[12px] text-fg-faint">{t('auto.s.total')}</p><p className="mt-1 text-xl font-semibold tabular-nums text-fg">{items ? items.length : '—'}</p></div>
       </div>
       <p className="text-[12px] text-fg-faint">{t('auto.howItWorks')}</p>
+
+      {(() => {
+        // Bitcoin automation: the live BTC quote and the client's own BTC rules.
+        const btc = byId.get('BTC') || null
+        const mine = (items || []).filter(a => a.asset_id === 'BTC')
+        const rank = { active: 0, triggered: 1, paused: 2, failed: 3 } as const
+        const ordered = [...mine].sort((x, y) => rank[x.status] - rank[y.status])
+        const pick = ordered.find(a => a.id === btcPick) || ordered[0] || null
+        return (
+          <section className="panel p-4 sm:p-5 btc-auto" aria-labelledby="btc-auto-title">
+            <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+              <div>
+                <h3 id="btc-auto-title" className="text-[15px] font-semibold text-fg">{t('btc.title')}</h3>
+                <p className="text-[13px] text-fg-faint mt-0.5">{t('btc.subtitle')}</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {ordered.length > 1 && (
+                  <select value={pick?.id || ''} onChange={e => setBtcPick(e.target.value)} className="field !py-1.5 !text-[13px] w-auto" aria-label={t('btc.count', { n: ordered.length })}>
+                    {ordered.map(a => <option key={a.id} value={a.id}>{a.name || describe(a)}</option>)}
+                  </select>
+                )}
+                {!mine.length && items !== null && <button onClick={() => setWizard({ asset: 'BTC' })} className="btn btn-sm btn-solid">{t('btc.create')}</button>}
+              </div>
+            </div>
+            <AutomationFlow automation={pick} quote={btc} t={t} intl={intl} label={t('btc.flowLabel')} illustration={!pick} />
+          </section>
+        )
+      })()}
       {error && <div role="alert" className="alert alert-danger text-sm"><IconAlert width={16} height={16} className="shrink-0 mt-px" /><span>{error}</span></div>}
 
       {items === null && !loadError ? (
@@ -113,7 +144,14 @@ export function AutomationCenter({ presetAsset, onPresetUsed }: { presetAsset: s
                   <div><dt className="text-fg-faint">{t('auto.current')}</dt><dd className="text-fg tabular-nums">{asset?.price != null ? formatPrice(asset.price) : t('status.dataUnavailable')}</dd></div>
                   <div><dt className="text-fg-faint">{t('auto.lastChecked')}</dt><dd className="text-fg-muted">{a.last_evaluated_at ? new Date(a.last_evaluated_at).toLocaleTimeString(intl, { hour: '2-digit', minute: '2-digit' }) : t('auto.notYet')}</dd></div>
                   <div><dt className="text-fg-faint">{t('auto.notification')}</dt><dd className="text-fg-muted">{t('auto.inApp')}</dd></div>
+                  <div><dt className="text-fg-faint">{t('auto.created')}</dt><dd className="text-fg-muted">{new Date(a.created_at).toLocaleDateString(intl, { day: 'numeric', month: 'short', year: 'numeric' })}</dd></div>
+                  <div><dt className="text-fg-faint">{t('auto.next')}</dt><dd className="text-fg-muted">{a.status === 'active' ? t('auto.nextMinute') : '—'}</dd></div>
                 </dl>
+                <button onClick={() => setOpenFlow(f => (f === a.id ? '' : a.id))} aria-expanded={openFlow === a.id} className="flex items-center gap-2 text-left">
+                  <FlowDots automation={a} quote={asset || null} t={t} />
+                  <span className="text-[11px] text-fg-faint underline underline-offset-2">{t('auto.flowLabel', { name: asset?.id || a.asset_id })}</span>
+                </button>
+                {openFlow === a.id && <AutomationFlow automation={a} quote={asset || null} t={t} intl={intl} label={t('auto.flowLabel', { name: asset?.name || a.asset_id })} vertical />}
                 {a.status === 'triggered' && <p className="text-[12px] text-sky-300">{t('auto.triggeredAt', { price: formatPrice(a.trigger_price), time: a.triggered_at ? new Date(a.triggered_at).toLocaleString(intl, { dateStyle: 'medium', timeStyle: 'short' }) : '' })}</p>}
                 {a.status === 'active' && a.last_error && <p className="text-[12px] text-amber-300">{t('auto.waiting', { reason: a.last_error })}</p>}
                 {evs.length > 0 && <p className="text-[11px] text-fg-faint truncate">{evs.map(e => `${t(`auto.ev.${e.event}`)} ${new Date(e.created_at).toLocaleDateString(intl, { day: 'numeric', month: 'short' })}`).join(' · ')}</p>}

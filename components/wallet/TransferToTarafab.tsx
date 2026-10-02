@@ -8,6 +8,8 @@ import { IconAlert, IconArrowDown, IconCheck } from '@/components/Icons'
 import { Spinner } from '@/components/AuthShell'
 import { fmt } from '@/components/dashboard/shared'
 import { usePt } from '@/components/premium/Premium'
+import { hiddenState, useFeatures } from '@/components/ui/features'
+import { StateView } from '@/components/ui/State'
 import {
   WalletError, estimateNetworkFee, formatUnits, nativeBalance, networkOf, parseUnits, sendTransfer, shortAddress, tokenBalance, type Eip1193,
 } from '@/lib/wallet/eip1193'
@@ -39,6 +41,7 @@ export function TransferToTarafab({ provider, address, chainId, walletId }: { pr
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const attempt = useRef(newRequestKey())
+  const feature = useFeatures()
 
   const load = useCallback(async () => {
     try {
@@ -157,6 +160,8 @@ export function TransferToTarafab({ provider, address, chainId, walletId }: { pr
     void load()
   }
 
+  const fs = feature('wallet_transfer')
+  if (hiddenState(fs) || fs === 'coming_soon') return <StateView compact state="unavailable" title={pt('tr.title')} body={fs === 'coming_soon' ? pt('ft.comingSoon') : pt('ft.unavailable')} />
   if (loadErr) return <div className="panel p-5 text-sm text-red-300" role="alert">{pt('tr.loadError')} {loadErr}</div>
   if (!dest) return <div className="panel p-5 text-sm text-fg-muted flex items-center gap-2"><Spinner /> {pt('tr.title')}…</div>
 

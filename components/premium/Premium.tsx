@@ -9,6 +9,7 @@ import { IconCheck, IconLock } from '@/components/Icons'
 import { Spinner } from '@/components/AuthShell'
 import { fmt, type Account, type Tx } from '@/components/dashboard/shared'
 import { TIMEFRAMES } from '@/lib/assets'
+import { hiddenState, useFeatures } from '@/components/ui/features'
 
 export type PremiumInfo = {
   status: 'free' | 'premium' | 'expired' | 'cancelled' | 'past_due' | 'trial'
@@ -99,6 +100,8 @@ export function PremiumCenter({ account, txs }: { account: Account | null; txs: 
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
   const [confirmCancel, setConfirmCancel] = useState(false)
+  const feature = useFeatures()
+  const analytics = feature('portfolio_analytics')
 
   // Back from the payment page: re-read the entitlement a few times while
   // the provider's confirmation arrives (it is the only thing that unlocks).
@@ -216,7 +219,7 @@ export function PremiumCenter({ account, txs }: { account: Account | null; txs: 
         </div>
       )}
 
-      {info.premium ? <PortfolioAnalytics account={account} txs={txs} /> : (
+      {hiddenState(analytics) || analytics === 'coming_soon' ? null : info.premium || analytics === 'enabled' ? <PortfolioAnalytics account={account} txs={txs} /> : (
         <button onClick={() => openPremiumGate(pt('pr.f.analytics'))} className="panel p-5 w-full text-left flex items-center justify-between gap-3 hover:border-ink-500 transition-colors">
           <span className="text-[15px] font-semibold text-fg">{pt('an.title')}</span><PremiumBadge />
         </button>
