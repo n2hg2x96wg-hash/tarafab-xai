@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { authFetch } from '@/lib/authFetch'
 import type { AssetQuote, Timeframe } from '@/lib/assets'
 
 // One shared fetch of /api/market/assets for every component on the page,
@@ -49,8 +50,11 @@ export async function loadChart(id: string, tf: Timeframe, signal?: AbortSignal)
   const k = `${id}:${tf}`
   const c = chartCache.get(k)
   if (c && Date.now() - c.at < 60_000) return c.v
-  const r = await fetch(`/api/market/candles?id=${encodeURIComponent(id)}&tf=${tf}`, { signal })
-  const v = await r.json().catch(() => ({ points: [], available: false })) as { points: [number, number][]; available: boolean; reason?: string }
+  // Sent with the session when there is one, so Premium timeframes can be
+  // checked on the server.
+  const r = await authFetch(`/api/market/candles?id=${encodeURIComponent(id)}&tf=${tf}`, { signal })
+  const v = await r.json().catch(() => ({ points: [], available: false })) as { points: [number, number][]; available: boolean; reason?: string; premium?: boolean }
+  if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
   if (r.ok) chartCache.set(k, { at: Date.now(), v })
   return v
 }

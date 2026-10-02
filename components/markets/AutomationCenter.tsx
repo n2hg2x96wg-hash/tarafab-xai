@@ -1,7 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { authFetch, errorText, newRequestKey, readJson } from '@/lib/authFetch'
+import { RequestError, authFetch, errorText, newRequestKey, readJson } from '@/lib/authFetch'
+import { openPremiumGate, refreshPremium } from '@/components/premium/Premium'
 import { formatPrice, type AssetQuote } from '@/lib/assets'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { IconAlert, IconCheck, IconClose } from '@/components/Icons'
@@ -48,8 +49,8 @@ export function AutomationCenter({ presetAsset, onPresetUsed }: { presetAsset: s
     try {
       await readJson(await authFetch('/api/client/automations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, id: a.id }) }))
       if (action === 'resume') setJustArmed(a.id)
-      setDeleting(null); await load()
-    } catch (e) { setError(errorText(e)) } finally { setBusyId('') }
+      setDeleting(null); await load(); refreshPremium()
+    } catch (e) { setError(errorText(e)); if (e instanceof RequestError && e.status === 402) openPremiumGate(e.message) } finally { setBusyId('') }
   }
 
   const counts = (s: Auto['status']) => (items || []).filter(a => a.status === s).length
@@ -164,8 +165,8 @@ function Wizard({ assets, initial, onClose, onDone }: { assets: AssetQuote[]; in
     try {
       const body = edit ? { action: 'update', id: edit.id, kind, target: num, name } : { action: 'create', asset: assetId, kind, target: num, name, idempotency_key: key }
       const r = await readJson<{ automation: { id: string } }>(await authFetch('/api/client/automations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }))
-      onDone(r.automation.id)
-    } catch (e) { setError(errorText(e)); setBusy(false) }
+      onDone(r.automation.id); refreshPremium()
+    } catch (e) { setError(errorText(e)); setBusy(false); if (e instanceof RequestError && e.status === 402) openPremiumGate(e.message) }
   }
   const sentence = asset ? t(`kind.${kind}.sentence`, { name: asset.name, target: isPct(kind) ? `${num}%` : formatPrice(num) }) : ''
   const steps = [t('wiz.asset'), t('wiz.condition'), t('wiz.target'), t('wiz.notify'), t('wiz.review')]

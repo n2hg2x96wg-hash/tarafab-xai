@@ -22,11 +22,12 @@ import { useTheme } from '@/lib/theme/ThemeProvider'
 import {
   IconAlert, IconArrowDown, IconArrowUp, IconChart, IconCheck, IconClose, IconCopy, IconGrid,
   IconInfo, IconList, IconLogOut, IconMail, IconMenu, IconUser, Logo,
-  IconBell, IconHelp, IconHistory, IconPie, IconShield, IconSliders, IconSwap, IconTrend, IconWallet,
+  IconBell, IconHelp, IconHistory, IconLock, IconPie, IconShield, IconSliders, IconSwap, IconTrend, IconWallet,
 } from '@/components/Icons'
 import { WalletTab } from '@/components/dashboard/WalletTab'
 import { AssetCenter } from '@/components/markets/AssetCenter'
 import { AutomationCenter } from '@/components/markets/AutomationCenter'
+import { FeeRows, PremiumCenter, PremiumGateHost, useServiceFee } from '@/components/premium/Premium'
 import {
   HistoryTab, LoadMore, NotificationsTab, PerformanceTab, PortfolioTab, PreferencesTab, SecurityTab, SupportTab, noticesFrom,
   type TeamNotice,
@@ -81,6 +82,7 @@ const NAV_GROUPS: { label: TKey; items: (NavItem & { core?: boolean })[] }[] = [
   { label: 'nav3.groupMarkets', items: [
     { icon: IconChart, label: 'dash.nav.markets', id: 'markets' },
     { icon: IconSliders, label: 'automations.nav', id: 'automations' },
+    { icon: IconLock, label: 'premium.nav', id: 'premium' },
     { icon: IconSwap, label: 'nav3.marketActivity', id: 'marketActivity' },
     { icon: IconHistory, label: 'nav3.priceHistory', id: 'priceHistory' },
   ] },
@@ -483,10 +485,12 @@ export default function DashboardPage() {
               </button>
             </div>
           )}
+          <PremiumGateHost onSeePremium={() => go('premium')} />
           <ErrorBoundary key={activeNav} label={current ? labelOf(current) : undefined}>
             {activeNav === 'overview' && <OverviewTab name={displayName} account={account} txs={txs} go={go} can={id => !hiddenNav.includes(id)} labelOf={labelOf} />}
             {activeNav === 'markets' && <div className="space-y-10"><AssetCenter onAutomate={id => { setAutoAsset(id); go('automations') }} /><MarketsTab /></div>}
             {activeNav === 'automations' && <AutomationCenter presetAsset={autoAsset} onPresetUsed={() => setAutoAsset(null)} />}
+            {activeNav === 'premium' && <PremiumCenter account={account} txs={txs} />}
             {activeNav === 'transactions' && <><TransactionsTab txs={txs} /><div className="mt-4"><LoadMore hasMore={hasMore} loading={loadingMore} onLoadMore={loadMore} /></div></>}
             {activeNav === 'portfolio' && <div className="space-y-8"><InvestmentCenter go={go} focusId={focusInv} onFocusDone={() => setFocusInv(null)} /><PortfolioTab account={account} txs={txs} hasMore={hasMore} go={go} /></div>}
             {activeNav === 'depositHistory' && <HistoryTab kind="deposit" txs={txs} hasMore={hasMore} loadingMore={loadingMore} onLoadMore={loadMore} go={go} />}
@@ -1149,6 +1153,8 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
   const toast = useToast()
   const attemptKey = useRef(newRequestKey())
   const inFlight = useRef(false)
+  const amtNum = Math.round(parseFloat(amount) * 100) / 100
+  const feeQ = useServiceFee('withdrawal', amtNum > 0 ? amtNum : 0)
   useEffect(() => {
     let active = true
     authFetch('/api/client/wallets')
@@ -1237,6 +1243,7 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
             <div className="flex justify-between gap-4 py-2.5"><dt className="text-fg-muted">{t('withdraw.from')}</dt><dd className="text-fg">{t(source === 'profit_balance' ? 'withdraw.profitShort' : 'withdraw.availableShort')}</dd></div>
             <div className="py-2.5"><dt className="text-fg-muted mb-1">{t('withdraw.yourAddress')} · {review.network}</dt><dd className="text-fg font-mono text-[13px] break-all">{review.address}</dd></div>
           </dl>
+          <div className="mt-3"><FeeRows q={feeQ} amount={review.amt} kind="withdrawal" /></div>
           <p className="mt-4 text-[13px] text-fg-muted leading-relaxed">{t('withdraw.reviewNote')}</p>
         </ConfirmModal>
       )}
@@ -1314,6 +1321,7 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
                 <button type="button" onClick={() => setAmount(max > 0 ? max.toFixed(2) : '')} className="text-[13px] text-fg-muted hover:text-fg disabled:opacity-40" disabled={max <= 0}>{t('withdraw.max')}</button>
               </div>
               <input id="w-amount" type="number" inputMode="decimal" step="0.01" min="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className="field tabular-nums" disabled={submitting} />
+              <div className="mt-2"><FeeRows q={feeQ} amount={amtNum} kind="withdrawal" /></div>
             </div>
 
             <div>

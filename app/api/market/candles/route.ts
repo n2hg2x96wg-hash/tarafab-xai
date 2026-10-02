@@ -25,6 +25,15 @@ export async function GET(req: NextRequest) {
   const { data: a } = await sb.from('market_assets').select('id, category, provider, provider_symbol, chart_enabled').eq('id', id).maybeSingle()
   if (!a) return NextResponse.json({ error: 'Unknown asset.' }, { status: 404 })
   if (!a.chart_enabled || a.category !== 'crypto') return NextResponse.json({ points: [], available: false, reason: 'Chart data is not available for this asset.' })
+  // Premium-only timeframes (configured by an admin) are checked on the
+  // server against the caller's entitlement, not just hidden in the page.
+  const { data: st } = await sb.from('premium_settings').select('premium_timeframes').eq('id', 1).maybeSingle()
+  if ((st?.premium_timeframes as string[] | undefined)?.includes(tf)) {
+    const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '').trim()
+    const user = token ? createClient(url, anonKey, { global: { headers: { Authorization: `Bearer ${token}` } }, auth: { persistSession: false, autoRefreshToken: false } }) : null
+    const { data: allowed } = user ? await user.rpc('client_can_use_timeframe', { p_tf: tf }) : { data: false }
+    if (!allowed) return NextResponse.json({ points: [], available: false, premium: true, reason: 'This timeframe is available with Tarafab Premium.' }, { status: 402, headers: { 'Cache-Control': 'private, no-store' } })
+  }
   const [gran, span, ttl] = CB[tf]
   try {
     let points: [number, number][] = []

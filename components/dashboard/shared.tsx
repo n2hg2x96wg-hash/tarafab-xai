@@ -70,6 +70,8 @@ export function txLabel(tx: Tx, t: T) {
   // Stored 'adjustment' and legacy 'return' records are shown as Profit; the
   // stored rows are left untouched (direction still decides the sign).
   if (tx.type === 'adjustment' || tx.type === 'return') return t('dash.txType.profit')
+  // Tarafab's own service fees are always named as such, never as a network fee.
+  if (tx.type === 'fee' && tx.method === 'service_fee') return t('dash.txType.serviceFee')
   return t(`dash.txType.${tx.type}` as TKey) || tx.type.replace(/_/g, ' ')
 }
 

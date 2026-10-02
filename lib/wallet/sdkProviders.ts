@@ -68,6 +68,9 @@ async function walletConnect(): Promise<Disconnectable> {
     optionalChains: [first, ...rest] as [number, ...number[]],
     showQrModal: true,
     methods: ['personal_sign', 'eth_chainId', 'eth_accounts', 'eth_requestAccounts', 'wallet_switchEthereumChain', 'eth_getBalance'],
+    // Optional, so wallets that connect today keep connecting: transfer to
+    // Tarafab (user-approved in the wallet) and the reads it needs.
+    optionalMethods: ['eth_sendTransaction', 'eth_call', 'eth_estimateGas', 'eth_gasPrice'],
     events: ['accountsChanged', 'chainChanged', 'disconnect'],
     metadata: {
       name: APP.name, description: APP.description, url: window.location.origin, icons: [iconUrl()],

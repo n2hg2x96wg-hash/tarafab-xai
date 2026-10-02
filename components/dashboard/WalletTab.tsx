@@ -8,6 +8,7 @@ import { ConfirmModal } from '@/components/ConfirmModal'
 import { IconAlert, IconCheck, IconCopy, IconLock, IconWallet } from '@/components/Icons'
 import { Spinner } from '@/components/AuthShell'
 import { fmt, type Account } from '@/components/dashboard/shared'
+import { TransferToTarafab } from '@/components/wallet/TransferToTarafab'
 import {
   NETWORKS, WalletError, chainIdOf, connect, discoverWallets, nativeBalance, networkOf, shortAddress, signMessage, switchChain,
   type Eip1193, type WalletInfo,
@@ -403,6 +404,12 @@ export function WalletTab({ account }: { account: Account | null }) {
         {error && <div role="alert" className="alert alert-danger mt-4 text-sm"><IconAlert width={16} height={16} className="shrink-0 mt-px" /><span>{error}</span></div>}
         {done && <div role="status" className="alert alert-success mt-4 text-sm"><IconCheck width={16} height={16} className="shrink-0 mt-px" /><span>{done}</span></div>}
       </div>
+
+      {/* External wallet → Tarafab (only from a connected, verified wallet) */}
+      {session && (
+        <TransferToTarafab provider={session.wallet.provider} address={session.address} chainId={session.chainId}
+          walletId={sessionLinked && sessionLinked.verification_status === 'verified' ? sessionLinked.id : null} />
+      )}
 
       {/* Linked wallets */}
       <div className="panel overflow-hidden">

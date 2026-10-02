@@ -378,6 +378,7 @@ const en = {
     txCountOne: '1 transaction',
     txCountMany: '{n} transactions',
     txType: {
+      serviceFee: "Tarafab Service Fee",
       investment: "Investment",
       fee: "Fee",
       deposit: 'Deposit',
@@ -388,6 +389,8 @@ const en = {
       transfer: 'Transfer',
     },
     method: {
+      wallet_transfer: "From verified wallet",
+      service_fee: "Tarafab Service Fee",
       bitcoin: 'Bitcoin (BTC)',
       bank_transfer: 'Bank transfer',
       wire_transfer: 'Wire transfer',
@@ -735,6 +738,10 @@ const en = {
     badge: 'ADMIN',
     administrator: 'Administrator',
     nav: {
+      transfers: "Wallet transfers",
+      fees: "Fees",
+      premium: "Premium",
+      reconciliation: "Reconciliation",
       dashboard: 'Dashboard',
       clients: 'Clients',
       transactions: 'Transactions',
@@ -950,6 +957,9 @@ const en = {
   },
   automations: {
     nav: "Automation",
+  },
+  premium: {
+    nav: "Premium",
   },
 }
 

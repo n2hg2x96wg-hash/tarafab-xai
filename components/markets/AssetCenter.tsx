@@ -1,12 +1,13 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { authFetch, errorText, readJson } from '@/lib/authFetch'
+import { RequestError, authFetch, errorText, readJson } from '@/lib/authFetch'
+import { PremiumBadge, openPremiumGate, refreshPremium, usePremium, usePt } from '@/components/premium/Premium'
 import { formatPrice, TIMEFRAMES, type AssetQuote, type Timeframe } from '@/lib/assets'
 import { useI18n } from '@/lib/i18n/I18nProvider'
 import { marketsText } from '@/lib/i18n/markets'
-import { IconChart, IconClose } from '@/components/Icons'
-import { AreaChart, Sparkline } from './Charts'
+import { IconChart, IconClose, IconLock } from '@/components/Icons'
+import { AreaChart, Sparkline, sma } from './Charts'
 import { loadChart, useAssets } from './useAssets'
 
 type Cat = 'all' | 'crypto' | 'stock' | 'index' | 'watchlist'
@@ -61,8 +62,10 @@ export function AssetCenter({ onAutomate }: { onAutomate: (assetId: string) => v
     setWatch(w => (on ? [...(w || []), id] : (w || []).filter(x => x !== id))); setPopped(id); setWatchErr('')
     try {
       await readJson(await authFetch('/api/client/watchlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ asset: id, on }) }))
+      refreshPremium()
     } catch (e) {
       setWatch(w => (on ? (w || []).filter(x => x !== id) : [...(w || []), id])); setWatchErr(errorText(e))
+      if (e instanceof RequestError && e.status === 402) openPremiumGate(e.message)
     }
   }
 
@@ -173,7 +176,15 @@ export function AssetCenter({ onAutomate }: { onAutomate: (assetId: string) => v
 function AssetDetail({ a, watched, onWatch, onAutomate, onClose }: { a: AssetQuote; watched: boolean; onWatch: () => void; onAutomate: () => void; onClose: () => void }) {
   const { t, intl } = useMk()
   const [tf, setTf] = useState<Timeframe>('1D')
-  const [chart, setChart] = useState<{ points: [number, number][]; available: boolean; reason?: string } | null>(null)
+  const [chart, setChart] = useState<{ points: [number, number][]; available: boolean; reason?: string; premium?: boolean } | null>(null)
+  const { info: prem } = usePremium()
+  const pt = usePt()
+  const isPremium = !!prem?.premium
+  const lockedTf = (x: Timeframe) => !isPremium && !!prem?.premium_timeframes.includes(x)
+  const [smaOn, setSmaOn] = useState(false)
+  const overlays = useMemo(() => (smaOn && isPremium && chart?.points.length
+    ? [{ values: sma(chart.points, 20), color: 'rgb(56 189 248)', label: 'SMA 20' }, { values: sma(chart.points, 50), color: 'rgb(251 191 36)', label: 'SMA 50' }]
+    : []), [smaOn, isPremium, chart])
   useEffect(() => {
     if (!a.chart) { setChart({ points: [], available: false }); return }
     const ac = new AbortController(); setChart(null)
@@ -207,12 +218,21 @@ function AssetDetail({ a, watched, onWatch, onAutomate, onClose }: { a: AssetQuo
         <div className="mt-5">
           {a.chart && (
             <div className="seg mb-3" role="tablist" aria-label={t('detail.timeframe')}>
-              {TIMEFRAMES.map(x => <button key={x} role="tab" aria-selected={tf === x} onClick={() => setTf(x)} className={`seg-btn ${tf === x ? 'seg-btn-on' : ''}`}>{x}</button>)}
+              {TIMEFRAMES.map(x => <button key={x} role="tab" aria-selected={tf === x} onClick={() => (lockedTf(x) ? openPremiumGate(`${pt('pr.f.timeframes')}: ${x}`) : setTf(x))} className={`seg-btn ${tf === x ? 'seg-btn-on' : ''}`}>{x}{lockedTf(x) && <IconLock width={10} height={10} className="inline ml-0.5 -mt-0.5 text-amber-300" />}</button>)}
+            </div>
+          )}
+          {a.chart && (
+            <div className="mb-2 flex justify-end">
+              <button onClick={() => (isPremium ? setSmaOn(v => !v) : openPremiumGate(pt('pr.f.indicators')))} aria-pressed={smaOn && isPremium}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] ${smaOn && isPremium ? 'border-sky-400/50 text-sky-300 bg-sky-400/10' : 'border-ink-700 text-fg-muted hover:text-fg'}`}>
+                {pt('ch.sma')} {!isPremium && <PremiumBadge />}
+              </button>
             </div>
           )}
           <div className="rounded-xl border border-ink-700/70 bg-ink-900/40 p-2 min-h-[210px] flex items-center justify-center">
             {chart === null ? <div className="w-full h-[200px] animate-pulse rounded-lg bg-ink-800/60" />
-              : chart.available ? <div className="w-full"><AreaChart points={chart.points} up={firstLast} format={formatPrice} label={t('detail.chartLabel', { name: a.name, tf })} /></div>
+              : chart.available ? <div className="w-full"><AreaChart points={chart.points} up={firstLast} format={formatPrice} label={t('detail.chartLabel', { name: a.name, tf })} overlays={overlays} /></div>
+              : chart.premium ? <button onClick={() => openPremiumGate(`${pt('pr.f.timeframes')}: ${tf}`)} className="text-sm text-amber-300 flex items-center gap-2"><IconLock width={14} height={14} />{pt('pr.gateBody')}</button>
               : <p className="text-sm text-fg-muted flex items-center gap-2 px-4 text-center"><IconChart width={16} height={16} />{a.chart ? t('detail.chartUnavailable') : t('detail.chartNotOffered')}</p>}
           </div>
         </div>

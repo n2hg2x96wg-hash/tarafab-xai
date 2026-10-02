@@ -4,7 +4,9 @@
 // discovered with EIP-6963 (every installed wallet announces itself) and the
 // legacy window.ethereum as a fallback. Only public requests are made:
 // accounts, chain, balance, network switch and personal_sign of a plain text
-// message. No transaction is ever requested, and no key material exists here.
+// message. The only transaction ever requested is a transfer to Tarafab that
+// the user starts, reviews and approves in their own wallet (sendTransfer).
+// No key material exists here.
 
 export type Eip1193 = {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>
@@ -132,3 +134,53 @@ export async function nativeBalance(provider: Eip1193, address: string, decimals
 }
 
 export const shortAddress = (a: string) => (a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a)
+
+// Exact decimal string <-> integer base units (no floating point).
+export function parseUnits(value: string, decimals: number): bigint | null {
+  const v = value.trim()
+  if (!/^\d+(\.\d+)?$/.test(v)) return null
+  const [w, f = ''] = v.split('.')
+  if (f.length > decimals) return null
+  return BigInt(w) * BigInt('1' + '0'.repeat(decimals)) + BigInt((f + '0'.repeat(decimals)).slice(0, decimals) || '0')
+}
+export function formatUnits(v: bigint, decimals: number, maxFrac = 6) {
+  const base = BigInt('1' + '0'.repeat(decimals))
+  const frac = (v % base).toString().padStart(decimals, '0').slice(0, maxFrac).replace(/0+$/, '')
+  return frac ? `${v / base}.${frac}` : (v / base).toString()
+}
+
+// ERC-20 balanceOf through the user's wallet connection.
+export async function tokenBalance(provider: Eip1193, token: string, address: string): Promise<bigint> {
+  const data = '0x70a08231' + address.toLowerCase().replace(/^0x/, '').padStart(64, '0')
+  const hex = await withTimeout(provider.request({ method: 'eth_call', params: [{ to: token, data }, 'latest'] }) as Promise<string>, 20_000, 'The network did not respond in time.')
+  return BigInt(hex && hex !== '0x' ? String(hex) : '0x0')
+}
+
+export type TransferRequest = { from: string; to: string; token?: string | null; amount: bigint }
+const transferTx = (r: TransferRequest) => r.token
+  ? { from: r.from, to: r.token, value: '0x0',
+      data: '0xa9059cbb' + r.to.toLowerCase().replace(/^0x/, '').padStart(64, '0') + r.amount.toString(16).padStart(64, '0') }
+  : { from: r.from, to: r.to, value: '0x' + r.amount.toString(16) }
+
+// Estimated network fee (gas x gas price) in the chain's native coin, as the
+// network reports it right now. null when the network cannot estimate it; the
+// wallet always shows the final network fee before the user approves.
+export async function estimateNetworkFee(provider: Eip1193, r: TransferRequest): Promise<bigint | null> {
+  try {
+    const [gas, price] = await Promise.all([
+      withTimeout(provider.request({ method: 'eth_estimateGas', params: [transferTx(r)] }) as Promise<string>, 20_000),
+      withTimeout(provider.request({ method: 'eth_gasPrice' }) as Promise<string>, 20_000),
+    ])
+    return BigInt(String(gas)) * BigInt(String(price))
+  } catch { return null }
+}
+
+// Asks the user's wallet to send the transfer. The wallet shows the full
+// transaction and the user approves or declines it there.
+export async function sendTransfer(provider: Eip1193, r: TransferRequest): Promise<string> {
+  try {
+    const hash = await withTimeout(provider.request({ method: 'eth_sendTransaction', params: [transferTx(r)] }) as Promise<string>, 300_000)
+    if (typeof hash !== 'string' || !/^0x[0-9a-fA-F]{64}$/.test(hash)) throw new WalletError('The wallet did not return a transaction hash.', 'failed')
+    return hash.toLowerCase()
+  } catch (e) { throw walletError(e) }
+}

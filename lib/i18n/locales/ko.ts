@@ -380,6 +380,7 @@ const ko: DeepPartial<typeof en> = {
     txCountOne: '거래 1건',
     txCountMany: '거래 {n}건',
     txType: {
+      serviceFee: "Tarafab 서비스 수수료",
       investment: "투자",
       fee: "수수료",
       deposit: '입금',
@@ -390,6 +391,8 @@ const ko: DeepPartial<typeof en> = {
       transfer: '이체',
     },
     method: {
+      wallet_transfer: "인증된 지갑에서",
+      service_fee: "Tarafab 서비스 수수료",
       bitcoin: '비트코인 (BTC)',
       bank_transfer: '계좌 이체',
       wire_transfer: '전신 송금',
@@ -737,6 +740,10 @@ const ko: DeepPartial<typeof en> = {
     badge: '관리자',
     administrator: '관리자',
     nav: {
+      transfers: "지갑 이체",
+      fees: "수수료",
+      premium: "Premium",
+      reconciliation: "대사",
       dashboard: '대시보드',
       clients: '고객',
       transactions: '거래',
@@ -952,6 +959,9 @@ const ko: DeepPartial<typeof en> = {
   },
   automations: {
     nav: "자동화",
+  },
+  premium: {
+    nav: "Premium",
   },
 }
 

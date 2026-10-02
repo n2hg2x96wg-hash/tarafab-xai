@@ -22,8 +22,10 @@ export function clientForRequest(request: NextRequest) {
 
 export const unauthorized = () => NextResponse.json({ error: 'Please sign in again.' }, { status: 401 })
 
-export function dbError(err: { message?: string; code?: string } | null) {
+export function dbError(err: { message?: string; code?: string; hint?: string } | null) {
   const msg = err?.message || 'Something went wrong'
+  // A Free/Premium limit reached (raised by the database with this hint).
+  if (err?.hint === 'premium_limit') return NextResponse.json({ error: msg, code: 'premium_limit' }, { status: 402 })
   // Messages raised by our own database functions are written for clients and
   // pass through. A raw token/JWT error is a sign-in problem, not something
   // to show verbatim; the detail stays in the server log.

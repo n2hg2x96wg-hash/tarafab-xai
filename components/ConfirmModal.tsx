@@ -24,8 +24,9 @@ export function ConfirmModal({ title, children, confirmLabel, cancelLabel, busy,
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !busyRef.current) onCancel() }
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
+    document.body.classList.add('dialog-open')
     document.addEventListener('keydown', onKey)
-    return () => { document.body.style.overflow = prev; document.removeEventListener('keydown', onKey) }
+    return () => { document.body.style.overflow = prev; document.body.classList.remove('dialog-open'); document.removeEventListener('keydown', onKey) }
   }, [onCancel])
 
   return (

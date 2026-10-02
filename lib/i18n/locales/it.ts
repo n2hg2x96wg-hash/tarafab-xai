@@ -377,6 +377,7 @@ const it: DeepPartial<typeof en> = {
     txCountOne: '1 transazione',
     txCountMany: '{n} transazioni',
     txType: {
+      serviceFee: "Commissione di servizio Tarafab",
       investment: "Investimento",
       fee: "Commissione",
       deposit: 'Versamento',
@@ -387,6 +388,8 @@ const it: DeepPartial<typeof en> = {
       transfer: 'Trasferimento',
     },
     method: {
+      wallet_transfer: "Da wallet verificato",
+      service_fee: "Commissione di servizio Tarafab",
       bitcoin: 'Bitcoin (BTC)',
       bank_transfer: 'Bonifico bancario',
       wire_transfer: 'Bonifico internazionale',
@@ -734,6 +737,10 @@ const it: DeepPartial<typeof en> = {
     badge: 'ADMIN',
     administrator: 'Amministratore',
     nav: {
+      transfers: "Trasferimenti da wallet",
+      fees: "Commissioni",
+      premium: "Premium",
+      reconciliation: "Riconciliazione",
       dashboard: 'Dashboard',
       clients: 'Clienti',
       transactions: 'Transazioni',
@@ -949,6 +956,9 @@ const it: DeepPartial<typeof en> = {
   },
   automations: {
     nav: "Automazioni",
+  },
+  premium: {
+    nav: "Premium",
   },
 }
 
