@@ -21,7 +21,7 @@ export type PremiumInfo = {
   usage: { automations: number; watchlist: number }
   premium_timeframes: string[]
   plans: { id: string; name: string; interval: 'month' | 'year'; period?: 'month' | 'quarter' | 'year'; tier?: 'standard' | 'premium' | 'pro'; description?: string; features?: string[]; highlighted?: boolean
-    price: number; currency: string; promo_price: number | null; promo_label: string | null; checkout: boolean; seerbit?: boolean; seerbit_country?: string | null; paystack?: boolean }[]
+    price: number; currency: string; promo_price: number | null; promo_label: string | null; checkout: boolean; seerbit?: boolean; seerbit_country?: string | null }[]
   payments_recent?: { reference: string; plan_id: string; amount: number; currency: string; status: string; verification_status: string; created_at: string }[]
   payments: boolean
 }
@@ -117,16 +117,9 @@ export function PremiumCenter({ account, txs }: { account: Account | null; txs: 
     if (!payReview) return
     setPayBusy(payReview.id); setErr('')
     try {
-      const viaPaystack = !!payReview.paystack
-      const r = await readJson<{ status: string; url?: string; reference?: string }>(await authFetch(viaPaystack ? '/api/client/payments/paystack' : '/api/client/payments/start', {
+      const r = await readJson<{ status: string; url?: string; reference?: string }>(await authFetch('/api/client/payments/start', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ plan_id: payReview.id, idempotency_key: payKey.current }) }))
-      if (viaPaystack && r.status !== 'ok') {
-        // Paystack: back to this page with the reason; nothing was created at Paystack.
-        const reason = r.status === 'region_blocked' ? 'restricted' : r.status === 'unknown_region' ? 'unverified' : 'unavailable'
-        setPayBusy(''); setPayReview(null); payKey.current = newRequestKey()
-        window.history.replaceState(null, '', `/dashboard?payment=${reason}#premium`); setPayNotice(reason); return
-      }
-      if (r.status === 'ok' && r.url && r.reference && (viaPaystack ? /^https:\/\/checkout\.paystack\.com\//.test(r.url) : true)) {
+      if (r.status === 'ok' && r.url && r.reference && /^https:\/\/pay\.seerbitapi\.com\//.test(r.url)) {
         try { sessionStorage.setItem('tarafab.payRef', r.reference) } catch { /* the return page also lists recent payments */ }
         window.location.assign(r.url); return
       }
@@ -245,11 +238,11 @@ export function PremiumCenter({ account, txs }: { account: Account | null; txs: 
           <PricingTable
             plans={info.plans.map(p => ({ id: p.id, name: p.name, tier: p.tier || 'premium', period: p.period || p.interval, price: Number(p.price), promo_price: p.promo_price == null ? null : Number(p.promo_price),
               promo_label: p.promo_label, currency: p.currency, description: p.description || '', features: p.features || [], highlighted: !!p.highlighted,
-              available: !!p.paystack || !!p.seerbit || (info.payments && p.checkout),
-              note: p.paystack ? pt('pp.ngOnly', { country: 'Nigeria' }) : p.seerbit && p.seerbit_country ? pt('pp.ngOnly', { country: p.seerbit_country === 'NG' ? 'Nigeria' : p.seerbit_country }) : undefined }))}
+              available: !!p.seerbit || (info.payments && p.checkout),
+              note: p.seerbit && p.seerbit_country ? pt('pp.ngOnly', { country: p.seerbit_country === 'NG' ? 'Nigeria' : p.seerbit_country }) : undefined }))}
             freeLimits={{ automations: info.limits.free_automations, watchlist: info.limits.free_watchlist }}
             currentPlanId={info.premium ? sub?.plan_id : null} isFree={!info.premium} busyId={payBusy}
-            onChoose={pp => { setErr(''); const full = info.plans.find(x => x.id === pp.id)!; if (full.paystack || full.seerbit) setPayReview(full); else setReview(full) }} />
+            onChoose={pp => { setErr(''); const full = info.plans.find(x => x.id === pp.id)!; if (full.seerbit) setPayReview(full); else setReview(full) }} />
         </>)}
         {(info.payments_recent || []).length > 0 && (
           <ul className="mt-5 text-[12px] text-fg-faint space-y-1">
@@ -285,7 +278,7 @@ export function PremiumCenter({ account, txs }: { account: Account | null; txs: 
             <div className="flex justify-between gap-4 py-2"><dt className="text-fg-muted">{pt('pay.amount')}</dt><dd className="text-fg font-semibold tabular-nums">{planMoney(Number(payReview.promo_price ?? payReview.price), payReview.currency)}</dd></div>
             <div className="flex justify-between gap-4 py-2"><dt className="text-fg-muted">{pt('pay.billing')}</dt><dd className="text-fg">{pt(`pp.${payReview.period || payReview.interval}`)}</dd></div>
           </dl>
-          <p className="mt-3 text-[12px] text-fg-muted">{pt(payReview.paystack ? 'pay.securePaystack' : 'pay.secure')}</p>
+          <p className="mt-3 text-[12px] text-fg-muted">{pt('pay.secure')}</p>
         </ConfirmModal>
       )}
       {confirmCancel && sub && (

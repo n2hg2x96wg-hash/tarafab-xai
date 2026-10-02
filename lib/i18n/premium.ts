@@ -5,7 +5,6 @@ import type { Locale } from './config'
 
 const en: Record<string, string> = {
   "pay.restrictedNg": "Online plan payments are currently available only to users in Nigeria.",
-  "pay.securePaystack": "You will continue to Paystack’s secure checkout. Premium activates only after Tarafab verifies the payment with Paystack.",
   "pay.st.redirected": "Started",
   "pay.st.pending_verification": "Pending verification",
   "pay.st.successful": "Successful",
@@ -191,7 +190,6 @@ const en: Record<string, string> = {
 
 const de: Record<string, string> = {
   "pay.restrictedNg": "Online-Zahlungen für Tarife sind derzeit nur für Nutzer in Nigeria verfügbar.",
-  "pay.securePaystack": "Sie werden zum sicheren Checkout von Paystack weitergeleitet. Premium wird erst aktiviert, wenn Tarafab die Zahlung bei Paystack geprüft hat.",
   "pay.st.redirected": "Gestartet",
   "pay.st.pending_verification": "Wird geprüft",
   "pay.st.successful": "Erfolgreich",
@@ -376,7 +374,6 @@ const de: Record<string, string> = {
 
 const es: Record<string, string> = {
   "pay.restrictedNg": "Los pagos en línea de planes solo están disponibles actualmente para usuarios en Nigeria.",
-  "pay.securePaystack": "Continuará al pago seguro de Paystack. Premium se activa solo cuando Tarafab verifica el pago con Paystack.",
   "pay.st.redirected": "Iniciado",
   "pay.st.pending_verification": "Pendiente de verificación",
   "pay.st.successful": "Correcto",
@@ -561,7 +558,6 @@ const es: Record<string, string> = {
 
 const fr: Record<string, string> = {
   "pay.restrictedNg": "Le paiement en ligne des offres est actuellement réservé aux utilisateurs au Nigeria.",
-  "pay.securePaystack": "Vous allez être redirigé vers le paiement sécurisé de Paystack. Premium n’est activé qu’après vérification du paiement par Tarafab auprès de Paystack.",
   "pay.st.redirected": "Commencé",
   "pay.st.pending_verification": "En attente de vérification",
   "pay.st.successful": "Réussi",
@@ -746,7 +742,6 @@ const fr: Record<string, string> = {
 
 const it: Record<string, string> = {
   "pay.restrictedNg": "I pagamenti online dei piani sono attualmente disponibili solo per gli utenti in Nigeria.",
-  "pay.securePaystack": "Proseguirai sul checkout sicuro di Paystack. Premium si attiva solo dopo che Tarafab ha verificato il pagamento con Paystack.",
   "pay.st.redirected": "Avviato",
   "pay.st.pending_verification": "In attesa di verifica",
   "pay.st.successful": "Riuscito",
@@ -931,7 +926,6 @@ const it: Record<string, string> = {
 
 const ko: Record<string, string> = {
   "pay.restrictedNg": "온라인 요금제 결제는 현재 나이지리아 사용자만 이용할 수 있습니다.",
-  "pay.securePaystack": "Paystack의 안전한 결제 페이지로 이동합니다. Premium은 Tarafab이 Paystack에서 결제를 확인한 후에만 활성화됩니다.",
   "pay.st.redirected": "시작됨",
   "pay.st.pending_verification": "확인 대기 중",
   "pay.st.successful": "성공",
@@ -1116,7 +1110,6 @@ const ko: Record<string, string> = {
 
 const pt: Record<string, string> = {
   "pay.restrictedNg": "Os pagamentos online de planos estão disponíveis no momento apenas para usuários na Nigéria.",
-  "pay.securePaystack": "Você seguirá para o checkout seguro da Paystack. O Premium só é ativado após a Tarafab verificar o pagamento com a Paystack.",
   "pay.st.redirected": "Iniciado",
   "pay.st.pending_verification": "Aguardando verificação",
   "pay.st.successful": "Concluído",

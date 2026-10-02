@@ -56,18 +56,33 @@ if (import.meta.main) Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: cors })
   if (req.method !== 'POST') return json({ error: 'Method not allowed.' }, 405)
   const db = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false, autoRefreshToken: false } })
+  const body = await req.json().catch(() => ({})) as { reference?: string; provider_reference?: string }
+  // Server mode (SeerBit webhook via the app server): proven with the payment
+  // gateway key, looks the payment up by SeerBit's reference. The webhook
+  // body is never trusted; the status is read from SeerBit below.
+  const gk = (req.headers.get('x-gateway-key') || '').trim()
+  let a: { id: string; user_id: string; reference: string; provider_reference: string | null; status: string } | null = null
+  if (gk) {
+    const { data: ok } = await db.rpc('_gateway_key_ok', { p_key: gk })
+    if (ok !== true) return json({ error: 'Not authorized.' }, 401)
+    const pref = String(body.provider_reference || '')
+    if (!/^[A-Za-z0-9_-]{4,80}$/.test(pref)) return json({ error: 'Invalid reference.' }, 400)
+    const { data } = await db.from('payment_attempts').select('id, user_id, reference, provider_reference, status').eq('provider', 'seerbit').eq('provider_reference', pref)
+      .in('status', ['redirected', 'pending_verification', 'successful']).order('created_at', { ascending: false }).limit(1).maybeSingle()
+    if (!data) return json({ status: 'pending', reason: 'not_matched' })
+    a = data
+  }
   const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '')
-  const { data: u } = token ? await db.auth.getUser(token) : { data: { user: null } }
-  if (!u?.user) return json({ error: 'Please sign in again.' }, 401)
-  const body = await req.json().catch(() => ({})) as { reference?: string }
-  const ref = String(body.reference || '')
+  const { data: u } = gk ? { data: { user: null } } : token ? await db.auth.getUser(token) : { data: { user: null } }
+  if (!gk && !u?.user) return json({ error: 'Please sign in again.' }, 401)
+  const ref = a ? a.reference : String(body.reference || '')
   if (!/^PAY-[A-Z0-9]{12}$/.test(ref)) return json({ error: 'Invalid payment reference.' }, 400)
 
   // Owner, or an admin verifying from the admin panel.
-  const { data: a } = await db.from('payment_attempts').select('id, user_id, reference, provider_reference, status').eq('reference', ref).maybeSingle()
+  if (!a) ({ data: a } = await db.from('payment_attempts').select('id, user_id, reference, provider_reference, status').eq('reference', ref).maybeSingle())
   if (!a) return json({ error: 'Payment not found.' }, 404)
-  if (a.user_id !== u.user.id) {
-    const { data: prof } = await db.from('profiles').select('role').eq('id', u.user.id).maybeSingle()
+  if (!gk && a.user_id !== u!.user!.id) {
+    const { data: prof } = await db.from('profiles').select('role').eq('id', u!.user!.id).maybeSingle()
     if (prof?.role !== 'admin') return json({ error: 'Payment not found.' }, 404)
   }
   if (a.status === 'successful') return json({ status: 'successful' })

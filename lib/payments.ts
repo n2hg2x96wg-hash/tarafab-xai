@@ -24,3 +24,18 @@ export async function verifyPayment(token: string, reference: string) {
     return await r.json().catch(() => ({})) as { status?: string; reason?: string }
   } catch { return { status: 'pending', reason: 'provider_unreachable' } }
 }
+
+// Server-to-server verification for the SeerBit webhook: the gateway key
+// proves the call comes from this server; seerbit-verify then reads the
+// transaction from SeerBit itself before anything is recorded.
+export async function verifyByProviderReference(providerReference: string) {
+  const key = gatewayKey()
+  if (key.length < 32) return { status: 'pending', reason: 'not_configured' }
+  try {
+    const r = await fetch(`${functionsUrl()}/seerbit-verify`, {
+      method: 'POST', headers: { apikey: getSupabaseEnv().anonKey, Authorization: `Bearer ${getSupabaseEnv().anonKey}`, 'x-gateway-key': key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider_reference: providerReference }), signal: AbortSignal.timeout(25_000), cache: 'no-store',
+    })
+    return await r.json().catch(() => ({})) as { status?: string; reason?: string }
+  } catch { return { status: 'pending', reason: 'provider_unreachable' } }
+}
