@@ -21,6 +21,7 @@ export default function AdminPremiumPage() {
   const rpc = (fn: string, args?: Record<string, unknown>) => (supabase.rpc as unknown as (f: string, a?: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>).call(supabase, fn, args)
   const [st, setSt] = useState<Settings | null>(null)
   const [plans, setPlans] = useState<Plan[] | null>(null)
+  const [sbLinks, setSbLinks] = useState<{ plan_id: string | null; enabled: boolean; amount: number; currency: string; url: string }[]>([])
   const [subs, setSubs] = useState<Sub[] | null>(null)
   const [filter, setFilter] = useState('')
   const [error, setError] = useState('')
@@ -37,6 +38,9 @@ export default function AdminPremiumPage() {
       (supabase.from('premium_plans') as any).select('*').order('sort_order').order('price'),
       rpc('admin_list_subscriptions', { p_status: filter || null, p_limit: 300 }),
     ])
+    // SeerBit links attached to plans (NGN). Separate from Stripe price IDs.
+    const sb = await (supabase.from('payment_links') as any).select('plan_id, enabled, amount, currency, url')
+    setSbLinks(Array.isArray(sb.data) ? sb.data : [])
     if (s.error || p.error || l.error) { setError('Premium data could not be loaded.'); return }
     const okSettings = s.data && !Array.isArray(s.data) && Array.isArray(s.data.premium_timeframes)
     setSt(okSettings ? s.data : null); setPlans(Array.isArray(p.data) ? p.data : []); setSubs(Array.isArray(l.data) ? l.data as Sub[] : []); setError(okSettings ? '' : 'Premium data could not be loaded.')
@@ -95,7 +99,13 @@ export default function AdminPremiumPage() {
                 <td className="py-2 pr-3">{p.name}<div className="text-slate-500">{p.id}</div></td>
                 <td className="pr-3 tabular-nums">{p.currency} {Number(p.price).toFixed(2)} / {p.billing_interval}</td>
                 <td className="pr-3">{p.promo_price != null ? `${p.currency} ${Number(p.promo_price).toFixed(2)} ${p.promo_label || ''}` : '—'}</td>
-                <td className="pr-3 font-mono">{p.provider_price_id || <span className="text-amber-300 font-sans">Not linked — cannot be purchased</span>}</td>
+                <td className="pr-3 font-mono">{(() => {
+                  const lk = sbLinks.find(l => l.plan_id === p.id && l.enabled)
+                  const ok = lk && Number(lk.amount) === Number(p.promo_price ?? p.price) && lk.currency === p.currency
+                  if (lk) return <span className="font-sans"><span className={ok ? 'text-emerald-400' : 'text-amber-300'}>SeerBit{ok ? ' · linked' : ' · amount/currency mismatch'}</span><div className="font-mono text-slate-500 break-all">{lk.url}</div></span>
+                  if (sbLinks.some(l => l.plan_id === p.id)) return <span className="text-amber-300 font-sans">SeerBit link disabled</span>
+                  return p.provider_price_id || <span className="text-amber-300 font-sans">Not linked — cannot be purchased</span>
+                })()}</td>
                 <td className="pr-3">{p.enabled ? <span className="text-emerald-400">Enabled</span> : <span className="text-slate-500">Hidden</span>}</td>
                 <td><button onClick={() => { setFormErr(''); setPf({ isNew: false, id: p.id, name: p.name, interval: p.billing_interval, price: String(p.price), currency: p.currency, promo: p.promo_price == null ? '' : String(p.promo_price), promoLabel: p.promo_label || '', priceId: p.provider_price_id || '', enabled: p.enabled, sort: String(p.sort_order), reason: '', tier: p.tier || 'premium', period: p.billing_period || p.billing_interval, description: p.description || '', features: (p.features || []).join('\n'), highlighted: !!p.highlighted }) }} className="text-violet-300 hover:text-violet-200">Edit</button></td>
               </tr>))}</tbody></table></div>

@@ -123,6 +123,8 @@ export function PremiumCenter({ account, txs }: { account: Account | null; txs: 
         try { sessionStorage.setItem('tarafab.payRef', r.reference) } catch { /* the return page also lists recent payments */ }
         window.location.assign(r.url); return
       }
+      // Server not configured yet (gateway key): not a paused plan.
+      if (r.status === 'unavailable') { setErr(pt('pr.paymentsOff')); setPayBusy(''); setPayReview(null); payKey.current = newRequestKey(); return }
       const reason = r.status === 'region_blocked' ? 'region' : r.status === 'unknown_region' ? 'unknown' : 'disabled'
       window.location.assign(`/payment/unavailable?reason=${reason}`); return
     } catch (e) { setErr(errorText(e)) }
