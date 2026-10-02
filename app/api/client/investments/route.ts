@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
   const [products, investments, kyc, account] = await Promise.all([
     supabase.from('investment_products').select('id, code, status, current_version_id').eq('status', 'active').order('created_at'),
     supabase.from('client_investments')
-      .select('id, reference, product_id, product_version_id, principal, fee_amount, profit_amount, return_type, expected_return, expected_total, currency, status, start_date, maturity_date, completed_at, rejection_reason, reviewed_at, created_at')
+      .select('id, reference, product_id, product_version_id, principal, fee_amount, profit_amount, return_type, return_rate_pct, return_amount, expected_return, expected_total, currency, status, start_date, maturity_date, completed_at, rejection_reason, reviewed_at, created_at')
       .eq('user_id', auth.user.id).order('created_at', { ascending: false }).limit(100),
     supabase.rpc('client_kyc_status'),
     // The one existing balance record; nothing here recalculates it.
@@ -44,14 +44,20 @@ export async function GET(request: NextRequest) {
   let returns: { client_investment_id: string; amount: number }[] = []
   if (invs.length) {
     const links = await supabase.from('investment_transactions')
-      .select('client_investment_id, kind, transactions(amount, status)')
+      .select('client_investment_id, kind, transactions(amount, direction, status)')
       .in('client_investment_id', invs.map(i => i.id)).eq('kind', 'return')
     if (links.error) return dbError(links.error)
     returns = (links.data || [])
-      .map(l => ({ l, tx: Array.isArray(l.transactions) ? l.transactions[0] : l.transactions as { amount: number; status: string } | null }))
-      .filter(({ tx }) => tx && ['completed', 'approved'].includes(tx.status))
-      .map(({ l, tx }) => ({ client_investment_id: l.client_investment_id, amount: Number(tx!.amount) }))
+      .map(l => ({ l, tx: Array.isArray(l.transactions) ? l.transactions[0] : l.transactions as { amount: number; direction: string | null; status: string } | null }))
+      .filter(({ tx }) => tx && ['completed', 'approved'].includes(tx.status) && ['credit', 'debit'].includes(tx.direction || ''))
+      .map(({ l, tx }) => ({ client_investment_id: l.client_investment_id, amount: Number(tx!.amount) * (tx!.direction === 'debit' ? -1 : 1) }))
   }
+  const profitByInvestment = new Map<string, number>()
+  for (const row of returns) profitByInvestment.set(row.client_investment_id, (profitByInvestment.get(row.client_investment_id) || 0) + row.amount)
+  const investmentsWithLedgerProfit = invs.map(inv => ({
+    ...inv,
+    profit_amount: profitByInvestment.get(inv.id) || 0,
+  }))
 
   // Timeline and linked ledger rows for the client's own investments.
   let events: unknown[] = []
@@ -62,10 +68,10 @@ export async function GET(request: NextRequest) {
     const [ev, tl, adj] = await Promise.all([
       supabase.from('client_investment_events').select('id, client_investment_id, from_status, to_status, reason, created_at')
         .in('client_investment_id', ids).order('created_at'),
-      supabase.from('investment_transactions').select('client_investment_id, kind, transactions(id, type, amount, status, reference, created_at)')
+      supabase.from('investment_transactions').select('client_investment_id, kind, transactions(id, type, amount, direction, status, reference, notes, created_at)')
         .in('client_investment_id', ids),
       // Profit history for the client's own investments (who adjusted it is not shown).
-      supabase.from('investment_profit_adjustments').select('id, investment_id, previous_profit, new_profit, previous_value, new_value, reason, created_at')
+      supabase.from('investment_profit_adjustments').select('id, investment_id, transaction_id, previous_profit, new_profit, previous_value, new_value, reason, created_at')
         .in('investment_id', ids).order('created_at'),
     ])
     if (!adj.error) adjustments = adj.data || []
@@ -77,7 +83,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     products: products.data || [],
     versions: versions.data || [],
-    investments: invs,
+    investments: investmentsWithLedgerProfit,
     returns,
     events,
     transactions: txs,

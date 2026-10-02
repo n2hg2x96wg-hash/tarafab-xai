@@ -52,6 +52,7 @@ export function WalletTab({ account }: { account: Account | null }) {
   const [copied, setCopied] = useState('')
   const flow = useRef(0) // bumps when the account or network changes mid-flow
   const busyFor = useRef('') // the option a connection is waiting on
+  const balanceRequest = useRef(0)
   const [connecting, setConnecting] = useState<Option | null>(null)
 
   const load = useCallback(async () => {
@@ -61,6 +62,38 @@ export function WalletTab({ account }: { account: Account | null }) {
     } catch (e) { setLoadError(errorText(e)) }
   }, [])
   useEffect(() => { load() }, [load])
+
+  // Silently restore the on-chain balance view after a normal page reload.
+  // Only reattaches to a wallet that is both already authorised for this site
+  // (eth_accounts never prompts, unlike eth_requestAccounts) and already
+  // verified/linked in the database - it never opens a wallet, never asks for
+  // a new permission, and never auto-connects an SDK wallet (those only
+  // resume through the pending-redirect flow above).
+  const silentRestoreDone = useRef(false)
+  useEffect(() => {
+    if (silentRestoreDone.current || !linked || session) return
+    const live = linked.filter(w => w.status === 'linked')
+    if (!live.length) return
+    silentRestoreDone.current = true
+    let alive = true
+    ;(async () => {
+      const injected = await discoverWallets()
+      for (const w of injected) {
+        try {
+          const accounts = await w.provider.request({ method: 'eth_accounts' }) as string[]
+          const address = Array.isArray(accounts) && typeof accounts[0] === 'string' ? accounts[0].toLowerCase() : ''
+          const match = address && live.find(l => l.address.toLowerCase() === address)
+          if (!match || !alive) continue
+          const chainId = await chainIdOf(w.provider).catch(() => match.chain_id)
+          if (!alive) return
+          setSession({ wallet: w, address, chainId })
+          setTargetChain(networkOf(chainId) ? chainId : match.chain_id)
+          return
+        } catch { /* a silent probe failing is not an error the user needs to see */ }
+      }
+    })()
+    return () => { alive = false }
+  }, [linked, session])
 
   const walletMsg = (e: unknown) => {
     if (e instanceof WalletError) return t(`wallet.err.${e.code}`) + (e.code === 'failed' && e.detail ? ` (${e.detail})` : '')
@@ -91,15 +124,21 @@ export function WalletTab({ account }: { account: Account | null }) {
   // External on-chain balance of the connected account, read through the
   // user's own wallet on its current network. Shown as external information.
   const readBalance = useCallback(async (s: Session) => {
+    const request = ++balanceRequest.current
     const net = networkOf(s.chainId)
     if (!net) { setBal({ state: 'error' }); return }
     setBal({ state: 'loading' })
     try {
       const amount = await nativeBalance(s.wallet.provider, s.address, net.decimals)
+      if (request !== balanceRequest.current) return
       setBal({ state: 'ok', amount, symbol: net.symbol, at: Date.now() })
-    } catch { setBal({ state: 'error' }) }
+    } catch { if (request === balanceRequest.current) setBal({ state: 'error' }) }
   }, [])
-  useEffect(() => { if (session) readBalance(session) }, [session?.address, session?.chainId]) // eslint-disable-line react-hooks/exhaustive-deps
+  const invalidateBalance = useCallback(() => { balanceRequest.current++ }, [])
+  useEffect(() => {
+    if (session) void readBalance(session)
+    return invalidateBalance
+  }, [session, readBalance, invalidateBalance])
 
   const sdkOptions = useCallback((): Option[] => [
     { id: 'sdk-coinbase', name: 'Coinbase Wallet', sdk: 'coinbase', hint: t('wallet.hintCoinbase') },
@@ -108,13 +147,19 @@ export function WalletTab({ account }: { account: Account | null }) {
 
   const openPicker = async () => {
     setError(''); setDone(''); setPicking(true); setWallets(null)
-    // Load the SDKs now, so a tap on an option can open the wallet straight
-    // away (Safari blocks wallet pop-ups that are not tied to the tap).
-    sdkOptions().forEach(o => { sdkProvider(o.sdk!).catch(() => {}) })
+    // Finish loading the SDKs before showing their options. This keeps the
+    // wallet-app handoff inside the user's later tap, which mobile Safari
+    // otherwise may block if provider initialization is still in progress.
+    const options = sdkOptions()
+    const warmups = Promise.allSettled(options.map(o => sdkProvider(o.sdk!)))
     const injected = await discoverWallets()
+    const results = await warmups
     // An injected Coinbase extension and the Coinbase SDK are the same wallet.
-    const sdk = sdkOptions().filter(o => !(o.sdk === 'coinbase' && injected.some(w => /coinbase/i.test(w.id + w.name))))
+    const ready = options.filter((_, i) => results[i].status === 'fulfilled')
+    const failed = results.find((result): result is PromiseRejectedResult => result.status === 'rejected')
+    const sdk = ready.filter(o => !(o.sdk === 'coinbase' && injected.some(w => /coinbase/i.test(w.id + w.name))))
     setWallets([...injected, ...sdk])
+    if (failed) setError(walletMsg(failed.reason))
   }
 
   const choose = async (w: Option) => {
@@ -135,7 +180,7 @@ export function WalletTab({ account }: { account: Account | null }) {
       if (networkOf(chainId)) setTargetChain(chainId)
     } catch (e) {
       if (busyFor.current !== w.id) return // cancelled from the UI; message already shown
-      setError(w.sdk && !(e instanceof WalletError) ? t('wallet.sdkFailed') : walletMsg(e))
+      setError(walletMsg(e))
     } finally { if (busyFor.current === w.id) { busyFor.current = ''; clearPending(); setBusy(''); setConnecting(null) } }
   }
 
@@ -257,13 +302,16 @@ export function WalletTab({ account }: { account: Account | null }) {
             <>
               <p className="mt-1 text-2xl font-semibold tabular-nums text-fg break-all">{bal.amount} <span className="text-base text-fg-muted">{bal.symbol}</span></p>
               <p className="mt-1 text-[12px] text-fg-faint">
-                {t('wallet.onChainOn', { network: currentNet?.name || '' })} · {shortAddress(session.address)} · {t('wallet.updatedAt', { time: new Date(bal.at!).toLocaleTimeString(intl, { hour: '2-digit', minute: '2-digit' }) })}
+                {t('wallet.onChainOn', { network: currentNet?.name || '' })} (chain {session.chainId}) · {shortAddress(session.address)} · {t('wallet.updatedAt', { time: new Date(bal.at!).toLocaleTimeString(intl, { hour: '2-digit', minute: '2-digit' }) })}
                 {' · '}<button onClick={() => readBalance(session)} className="underline underline-offset-2 hover:text-fg">{t('common.refresh')}</button>
               </p>
               <p className="mt-1 text-[12px] text-fg-faint">{t('wallet.noFiat')}</p>
             </>
           ) : (
-            <p className="mt-2 text-sm text-fg-muted">{currentNet ? t('wallet.balanceUnavailable') : t('wallet.unsupportedNetwork')}</p>
+            <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-fg-muted">
+              <span>{currentNet ? t('wallet.balanceUnavailable') : t('wallet.unsupportedNetwork')}</span>
+              {currentNet && <button onClick={() => readBalance(session)} className="underline underline-offset-2 hover:text-fg">{t('common.tryAgain')}</button>}
+            </div>
           )}
         </div>
       </div>
@@ -318,7 +366,7 @@ export function WalletTab({ account }: { account: Account | null }) {
               <span className="w-2 h-2 rounded-full bg-emerald-400" aria-hidden="true" />
               <span className="text-sm font-medium text-fg">{session.wallet.name}</span>
               <span className="font-mono text-[13px] text-fg-muted break-all">{session.address}</span>
-              <span className="text-[12px] text-fg-faint">{currentNet ? currentNet.name : t('wallet.unknownChain', { id: session.chainId })}</span>
+              <span className="text-[12px] text-fg-faint">{currentNet ? `${currentNet.name} · chain ${session.chainId}` : t('wallet.unknownChain', { id: session.chainId })}</span>
               {sessionLinked && <span className="tag text-emerald-400 border-emerald-500/30">{t('wallet.statusVerified')}</span>}
             </div>
 

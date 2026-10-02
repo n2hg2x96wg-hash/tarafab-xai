@@ -245,7 +245,9 @@ export default function DashboardPage() {
     }
     document.addEventListener('visibilitychange', maybeRefresh)
     window.addEventListener('online', maybeRefresh)
+    const timer = window.setInterval(maybeRefresh, 30_000)
     return () => {
+      window.clearInterval(timer)
       document.removeEventListener('visibilitychange', maybeRefresh)
       window.removeEventListener('online', maybeRefresh)
     }
@@ -639,7 +641,7 @@ function KycChip({ go }: { go: (id: string) => void }) {
 /* Overview */
 function OverviewTab({ name, account, txs, go, can, labelOf }: { name: string; account: Account | null; txs: Tx[]; go: (id: string) => void; can: (id: string) => boolean; labelOf: (item: { id: string; label: TKey }) => string }) {
   const recentTxs = txs.slice(0, 5)
-  const pendingCount = txs.filter(x => x.status.startsWith('pending')).length
+  const pendingCount = account?.pending_transaction_count ?? txs.filter(x => x.status.startsWith('pending')).length
   const { t, intl } = useI18n()
   const totals = txTotals(txs)
   const money = (n: number) => `$${fmt(n)}`
@@ -1130,11 +1132,15 @@ const SOURCES = [
   { id: 'profit_balance', label: 'withdraw.profitBalance', short: 'withdraw.profitShort' },
 ] as const
 type Source = typeof SOURCES[number]['id']
+type WithdrawalWallet = { id: string; network: string; address: string; label: string; wallet_name: string; status: string; verification_status: string }
 
 function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs: Tx[]; onSuccess: () => void }) {
   const [source, setSource] = useState<Source>('available_balance')
   const [amount, setAmount] = useState('')
   const [address, setAddress] = useState('')
+  const [wallets, setWallets] = useState<WithdrawalWallet[]>([])
+  const [walletLoadError, setWalletLoadError] = useState('')
+  const [destinationWalletId, setDestinationWalletId] = useState('')
   const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -1143,25 +1149,38 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
   const toast = useToast()
   const attemptKey = useRef(newRequestKey())
   const inFlight = useRef(false)
-  useEffect(() => { attemptKey.current = newRequestKey() }, [source, amount, address, notes])
+  useEffect(() => {
+    let active = true
+    authFetch('/api/client/wallets')
+      .then(readJson<{ wallets: WithdrawalWallet[] }>)
+      .then(result => {
+        if (active) setWallets(result.wallets.filter(wallet => wallet.status === 'linked' && wallet.verification_status === 'verified'))
+      })
+      .catch(err => { if (active) setWalletLoadError(errorText(err, t)) })
+    return () => { active = false }
+  }, [t])
+  useEffect(() => { attemptKey.current = newRequestKey() }, [source, amount, address, destinationWalletId, notes])
 
   const withdrawals = txs.filter(t => t.type === 'withdrawal')
   const reserved = (src: Source) => withdrawals.filter(t => t.method === src && OPEN_STATUSES.includes(t.status)).reduce((s, t) => s + Number(t.amount), 0)
   const balanceOf = (src: Source) => Number((src === 'profit_balance' ? account?.profit_balance : account?.available_balance) ?? 0)
   const withdrawable = (src: Source) => Math.max(0, Math.round((balanceOf(src) - reserved(src)) * 100) / 100)
   const max = withdrawable(source)
+  const selectedWallet = wallets.find(wallet => wallet.id === destinationWalletId)
+  const destinationAddress = selectedWallet?.address || address.trim()
 
   // Submitting validates and opens a review of exactly what will be sent;
   // only Confirm in that review makes the request.
-  const [review, setReview] = useState<{ amt: number } | null>(null)
+  const [review, setReview] = useState<{ amt: number; walletId: string | null; address: string; network: string } | null>(null)
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     const amt = Math.round(parseFloat(amount) * 100) / 100
     if (!amt || amt <= 0) { setError(t('withdraw.errAmount')); return }
     if (amt > max) { setError(t('withdraw.errMax', { max: `$${fmt(max)}` })); return }
-    if (!/^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,87}$/.test(address.trim())) { setError(t('withdraw.errAddress')); return }
-    setReview({ amt })
+    if (destinationWalletId && !selectedWallet) { setError('Select a currently linked, verified wallet.'); return }
+    if (!selectedWallet && !/^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,87}$/.test(address.trim())) { setError(t('withdraw.errAddress')); return }
+    setReview({ amt, walletId: selectedWallet?.id || null, address: destinationAddress, network: selectedWallet?.network || 'Bitcoin' })
   }
 
   const send = async () => {
@@ -1174,7 +1193,12 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
       const data = await readJson<{ withdrawal?: { reference?: string } }>(await authFetch('/api/client/withdraw', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Idempotency-Key': attemptKey.current },
-        body: JSON.stringify({ amount: amt, source, address: address.trim(), notes: notes.trim() || undefined }),
+        body: JSON.stringify({
+          amount: amt,
+          source,
+          ...(review.walletId ? { wallet_id: review.walletId } : { address: review.address }),
+          notes: notes.trim() || undefined,
+        }),
       }))
       setReview(null)
       setDone(data.withdrawal?.reference || '')
@@ -1211,7 +1235,7 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
           <dl className="divide-y divide-ink-700 text-sm">
             <div className="flex justify-between gap-4 py-2.5"><dt className="text-fg-muted">{t('withdraw.amount')}</dt><dd className="text-fg font-semibold tabular-nums">${fmt(review.amt)}</dd></div>
             <div className="flex justify-between gap-4 py-2.5"><dt className="text-fg-muted">{t('withdraw.from')}</dt><dd className="text-fg">{t(source === 'profit_balance' ? 'withdraw.profitShort' : 'withdraw.availableShort')}</dd></div>
-            <div className="py-2.5"><dt className="text-fg-muted mb-1">{t('withdraw.yourAddress')}</dt><dd className="text-fg font-mono text-[13px] break-all">{address.trim()}</dd></div>
+            <div className="py-2.5"><dt className="text-fg-muted mb-1">{t('withdraw.yourAddress')} · {review.network}</dt><dd className="text-fg font-mono text-[13px] break-all">{review.address}</dd></div>
           </dl>
           <p className="mt-4 text-[13px] text-fg-muted leading-relaxed">{t('withdraw.reviewNote')}</p>
         </ConfirmModal>
@@ -1293,9 +1317,31 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
             </div>
 
             <div>
-              <label htmlFor="w-address" className="field-label">{t('withdraw.yourAddress')}</label>
-              <input id="w-address" type="text" value={address} onChange={e => setAddress(e.target.value)} placeholder="bc1..." autoComplete="off" spellCheck={false} className="field font-mono text-[13px]" disabled={submitting} />
-              <p className="text-xs text-fg-faint mt-1.5">{t('withdraw.addressHelp')}</p>
+              <label htmlFor="w-destination" className="field-label">Withdrawal destination</label>
+              <select
+                id="w-destination"
+                value={destinationWalletId}
+                onChange={e => { setDestinationWalletId(e.target.value); setAddress(''); setError('') }}
+                className="field"
+                disabled={submitting}
+              >
+                <option value="">Enter a Bitcoin address</option>
+                {wallets.map(wallet => (
+                  <option key={wallet.id} value={wallet.id}>
+                    {wallet.wallet_name || wallet.label || 'Verified wallet'} · {wallet.network}
+                  </option>
+                ))}
+              </select>
+              {selectedWallet ? (
+                <p className="mt-2 break-all font-mono text-xs text-fg-muted">{selectedWallet.address}</p>
+              ) : (
+                <>
+                  <label htmlFor="w-address" className="sr-only">{t('withdraw.yourAddress')}</label>
+                  <input id="w-address" type="text" value={address} onChange={e => setAddress(e.target.value)} placeholder="bc1..." autoComplete="off" spellCheck={false} className="field mt-2 font-mono text-[13px]" disabled={submitting} />
+                  <p className="text-xs text-fg-faint mt-1.5">{t('withdraw.addressHelp')}</p>
+                </>
+              )}
+              {walletLoadError && <p role="status" className="mt-2 text-xs text-amber-300">Verified wallets could not be loaded. You can still enter a Bitcoin address.</p>}
             </div>
 
             <div>

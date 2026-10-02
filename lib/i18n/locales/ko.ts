@@ -71,6 +71,7 @@ const ko: DeepPartial<typeof en> = {
   status: {
     live: '실시간',
     delayed: '지연됨',
+    dataUnavailable: '데이터를 사용할 수 없음',
     current: '현재',
     connecting: '연결 중',
     offline: '오프라인',
@@ -107,8 +108,8 @@ const ko: DeepPartial<typeof en> = {
       support: "지원",
       investments: "투자",
       help: "도움말 및 지원",
-      attr: "시장 정보는 참고용으로만 제공됩니다.",
-      sourcesLabel: "데이터 출처",
+      attr: '시장 데이터는 정보 제공 목적으로만 제공됩니다. 가격이 지연되거나 제공되지 않을 수 있습니다.',
+      coinGecko: 'CoinGecko 데이터 제공',
     },
     adminBar: "관리자로 로그인되어 있습니다. 관리자 대시보드로 이동 →",
     status: {
@@ -640,7 +641,7 @@ const ko: DeepPartial<typeof en> = {
     usingDefaults: '아직 저장된 설정이 없습니다. 모든 항목이 표시됩니다.',
   },
   sources: {
-    footer: '시장 데이터: Coinbase Exchange, CoinGecko, mempool.space, TradingView, Finnhub',
+    footer: '시장 데이터는 정보 제공 목적으로만 제공됩니다. 가격이 지연되거나 제공되지 않을 수 있습니다.',
   },
   nav3: {
     groupMarkets: '시장',

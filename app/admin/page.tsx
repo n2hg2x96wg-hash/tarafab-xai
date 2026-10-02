@@ -20,21 +20,12 @@ type Client = {
 }
 
 type Stats = { total_customers: number; total_account_usd: number; total_available_usd: number; customers_with_accounts: number }
-type Recon = { user_id: string; full_name: string | null; check_name: string; expected: number; actual: number; difference: number }
-const RECON_LABEL: Record<string, string> = {
-  total_vs_parts: 'Account total differs from the sum of its balances',
-  negative_balance: 'A stored balance is negative',
-  pending_investments_not_held: 'Pending investment requests exceed the held balance',
-  active_investments_not_invested: 'Active investments exceed the invested balance',
-}
-
 // Totals come from the database (admin_stats) and the list is a small,
 // server-filtered page, so the dashboard stays fast however many clients exist.
 export default function AdminPage() {
   const supabase = createClient()
   const [clients, setClients] = useState<Client[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
-  const [recon, setRecon] = useState<Recon[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [term, setTerm] = useState('')
@@ -47,7 +38,6 @@ export default function AdminPage() {
 
   useEffect(() => {
     supabase.rpc('admin_stats').then(({ data, error }) => { if (!error && data) setStats(data as Stats) })
-    supabase.rpc('admin_reconciliation').then(({ data, error }) => setRecon(error ? null : (data as Recon[]) || []))
   }, [supabase, reload])
 
   useEffect(() => {
@@ -82,21 +72,6 @@ export default function AdminPage() {
   return (
     <AdminLayout title="Admin Dashboard" subtitle="Manage client accounts and platform activity">
       {loadError && <AdminLoadError message={loadError} onRetry={() => setReload(n => n + 1)} />}
-      {recon && recon.length > 0 && (
-        <div role="alert" className="mb-6 rounded-2xl border border-yellow-500/30 bg-yellow-500/[0.06] p-4">
-          <p className="text-sm font-semibold text-yellow-300">Reconciliation: {recon.length} item{recon.length === 1 ? '' : 's'} need review</p>
-          <p className="text-xs text-slate-400 mt-1">Stored figures that do not agree. Nothing has been changed automatically; investigate and correct through an audited adjustment if needed.</p>
-          <ul className="mt-3 space-y-1.5 text-xs">
-            {recon.map((r, i) => (
-              <li key={i} className="flex flex-wrap gap-x-2 text-slate-300">
-                <Link href={`/admin/clients/${r.user_id}`} className="text-violet-300 hover:underline">{r.full_name || r.user_id.slice(0, 8)}</Link>
-                <span>· {RECON_LABEL[r.check_name] || r.check_name}</span>
-                <span className="text-slate-500 tabular-nums">expected ${Number(r.expected).toFixed(2)}, stored ${Number(r.actual).toFixed(2)} (difference {Number(r.difference).toFixed(2)})</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         {[
@@ -121,6 +96,9 @@ export default function AdminPage() {
           { label: 'View All Clients', href: '/admin/clients', color: 'violet' },
           { label: 'Transactions', href: '/admin/transactions', color: 'blue' },
           { label: 'Audit Logs', href: '/admin/audit-logs', color: 'slate' },
+          { label: 'Reconciliation audit', href: '/admin/reconciliation', color: 'yellow' },
+          { label: 'Assets & market data', href: '/admin/assets', color: 'blue' },
+          { label: 'Automation Center', href: '/admin/automations', color: 'violet' },
           { label: 'Admin Login', href: '/admin/login', color: 'slate' },
         ].map(link => (
           <Link

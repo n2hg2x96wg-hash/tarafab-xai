@@ -33,8 +33,8 @@ type Investment = {
   status: string; start_date: string | null; maturity_date: string | null; completed_at?: string | null; rejection_reason?: string | null; reviewed_at?: string | null; created_at: string
 }
 type Ev = { id: number; client_investment_id: string; from_status: string | null; to_status: string; reason: string | null; created_at: string }
-type LinkedTx = { client_investment_id: string; kind: string; tx: { id: string; type: string; amount: number; status: string; reference: string | null; created_at: string } | null }
-type Adj = { id: string; investment_id: string; previous_profit: number; new_profit: number; previous_value: number; new_value: number; reason: string; created_at: string }
+type LinkedTx = { client_investment_id: string; kind: string; tx: { id: string; type: string; amount: number; direction: 'credit' | 'debit' | null; status: string; reference: string | null; notes: string | null; created_at: string } | null }
+type Adj = { id: string; investment_id: string; transaction_id: string | null; previous_profit: number; new_profit: number; previous_value: number; new_value: number; reason: string; created_at: string }
 type Balance = { available: number; pending: number; invested: number }
 type Data = {
   products: Product[]; versions: Version[]; investments: Investment[]; returns: { client_investment_id: string; amount: number }[]
@@ -63,9 +63,9 @@ const durationText = (v: Version, t: T) =>
 const feeText = (v: Version, t: T) => Number(v.entry_fee_pct) ? `${(Number(v.entry_fee_pct) * 100).toFixed(2)}%` : t('inv.noFee')
 
 // Return terms of one investment, from the snapshot taken when it was made.
-const returnTermsText = (i: { return_type?: string; return_rate_pct?: number | null; return_amount?: number | null }, t: T) =>
-  i.return_type === 'fixed_rate' && i.return_rate_pct != null ? `${Number(i.return_rate_pct)}%`
-  : i.return_type === 'fixed_amount' && i.return_amount != null ? t('inv.f.fixedAmount', { amount: money(Number(i.return_amount)) })
+const returnTermsText = (i: { return_type?: string; return_rate_pct?: number | null; return_amount?: number | null }, v: Version | undefined, t: T) =>
+  (i.return_type ?? v?.return_type) === 'fixed_rate' && (i.return_rate_pct ?? v?.return_rate_pct) != null ? `${Number(i.return_rate_pct ?? v?.return_rate_pct)}%`
+  : (i.return_type ?? v?.return_type) === 'fixed_amount' && (i.return_amount ?? v?.return_amount) != null ? t('inv.f.fixedAmount', { amount: money(Number(i.return_amount ?? v?.return_amount)) })
   : '—'
 
 function StatusBadge({ status }: { status: string }) {
@@ -462,7 +462,8 @@ function InvestmentDetail({ inv, v, adjustments, events, txs, onClose, onChanged
   const profit = running ? profitOf(inv) : 0
   const tone = profit > 0 ? 'price-up' : profit < 0 ? 'price-down' : 'text-fg'
   const expRet = Number(inv.expected_return || 0), expTotal = Number(inv.expected_total || 0)
-  const hasProjection = inv.return_type !== undefined && inv.return_type !== 'none' && expRet > 0
+  const returnType = inv.return_type ?? v?.return_type
+  const hasProjection = returnType !== undefined && returnType !== 'none'
   const dt = (iso: string | null | undefined) => iso ? new Date(iso).toLocaleString(intl, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : t('inv.notSet')
   const date = (iso: string | null | undefined) => iso ? new Date(iso).toLocaleDateString(intl, { day: 'numeric', month: 'short', year: 'numeric' }) : t('inv.notSet')
   const rows: [TKey, React.ReactNode][] = [
@@ -476,15 +477,20 @@ function InvestmentDetail({ inv, v, adjustments, events, txs, onClose, onChanged
   ]
   if (inv.completed_at) rows.push(['inv.f.ended', date(inv.completed_at)])
 
-  // One timeline: status changes and profit / return updates, oldest first.
+  // The ledger is the source for actual Profit entries in the timeline.
   type Item = { at: string; title: string; note?: string }
+  const adjustmentReason = new Map(adjustments.map(a => [a.transaction_id, a.reason]))
   const timeline: Item[] = [
     ...events.filter(e => e.from_status !== e.to_status).map(e => ({
       at: e.created_at,
       title: e.to_status === 'active' ? t('inv.f.approvedEv') : e.to_status === 'pending_activation' ? t('inv.f.submitted') : t(`inv.status.${e.to_status}` as TKey),
       note: e.reason && e.to_status === 'rejected' ? e.reason : undefined,
     })),
-    ...adjustments.map(a => ({ at: a.created_at, title: t('inv.f.profitSet', { from: signed(Number(a.previous_profit)), to: signed(Number(a.new_profit)) }), note: a.reason })),
+    ...txs.filter(x => x.kind === 'return' && x.tx?.status === 'completed').map(x => ({
+      at: x.tx!.created_at,
+      title: x.tx!.direction === 'credit' ? `Profit credited ${signed(Number(x.tx!.amount))}` : x.tx!.direction === 'debit' ? `Profit debited ${signed(-Number(x.tx!.amount))}` : 'Profit ledger entry recorded',
+      note: x.tx!.notes || (x.tx!.id ? adjustmentReason.get(x.tx!.id) || undefined : undefined),
+    })),
   ].sort((x, y) => x.at.localeCompare(y.at))
 
   const cancel = async () => {
@@ -518,7 +524,7 @@ function InvestmentDetail({ inv, v, adjustments, events, txs, onClose, onChanged
         </div>
         {hasProjection && (
           <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {tile('inv.f.returnTerms', returnTermsText(inv, t))}
+            {tile('inv.f.returnTerms', returnTermsText(inv, v, t))}
             {tile('inv.f.expectedReturn', money(expRet))}
             {tile('inv.f.expectedTotal', money(expTotal))}
           </div>
@@ -553,6 +559,7 @@ function InvestmentDetail({ inv, v, adjustments, events, txs, onClose, onChanged
               ['inv.f.maximum', v.max_amount ? money(Number(v.max_amount)) : t('inv.f.noMaximum')],
               ['inv.duration', durationText(v, t)],
               ['inv.fee', feeText(v, t)],
+              ['inv.f.returnTerms', returnTermsText(inv, v, t)],
               ['inv.termsVersion', t('inv.versionN', { n: v.version })],
               ['inv.f.riskVersion', t('inv.versionN', { n: v.version })],
             ] as [TKey, string][]).map(([k, val]) => <div key={k} className="flex justify-between gap-4 py-2.5"><dt className="text-fg-faint">{t(k)}</dt><dd className="text-fg text-right">{val}</dd></div>)}
@@ -629,7 +636,7 @@ export function ActiveInvestmentsCard({ go }: { go: (id: string) => void }) {
                   <StatusBadge status={i.status} />
                 </div>
                 <dl className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
-                  {([['inv.f.invested', money(principal), 'text-fg'], ['inv.f.returnTerms', returnTermsText(i, t), 'text-fg'], ['inv.f.expectedReturn', Number(i.expected_return || 0) > 0 ? money(Number(i.expected_return)) : '—', 'text-fg'], ['inv.f.expectedTotal', Number(i.expected_return || 0) > 0 ? money(Number(i.expected_total || 0)) : '—', 'text-fg']] as [TKey, string, string][]).map(([k, val, cls]) => (
+                  {([['inv.f.invested', money(principal), 'text-fg'], ['inv.f.returnTerms', returnTermsText(i, v, t), 'text-fg'], ['inv.f.expectedReturn', Number(i.expected_return || 0) > 0 ? money(Number(i.expected_return)) : '—', 'text-fg'], ['inv.f.expectedTotal', Number(i.expected_return || 0) > 0 ? money(Number(i.expected_total || 0)) : '—', 'text-fg']] as [TKey, string, string][]).map(([k, val, cls]) => (
                     <div key={k} className="rounded-lg bg-ink-950/40 border border-ink-700/70 px-2.5 py-2 min-w-0">
                       <dt className="text-[11px] text-fg-faint truncate">{t(k)}</dt>
                       <dd className={`font-semibold tabular-nums truncate ${cls}`}>{val}</dd>

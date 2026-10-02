@@ -168,30 +168,44 @@ export default function LandingPage() {
       )}
 
       <div className="pt-16">
-        <ErrorBoundary label={t('trust.marketData')}><LiveTickerBar quotes={market.quotes} /></ErrorBoundary>
+        <ErrorBoundary label={t('trust.marketData')}><LiveTickerBar /></ErrorBoundary>
       </div>
 
       {/* Hero */}
       <section className="relative border-b border-ink-700 overflow-hidden">
-        <div className="hero-light" aria-hidden="true" />
-        <div className="hero-grid" aria-hidden="true" />
-        {ambient && <AmbientField className="opacity-90" />}
-        <HeroFloatPanels
-          live={market.status === 'live' || market.status === 'polling'}
-          price={market.quotes['BTC-USD']?.price}
-          change={market.quotes['BTC-USD']?.open24h ? ((market.quotes['BTC-USD']!.price / market.quotes['BTC-USD']!.open24h) - 1) * 100 : undefined}
-        />
-        <div className="market-line" aria-hidden="true">
-          <svg viewBox="0 0 3200 180" preserveAspectRatio="none">
-            <defs>
-              <linearGradient id="heroWave" x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0" stopColor="rgb(var(--accent))" stopOpacity=".22" />
-                <stop offset="1" stopColor="rgb(var(--accent))" stopOpacity="0" />
-              </linearGradient>
-            </defs>
-            <path d={`${HERO_WAVE} L3200,180 L0,180 Z`} fill="url(#heroWave)" />
-            <path d={HERO_WAVE} fill="none" stroke="rgb(var(--accent))" strokeOpacity=".45" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
-          </svg>
+        {/* Decorative layer, capped to the hero banner's own height. On
+            phones the two grid columns below stack vertically, which makes
+            this section much taller than the banner it is meant to sit
+            behind; without a cap the node network and price wave spread
+            across that extra height and strand isolated marks over
+            unrelated content (e.g. just under the sign-in button).
+            760px approximates the stacked badge+title+body+CTAs+risk text
+            column on a phone; it only needs to roughly bound the banner, not
+            match it exactly, since the network/wave are a diffuse texture
+            rather than content that must align to a pixel. Reverts to the
+            full section (`lg:inset-0 lg:h-auto`) once the grid is
+            side-by-side and the section height already matches the banner. */}
+        <div className="absolute inset-x-0 top-0 h-[760px] lg:inset-0 lg:h-auto overflow-hidden" aria-hidden="true">
+          <div className="hero-light" aria-hidden="true" />
+          <div className="hero-grid" aria-hidden="true" />
+          {ambient && <AmbientField className="opacity-90" />}
+          <HeroFloatPanels
+            live={market.status === 'live' || market.status === 'polling'}
+            price={market.quotes['BTC-USD']?.price}
+            change={market.quotes['BTC-USD']?.open24h ? ((market.quotes['BTC-USD']!.price / market.quotes['BTC-USD']!.open24h) - 1) * 100 : undefined}
+          />
+          <div className="market-line hidden lg:block" aria-hidden="true">
+            <svg viewBox="0 0 3200 180" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="heroWave" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0" stopColor="rgb(var(--accent))" stopOpacity=".22" />
+                  <stop offset="1" stopColor="rgb(var(--accent))" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              <path d={`${HERO_WAVE} L3200,180 L0,180 Z`} fill="url(#heroWave)" />
+              <path d={HERO_WAVE} fill="none" stroke="rgb(var(--accent))" strokeOpacity=".45" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+            </svg>
+          </div>
         </div>
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-12 pb-14 lg:pt-20 lg:pb-20 grid lg:grid-cols-[1.08fr_1fr] gap-10 lg:gap-12 items-center">
           <div>
@@ -276,6 +290,10 @@ export default function LandingPage() {
           <div className="grid lg:grid-cols-[1fr_2fr] gap-4">
             <Reveal className="h-full"><ErrorBoundary label={t('market.bitcoinMarket')}><BitcoinMarketCard /></ErrorBoundary></Reveal>
             <Reveal delay={100}><ErrorBoundary label={t('market.blocksTitle')}><LatestBlocks /></ErrorBoundary></Reveal>
+          </div>
+          <div className="mt-4 flex flex-col gap-1 text-[11px] text-fg-faint sm:flex-row sm:items-center sm:justify-between">
+            <p>{t('landing.footer.attr')}</p>
+            <a href="https://www.coingecko.com/en/api" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-fg">{t('landing.footer.coinGecko')}</a>
           </div>
         </div>
       </section>
@@ -383,14 +401,6 @@ export default function LandingPage() {
         </div>
         <div className="mt-10 pt-6 border-t border-ink-700 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-xs text-fg-faint">
           <p>&copy; {new Date().getFullYear()} Tarafab.XAi</p>
-          {/* Kept for provider attribution terms; deliberately small. */}
-          <div className="text-[11px] sm:text-right max-w-xl">
-            <p>{t('landing.footer.attr')}</p>
-            <details className="mt-1 group">
-              <summary className="cursor-pointer select-none text-fg-faint hover:text-fg-muted list-none">{t('landing.footer.sourcesLabel')}</summary>
-              <p className="mt-1 text-fg-faint">{t('sources.footer')}</p>
-            </details>
-          </div>
         </div>
       </footer>
     </div>

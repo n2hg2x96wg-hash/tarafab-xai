@@ -189,25 +189,20 @@ This creates optimized production builds in `dist/`.
 ## Deployment
 
 ### Vercel (Recommended)
-The frontend builds automatically on Vercel.
-
-For the backend, you have options:
-1. Deploy server code to a Node.js host (Heroku, Railway, Render, etc.)
-2. Convert to serverless functions (Vercel Functions, AWS Lambda)
-3. Use a BaaS like Firebase Functions
+The Next.js application, API routes, Supabase authentication, and market-data proxy can be deployed together on Vercel. Database migrations and the market-automation Edge Function are managed through Supabase; see [Supabase deployment](SUPABASE_DEPLOYMENT.md).
 
 ### Environment Variables for Production
 ```env
-NODE_ENV=production
-JWT_SECRET=<generate_strong_random_string>
-FRONTEND_URL=https://yourdomain.com
+NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
 
-# Optional: Real integrations
-MARKET_DATA_API=https://api.coingecko.com/api/v3
-BTC_RECEIVING_ADDRESS=<your_bitcoin_address>
-PAYMENT_PROVIDER_KEY=<stripe_key>
-EMAIL_KEY=<sendgrid_key>
+# Optional server-side market endpoint overrides
+MARKET_COINBASE_BASE=https://api.exchange.coinbase.com
+MARKET_COINGECKO_BASE=https://api.coingecko.com/api/v3
+MARKET_STOOQ_BASE=https://stooq.com
 ```
+
+The market endpoints above are optional and default to public feeds. Never expose the Supabase service-role key in a `NEXT_PUBLIC_*` variable or client code.
 
 ## Financial Compliance Notes
 
@@ -241,11 +236,31 @@ EMAIL_KEY=<sendgrid_key>
 
 ## Market Data
 
-The platform includes stubs for market data integration:
+Market quotes are fetched server-side from configured providers. Coinbase
+Exchange supplies supported crypto pairs, CoinGecko supplies configured crypto
+assets, and Stooq supplies delayed end-of-day quotes for configured US equities
+and indices (including NDX and DJI when the provider migrations are applied).
+Stooq quotes older than 24 hours remain unavailable, including when its feed
+does not return a valid quote. `MARKET_COINBASE_BASE`,
+`MARKET_COINGECKO_BASE`, and `MARKET_STOOQ_BASE` are optional server-side
+endpoint overrides. Unsupported, stale, malformed, or unavailable quotes stay
+unavailable; the application does not manufacture prices.
 
-- **CoinGecko API** (free): Real Bitcoin prices, 24h change, volume
-- **Environment toggle**: `MARKET_DATA_ENABLED=true/false`
-- **Fallback behavior**: If disabled, shows "Market data unavailable" rather than fake prices
+CoinGecko attribution is displayed with the market-data disclosure because its
+API requires linked attribution. See `SUPABASE_DEPLOYMENT.md` for safe
+production migration and provider configuration.
+
+### Market automation scheduler
+
+Client automations are persisted in `market_automations` and remain configured
+until the evaluator records a real event. Deploy the
+`supabase/functions/evaluate-market-automations` Edge Function with the
+Supabase service role secret and invoke it from a trusted scheduler (for
+example, Supabase scheduled functions or an external cron) at the desired
+frequency. The function records successful and failed evaluations, applies a
+cooldown event key, and never invents a trigger when market data is
+unavailable. No scheduler is enabled by this repository, so deployment configuration and
+operational monitoring remain an explicit production step.
 
 ## Next Steps
 

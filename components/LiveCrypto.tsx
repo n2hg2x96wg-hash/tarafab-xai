@@ -4,14 +4,10 @@ import { chartColors } from '@/lib/chartColors'
 import { useEffect, useRef, useState } from 'react'
 import { sharedSummary, useBtcHistory } from '@/components/useMarket'
 import { useI18n } from '@/lib/i18n/I18nProvider'
+import type { AssetQuote } from '@/lib/assets'
 
-type Product = 'BTC-USD' | 'ETH-USD' | 'SOL-USD'
-const PRODUCTS: Product[] = ['BTC-USD', 'ETH-USD', 'SOL-USD']
-const LABELS: Record<Product, string> = {
-  'BTC-USD': 'Bitcoin',
-  'ETH-USD': 'Ethereum',
-  'SOL-USD': 'Solana',
-}
+type Product = 'BTC-USD'
+const PRODUCTS: Product[] = ['BTC-USD']
 
 export interface Quote { price: number; open24h: number; dir: 'up' | 'down' | null }
 export interface Trade { id: number; price: number; size: number; side: 'buy' | 'sell'; time: string }
@@ -20,8 +16,8 @@ type Status = 'connecting' | 'live' | 'polling' | 'error'
 const usd = (n: number, digits = 2) =>
   `$${n.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits })}`
 
-// Streams real prices and trades from Coinbase's public feed; falls back to
-// CoinGecko polling if the socket can't connect.
+// Streams real Bitcoin prices and trades from Coinbase's public feed; falls
+// back to the shared server-side quote when the socket can't connect.
 export function useLiveMarket() {
   const [quotes, setQuotes] = useState<Partial<Record<Product, Quote>>>({})
   const [trades, setTrades] = useState<Trade[]>([])
@@ -72,21 +68,7 @@ export function useLiveMarket() {
     const startPolling = () => {
       if (pollTimer || closed) return
       const poll = async () => {
-        // Status follows Bitcoin, the price this panel is about. Ethereum and
-        // Solana are best-effort extras for the ticker bar.
         const btcOk = await btcFromServer().catch(() => false)
-        try {
-          const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum,solana&vs_currencies=usd&include_24hr_change=true')
-          if (res.ok) {
-            const j = await res.json()
-            const map: [Product, string][] = [['ETH-USD', 'ethereum'], ['SOL-USD', 'solana']]
-            for (const [p, id] of map) {
-              const price = j[id]?.usd
-              const ch = j[id]?.usd_24h_change
-              if (price) pendingQuotes.current[p] = { price, open24h: price / (1 + (ch ?? 0) / 100) }
-            }
-          }
-        } catch { /* extras only */ }
         if (!closed) setStatus(btcOk ? 'polling' : 'error')
       }
       poll()
@@ -164,23 +146,88 @@ function TickPrice({ quote, className = '' }: { quote?: Quote; className?: strin
   return <span className={`tabular-nums price-tick ${dir === 'up' ? 'price-up' : dir === 'down' ? 'price-down' : ''} ${className}`}>{usd(quote.price)}</span>
 }
 
-export function LiveTickerBar({ quotes }: { quotes: Partial<Record<Product, Quote>> }) {
+type TickerRow = {
+  asset: { symbol: string; name: string }
+  quote: { price: number | null; change24h: number | null; status: 'live' | 'delayed' | 'unavailable' }
+}
+
+export function LiveTickerBar() {
   const { t } = useI18n()
-  const items = PRODUCTS.map(p => {
-    const q = quotes[p]
-    return (
-      <div key={p} className="flex items-center gap-3 px-8 shrink-0 text-[13px]">
-        <span className="text-fg-muted">{LABELS[p]}</span>
-        <span className="text-fg-faint">{p.replace('-USD', '')}</span>
-        {q ? <span className="text-fg font-medium tabular-nums">{usd(q.price)}</span> : <span className="skeleton inline-block w-20 h-3" />}
-        <Change value={pctChange(q)} />
-      </div>
-    )
-  })
+  const [rows, setRows] = useState<TickerRow[]>([])
+  useEffect(() => {
+    let active = true
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let controller: AbortController | undefined
+    const refresh = async () => {
+      let requestController: AbortController | undefined
+      if (document.visibilityState === 'visible') {
+        const activeController = new AbortController()
+        requestController = activeController
+        controller = activeController
+        const timeout = setTimeout(() => activeController.abort(), 20_000)
+        try {
+          const response = await fetch('/api/market/assets', { cache: 'no-store', signal: activeController.signal })
+          if (!response.ok) throw new Error('Market data unavailable')
+          const body = await response.json() as { assets?: AssetQuote[] }
+          // Only real, current quotes; stale or unavailable assets are left out.
+          const usable: TickerRow[] = Array.isArray(body.assets) ? body.assets
+            .filter(a => typeof a?.id === 'string' && typeof a?.name === 'string' &&
+              a.price != null && Number.isFinite(a.price) && a.price > 0 && (a.state === 'live' || a.state === 'delayed'))
+            .map(a => ({ asset: { symbol: a.id, name: a.name }, quote: { price: a.price, change24h: a.changePct, status: a.state as 'live' | 'delayed' } })) : []
+          if (active && controller === requestController) {
+            setRows(previous => {
+              const unchanged = previous.length === usable.length && previous.every((row, index) => {
+                const next = usable[index]
+                return row.asset.symbol === next?.asset.symbol &&
+                  row.asset.name === next?.asset.name &&
+                  row.quote.price === next?.quote.price &&
+                  row.quote.change24h === next?.quote.change24h &&
+                  row.quote.status === next?.quote.status
+              })
+              return unchanged ? previous : usable
+            })
+          }
+        } catch {
+          if (active && controller === activeController) setRows([])
+        } finally {
+          clearTimeout(timeout)
+        }
+      }
+      if (active && (!requestController || controller === requestController)) timer = setTimeout(refresh, 30_000)
+    }
+    void refresh()
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        if (timer) clearTimeout(timer)
+        controller?.abort()
+        void refresh()
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      active = false
+      if (timer) clearTimeout(timer)
+      controller?.abort()
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [])
+
+  const renderItems = (copy: number) => rows.map(({ asset, quote }) => (
+    <div key={`${copy}-${asset.symbol}`} className="flex items-center gap-2 sm:gap-3 px-5 sm:px-8 shrink-0 text-[12px] sm:text-[13px]">
+      <span className="text-fg-muted">{asset.name}</span>
+      <span className="text-fg-faint">{asset.symbol}</span>
+      <span className="min-w-[5.5rem] text-right text-fg font-medium tabular-nums">{usd(quote.price!)}</span>
+      <Change value={quote.change24h} />
+      <span className={`text-[10px] uppercase tracking-wide ${quote.status === 'live' ? 'text-emerald-400' : 'text-amber-400'}`}>
+        {quote.status === 'live' ? t('status.live') : t('status.delayed')}
+      </span>
+    </div>
+  ))
+
   return (
     <div className="relative overflow-hidden border-b border-ink-700 bg-ink-900 h-10 flex items-center marquee-mask" aria-label={t('market.livePrices')}>
-      <div className="flex w-max animate-marquee">
-        {items}{items}{items}{items}
+      <div className={`flex w-max ${rows.length > 1 ? 'animate-marquee' : ''}`}>
+        {rows.length ? <>{renderItems(0)}<div className="flex" aria-hidden="true">{renderItems(1)}</div></> : null}
       </div>
     </div>
   )
@@ -230,9 +277,9 @@ export function HeroLivePanel({ quotes, trades, status }: ReturnType<typeof useL
       </div>
 
       <div className="mt-4 mb-5 -mx-1">
-        {series ? <LineChart points={series} positive={(ch ?? 0) >= 0} /> : day.status !== 'error' ? <div className="skeleton h-28" /> : (
+        {series ? <LineChart points={series} positive={(ch ?? 0) >= 0} /> : day.status === 'loading' ? <div className="skeleton h-28" /> : (
           <div className="h-28 flex flex-col items-center justify-center gap-2 text-xs text-fg-faint">
-            {t('market.chart24hFailed')}
+            {day.status === 'error' ? t('market.chart24hFailed') : t('common.unavailable')}
             <button onClick={day.retry} className="underline underline-offset-2 hover:text-fg">{t('common.tryAgain')}</button>
           </div>
         )}

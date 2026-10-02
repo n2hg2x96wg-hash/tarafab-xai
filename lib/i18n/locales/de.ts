@@ -68,6 +68,7 @@ const de: DeepPartial<typeof en> = {
   status: {
     live: 'Live',
     delayed: 'Verzögert',
+    dataUnavailable: 'Daten nicht verfügbar',
     current: 'Aktuell',
     connecting: 'Verbindet',
     offline: 'Offline',
@@ -104,8 +105,8 @@ const de: DeepPartial<typeof en> = {
       support: "Support",
       investments: "Anlagen",
       help: "Hilfe & Support",
-      attr: "Marktinformationen dienen nur zu Informationszwecken.",
-      sourcesLabel: "Datenquellen",
+      attr: 'Marktdaten dienen nur zu Informationszwecken. Preise können verzögert oder nicht verfügbar sein.',
+      coinGecko: 'Daten von CoinGecko',
     },
     adminBar: "Sie sind als Administrator angemeldet. Zum Admin-Dashboard →",
     status: {
@@ -637,7 +638,7 @@ const de: DeepPartial<typeof en> = {
     usingDefaults: 'Noch keine Einstellungen gespeichert. Alle Bereiche werden angezeigt.',
   },
   sources: {
-    footer: 'Marktdaten: Coinbase Exchange, CoinGecko, mempool.space, TradingView, Finnhub',
+    footer: 'Marktdaten dienen nur zu Informationszwecken. Preise können verzögert oder nicht verfügbar sein.',
   },
   nav3: {
     groupMarkets: 'Märkte',

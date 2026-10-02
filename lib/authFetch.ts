@@ -27,27 +27,40 @@ async function currentToken(force = false) {
 }
 
 export async function authFetch(url: string, init: RequestInit = {}, timeoutMs = 20_000): Promise<Response> {
+  const ctrl = new AbortController()
+  let rejectTimeout: (error: RequestError) => void = () => {}
+  const timeout = new Promise<never>((_, reject) => { rejectTimeout = reject })
+  const totalTimer = setTimeout(() => {
+    ctrl.abort()
+    rejectTimeout(new RequestError('The request timed out. Check your connection and try again.', 0, 'timeout'))
+  }, timeoutMs)
+
   const send = async (token: string | null) => {
     const headers = new Headers(init.headers)
     if (token) headers.set('Authorization', `Bearer ${token}`)
-    const ctrl = new AbortController()
-    const timer = setTimeout(() => ctrl.abort(), timeoutMs)
     try {
       return await fetch(url, { ...init, headers, signal: ctrl.signal, cache: 'no-store' })
     } catch (e) {
       if (ctrl.signal.aborted) throw new RequestError('The request timed out. Check your connection and try again.', 0, 'timeout')
       throw new RequestError('Could not reach the server. Check your connection and try again.', 0, 'network')
-    } finally {
-      clearTimeout(timer)
     }
   }
 
-  let res = await send(await currentToken())
-  if (res.status === 401) {
-    const fresh = await currentToken(true).catch(() => null)
-    if (fresh) res = await send(fresh)
+  try {
+    return await Promise.race([
+      (async () => {
+        let res = await send(await currentToken())
+        if (res.status === 401) {
+          const fresh = await currentToken(true).catch(() => null)
+          if (fresh) res = await send(fresh)
+        }
+        return res
+      })(),
+      timeout,
+    ])
+  } finally {
+    clearTimeout(totalTimer)
   }
-  return res
 }
 
 // Parses a JSON response and turns any failure into a readable RequestError.

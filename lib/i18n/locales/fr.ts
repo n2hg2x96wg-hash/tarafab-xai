@@ -68,6 +68,7 @@ const fr: DeepPartial<typeof en> = {
   status: {
     live: 'En direct',
     delayed: 'Différé',
+    dataUnavailable: 'Données indisponibles',
     current: 'Actuel',
     connecting: 'Connexion',
     offline: 'Hors ligne',
@@ -104,8 +105,8 @@ const fr: DeepPartial<typeof en> = {
       support: "Assistance",
       investments: "Investissements",
       help: "Aide et assistance",
-      attr: "Les informations de marché sont fournies à titre informatif uniquement.",
-      sourcesLabel: "Sources des données",
+      attr: 'Les données de marché sont fournies à titre informatif. Les prix peuvent être différés ou indisponibles.',
+      coinGecko: 'Données fournies par CoinGecko',
     },
     adminBar: "Vous êtes connecté en tant qu'administrateur. Aller au tableau de bord admin →",
     status: {
@@ -637,7 +638,7 @@ const fr: DeepPartial<typeof en> = {
     usingDefaults: 'Aucun réglage enregistré. Toutes les sections sont affichées.',
   },
   sources: {
-    footer: 'Données de marché : Coinbase Exchange, CoinGecko, mempool.space, TradingView, Finnhub',
+    footer: 'Les données de marché sont fournies à titre informatif. Les prix peuvent être différés ou indisponibles.',
   },
   nav3: {
     groupMarkets: 'Marchés',
