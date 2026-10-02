@@ -26,7 +26,7 @@ function Return() {
     started.current = true
     let stored = ''
     try { stored = sessionStorage.getItem('tarafab.payRef') || '' } catch { /* ignore */ }
-    const ours = [q.get('tref'), stored].find(x => x && /^PAY-[A-Z0-9]{12}$/.test(x)) || ''
+    const ours = [q.get('tref'), q.get('reference'), q.get('trxref'), stored].find(x => x && /^PAY-[A-Z0-9]{12}$/.test(x)) || ''
     if (!ours) { setView('notfound'); return }
     setRef(ours)
     // SeerBit's own reference (parameter name varies by integration).

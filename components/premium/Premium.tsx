@@ -21,7 +21,7 @@ export type PremiumInfo = {
   usage: { automations: number; watchlist: number }
   premium_timeframes: string[]
   plans: { id: string; name: string; interval: 'month' | 'year'; period?: 'month' | 'quarter' | 'year'; tier?: 'standard' | 'premium' | 'pro'; description?: string; features?: string[]; highlighted?: boolean
-    price: number; currency: string; promo_price: number | null; promo_label: string | null; checkout: boolean; seerbit?: boolean; seerbit_country?: string | null }[]
+    price: number; currency: string; promo_price: number | null; promo_label: string | null; checkout: boolean; seerbit?: boolean; seerbit_country?: string | null; paystack?: boolean }[]
   payments_recent?: { reference: string; plan_id: string; amount: number; currency: string; status: string; verification_status: string; created_at: string }[]
   payments: boolean
 }
@@ -108,6 +108,8 @@ export function PremiumCenter({ account, txs }: { account: Account | null; txs: 
   const analytics = feature('portfolio_analytics')
   const [payReview, setPayReview] = useState<PremiumInfo['plans'][number] | null>(null)
   const [payBusy, setPayBusy] = useState('')
+  // ?payment=restricted|unverified|unavailable set when a payment could not start.
+  const [payNotice, setPayNotice] = useState<string>(() => { try { return new URLSearchParams(window.location.search).get('payment') || '' } catch { return '' } })
   const payKey = useRef(newRequestKey())
   // Payment-access gateway: the server checks the country, the plan, the
   // amount and availability; only then does it return SeerBit's page.
@@ -115,9 +117,16 @@ export function PremiumCenter({ account, txs }: { account: Account | null; txs: 
     if (!payReview) return
     setPayBusy(payReview.id); setErr('')
     try {
-      const r = await readJson<{ status: string; url?: string; reference?: string }>(await authFetch('/api/client/payments/start', {
+      const viaPaystack = !!payReview.paystack
+      const r = await readJson<{ status: string; url?: string; reference?: string }>(await authFetch(viaPaystack ? '/api/client/payments/paystack' : '/api/client/payments/start', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ plan_id: payReview.id, idempotency_key: payKey.current }) }))
-      if (r.status === 'ok' && r.url && r.reference) {
+      if (viaPaystack && r.status !== 'ok') {
+        // Paystack: back to this page with the reason; nothing was created at Paystack.
+        const reason = r.status === 'region_blocked' ? 'restricted' : r.status === 'unknown_region' ? 'unverified' : 'unavailable'
+        setPayBusy(''); setPayReview(null); payKey.current = newRequestKey()
+        window.history.replaceState(null, '', `/dashboard?payment=${reason}#premium`); setPayNotice(reason); return
+      }
+      if (r.status === 'ok' && r.url && r.reference && (viaPaystack ? /^https:\/\/checkout\.paystack\.com\//.test(r.url) : true)) {
         try { sessionStorage.setItem('tarafab.payRef', r.reference) } catch { /* the return page also lists recent payments */ }
         window.location.assign(r.url); return
       }
@@ -225,16 +234,22 @@ export function PremiumCenter({ account, txs }: { account: Account | null; txs: 
       <section className="panel p-5 sm:p-6" aria-labelledby="pp-title">
         <h3 id="pp-title" className="text-[15px] font-semibold text-fg">{pt('pp.title')}</h3>
         <p className="text-[13px] text-fg-faint mt-0.5 mb-5">{pt('pp.subtitle')}</p>
+        {['restricted', 'unverified', 'unavailable'].includes(payNotice) && (
+          <div role="alert" className="mb-4 rounded-lg border border-amber-400/30 bg-amber-400/[0.06] px-4 py-3 text-sm text-amber-200 flex items-start justify-between gap-3">
+            <span>{pt(payNotice === 'restricted' ? 'pay.restrictedNg' : payNotice === 'unverified' ? 'pay.unknownBody' : 'pay.disabledBody')}</span>
+            <button onClick={() => setPayNotice('')} className="text-amber-200/70 hover:text-amber-100" aria-label={pt('pr.notNow')}>×</button>
+          </div>
+        )}
         {!info.plans.length ? <p className="text-sm text-fg-muted">{pt('pr.noPlans')}</p> : (<>
           {!info.premium && !info.plans.some(p => p.seerbit || (info.payments && p.checkout)) && <p className="mb-4 text-sm text-amber-300" role="status">{pt('pr.paymentsOff')}</p>}
           <PricingTable
             plans={info.plans.map(p => ({ id: p.id, name: p.name, tier: p.tier || 'premium', period: p.period || p.interval, price: Number(p.price), promo_price: p.promo_price == null ? null : Number(p.promo_price),
               promo_label: p.promo_label, currency: p.currency, description: p.description || '', features: p.features || [], highlighted: !!p.highlighted,
-              available: !!p.seerbit || (info.payments && p.checkout),
-              note: p.seerbit && p.seerbit_country ? pt('pp.ngOnly', { country: p.seerbit_country === 'NG' ? 'Nigeria' : p.seerbit_country }) : undefined }))}
+              available: !!p.paystack || !!p.seerbit || (info.payments && p.checkout),
+              note: p.paystack ? pt('pp.ngOnly', { country: 'Nigeria' }) : p.seerbit && p.seerbit_country ? pt('pp.ngOnly', { country: p.seerbit_country === 'NG' ? 'Nigeria' : p.seerbit_country }) : undefined }))}
             freeLimits={{ automations: info.limits.free_automations, watchlist: info.limits.free_watchlist }}
             currentPlanId={info.premium ? sub?.plan_id : null} isFree={!info.premium} busyId={payBusy}
-            onChoose={pp => { setErr(''); const full = info.plans.find(x => x.id === pp.id)!; if (full.seerbit) setPayReview(full); else setReview(full) }} />
+            onChoose={pp => { setErr(''); const full = info.plans.find(x => x.id === pp.id)!; if (full.paystack || full.seerbit) setPayReview(full); else setReview(full) }} />
         </>)}
         {(info.payments_recent || []).length > 0 && (
           <ul className="mt-5 text-[12px] text-fg-faint space-y-1">
@@ -270,7 +285,7 @@ export function PremiumCenter({ account, txs }: { account: Account | null; txs: 
             <div className="flex justify-between gap-4 py-2"><dt className="text-fg-muted">{pt('pay.amount')}</dt><dd className="text-fg font-semibold tabular-nums">{planMoney(Number(payReview.promo_price ?? payReview.price), payReview.currency)}</dd></div>
             <div className="flex justify-between gap-4 py-2"><dt className="text-fg-muted">{pt('pay.billing')}</dt><dd className="text-fg">{pt(`pp.${payReview.period || payReview.interval}`)}</dd></div>
           </dl>
-          <p className="mt-3 text-[12px] text-fg-muted">{pt('pay.secure')}</p>
+          <p className="mt-3 text-[12px] text-fg-muted">{pt(payReview.paystack ? 'pay.securePaystack' : 'pay.secure')}</p>
         </ConfirmModal>
       )}
       {confirmCancel && sub && (

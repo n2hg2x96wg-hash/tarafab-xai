@@ -5,10 +5,12 @@ import { createClient } from '@/lib/supabase/client'
 import AdminLayout from '@/components/AdminLayout'
 import { AdminLoadError } from '@/components/AdminLoadError'
 import { AdminModal, Field } from '@/components/AdminModal'
+import { authFetch } from '@/lib/authFetch'
 
 type Link = { id: string; title: string; provider: string; url: string; amount: number; currency: string; frequency: string; usage: string; allowed_country: string; enabled: boolean; plan_id: string | null; created_at: string; updated_at: string }
-type Plan = { id: string; name: string; price: number; promo_price: number | null; currency: string }
-type Attempt = { id: string; reference: string; full_name: string | null; email: string | null; plan_id: string | null; expected_amount: number; currency: string; status: string; verification_status: string; provider_reference: string | null; country: string | null; note: string | null; created_at: string; verified_at: string | null }
+type Plan = { id: string; name: string; price: number; promo_price: number | null; currency: string; paystack_enabled?: boolean; enabled?: boolean }
+type PsStatus = { secretSet: boolean; mode: string; gatewayKeySet: boolean; callbackUrl: string; webhookUrl: string }
+type Attempt = { id: string; reference: string; provider?: string; full_name: string | null; email: string | null; plan_id: string | null; expected_amount: number; currency: string; status: string; verification_status: string; provider_reference: string | null; country: string | null; note: string | null; created_at: string; verified_at: string | null }
 const TONE: Record<string, string> = { successful: 'text-emerald-400', pending_verification: 'text-sky-300', redirected: 'text-slate-300', failed: 'text-red-400', cancelled: 'text-slate-500', expired: 'text-slate-500' }
 const fmt = (n: number, c: string) => { try { return new Intl.NumberFormat(c === 'NGN' ? 'en-NG' : 'en-US', { style: 'currency', currency: c }).format(n) } catch { return `${c} ${n}` } }
 
@@ -56,12 +58,15 @@ export default function AdminPaymentsPage() {
   const [decide, setDecide] = useState<null | { a: Attempt; action: 'confirm' | 'reject'; providerRef: string; reason: string }>(null)
   const [newKey, setNewKey] = useState('')
   const [msg, setMsg] = useState('')
+  const [ps, setPs] = useState<PsStatus | null>(null)
+  const [psToggle, setPsToggle] = useState<null | { plan: Plan; reason: string }>(null)
+  useEffect(() => { authFetch('/api/admin/payments/paystack').then(r => (r.ok ? r.json() : null)).then(setPs).catch(() => setPs(null)) }, [reload])
 
   const load = useCallback(async () => {
     const [l, p, a, g] = await Promise.all([
       (supabase.from('payment_links') as any).select('*').order('created_at', { ascending: false }),
-      (supabase.from('premium_plans') as any).select('id, name, price, promo_price, currency').order('sort_order'),
-      rpc('admin_list_payment_attempts', { p_status: null, p_limit: 200 }),
+      (supabase.from('premium_plans') as any).select('id, name, price, promo_price, currency, paystack_enabled, enabled').order('sort_order'),
+      rpc('admin_list_payment_attempts_v2', { p_status: null, p_limit: 200 }),
       rpc('admin_payment_gateway_configured'),
     ])
     if (l.error || a.error) { setError('Payment data could not be loaded.'); return }
@@ -79,6 +84,12 @@ export default function AdminPaymentsPage() {
   }
   const verify = async (a: Attempt) => {
     setMsg('')
+    if (a.provider === 'paystack') {
+      const r = await authFetch('/api/admin/payments/paystack', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reference: a.reference }) })
+      const j = await r.json().catch(() => ({})) as { status?: string; reason?: string; error?: string }
+      setMsg(j.error || (j.reason === 'not_configured' ? 'PAYSTACK_SECRET_KEY is not set in Vercel, so Paystack cannot be checked.' : `Paystack verification: ${j.status}${j.reason ? ` (${j.reason})` : ''}`))
+      load(); return
+    }
     const { data, error } = await supabase.functions.invoke('seerbit-verify', { body: { reference: a.reference } })
     const r = data as { status?: string; reason?: string } | null
     setMsg(error ? 'Verification request failed.' : r?.reason === 'not_configured' ? 'SeerBit keys are not configured on the seerbit-verify function, so automatic verification is unavailable. Check the payment in your SeerBit dashboard and confirm manually.'
@@ -96,6 +107,28 @@ export default function AdminPaymentsPage() {
   return (
     <AdminLayout title="Payments" subtitle="SeerBit payment links, access rules and payment records">
       {error && <AdminLoadError message={error} onRetry={() => setReload(n => n + 1)} />}
+
+      <section className="glass rounded-2xl border border-white/[0.08] p-4 mb-5 text-xs" aria-labelledby="ps-title">
+        <h2 id="ps-title" className="text-sm font-semibold text-white mb-2">Paystack</h2>
+        {!ps ? <p className="text-slate-500">Checking configuration…</p> : (
+          <dl className="grid sm:grid-cols-2 gap-x-6 gap-y-1">
+            <div><dt className="text-slate-500 inline">Secret key (server): </dt><dd className="inline">{ps.secretSet ? <span className="text-emerald-400">set · {ps.mode === 'test' ? 'TEST mode' : ps.mode === 'live' ? 'LIVE mode' : 'unrecognised format'}</span> : <span className="text-amber-300">missing (PAYSTACK_SECRET_KEY)</span>}</dd></div>
+            <div><dt className="text-slate-500 inline">Gateway key: </dt><dd className="inline">{ps.gatewayKeySet ? <span className="text-emerald-400">set in Vercel</span> : <span className="text-amber-300">missing (PAYMENT_GATEWAY_KEY)</span>}</dd></div>
+            <div className="sm:col-span-2"><dt className="text-slate-500 inline">Callback URL: </dt><dd className="inline font-mono break-all">{ps.callbackUrl}</dd></div>
+            <div className="sm:col-span-2"><dt className="text-slate-500 inline">Webhook URL (set in Paystack → Settings → API Keys &amp; Webhooks): </dt><dd className="inline font-mono break-all">{ps.webhookUrl}</dd></div>
+          </dl>
+        )}
+        <p className="mt-3 text-slate-400">Plans that accept Paystack (Nigeria only; charged in the plan&apos;s currency, which your Paystack account must support, normally NGN):</p>
+        <ul className="mt-2 space-y-1">
+          {plans.filter(p => p.enabled !== false).map(p => (
+            <li key={p.id} className="flex flex-wrap items-center gap-2">
+              <span className="text-white">{p.name}</span><span className="text-slate-500">{fmt(Number(p.promo_price ?? p.price), p.currency)}</span>
+              {p.currency !== 'NGN' && <span className="text-amber-300">Not NGN: Paystack will reject it unless {p.currency} is enabled on your Paystack account</span>}
+              <button onClick={() => setPsToggle({ plan: p, reason: '' })} className={`ml-auto rounded-lg border px-2.5 py-1 ${p.paystack_enabled ? 'border-emerald-500/30 text-emerald-300' : 'border-white/[0.12] text-slate-300'}`}>{p.paystack_enabled ? 'Paystack on' : 'Paystack off'}</button>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       <section className="glass rounded-2xl border border-white/[0.08] p-4 mb-5">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
@@ -156,10 +189,11 @@ export default function AdminPaymentsPage() {
         <h2 className="text-sm font-semibold text-white mb-2">Payment records</h2>
         {msg && <p className="mb-2 text-xs text-sky-300" role="status">{msg}</p>}
         {!attempts ? <p className="text-xs text-slate-500">Loading…</p> : !attempts.length ? <p className="text-xs text-slate-400">No payment attempts yet.</p> : (
-          <div className="overflow-x-auto"><table className="w-full text-xs"><thead><tr className="text-left text-slate-500"><th className="py-1.5 pr-3">Reference</th><th className="pr-3">Client</th><th className="pr-3">Plan</th><th className="pr-3">Amount</th><th className="pr-3">Status</th><th className="pr-3">Verification</th><th className="pr-3">SeerBit ref.</th><th className="pr-3">Country</th><th /></tr></thead>
+          <div className="overflow-x-auto"><table className="w-full text-xs"><thead><tr className="text-left text-slate-500"><th className="py-1.5 pr-3">Reference</th><th className="pr-3">Provider</th><th className="pr-3">Client</th><th className="pr-3">Plan</th><th className="pr-3">Amount</th><th className="pr-3">Status</th><th className="pr-3">Verification</th><th className="pr-3">SeerBit ref.</th><th className="pr-3">Country</th><th /></tr></thead>
             <tbody>{attempts.map(a => (
               <tr key={a.id} className="border-t border-white/[0.06] text-slate-300 align-top">
                 <td className="py-2 pr-3 font-mono">{a.reference}<div className="font-sans text-slate-500">{new Date(a.created_at).toLocaleString()}</div></td>
+                <td className="pr-3">{a.provider === 'paystack' ? 'Paystack' : 'SeerBit'}</td>
                 <td className="pr-3">{a.full_name || '—'}<div className="text-slate-500">{a.email}</div></td>
                 <td className="pr-3">{planName(a.plan_id)}</td>
                 <td className="pr-3 tabular-nums">{fmt(Number(a.expected_amount), a.currency)}</td>
@@ -169,7 +203,7 @@ export default function AdminPaymentsPage() {
                 <td className="pr-3">{a.country || '—'}</td>
                 <td>{['redirected', 'pending_verification'].includes(a.status) && (
                   <div className="flex flex-col gap-1">
-                    <button onClick={() => verify(a)} className="text-sky-300 text-left">Verify with SeerBit</button>
+                    <button onClick={() => verify(a)} className="text-sky-300 text-left">Verify with {a.provider === 'paystack' ? 'Paystack' : 'SeerBit'}</button>
                     <button onClick={() => { setFormErr(''); setDecide({ a, action: 'confirm', providerRef: a.provider_reference || '', reason: '' }) }} className="text-emerald-400 text-left">Confirm…</button>
                     <button onClick={() => { setFormErr(''); setDecide({ a, action: 'reject', providerRef: '', reason: '' }) }} className="text-red-400 text-left">Reject…</button>
                   </div>
@@ -194,6 +228,12 @@ export default function AdminPaymentsPage() {
           <label className="flex items-center gap-2 text-sm text-slate-300"><input type="checkbox" checked={edit.enabled} onChange={e => setEdit({ ...edit, enabled: e.target.checked })} /> Enabled</label>
           <p className="text-[11px] text-slate-500">The amount and currency must match the plan and the amount configured at SeerBit for this link.</p>
           <Field label="Reason (audit log)"><input className={field} value={edit.reason} onChange={e => setEdit({ ...edit, reason: e.target.value })} /></Field>
+        </AdminModal>
+      )}
+      {psToggle && (
+        <AdminModal title={`${psToggle.plan.paystack_enabled ? 'Turn off' : 'Turn on'} Paystack for ${psToggle.plan.name}`} busy={busy} err={formErr} onClose={() => setPsToggle(null)}
+          onSave={() => run('admin_set_plan_paystack', { p_plan: psToggle.plan.id, p_enabled: !psToggle.plan.paystack_enabled, p_reason: psToggle.reason }, () => setPsToggle(null))}>
+          <Field label="Reason (audit log)"><input className={field} value={psToggle.reason} onChange={e => setPsToggle({ ...psToggle, reason: e.target.value })} /></Field>
         </AdminModal>
       )}
       {toggle && (
