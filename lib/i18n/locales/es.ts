@@ -104,7 +104,8 @@ const es: DeepPartial<typeof en> = {
       support: "Soporte",
       investments: "Inversiones",
       help: "Ayuda y soporte",
-      attr: "Datos de mercado de proveedores externos (Coinbase, CoinGecko, mempool.space, TradingView). Los precios son informativos.",
+      attr: "La información de mercado se ofrece solo con fines informativos.",
+      sourcesLabel: "Fuentes de datos",
     },
     adminBar: "Has iniciado sesión como administrador. Ir al panel de administración →",
     status: {
@@ -124,10 +125,10 @@ const es: DeepPartial<typeof en> = {
       panelPortfolio: "Cartera",
       trackHoldings: "Sigue tus activos, tus inversiones y cada cambio de saldo en un solo lugar.",
     },
-    badge: 'Plataforma de cartera de activos digitales',
-    heroTitle1: 'Invierte con claridad.',
-    heroTitle2: 'Sigue cada movimiento.',
-    heroBody: 'Gestiona tu cartera de activos digitales, sigue el mercado y revisa el rendimiento de tu cuenta desde un único panel. Deposita en Bitcoin, retira cuando quieras y consulta el registro de cada cambio de saldo.',
+    badge: "Plataforma multiactivo de mercado e inversión",
+    heroTitle1: "Mercados globales.",
+    heroTitle2: "Una plataforma inteligente.",
+    heroBody: "Siga activos digitales, acciones e índices, cree alertas de mercado automáticas, gestione sus inversiones y su billetera y revise cada movimiento de saldo, todo desde una sola cuenta.",
     risk: 'Los activos digitales son volátiles y su valor puede bajar además de subir. No prometemos rentabilidad.',
     platformEyebrow: 'La plataforma',
     platformTitle: 'Todo en una sola cuenta',
@@ -636,7 +637,7 @@ const es: DeepPartial<typeof en> = {
     usingDefaults: 'Aún no hay ajustes guardados. Se muestran todas las secciones.',
   },
   sources: {
-    footer: 'Datos de mercado: Coinbase Exchange, CoinGecko, mempool.space, TradingView',
+    footer: 'Datos de mercado: Coinbase Exchange, CoinGecko, mempool.space, TradingView, Finnhub',
   },
   nav3: {
     groupMarkets: 'Mercados',
@@ -691,6 +692,7 @@ const es: DeepPartial<typeof en> = {
     unread: 'Sin leer',
     types: {
       investment: "Inversión",
+      market: "Mercado",
       account: 'Cuenta',
       deposit: 'Novedad de depósito',
       withdrawal: 'Novedad de retirada',
@@ -736,6 +738,8 @@ const es: DeepPartial<typeof en> = {
       transactions: 'Transacciones',
       auditLogs: 'Registros de auditoría',
       wallets: "Billeteras",
+      assets: "Activos",
+      automations: "Automatizaciones",
       settings: 'Ajustes',
       deposits: 'Depósitos',
       withdrawals: 'Retiradas',
@@ -941,6 +945,9 @@ const es: DeepPartial<typeof en> = {
   },
   wallet: {
     nav: "Billetera",
+  },
+  automations: {
+    nav: "Automatización",
   },
 }
 

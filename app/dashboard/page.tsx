@@ -25,6 +25,8 @@ import {
   IconBell, IconHelp, IconHistory, IconPie, IconShield, IconSliders, IconSwap, IconTrend, IconWallet,
 } from '@/components/Icons'
 import { WalletTab } from '@/components/dashboard/WalletTab'
+import { AssetCenter } from '@/components/markets/AssetCenter'
+import { AutomationCenter } from '@/components/markets/AutomationCenter'
 import {
   HistoryTab, LoadMore, NotificationsTab, PerformanceTab, PortfolioTab, PreferencesTab, SecurityTab, SupportTab, noticesFrom,
   type TeamNotice,
@@ -78,6 +80,7 @@ const NAV_GROUPS: { label: TKey; items: (NavItem & { core?: boolean })[] }[] = [
   ] },
   { label: 'nav3.groupMarkets', items: [
     { icon: IconChart, label: 'dash.nav.markets', id: 'markets' },
+    { icon: IconSliders, label: 'automations.nav', id: 'automations' },
     { icon: IconSwap, label: 'nav3.marketActivity', id: 'marketActivity' },
     { icon: IconHistory, label: 'nav3.priceHistory', id: 'priceHistory' },
   ] },
@@ -140,6 +143,7 @@ export default function DashboardPage() {
   // and if the setting cannot be read.
   const [hiddenNav, setHiddenNav] = useState<string[]>([])
   const [navOrder, setNavOrder] = useState<string[]>([])
+  const [autoAsset, setAutoAsset] = useState<string | null>(null)
   const [navLabels, setNavLabels] = useState<Record<string, string>>({})
   const [teamNotices, setTeamNotices] = useState<TeamNotice[]>([])
   const [seenAt, setSeenAt] = useState<string | null>(null)
@@ -479,7 +483,8 @@ export default function DashboardPage() {
           )}
           <ErrorBoundary key={activeNav} label={current ? labelOf(current) : undefined}>
             {activeNav === 'overview' && <OverviewTab name={displayName} account={account} txs={txs} go={go} can={id => !hiddenNav.includes(id)} labelOf={labelOf} />}
-            {activeNav === 'markets' && <MarketsTab />}
+            {activeNav === 'markets' && <div className="space-y-10"><AssetCenter onAutomate={id => { setAutoAsset(id); go('automations') }} /><MarketsTab /></div>}
+            {activeNav === 'automations' && <AutomationCenter presetAsset={autoAsset} onPresetUsed={() => setAutoAsset(null)} />}
             {activeNav === 'transactions' && <><TransactionsTab txs={txs} /><div className="mt-4"><LoadMore hasMore={hasMore} loading={loadingMore} onLoadMore={loadMore} /></div></>}
             {activeNav === 'portfolio' && <div className="space-y-8"><InvestmentCenter go={go} focusId={focusInv} onFocusDone={() => setFocusInv(null)} /><PortfolioTab account={account} txs={txs} hasMore={hasMore} go={go} /></div>}
             {activeNav === 'depositHistory' && <HistoryTab kind="deposit" txs={txs} hasMore={hasMore} loadingMore={loadingMore} onLoadMore={loadMore} go={go} />}

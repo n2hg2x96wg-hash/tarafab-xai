@@ -11,6 +11,7 @@ import { IconArrowDown, IconChart, IconCheck, IconGrid, IconList, IconLock, Icon
 import { FaqSection, HeroFloatPanels, HistorySection, NetworkSection, PlatformStatus, Reveal, TrustBar } from '@/components/LandingExtras'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import LazyOnView from '@/components/markets/LazyOnView'
 import { useTheme } from '@/lib/theme/ThemeProvider'
 
 // Decorative canvas: its code is fetched only once the browser is idle, so it
@@ -104,6 +105,8 @@ const capabilities: { icon: typeof IconChart; title: TKey; body: TKey }[] = [
 const safeguards: TKey[] = [
   'landing.safeguards.g1', 'landing.safeguards.g2', 'landing.safeguards.g3', 'landing.safeguards.g4', 'landing.safeguards.g5',
 ]
+
+const loadIntelligence = () => import('@/components/markets/LandingMarkets')
 
 export default function LandingPage() {
   const router = useRouter()
@@ -231,6 +234,8 @@ export default function LandingPage() {
       </section>
 
       {/* What the platform does */}
+      <LazyOnView load={loadIntelligence} />
+
       <section id="platform" className="scroll-mt-16 border-b border-ink-700">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 lg:py-24">
           <Reveal><div className="mb-10 max-w-2xl">
@@ -379,7 +384,13 @@ export default function LandingPage() {
         <div className="mt-10 pt-6 border-t border-ink-700 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-xs text-fg-faint">
           <p>&copy; {new Date().getFullYear()} Tarafab.XAi</p>
           {/* Kept for provider attribution terms; deliberately small. */}
-          <p className="text-[11px] sm:text-right max-w-xl">{t('landing.footer.attr')}</p>
+          <div className="text-[11px] sm:text-right max-w-xl">
+            <p>{t('landing.footer.attr')}</p>
+            <details className="mt-1 group">
+              <summary className="cursor-pointer select-none text-fg-faint hover:text-fg-muted list-none">{t('landing.footer.sourcesLabel')}</summary>
+              <p className="mt-1 text-fg-faint">{t('sources.footer')}</p>
+            </details>
+          </div>
         </div>
       </footer>
     </div>

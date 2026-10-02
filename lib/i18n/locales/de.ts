@@ -104,7 +104,8 @@ const de: DeepPartial<typeof en> = {
       support: "Support",
       investments: "Anlagen",
       help: "Hilfe & Support",
-      attr: "Marktdaten von Drittanbietern (Coinbase, CoinGecko, mempool.space, TradingView). Preise dienen nur der Information.",
+      attr: "Marktinformationen dienen nur zu Informationszwecken.",
+      sourcesLabel: "Datenquellen",
     },
     adminBar: "Sie sind als Administrator angemeldet. Zum Admin-Dashboard →",
     status: {
@@ -124,10 +125,10 @@ const de: DeepPartial<typeof en> = {
       panelPortfolio: "Portfolio",
       trackHoldings: "Verfolgen Sie Bestände, Anlagen und jede Saldoänderung an einem Ort.",
     },
-    badge: 'Portfolio-Plattform für digitale Vermögenswerte',
-    heroTitle1: 'Mit Klarheit investieren.',
-    heroTitle2: 'Jede Bewegung verfolgen.',
-    heroBody: 'Verwalten Sie Ihr Portfolio digitaler Vermögenswerte, verfolgen Sie den Markt und prüfen Sie die Entwicklung Ihres Kontos in einem einzigen Dashboard. Zahlen Sie in Bitcoin ein, heben Sie ab, wann Sie möchten, und sehen Sie den Nachweis hinter jeder Saldoänderung.',
+    badge: "Multi-Asset-Markt- und Investmentplattform",
+    heroTitle1: "Globale Märkte.",
+    heroTitle2: "Eine intelligente Plattform.",
+    heroBody: "Verfolgen Sie digitale Assets, Aktien und Indizes, richten Sie automatische Marktalarme ein, verwalten Sie Investitionen und Wallet und prüfen Sie jede Kontobewegung — alles in einem Konto.",
     risk: 'Digitale Vermögenswerte sind volatil, ihr Wert kann steigen und fallen. Wir versprechen keine Renditen.',
     platformEyebrow: 'Die Plattform',
     platformTitle: 'Alles in einem Konto',
@@ -636,7 +637,7 @@ const de: DeepPartial<typeof en> = {
     usingDefaults: 'Noch keine Einstellungen gespeichert. Alle Bereiche werden angezeigt.',
   },
   sources: {
-    footer: 'Marktdaten: Coinbase Exchange, CoinGecko, mempool.space, TradingView',
+    footer: 'Marktdaten: Coinbase Exchange, CoinGecko, mempool.space, TradingView, Finnhub',
   },
   nav3: {
     groupMarkets: 'Märkte',
@@ -691,6 +692,7 @@ const de: DeepPartial<typeof en> = {
     unread: 'Ungelesen',
     types: {
       investment: "Anlage",
+      market: "Markt",
       account: 'Konto',
       deposit: 'Einzahlungs-Update',
       withdrawal: 'Auszahlungs-Update',
@@ -736,6 +738,8 @@ const de: DeepPartial<typeof en> = {
       transactions: 'Transaktionen',
       auditLogs: 'Prüfprotokolle',
       wallets: "Wallets",
+      assets: "Assets",
+      automations: "Automatisierungen",
       settings: 'Einstellungen',
       deposits: 'Einzahlungen',
       withdrawals: 'Auszahlungen',
@@ -941,6 +945,9 @@ const de: DeepPartial<typeof en> = {
   },
   wallet: {
     nav: "Wallet",
+  },
+  automations: {
+    nav: "Automatisierung",
   },
 }
 

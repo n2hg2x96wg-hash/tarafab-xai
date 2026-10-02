@@ -107,7 +107,8 @@ const ko: DeepPartial<typeof en> = {
       support: "지원",
       investments: "투자",
       help: "도움말 및 지원",
-      attr: "시장 데이터는 외부 제공업체(Coinbase, CoinGecko, mempool.space, TradingView)에서 제공되며 참고용입니다.",
+      attr: "시장 정보는 참고용으로만 제공됩니다.",
+      sourcesLabel: "데이터 출처",
     },
     adminBar: "관리자로 로그인되어 있습니다. 관리자 대시보드로 이동 →",
     status: {
@@ -127,10 +128,10 @@ const ko: DeepPartial<typeof en> = {
       panelPortfolio: "포트폴리오",
       trackHoldings: "보유 자산, 투자 및 모든 잔액 변동을 한곳에서 확인하세요.",
     },
-    badge: '디지털 자산 포트폴리오 플랫폼',
-    heroTitle1: '명확하게 투자하세요.',
-    heroTitle2: '모든 움직임을 확인하세요.',
-    heroBody: '디지털 자산 포트폴리오를 관리하고, 시장을 확인하고, 계좌의 실적을 하나의 대시보드에서 살펴보세요. 비트코인으로 입금하고, 원하실 때 출금하며, 모든 잔액 변동의 기록을 확인할 수 있습니다.',
+    badge: "멀티 자산 시장·투자 플랫폼",
+    heroTitle1: "글로벌 시장.",
+    heroTitle2: "하나의 지능형 플랫폼.",
+    heroBody: "디지털 자산, 주식, 지수를 확인하고, 자동 시장 알림을 설정하며, 투자와 지갑을 관리하고, 모든 잔액 변동을 한 계정에서 확인하세요.",
     risk: '디지털 자산은 변동성이 크며 가치가 오를 수도, 떨어질 수도 있습니다. 당사는 수익을 약속하지 않습니다.',
     platformEyebrow: '플랫폼',
     platformTitle: '하나의 계좌에 모든 것을',
@@ -639,7 +640,7 @@ const ko: DeepPartial<typeof en> = {
     usingDefaults: '아직 저장된 설정이 없습니다. 모든 항목이 표시됩니다.',
   },
   sources: {
-    footer: '시장 데이터: Coinbase Exchange, CoinGecko, mempool.space, TradingView',
+    footer: '시장 데이터: Coinbase Exchange, CoinGecko, mempool.space, TradingView, Finnhub',
   },
   nav3: {
     groupMarkets: '시장',
@@ -694,6 +695,7 @@ const ko: DeepPartial<typeof en> = {
     unread: '읽지 않음',
     types: {
       investment: "투자",
+      market: "시장",
       account: '계정',
       deposit: '입금 소식',
       withdrawal: '출금 소식',
@@ -739,6 +741,8 @@ const ko: DeepPartial<typeof en> = {
       transactions: '거래',
       auditLogs: '감사 기록',
       wallets: "지갑",
+      assets: "자산",
+      automations: "자동화",
       settings: '설정',
       deposits: '입금',
       withdrawals: '출금',
@@ -944,6 +948,9 @@ const ko: DeepPartial<typeof en> = {
   },
   wallet: {
     nav: "지갑",
+  },
+  automations: {
+    nav: "자동화",
   },
 }
 

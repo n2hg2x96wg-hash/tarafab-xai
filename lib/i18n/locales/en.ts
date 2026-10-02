@@ -105,7 +105,8 @@ const en = {
       support: "Support",
       investments: "Investments",
       help: "Help & support",
-      attr: "Market data from third-party providers (Coinbase, CoinGecko, mempool.space, TradingView). Prices are informational.",
+      attr: "Market information is provided for informational purposes only.",
+      sourcesLabel: "Data sources",
     },
     adminBar: "You are signed in as an administrator. Go to the Admin dashboard →",
     status: {
@@ -125,10 +126,10 @@ const en = {
       panelPortfolio: "Portfolio",
       trackHoldings: "Track your holdings, investments and every balance change in one place.",
     },
-    badge: 'Digital-asset portfolio platform',
-    heroTitle1: 'Invest with clarity.',
-    heroTitle2: 'Track every move.',
-    heroBody: "Manage your digital-asset portfolio, follow the market and review your account's performance from one dashboard. Fund in Bitcoin, withdraw when you choose, and see the record behind every balance change.",
+    badge: "Multi-asset market & investment platform",
+    heroTitle1: "Global markets.",
+    heroTitle2: "One intelligent platform.",
+    heroBody: "Follow digital assets, equities and indices, set automated market alerts, manage your investments and wallet, and review every balance change — all from one account.",
     risk: 'Digital assets are volatile and their value can fall as well as rise. We do not promise returns.',
     platformEyebrow: 'The platform',
     platformTitle: 'Everything in one account',
@@ -637,7 +638,7 @@ const en = {
     usingDefaults: 'No settings saved yet. All sections are shown.',
   },
   sources: {
-    footer: 'Market data: Coinbase Exchange, CoinGecko, mempool.space, TradingView',
+    footer: 'Market data: Coinbase Exchange, CoinGecko, mempool.space, TradingView, Finnhub',
   },
   nav3: {
     groupMarkets: 'Markets',
@@ -692,6 +693,7 @@ const en = {
     unread: 'Unread',
     types: {
       investment: "Investment",
+      market: "Market",
       account: 'Account',
       deposit: 'Deposit update',
       withdrawal: 'Withdrawal update',
@@ -737,6 +739,8 @@ const en = {
       transactions: 'Transactions',
       auditLogs: 'Audit Logs',
       wallets: "Wallets",
+      assets: "Assets",
+      automations: "Automations",
       settings: 'Settings',
       deposits: 'Deposits',
       withdrawals: 'Withdrawals',
@@ -942,6 +946,9 @@ const en = {
   },
   wallet: {
     nav: "Wallet",
+  },
+  automations: {
+    nav: "Automation",
   },
 }
 

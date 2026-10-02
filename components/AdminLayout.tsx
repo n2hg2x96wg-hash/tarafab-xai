@@ -79,6 +79,8 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
     { label: 'admin.nav.verification', icon: '☑', href: '/admin/verification' },
     { label: 'admin.nav.investments', icon: '◆', href: '/admin/investments' },
     { label: 'admin.nav.wallets', icon: '▣', href: '/admin/wallets' },
+    { label: 'admin.nav.assets', icon: '◐', href: '/admin/assets' },
+    { label: 'admin.nav.automations', icon: '⚡', href: '/admin/automations' },
     { label: 'admin.nav.notifications', icon: '✉', href: '/admin/notifications' },
     { label: 'admin.nav.auditLogs', icon: '⊡', href: '/admin/audit-logs' },
     { label: 'admin.nav.settings', icon: '⚙', href: '/admin/settings' },

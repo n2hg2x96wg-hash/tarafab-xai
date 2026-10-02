@@ -104,7 +104,8 @@ const fr: DeepPartial<typeof en> = {
       support: "Assistance",
       investments: "Investissements",
       help: "Aide et assistance",
-      attr: "Données de marché fournies par des tiers (Coinbase, CoinGecko, mempool.space, TradingView). Prix donnés à titre informatif.",
+      attr: "Les informations de marché sont fournies à titre informatif uniquement.",
+      sourcesLabel: "Sources des données",
     },
     adminBar: "Vous êtes connecté en tant qu'administrateur. Aller au tableau de bord admin →",
     status: {
@@ -124,10 +125,10 @@ const fr: DeepPartial<typeof en> = {
       panelPortfolio: "Portefeuille",
       trackHoldings: "Suivez vos avoirs, vos investissements et chaque variation de solde au même endroit.",
     },
-    badge: 'Plateforme de portefeuille d’actifs numériques',
-    heroTitle1: 'Investissez en toute clarté.',
-    heroTitle2: 'Suivez chaque mouvement.',
-    heroBody: "Gérez votre portefeuille d'actifs numériques, suivez le marché et examinez la performance de votre compte depuis un seul tableau de bord. Alimentez votre compte en Bitcoin, retirez quand vous le souhaitez et consultez l'historique de chaque variation de solde.",
+    badge: "Plateforme multi-actifs de marché et d’investissement",
+    heroTitle1: "Les marchés mondiaux.",
+    heroTitle2: "Une plateforme intelligente.",
+    heroBody: "Suivez crypto-actifs, actions et indices, créez des alertes de marché automatiques, gérez vos investissements et votre portefeuille, et consultez chaque mouvement de solde — depuis un seul compte.",
     risk: 'Les actifs numériques sont volatils : leur valeur peut baisser comme augmenter. Nous ne promettons aucun rendement.',
     platformEyebrow: 'La plateforme',
     platformTitle: 'Tout dans un seul compte',
@@ -636,7 +637,7 @@ const fr: DeepPartial<typeof en> = {
     usingDefaults: 'Aucun réglage enregistré. Toutes les sections sont affichées.',
   },
   sources: {
-    footer: 'Données de marché : Coinbase Exchange, CoinGecko, mempool.space, TradingView',
+    footer: 'Données de marché : Coinbase Exchange, CoinGecko, mempool.space, TradingView, Finnhub',
   },
   nav3: {
     groupMarkets: 'Marchés',
@@ -691,6 +692,7 @@ const fr: DeepPartial<typeof en> = {
     unread: 'Non lu',
     types: {
       investment: "Investissement",
+      market: "Marché",
       account: 'Compte',
       deposit: 'Mise à jour de dépôt',
       withdrawal: 'Mise à jour de retrait',
@@ -736,6 +738,8 @@ const fr: DeepPartial<typeof en> = {
       transactions: 'Transactions',
       auditLogs: "Journaux d'audit",
       wallets: "Portefeuilles",
+      assets: "Actifs",
+      automations: "Automatisations",
       settings: 'Paramètres',
       deposits: 'Dépôts',
       withdrawals: 'Retraits',
@@ -941,6 +945,9 @@ const fr: DeepPartial<typeof en> = {
   },
   wallet: {
     nav: "Portefeuille",
+  },
+  automations: {
+    nav: "Automatisation",
   },
 }
 

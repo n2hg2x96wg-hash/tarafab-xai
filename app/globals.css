@@ -386,3 +386,18 @@ html:has(.site) ::-webkit-scrollbar-thumb:hover { background: rgb(var(--ink-500)
 .float-a { animation: floatA 9s ease-in-out infinite; }
 .float-b { animation: floatB 11s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .float-a, .float-b { animation: none; } }
+
+/* Market charts: lines draw in once, areas fade in; nothing moves with reduced motion. */
+@keyframes sparkDraw { from { stroke-dasharray: 1200; stroke-dashoffset: 1200 } to { stroke-dasharray: 1200; stroke-dashoffset: 0 } }
+.spark-draw { animation: sparkDraw .9s ease-out both; }
+@keyframes chartFade { from { opacity: 0 } to { opacity: 1 } }
+.chart-fade { animation: chartFade .6s ease-out both; }
+.asset-card { transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
+.asset-card:hover { transform: translateY(-2px); border-color: rgb(var(--accent) / .35); box-shadow: 0 12px 30px -18px rgb(var(--accent) / .5); }
+@keyframes livePulse { 0%, 100% { opacity: 1 } 50% { opacity: .35 } }
+.live-dot { animation: livePulse 2s ease-in-out infinite; }
+@keyframes starPop { 0% { transform: scale(1) } 40% { transform: scale(1.35) } 100% { transform: scale(1) } }
+.star-pop { animation: starPop .35s ease-out; }
+@keyframes armGlow { 0% { box-shadow: 0 0 0 0 rgb(var(--accent) / .45) } 100% { box-shadow: 0 0 0 14px rgb(var(--accent) / 0) } }
+.arm-glow { animation: armGlow .9s ease-out; }
+@media (prefers-reduced-motion: reduce) { .spark-draw, .chart-fade, .live-dot, .star-pop, .arm-glow { animation: none; } .asset-card:hover { transform: none; } }
