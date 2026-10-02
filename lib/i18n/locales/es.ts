@@ -737,6 +737,7 @@ const es: DeepPartial<typeof en> = {
     badge: 'ADMIN',
     administrator: 'Administrador',
     nav: {
+      payments: "Pagos",
       features: "Estado de funciones",
       transfers: "Transferencias de billetera",
       fees: "Comisiones",

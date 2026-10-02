@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { authFetch, errorText, readJson } from '@/lib/authFetch'
 import { useI18n } from '@/lib/i18n/I18nProvider'
 import { premiumText } from '@/lib/i18n/premium'
@@ -10,6 +10,8 @@ import { Spinner } from '@/components/AuthShell'
 import { fmt, type Account, type Tx } from '@/components/dashboard/shared'
 import { TIMEFRAMES } from '@/lib/assets'
 import { hiddenState, useFeatures } from '@/components/ui/features'
+import { PricingTable, money as planMoney } from '@/components/premium/Pricing'
+import { newRequestKey } from '@/lib/authFetch'
 
 export type PremiumInfo = {
   status: 'free' | 'premium' | 'expired' | 'cancelled' | 'past_due' | 'trial'
@@ -18,7 +20,9 @@ export type PremiumInfo = {
   limits: { automations: number; watchlist: number; free_automations: number; premium_automations: number; free_watchlist: number; premium_watchlist: number }
   usage: { automations: number; watchlist: number }
   premium_timeframes: string[]
-  plans: { id: string; name: string; interval: 'month' | 'year'; price: number; currency: string; promo_price: number | null; promo_label: string | null; checkout: boolean }[]
+  plans: { id: string; name: string; interval: 'month' | 'year'; period?: 'month' | 'quarter' | 'year'; tier?: 'standard' | 'premium' | 'pro'; description?: string; features?: string[]; highlighted?: boolean
+    price: number; currency: string; promo_price: number | null; promo_label: string | null; checkout: boolean; seerbit?: boolean; seerbit_country?: string | null }[]
+  payments_recent?: { reference: string; plan_id: string; amount: number; currency: string; status: string; verification_status: string; created_at: string }[]
   payments: boolean
 }
 
@@ -102,6 +106,26 @@ export function PremiumCenter({ account, txs }: { account: Account | null; txs: 
   const [confirmCancel, setConfirmCancel] = useState(false)
   const feature = useFeatures()
   const analytics = feature('portfolio_analytics')
+  const [payReview, setPayReview] = useState<PremiumInfo['plans'][number] | null>(null)
+  const [payBusy, setPayBusy] = useState('')
+  const payKey = useRef(newRequestKey())
+  // Payment-access gateway: the server checks the country, the plan, the
+  // amount and availability; only then does it return SeerBit's page.
+  const startPay = async () => {
+    if (!payReview) return
+    setPayBusy(payReview.id); setErr('')
+    try {
+      const r = await readJson<{ status: string; url?: string; reference?: string }>(await authFetch('/api/client/payments/start', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ plan_id: payReview.id, idempotency_key: payKey.current }) }))
+      if (r.status === 'ok' && r.url && r.reference) {
+        try { sessionStorage.setItem('tarafab.payRef', r.reference) } catch { /* the return page also lists recent payments */ }
+        window.location.assign(r.url); return
+      }
+      const reason = r.status === 'region_blocked' ? 'region' : r.status === 'unknown_region' ? 'unknown' : 'disabled'
+      window.location.assign(`/payment/unavailable?reason=${reason}`); return
+    } catch (e) { setErr(errorText(e)) }
+    setPayBusy(''); setPayReview(null); payKey.current = newRequestKey()
+  }
 
   // Back from the payment page: re-read the entitlement a few times while
   // the provider's confirmation arrives (it is the only thing that unlocks).
@@ -198,26 +222,26 @@ export function PremiumCenter({ account, txs }: { account: Account | null; txs: 
         </div>
       </div>
 
-      {!info.premium && (
-        <div className="panel p-5">
-          <h3 className="text-[15px] font-semibold text-fg">{pt('pr.plans')}</h3>
-          {!info.plans.length ? <p className="mt-2 text-sm text-fg-muted">{pt('pr.noPlans')}</p> : (
-            <>
-              {!info.payments && <p className="mt-2 text-sm text-amber-300" role="status">{pt('pr.paymentsOff')}</p>}
-              <div className="mt-3 grid sm:grid-cols-2 gap-3">
-                {info.plans.map(p => (
-                  <div key={p.id} className="rounded-xl border border-ink-700 p-4 plan-card">
-                    <p className="text-sm font-semibold text-fg">{p.name}</p>
-                    <p className="mt-1 text-2xl font-semibold tabular-nums text-fg">{money(p.promo_price ?? p.price, p.currency)}<span className="text-sm font-normal text-fg-faint"> {pt(p.interval === 'year' ? 'pr.perYear' : 'pr.perMonth')}</span></p>
-                    {p.promo_price != null && <p className="text-[12px] text-fg-faint"><s>{money(p.price, p.currency)}</s> {p.promo_label}</p>}
-                    <button onClick={() => { setErr(''); setReview(p) }} disabled={!info.payments || !p.checkout} className="btn btn-solid w-full mt-3">{pt('pr.choose', { plan: p.name })}</button>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      )}
+      <section className="panel p-5 sm:p-6" aria-labelledby="pp-title">
+        <h3 id="pp-title" className="text-[15px] font-semibold text-fg">{pt('pp.title')}</h3>
+        <p className="text-[13px] text-fg-faint mt-0.5 mb-5">{pt('pp.subtitle')}</p>
+        {!info.plans.length ? <p className="text-sm text-fg-muted">{pt('pr.noPlans')}</p> : (<>
+          {!info.premium && !info.plans.some(p => p.seerbit || (info.payments && p.checkout)) && <p className="mb-4 text-sm text-amber-300" role="status">{pt('pr.paymentsOff')}</p>}
+          <PricingTable
+            plans={info.plans.map(p => ({ id: p.id, name: p.name, tier: p.tier || 'premium', period: p.period || p.interval, price: Number(p.price), promo_price: p.promo_price == null ? null : Number(p.promo_price),
+              promo_label: p.promo_label, currency: p.currency, description: p.description || '', features: p.features || [], highlighted: !!p.highlighted,
+              available: !!p.seerbit || (info.payments && p.checkout),
+              note: p.seerbit && p.seerbit_country ? pt('pp.ngOnly', { country: p.seerbit_country === 'NG' ? 'Nigeria' : p.seerbit_country }) : undefined }))}
+            freeLimits={{ automations: info.limits.free_automations, watchlist: info.limits.free_watchlist }}
+            currentPlanId={info.premium ? sub?.plan_id : null} isFree={!info.premium} busyId={payBusy}
+            onChoose={pp => { setErr(''); const full = info.plans.find(x => x.id === pp.id)!; if (full.seerbit) setPayReview(full); else setReview(full) }} />
+        </>)}
+        {(info.payments_recent || []).length > 0 && (
+          <ul className="mt-5 text-[12px] text-fg-faint space-y-1">
+            {info.payments_recent!.map(x => <li key={x.reference} className="flex flex-wrap gap-x-2"><span className="font-mono">{x.reference}</span><span>{planMoney(Number(x.amount), x.currency)}</span><span className="text-fg-muted">{pt(`pay.st.${x.status}`)}</span></li>)}
+          </ul>
+        )}
+      </section>
 
       {hiddenState(analytics) || analytics === 'coming_soon' ? null : info.premium || analytics === 'enabled' ? <PortfolioAnalytics account={account} txs={txs} /> : (
         <button onClick={() => openPremiumGate(pt('pr.f.analytics'))} className="panel p-5 w-full text-left flex items-center justify-between gap-3 hover:border-ink-500 transition-colors">
@@ -236,6 +260,17 @@ export function PremiumCenter({ account, txs }: { account: Account | null; txs: 
           <p className="mt-3 text-[12px] text-fg-faint">{pt('pr.reviewIncludes')}: {rows.map(r => r[0]).join(' · ')}</p>
           <p className="mt-2 text-[12px] text-fg-muted">{pt('pr.renewal')}</p>
           <p className="mt-2 text-[12px] text-fg-muted">{pt('pr.payNote')}</p>
+        </ConfirmModal>
+      )}
+      {payReview && (
+        <ConfirmModal title={pt('pay.reviewTitle')} confirmLabel={payBusy ? pt('pay.checking') : pt('pay.continue')} cancelLabel={pt('tr.cancel')} busy={!!payBusy}
+          onCancel={() => { setPayReview(null); payKey.current = newRequestKey() }} onConfirm={startPay}>
+          <dl className="divide-y divide-ink-700 text-sm">
+            <div className="flex justify-between gap-4 py-2"><dt className="text-fg-muted">{pt('pay.plan')}</dt><dd className="text-fg">{payReview.name}</dd></div>
+            <div className="flex justify-between gap-4 py-2"><dt className="text-fg-muted">{pt('pay.amount')}</dt><dd className="text-fg font-semibold tabular-nums">{planMoney(Number(payReview.promo_price ?? payReview.price), payReview.currency)}</dd></div>
+            <div className="flex justify-between gap-4 py-2"><dt className="text-fg-muted">{pt('pay.billing')}</dt><dd className="text-fg">{pt(`pp.${payReview.period || payReview.interval}`)}</dd></div>
+          </dl>
+          <p className="mt-3 text-[12px] text-fg-muted">{pt('pay.secure')}</p>
         </ConfirmModal>
       )}
       {confirmCancel && sub && (

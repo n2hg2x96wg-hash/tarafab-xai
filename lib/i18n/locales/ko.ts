@@ -740,6 +740,7 @@ const ko: DeepPartial<typeof en> = {
     badge: '관리자',
     administrator: '관리자',
     nav: {
+      payments: "결제",
       features: "기능 상태",
       transfers: "지갑 이체",
       fees: "수수료",

@@ -7,7 +7,7 @@ import { AdminLoadError } from '@/components/AdminLoadError'
 import { AdminModal, Field } from '@/components/AdminModal'
 
 type Settings = { free_automation_limit: number; premium_automation_limit: number; free_watchlist_limit: number; premium_watchlist_limit: number; premium_timeframes: string[]; updated_at: string }
-type Plan = { id: string; name: string; billing_interval: 'month' | 'year'; price: number; currency: string; promo_price: number | null; promo_label: string | null; provider_price_id: string | null; enabled: boolean; sort_order: number }
+type Plan = { id: string; name: string; billing_interval: 'month' | 'year'; price: number; currency: string; promo_price: number | null; promo_label: string | null; provider_price_id: string | null; enabled: boolean; sort_order: number; tier?: string; billing_period?: string | null; description?: string; features?: string[]; highlighted?: boolean }
 type Sub = { user_id: string; full_name: string | null; email: string | null; plan_id: string | null; status: string; entitlement: string; source: string; provider: string | null; current_period_start: string | null; current_period_end: string | null; cancel_at_period_end: boolean; cancelled_at: string | null; updated_at: string }
 const TFS = ['1H', '4H', '1D', '1W', '1M', '1Y']
 const d = (s: string | null) => (s ? new Date(s).toLocaleDateString() : '—')
@@ -28,7 +28,7 @@ export default function AdminPremiumPage() {
   const [busy, setBusy] = useState(false)
   const [formErr, setFormErr] = useState('')
   const [sf, setSf] = useState<null | { fa: string; pa: string; fw: string; pw: string; tfs: string[]; reason: string }>(null)
-  const [pf, setPf] = useState<null | { isNew: boolean; id: string; name: string; interval: string; price: string; currency: string; promo: string; promoLabel: string; priceId: string; enabled: boolean; sort: string; reason: string }>(null)
+  const [pf, setPf] = useState<null | { isNew: boolean; id: string; name: string; interval: string; price: string; currency: string; promo: string; promoLabel: string; priceId: string; enabled: boolean; sort: string; reason: string; tier: string; period: string; description: string; features: string; highlighted: boolean }>(null)
   const [of, setOf] = useState<null | { userId: string; email: string; plan: string; status: string; end: string; reason: string }>(null)
 
   const load = useCallback(async () => {
@@ -86,7 +86,7 @@ export default function AdminPremiumPage() {
 
       <section className="glass rounded-2xl border border-white/[0.08] p-4 mb-5">
         <div className="flex items-center justify-between mb-2"><h2 className="text-sm font-semibold text-white">Plans</h2>
-          <button onClick={() => { setFormErr(''); setPf({ isNew: true, id: '', name: '', interval: 'month', price: '', currency: 'USD', promo: '', promoLabel: '', priceId: '', enabled: false, sort: '0', reason: '' }) }} className="text-xs rounded-lg bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5">Add plan</button>
+          <button onClick={() => { setFormErr(''); setPf({ isNew: true, id: '', name: '', interval: 'month', price: '', currency: 'USD', promo: '', promoLabel: '', priceId: '', enabled: false, sort: '0', reason: '', tier: 'premium', period: 'month', description: '', features: '', highlighted: false }) }} className="text-xs rounded-lg bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5">Add plan</button>
         </div>
         {!plans ? <p className="text-xs text-slate-500">Loading…</p> : !plans.length ? <p className="text-xs text-slate-400">No plans yet. Clients see “Premium plans are not available yet.”</p> : (
           <div className="overflow-x-auto"><table className="w-full text-xs"><thead><tr className="text-left text-slate-500"><th className="py-1.5 pr-3">Plan</th><th className="pr-3">Price</th><th className="pr-3">Promotion</th><th className="pr-3">Payment provider price</th><th className="pr-3">Status</th><th /></tr></thead>
@@ -97,7 +97,7 @@ export default function AdminPremiumPage() {
                 <td className="pr-3">{p.promo_price != null ? `${p.currency} ${Number(p.promo_price).toFixed(2)} ${p.promo_label || ''}` : '—'}</td>
                 <td className="pr-3 font-mono">{p.provider_price_id || <span className="text-amber-300 font-sans">Not linked — cannot be purchased</span>}</td>
                 <td className="pr-3">{p.enabled ? <span className="text-emerald-400">Enabled</span> : <span className="text-slate-500">Hidden</span>}</td>
-                <td><button onClick={() => { setFormErr(''); setPf({ isNew: false, id: p.id, name: p.name, interval: p.billing_interval, price: String(p.price), currency: p.currency, promo: p.promo_price == null ? '' : String(p.promo_price), promoLabel: p.promo_label || '', priceId: p.provider_price_id || '', enabled: p.enabled, sort: String(p.sort_order), reason: '' }) }} className="text-violet-300 hover:text-violet-200">Edit</button></td>
+                <td><button onClick={() => { setFormErr(''); setPf({ isNew: false, id: p.id, name: p.name, interval: p.billing_interval, price: String(p.price), currency: p.currency, promo: p.promo_price == null ? '' : String(p.promo_price), promoLabel: p.promo_label || '', priceId: p.provider_price_id || '', enabled: p.enabled, sort: String(p.sort_order), reason: '', tier: p.tier || 'premium', period: p.billing_period || p.billing_interval, description: p.description || '', features: (p.features || []).join('\n'), highlighted: !!p.highlighted }) }} className="text-violet-300 hover:text-violet-200">Edit</button></td>
               </tr>))}</tbody></table></div>
         )}
         <p className="mt-2 text-[11px] text-slate-500">The amount actually charged is the price configured at the payment provider (Stripe) for the linked price ID; keep both the same. Payments need the STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET secrets on the “billing” Edge Function.</p>
@@ -145,18 +145,23 @@ export default function AdminPremiumPage() {
       )}
       {pf && (
         <AdminModal title={pf.isNew ? 'New plan' : `Edit ${pf.id}`} busy={busy} err={formErr} onClose={() => setPf(null)}
-          onSave={() => run('admin_upsert_plan', { p_id: pf.id, p_name: pf.name, p_interval: pf.interval, p_price: Number(pf.price), p_currency: pf.currency, p_promo_price: pf.promo ? Number(pf.promo) : null, p_promo_label: pf.promoLabel, p_provider_price_id: pf.priceId, p_enabled: pf.enabled, p_sort: Number(pf.sort) || 0, p_reason: pf.reason }, () => setPf(null))}>
+          onSave={() => run('admin_upsert_plan_v2', { p_id: pf.id, p_name: pf.name, p_interval: pf.period === 'year' ? 'year' : 'month', p_period: pf.period, p_tier: pf.tier, p_price: Number(pf.price), p_currency: pf.currency, p_promo_price: pf.promo ? Number(pf.promo) : null, p_promo_label: pf.promoLabel, p_provider_price_id: pf.priceId, p_description: pf.description, p_features: pf.features.split('\n').map(x => x.trim()).filter(Boolean), p_highlighted: pf.highlighted, p_enabled: pf.enabled, p_sort: Number(pf.sort) || 0, p_reason: pf.reason }, () => setPf(null))}>
           <div className="grid grid-cols-2 gap-2">
             <Field label="Plan ID (a-z, 0-9, -)"><input className={field} value={pf.id} disabled={!pf.isNew} onChange={e => setPf({ ...pf, id: e.target.value.toLowerCase() })} placeholder="monthly" /></Field>
             <Field label="Name"><input className={field} value={pf.name} onChange={e => setPf({ ...pf, name: e.target.value })} placeholder="Premium Monthly" /></Field>
-            <Field label="Billing"><select className={field} value={pf.interval} onChange={e => setPf({ ...pf, interval: e.target.value })}><option value="month">Monthly</option><option value="year">Yearly</option></select></Field>
+            <Field label="Billing period"><select className={field} value={pf.period} onChange={e => setPf({ ...pf, period: e.target.value })}><option value="month">Monthly</option><option value="quarter">Quarterly</option><option value="year">Yearly</option></select></Field>
+            <Field label="Tier"><select className={field} value={pf.tier} onChange={e => setPf({ ...pf, tier: e.target.value })}><option value="standard">Standard</option><option value="premium">Premium</option><option value="pro">Pro</option></select></Field>
             <Field label="Currency"><input className={field} value={pf.currency} onChange={e => setPf({ ...pf, currency: e.target.value.toUpperCase() })} /></Field>
             <Field label="Price"><input className={field} inputMode="decimal" value={pf.price} onChange={e => setPf({ ...pf, price: e.target.value })} /></Field>
             <Field label="Sort order"><input className={field} value={pf.sort} onChange={e => setPf({ ...pf, sort: e.target.value })} /></Field>
             <Field label="Promotional price (optional)"><input className={field} inputMode="decimal" value={pf.promo} onChange={e => setPf({ ...pf, promo: e.target.value })} /></Field>
             <Field label="Promotion label"><input className={field} value={pf.promoLabel} onChange={e => setPf({ ...pf, promoLabel: e.target.value })} /></Field>
           </div>
-          <Field label="Stripe price ID (price_…)"><input className={`${field} font-mono`} value={pf.priceId} onChange={e => setPf({ ...pf, priceId: e.target.value.trim() })} /></Field>
+          <Field label="Short description"><input className={field} value={pf.description} maxLength={300} onChange={e => setPf({ ...pf, description: e.target.value })} /></Field>
+          <Field label="Features (one per line)"><textarea rows={4} className={field} value={pf.features} onChange={e => setPf({ ...pf, features: e.target.value })} /></Field>
+          <label className="flex items-center gap-2 text-sm text-slate-300"><input type="checkbox" checked={pf.highlighted} onChange={e => setPf({ ...pf, highlighted: e.target.checked })} /> Highlight as recommended</label>
+          <p className="text-[11px] text-slate-500">To take payment through SeerBit, attach a payment link with the same amount and currency in Payments. A plan with neither a SeerBit link nor a Stripe price shows “Not available yet”.</p>
+          <Field label="Stripe price ID (price_…, optional)"><input className={`${field} font-mono`} value={pf.priceId} onChange={e => setPf({ ...pf, priceId: e.target.value.trim() })} /></Field>
           <label className="flex items-center gap-2 text-sm text-slate-300"><input type="checkbox" checked={pf.enabled} onChange={e => setPf({ ...pf, enabled: e.target.checked })} /> Shown to clients</label>
           <Field label="Reason (audit log)"><input className={field} value={pf.reason} onChange={e => setPf({ ...pf, reason: e.target.value })} /></Field>
         </AdminModal>

@@ -107,6 +107,7 @@ const safeguards: TKey[] = [
 ]
 
 const loadIntelligence = () => import('@/components/markets/LandingMarkets')
+const loadPricing = () => import('@/components/premium/LandingPricing')
 
 export default function LandingPage() {
   const router = useRouter()
@@ -375,6 +376,7 @@ export default function LandingPage() {
         </div></Reveal>
       </section>
 
+      <LazyOnView load={loadPricing} minHeight={0} />
       <footer className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-12 chat-clearance">
         <div className="grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-3 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
           <div className="col-span-2 sm:col-span-3 lg:col-span-1">

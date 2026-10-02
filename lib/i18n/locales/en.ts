@@ -738,6 +738,7 @@ const en = {
     badge: 'ADMIN',
     administrator: 'Administrator',
     nav: {
+      payments: "Payments",
       features: "Feature states",
       transfers: "Wallet transfers",
       fees: "Fees",

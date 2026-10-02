@@ -457,3 +457,9 @@ body.dialog-open #chat-application { visibility: hidden !important; }
   .flow-v .flow-link-live { background: linear-gradient(180deg, rgba(52, 211, 153, .15), rgba(52, 211, 153, .9), rgba(52, 211, 153, .15)); background-size: 100% 200%; animation-name: flowY; }
 }
 .btc-auto { background-image: radial-gradient(90% 70% at 0% 0%, rgba(247, 147, 26, 0.07), transparent 60%); }
+
+/* Pricing cards: calm lift on hover, highlighted plan framed in gold. */
+.price-card { transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease; }
+@media (hover: hover) { .price-card:hover { transform: translateY(-3px); box-shadow: 0 18px 40px -24px rgba(0,0,0,.7); } }
+.price-card-hi { border-color: rgba(251, 191, 36, .45); background-image: radial-gradient(120% 60% at 50% 0%, rgba(251, 191, 36, .08), transparent 60%); }
+@media (prefers-reduced-motion: reduce) { .price-card, .price-card:hover { transition: none; transform: none; } }
