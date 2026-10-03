@@ -99,8 +99,10 @@ export default function AdminPage() {
     supabase.rpc('admin_overview').then(({ data, error }) => {
       if (!alive) return
       // A failed refresh keeps the last figures on screen and says so.
-      if (error || !data) setOvError(true)
-      else { setOv(data as Overview); setOvError(false) }
+      const o = data as Overview | null
+      const valid = !!o && typeof o === 'object' && !Array.isArray(o) && !!o.clients && !!o.balances && !!o.deposits && !!o.withdrawals && !!o.investments && !!o.pending && !!o.system && Array.isArray(o.daily) && Array.isArray(o.recent)
+      if (error || !valid) setOvError(true)
+      else { setOv(o); setOvError(false) }
       setRefreshing(false)
     })
     return () => { alive = false }
