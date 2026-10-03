@@ -390,8 +390,11 @@ export function useServiceFee(service: 'withdrawal' | 'wallet_transfer', amount:
         if (chainId) p.set('chain_id', String(chainId))
         if (network) p.set('network', network)
         if (walletId) p.set('wallet_id', walletId)
-        const r = await readJson<{ quote: { fee: number; net: number; service?: string; asset?: string | null } }>(await authFetch(`/api/client/fees?${p}`))
-        if (alive) setQ({ state: 'ok', fee: Number(r.quote.fee), net: Number(r.quote.net), service: r.quote.service, asset: r.quote.asset ?? null })
+        const r = await readJson<{ quote?: { fee: number; net: number; service?: string; asset?: string | null } }>(await authFetch(`/api/client/fees?${p}`))
+        const qt = r?.quote
+        // A reply without a usable quote is shown as "unavailable", never as a zero fee.
+        if (!qt || !Number.isFinite(Number(qt.fee)) || !Number.isFinite(Number(qt.net))) { if (alive) setQ({ state: 'error' }); return }
+        if (alive) setQ({ state: 'ok', fee: Number(qt.fee), net: Number(qt.net), service: qt.service, asset: qt.asset ?? null })
       } catch (e) { console.error('Service fee quote failed', e); if (alive) setQ({ state: 'error' }) }
     }, 350)
     return () => { alive = false; clearTimeout(id) }
