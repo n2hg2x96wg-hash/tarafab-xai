@@ -39,8 +39,10 @@ export function AutomationCenter({ presetAsset, onPresetUsed }: { presetAsset: s
 
   const load = useCallback(async () => {
     try {
-      const r = await readJson<{ automations: Auto[]; events: Ev[] }>(await authFetch('/api/client/automations'))
-      setItems(r.automations); setEvents(r.events); setLoadError('')
+      const r = await readJson<{ automations?: Auto[]; events?: Ev[] }>(await authFetch('/api/client/automations'))
+      // An unexpected reply is an error to retry, never an empty or broken list.
+      if (!Array.isArray(r?.automations)) throw new Error('Automations could not be loaded right now.')
+      setItems(r.automations); setEvents(Array.isArray(r.events) ? r.events : []); setLoadError('')
     } catch (e) { setLoadError(errorText(e)) }
   }, [])
   useEffect(() => { load(); const i = setInterval(() => { if (document.visibilityState === 'visible') load() }, 30_000); return () => clearInterval(i) }, [load])
