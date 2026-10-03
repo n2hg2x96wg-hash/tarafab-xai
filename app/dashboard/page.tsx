@@ -980,25 +980,30 @@ function DepositTab({ onSuccess, go, can }: { onSuccess: () => void; go: (id: st
   const [error, setError] = useState('')
   const [success, setSuccess] = useState<{ reference: string } | null>(null)
   const [copied, setCopied] = useState(false)
-  // Ethereum comes from Admin → Fees & Transfers → Tarafab receiving
-  // addresses: shown only while that record is enabled and valid.
-  type EthOpt = { asset: string; network: string; address: string; min_confirmations: number }
-  const [eth, setEth] = useState<EthOpt | null | undefined>(undefined)
+  // Crypto options (ETH, USDT · BNB Smart Chain, …) come from Admin → Fees &
+  // Transfers → Tarafab receiving addresses: each is shown only while its
+  // record is enabled and valid (checked by the server).
+  type CryptoOpt = { asset: string; network: string; chain_id: number; address: string; min_confirmations: number; token_contract: string | null; decimals: number }
+  const [opts, setOpts] = useState<CryptoOpt[] | undefined>(undefined)
   const [ethNotice, setEthNotice] = useState('')
   const [ethAmount, setEthAmount] = useState('')
   const [txHash, setTxHash] = useState('')
   const [fromAddr, setFromAddr] = useState('')
   useEffect(() => {
     let live = true
-    authFetch('/api/client/deposit-options').then(r => readJson<{ ethereum: (EthOpt & { unavailable?: boolean }) | null }>(r)).then(j => {
+    authFetch('/api/client/deposit-options').then(r => readJson<{ options?: CryptoOpt[]; ethereum: { unavailable?: boolean } | null }>(r)).then(j => {
       if (!live) return
-      if (j.ethereum && !j.ethereum.unavailable) { setEth(j.ethereum); setEthNotice('') }
-      else { setEth(null); setEthNotice(j.ethereum?.unavailable ? 'Ethereum deposits are temporarily unavailable.' : '') }
-    }).catch(e => { console.error('Deposit options could not be loaded', e); if (live) { setEth(null); setEthNotice('Ethereum deposit address is currently unavailable.') } })
+      setOpts(Array.isArray(j.options) ? j.options : [])
+      setEthNotice(j.ethereum?.unavailable ? 'Ethereum deposits are temporarily unavailable.' : '')
+    }).catch(e => { console.error('Deposit options could not be loaded', e); if (live) { setOpts([]); setEthNotice('Ethereum deposit address is currently unavailable.') } })
     return () => { live = false }
   }, [])
-  useEffect(() => { if (method === 'ethereum' && eth === null) setMethod('bitcoin') }, [eth, method])
-  const isEth = method === 'ethereum' && !!eth
+  const optKey = (o: CryptoOpt) => (o.asset === 'ETH' && o.chain_id === 1 ? 'ethereum' : `crypto:${o.asset}:${o.chain_id}`)
+  const optLabel = (o: CryptoOpt) => (o.asset === 'ETH' && o.chain_id === 1 ? 'Ethereum (ETH) · Ethereum Network' : `${o.asset} · ${o.network}`)
+  const sel = (opts || []).find(o => optKey(o) === method) || null
+  useEffect(() => { if (opts && method !== 'bitcoin' && (method === 'ethereum' || method.startsWith('crypto:')) && !sel) setMethod('bitcoin') }, [opts, method, sel])
+  const isEth = !!sel
+  const eth = sel
   const [stage, setStage] = useState<'' | 'uploading' | 'submitting'>('')
   const fileRef = useRef<HTMLInputElement>(null)
   const { t } = useI18n()
@@ -1025,9 +1030,9 @@ function DepositTab({ onSuccess, go, can }: { onSuccess: () => void; go: (id: st
     if (!amt || amt <= 0) { setError(t('deposit.errAmount')); return }
     if (file && !isAllowedUpload(file)) { setError(t('deposit.errType')); return }
     if (isEth) {
-      if (!(parseFloat(ethAmount) > 0)) { setError('Enter the amount of ETH you sent.'); return }
-      if (!/^0x[0-9a-fA-F]{64}$/.test(txHash.trim())) { setError('Enter a valid Ethereum transaction hash (0x followed by 64 characters).'); return }
-      if (!/^0x[0-9a-fA-F]{40}$/.test(fromAddr.trim())) { setError('Enter the Ethereum address you sent from (0x followed by 40 characters).'); return }
+      if (!(parseFloat(ethAmount) > 0)) { setError(`Enter the amount of ${sel!.asset} you sent.`); return }
+      if (!/^0x[0-9a-fA-F]{64}$/.test(txHash.trim())) { setError(`Enter a valid ${sel!.network} transaction hash (0x followed by 64 characters).`); return }
+      if (!/^0x[0-9a-fA-F]{40}$/.test(fromAddr.trim())) { setError(`Enter the ${sel!.network} address you sent from (0x followed by 40 characters).`); return }
     }
     if (inFlight.current) return
     inFlight.current = true
@@ -1069,7 +1074,7 @@ function DepositTab({ onSuccess, go, can }: { onSuccess: () => void; go: (id: st
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key },
         body: JSON.stringify({ amount: amt, method, receipt_path: receiptPath, notes: notes.trim() || undefined,
-          ...(isEth ? { eth_amount: parseFloat(ethAmount), tx_hash: txHash.trim(), from_address: fromAddr.trim() } : {}) }),
+          ...(isEth ? { method: 'crypto', asset: sel!.asset, chain_id: sel!.chain_id, crypto_amount: parseFloat(ethAmount), tx_hash: txHash.trim(), from_address: fromAddr.trim() } : {}) }),
       }))
 
       setSuccess({ reference: data.deposit?.reference || '' })
@@ -1117,30 +1122,33 @@ function DepositTab({ onSuccess, go, can }: { onSuccess: () => void; go: (id: st
   return (
     <div className="grid lg:grid-cols-2 gap-4 items-start">
       {isEth ? (
-      <div className="panel p-5 sm:p-6" data-deposit-asset="ETH">
+      <div className="panel p-5 sm:p-6" data-deposit-asset={eth!.asset} data-chain-id={eth!.chain_id}>
         <div className="flex flex-wrap items-center gap-2">
-          <h3 className="text-[15px] font-semibold text-fg">Ethereum (ETH)</h3>
-          <span className="rounded-full border border-sky-400/30 bg-sky-400/10 px-2 py-0.5 text-[11px] text-sky-300">Ethereum Network</span>
+          <h3 className="text-[15px] font-semibold text-fg">{eth!.asset === 'ETH' && eth!.chain_id === 1 ? 'Ethereum (ETH)' : eth!.asset}</h3>
+          <span className="rounded-full border border-sky-400/30 bg-sky-400/10 px-2 py-0.5 text-[11px] text-sky-300">{eth!.network} Network</span>
         </div>
-        <p className="text-[13px] text-fg-faint mt-1 mb-5">Send ETH on the Ethereum network to the Tarafab address below, then submit the transaction details.</p>
+        <p className="text-[13px] text-fg-faint mt-1 mb-5">Send {eth!.asset} on the {eth!.network} network to the Tarafab address below, then submit the transaction details.</p>
         <div className="w-44 h-44 mx-auto sm:mx-0 mb-5 bg-[#fff] rounded-md p-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={`https://api.qrserver.com/v1/create-qr-code/?size=176x176&data=ethereum:${eth!.address}`} alt="QR code for the Tarafab Ethereum address" className="w-full h-full" />
+          <img src={`https://api.qrserver.com/v1/create-qr-code/?size=176x176&data=${eth!.asset === 'ETH' && eth!.chain_id === 1 ? 'ethereum:' : ''}${eth!.address}`} alt={`QR code for the Tarafab ${eth!.asset} address on ${eth!.network}`} className="w-full h-full" />
         </div>
         <dl className="mb-3 grid grid-cols-2 gap-2 text-[13px]">
-          <div><dt className="text-fg-faint">Asset</dt><dd className="text-fg">Ethereum (ETH)</dd></div>
-          <div><dt className="text-fg-faint">Network</dt><dd className="text-fg">Ethereum</dd></div>
+          <div><dt className="text-fg-faint">Asset</dt><dd className="text-fg">{eth!.asset === 'ETH' && eth!.chain_id === 1 ? 'Ethereum (ETH)' : eth!.asset}</dd></div>
+          <div><dt className="text-fg-faint">Network</dt><dd className="text-fg">{eth!.network} <span className="text-fg-faint">(chain {eth!.chain_id})</span></dd></div>
+          {eth!.token_contract && <div className="col-span-2"><dt className="text-fg-faint">Token contract</dt><dd className="text-fg font-mono text-[12px] break-all" data-token-contract>{eth!.token_contract}</dd></div>}
         </dl>
-        <label className="field-label">Tarafab Ethereum receiving address</label>
+        <label className="field-label">Tarafab {eth!.asset === 'ETH' && eth!.chain_id === 1 ? 'Ethereum' : `${eth!.asset} (${eth!.network})`} receiving address</label>
         <div className="flex gap-2">
           <div className="flex-1 min-w-0 px-3 py-2.5 rounded-md bg-ink-950 border border-ink-600 font-mono text-[13px] text-fg break-all select-all" data-eth-address>{eth!.address}</div>
-          <button onClick={copyAddress} className="btn btn-outline btn-sm !h-auto shrink-0" aria-label="Copy Ethereum address">
+          <button onClick={copyAddress} className="btn btn-outline btn-sm !h-auto shrink-0" aria-label={`Copy ${eth!.asset} address`}>
             {copied ? <><IconCheck width={15} height={15} />{t('common.copied')}</> : <><IconCopy width={15} height={15} />{t('common.copy')}</>}
           </button>
         </div>
         <div role="note" className="alert alert-warning mt-5 !text-[13px]">
           <IconAlert className="shrink-0 text-amber-400 mt-px" width={16} height={16} aria-hidden="true" />
-          <span className="text-fg-muted">Send only ETH on the Ethereum network (Ethereum Mainnet) to this address. Do not send Bitcoin, tokens, or ETH on another network (such as Base, Arbitrum or BNB Smart Chain): those funds may be lost. Your deposit stays pending until Tarafab verifies the transaction on-chain ({eth!.min_confirmations}+ confirmations).</span>
+          <span className="text-fg-muted">{eth!.asset === 'ETH' && eth!.chain_id === 1
+            ? 'Send only ETH on the Ethereum network (Ethereum Mainnet) to this address. Do not send Bitcoin, tokens, or ETH on another network (such as Base, Arbitrum or BNB Smart Chain): those funds may be lost.'
+            : `Send only ${eth!.asset} on ${eth!.network} (chain ${eth!.chain_id}), using the token contract shown, to this address. Sending another token or using another network may lose the funds.`} Your deposit stays pending until Tarafab verifies the transaction on-chain ({eth!.min_confirmations}+ confirmations).</span>
         </div>
       </div>
       ) : (
@@ -1179,7 +1187,7 @@ function DepositTab({ onSuccess, go, can }: { onSuccess: () => void; go: (id: st
             <label htmlFor="method" className="field-label">{t('deposit.method')}</label>
             <select id="method" value={method} onChange={e => setMethod(e.target.value)} className="field" disabled={submitting}>
               <option value="bitcoin">{t('dash.method.bitcoin')}</option>
-              {eth && <option value="ethereum">Ethereum (ETH) · Ethereum Network</option>}
+              {(opts || []).map(o => <option key={optKey(o)} value={optKey(o)}>{optLabel(o)}</option>)}
               <option value="bank_transfer">{t('dash.method.bank_transfer')}</option>
               <option value="wire_transfer">{t('dash.method.wire_transfer')}</option>
               <option value="other">{t('dash.method.other')}</option>
@@ -1190,7 +1198,7 @@ function DepositTab({ onSuccess, go, can }: { onSuccess: () => void; go: (id: st
           {isEth && (
             <div className="space-y-4" data-eth-fields>
               <div>
-                <label htmlFor="eth-amount" className="field-label">Amount of ETH sent</label>
+                <label htmlFor="eth-amount" className="field-label">Amount of {eth!.asset} sent</label>
                 <input id="eth-amount" type="number" inputMode="decimal" step="any" min="0" value={ethAmount} onChange={e => setEthAmount(e.target.value)} placeholder="0.00" className="field tabular-nums" disabled={submitting} />
               </div>
               <div>

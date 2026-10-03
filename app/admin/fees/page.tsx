@@ -93,7 +93,7 @@ export default function AdminFeesPage() {
             <tbody>{rules.map(r => (
               <tr key={r.id} className="border-t border-white/[0.06] text-slate-300">
                 <td className="py-2 pr-3">{SERVICE[r.service]}<div className="text-slate-500">{r.label}</div></td>
-                <td className="pr-3">{r.asset || 'Any asset'} · {r.chain_id ? NETS.find(x => x[0] === r.chain_id)?.[1] || r.chain_id : 'Any network'}</td>
+                <td className="pr-3">{!r.asset ? 'Any asset' : ['ANY', '*', 'ALL'].includes(r.asset.trim().toUpperCase()) ? `Any asset (stored as “${r.asset}”)` : r.asset} · {r.chain_id ? NETS.find(x => x[0] === r.chain_id)?.[1] || r.chain_id : 'Any network'}</td>
                 <td className="pr-3 tabular-nums">{Number(r.pct_fee)}% + {usd(r.fixed_fee)}</td>
                 <td className="pr-3 tabular-nums">{usd(r.min_fee)} / {r.max_fee == null ? 'none' : usd(r.max_fee)}</td>
                 <td className="pr-3">{new Date(r.effective_from).toLocaleString()}</td>

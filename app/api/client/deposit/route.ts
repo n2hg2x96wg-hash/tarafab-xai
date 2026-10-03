@@ -25,6 +25,18 @@ export async function POST(request: NextRequest) {
     if (typeof amount !== 'number' || !(amount > 0)) return NextResponse.json({ error: 'Amount must be a positive number' }, { status: 400 })
     if (!method?.trim()) return NextResponse.json({ error: 'Deposit method is required' }, { status: 400 })
 
+    // Crypto (any enabled receiving address, e.g. USDT · BNB Smart Chain):
+    // validated against that admin record; pending_review, never auto-credited.
+    if (method.trim() === 'crypto') {
+      const c = body as { asset?: unknown; chain_id?: unknown; crypto_amount?: unknown; tx_hash?: unknown; from_address?: unknown }
+      const { data, error } = await supabase.rpc('client_submit_crypto_deposit', {
+        p_asset: String(c.asset ?? ''), p_chain_id: Number(c.chain_id), p_amount: amount, p_crypto_amount: Number(c.crypto_amount),
+        p_tx_hash: String(c.tx_hash ?? ''), p_from_address: String(c.from_address ?? ''), p_notes: notes?.trim() || null, p_idempotency_key: idempotencyKey(request, body),
+      })
+      if (error) return dbError(error)
+      return NextResponse.json({ deposit: { id: data.id, reference: data.reference, status: data.status, created_at: data.created_at } })
+    }
+
     // Ethereum: validated against the admin's ETH receiving address; recorded
     // as pending_review (never credited until an admin verifies it on-chain).
     if (method.trim() === 'ethereum') {
