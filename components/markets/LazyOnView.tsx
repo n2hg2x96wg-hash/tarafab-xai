@@ -8,7 +8,9 @@ import { useEffect, useLayoutEffect, useRef, useState, type ComponentType, type 
 // wait. While loading, a visible skeleton of the same height holds the space
 // (no blank gap, no layout jump); a failed load offers a retry instead of
 // leaving the space empty.
-export default function LazyOnView({ load, minHeight = 520 }: { load: () => Promise<{ default: ComponentType }>; minHeight?: number }) {
+// id: an anchor (e.g. "markets") that must exist before the section loads, so
+// in-page links and shared /#markets URLs can scroll to it straight away.
+export default function LazyOnView({ load, minHeight = 520, id }: { load: () => Promise<{ default: ComponentType }>; minHeight?: number; id?: string }) {
   const ref = useRef<HTMLDivElement>(null)
   const [C, setC] = useState<ComponentType | null>(null)
   const [failed, setFailed] = useState(false)
@@ -58,9 +60,9 @@ export default function LazyOnView({ load, minHeight = 520 }: { load: () => Prom
     const t = setTimeout(() => ro.disconnect(), 3000)
     return () => { clearTimeout(t); ro.disconnect() }
   }, [C])
-  if (C) return <div ref={wrap} style={{ overflowAnchor: 'none' }}><C /></div>
+  if (C) return <div ref={wrap} id={id} className={id ? 'scroll-mt-16' : undefined} style={{ overflowAnchor: 'none' }}><C /></div>
   return (
-    <div ref={ref} style={{ minHeight }} className={minHeight ? 'max-w-6xl mx-auto px-4 sm:px-6 py-14' : ''}>
+    <div ref={ref} id={id} style={{ minHeight }} className={`${minHeight ? 'max-w-6xl mx-auto px-4 sm:px-6 py-14' : ''} ${id ? 'scroll-mt-16' : ''}`}>
       {failed ? (
         <div className="panel p-6 text-center text-sm text-fg-muted" role="status">
           This section could not be loaded.{' '}

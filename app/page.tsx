@@ -215,7 +215,7 @@ export default function LandingPage() {
       <LazyOnView load={loadStory} minHeight={640} />
 
       {/* Markets: the real market board and a clean price-history chart. */}
-      <LazyOnView load={loadIntelligence} />
+      <LazyOnView load={loadIntelligence} id="markets" />
 
       <section id="platform" className="scroll-mt-16 border-b border-ink-700">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 lg:py-24">
