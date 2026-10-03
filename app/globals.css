@@ -537,3 +537,31 @@ body.dialog-open #chat-application { visibility: hidden !important; }
   .ops-floor { transform: none; }
   .ops-bar, .ops-chart[data-shown] .ops-bar { transform: none; transition: none; }
 }
+
+/* Client Overview motion: rise-in for lower sections, scroll-linked depth in
+   the balance card (--ov-p set by useScrollDepth), and a data-flow line that
+   moves only while the client has active investments. Static when reduced. */
+.ov-rise { opacity: 0; transform: translate3d(0, 14px, 0); transition: opacity .5s ease, transform .6s cubic-bezier(.2,.7,.2,1); }
+.ov-rise[data-in] { opacity: 1; transform: none; }
+.ov-grid {
+  background-image: linear-gradient(rgb(var(--contrast) / .045) 1px, transparent 1px), linear-gradient(90deg, rgb(var(--contrast) / .045) 1px, transparent 1px);
+  background-size: 28px 28px;
+  -webkit-mask-image: radial-gradient(120% 90% at 85% 0%, #000 0%, transparent 70%);
+          mask-image: radial-gradient(120% 90% at 85% 0%, #000 0%, transparent 70%);
+  transform: perspective(700px) rotateX(18deg) translate3d(0, calc(var(--ov-p, 0) * -18px), 0) scale(1.15);
+  transform-origin: 50% 0;
+  opacity: .9;
+}
+.ov-figures::before {
+  content: ''; position: absolute; left: -1px; top: 12%; bottom: 12%; width: 2px; border-radius: 2px;
+  background: linear-gradient(to bottom, transparent, rgb(var(--accent) / .55), transparent);
+  background-size: 100% 220%; opacity: .35;
+}
+.ov-depth[data-flow="on"] .ov-figures::before { opacity: .9; }
+.ov-depth[data-flow="on"][data-vis] .ov-figures::before { animation: ovFlow 3.2s linear infinite; }
+@keyframes ovFlow { from { background-position: 0 100%; } to { background-position: 0 -120%; } }
+@media (prefers-reduced-motion: reduce) {
+  .ov-rise { opacity: 1; transform: none; transition: none; }
+  .ov-grid { transform: none; }
+  .ov-depth[data-flow="on"][data-vis] .ov-figures::before { animation: none; }
+}

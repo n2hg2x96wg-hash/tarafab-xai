@@ -319,7 +319,8 @@ function PortfolioAnalytics({ account, txs }: { account: Account | null; txs: Tx
   const { t, intl } = useI18n()
   const parts: [string, number, string][] = [
     [t('dash.accountBalance'), Number(account?.available_balance ?? 0), 'bg-accent'],
-    [t('dash.invested'), Number(account?.invested_balance ?? 0), 'bg-sky-400'],
+    // Current holdings: active principal only (completed principal is already back in the balance).
+    [t('dash.activeInvestments'), Number(account?.investments?.active_principal ?? account?.invested_balance ?? 0), 'bg-sky-400'],
     [t('withdraw.profitBalance'), Number(account?.profit_balance ?? 0), 'bg-emerald-400'],
     [t('dash.pending'), Number(account?.pending_balance ?? 0), 'bg-amber-400'],
   ]

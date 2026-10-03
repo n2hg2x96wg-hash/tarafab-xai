@@ -45,6 +45,7 @@ import { ActiveInvestmentsCard, InvestmentCenter } from '@/components/dashboard/
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { CommandSearch, type CommandItem } from '@/components/dashboard/CommandSearch'
 import { MarketActivityTab, PriceHistoryTab } from '@/components/dashboard/MarketTabs'
+import { Rise, useScrollDepth } from '@/components/dashboard/Motion'
 
 const BTC_ADDRESS = 'bc1qvpwmdln4nm6xa2k9q26l84pg4ud0uuqzk83053'
 
@@ -186,7 +187,7 @@ export default function DashboardPage() {
     const run = (async () => {
       setRefreshing(true)
       const [acc, tx, nav, notes] = await Promise.allSettled([
-        authFetch('/api/client/account').then(r => readJson<{ user: UserInfo; account: Account }>(r)),
+        authFetch('/api/client/account').then(r => readJson<{ user: UserInfo; account: Account; investments?: Account['investments'] }>(r)),
         authFetch('/api/client/transactions').then(r => readJson<{ transactions: Tx[]; hasMore?: boolean }>(r)),
         authFetch('/api/client/nav-config').then(r => readJson<{ config: { hidden?: string[]; order?: string[]; labels?: Record<string, string> } }>(r)),
         authFetch('/api/client/notifications').then(r => readJson<{ notifications: TeamNotice[] }>(r)),
@@ -195,7 +196,7 @@ export default function DashboardPage() {
         userId.current = acc.value.user.id
         // A client signed in on this device, so it is not (only) a staff device.
         if (acc.value.user.role !== 'admin') { try { localStorage.removeItem('tarafab.staffDevice') } catch { /* storage blocked */ } }
-        setUser(acc.value.user); setAccount(acc.value.account); setLoadError('')
+        setUser(acc.value.user); setAccount({ ...acc.value.account, investments: acc.value.investments ?? null }); setLoadError('')
       } else setLoadError(errorText(acc.reason, tRef.current))
       if (tx.status === 'fulfilled') {
         const page = tx.value.transactions || []
@@ -669,6 +670,9 @@ function OverviewTab({ name, account, txs, go, can, labelOf }: { name: string; a
   const { t, intl } = useI18n()
   const totals = txTotals(txs)
   const money = (n: number) => `$${fmt(n)}`
+  const inv = account?.investments ?? null
+  const balRef = useRef<HTMLElement>(null)
+  useScrollDepth(balRef)
   const quick = ([
     ['deposit', 'dash.nav.deposit', IconArrowDown],
     ['withdraw', 'dash.nav.withdraw', IconArrowUp],
@@ -697,25 +701,36 @@ function OverviewTab({ name, account, txs, go, can, labelOf }: { name: string; a
 
       <div className="grid lg:grid-cols-[1.6fr_1fr] gap-4">
         {/* Primary: balance, the other balances and quick actions */}
-        <section className="relative overflow-hidden rounded-2xl border border-ink-700 p-5 sm:p-6 bg-[linear-gradient(135deg,rgb(var(--accent)/.10),rgb(var(--brand-500)/.05)_55%,transparent),rgb(var(--ink-900))] shadow-[inset_0_1px_0_rgb(var(--contrast)/.06),0_24px_48px_-28px_rgb(var(--shadow)/var(--shadow-strength))]" aria-labelledby="ov-bal">
+        <section ref={balRef} data-flow={inv && inv.active_count > 0 ? "on" : undefined} className="ov-depth relative overflow-hidden rounded-2xl border border-ink-700 p-5 sm:p-6 bg-[linear-gradient(135deg,rgb(var(--accent)/.10),rgb(var(--brand-500)/.05)_55%,transparent),rgb(var(--ink-900))] shadow-[inset_0_1px_0_rgb(var(--contrast)/.06),0_24px_48px_-28px_rgb(var(--shadow)/var(--shadow-strength))]" aria-labelledby="ov-bal">
           {/* Restrained accent light in the corner; decorative only. */}
           <div className="pointer-events-none absolute -top-24 -right-16 w-64 h-64 rounded-full bg-accent/10 blur-3xl" aria-hidden="true" />
+          {/* Faint depth grid, drifting slightly with scroll (--ov-p). */}
+          <div className="ov-grid pointer-events-none absolute inset-0" aria-hidden="true" />
           <p id="ov-bal" className="relative text-[12px] font-medium uppercase tracking-[0.12em] text-fg-faint">{t('dash.accountBalance')}</p>
           <p className="relative mt-2 text-[36px] sm:text-[44px] leading-none font-semibold tracking-[-0.03em] text-fg tabular-nums">
             <AnimatedPrice value={Number(account?.available_balance ?? 0)} format={money} />
           </p>
-          {/* Phones: one row per figure so full amounts are always readable
-              (a six-figure profit does not fit in a third of the width);
-              from sm up they sit side by side. */}
-          <dl className="relative mt-5 grid grid-cols-1 sm:grid-cols-3 gap-2">
+          {/* Balance first; then the four figures that explain it. Invested
+              figures come from the investment records (client_investment_summary),
+              the same source as Portfolio; pending and profit are the account's
+              own recorded figures. Phones: one row each; from sm up, 2 x 2. */}
+          <dl className="ov-figures relative mt-5 grid grid-cols-1 sm:grid-cols-2 gap-x-6 rounded-xl bg-ink-950/55 border border-ink-700/70 px-4 py-1 backdrop-blur-sm" data-overview-figures>
             {([
-              ['dash.profit', account?.profit_balance ?? 0],
-              ['dash.invested', account?.invested_balance ?? 0],
-              ['dash.pending', account?.pending_balance ?? 0],
-            ] as [TKey, number][]).map(([label, value]) => (
-              <div key={label} className="rounded-xl bg-ink-950/55 border border-ink-700/70 px-3 py-2.5 min-w-0 backdrop-blur-sm flex items-center justify-between gap-3 sm:block">
-                <dt className="text-[12px] sm:text-[11px] text-fg-faint truncate">{t(label)}</dt>
-                <dd className="text-[15px] font-semibold text-fg tabular-nums sm:mt-0.5 sm:truncate text-right sm:text-left">{money(Number(value))}</dd>
+              ['dash.totalInvested', inv ? inv.total_invested : null, 'total', inv && inv.total_count ? t('dash.countAll', { n: inv.total_count }) : undefined],
+              ['dash.activeInvestments', inv ? inv.active_principal : null, 'active', inv && inv.active_count ? t('dash.countActive', { n: inv.active_count }) : undefined],
+              ['dash.pending', account ? Number(account.pending_balance ?? 0) : null, 'pending', undefined],
+              ['dash.profitReturn', account ? Number(account.profit_balance ?? 0) : null, 'profit', undefined],
+            ] as [TKey, number | null, string, string | undefined][]).map(([label, value, key, hint]) => (
+              <div key={key} data-figure={key} className="flex items-center justify-between gap-3 py-2.5 border-b border-ink-700/60 last:border-b-0 sm:[&:nth-last-child(2)]:border-b-0 min-w-0">
+                <dt className="min-w-0">
+                  <span className="block text-[12.5px] text-fg-muted truncate" title={key === 'total' ? t('dash.totalInvestedHint') : undefined}>{t(label)}</span>
+                  {hint && <span className="block text-[11px] text-fg-faint truncate">{hint}</span>}
+                </dt>
+                <dd className="text-[15px] font-semibold text-fg tabular-nums text-right whitespace-nowrap">
+                  {value != null ? <AnimatedPrice value={value} format={money} />
+                    : !account ? <span className="inline-block h-4 w-20 rounded skeleton align-middle" aria-hidden="true" />
+                    : <span className="text-[12px] font-normal text-fg-faint">{t('dash.unavailable')}</span>}
+                </dd>
               </div>
             ))}
           </dl>
@@ -748,7 +763,7 @@ function OverviewTab({ name, account, txs, go, can, labelOf }: { name: string; a
         )}
       </div>
 
-      {can('portfolio') && !hiddenState(feature('investments')) && <ErrorBoundary label={t('inv.f.activeTitle')}><ActiveInvestmentsCard go={go} /></ErrorBoundary>}
+      {can('portfolio') && !hiddenState(feature('investments')) && <Rise><ErrorBoundary label={t('inv.f.activeTitle')}><ActiveInvestmentsCard go={go} /></ErrorBoundary></Rise>}
 
       {!hiddenState(feature('trading_status')) && <TradingStatusCard
         status={account?.trading_status}
@@ -756,7 +771,7 @@ function OverviewTab({ name, account, txs, go, can, labelOf }: { name: string; a
         updatedAt={account?.trading_status_updated_at}
       />}
 
-      <div className="grid lg:grid-cols-[1fr_1.6fr] gap-4">
+      <Rise className="grid lg:grid-cols-[1fr_1.6fr] gap-4">
         <section className="panel p-5 sm:p-6" aria-labelledby="ov-perf">
           <div className="flex items-center justify-between gap-3 mb-3">
             <h3 id="ov-perf" className="text-[15px] font-semibold text-fg">{t('overview.performance')}</h3>
@@ -801,7 +816,7 @@ function OverviewTab({ name, account, txs, go, can, labelOf }: { name: string; a
             </ul>
           )}
         </section>
-      </div>
+      </Rise>
 
       {can('markets') && (
         <div className="panel overflow-hidden">

@@ -38,9 +38,13 @@ export function PortfolioTab({ account, txs, hasMore, go }: { account: Account |
 
   // One client-facing balance, taken from the account's available_balance;
   // invested, profit and pending stay separate, as before.
-  const balances: [string, number][] = [
+  // Invested figures come from client_investment_summary (same as Overview);
+  // null when unavailable, never shown as $0.00.
+  const inv = account?.investments ?? null
+  const balances: [string, number | null][] = [
     [t('dash.accountBalance'), account?.available_balance ?? 0],
-    [t('dash.invested'), account?.invested_balance ?? 0],
+    [t('dash.totalInvested'), inv ? inv.total_invested : null],
+    [t('dash.activeInvestments'), inv ? inv.active_principal : null],
     [t('withdraw.profitBalance'), account?.profit_balance ?? 0],
     [t('dash.pending'), account?.pending_balance ?? 0],
   ]
@@ -60,7 +64,7 @@ export function PortfolioTab({ account, txs, hasMore, go }: { account: Account |
             {balances.map(([label, value], i) => (
               <div key={label} className="flex items-center justify-between gap-4 py-3">
                 <dt className={`text-sm ${i === 0 ? 'text-fg font-medium' : 'text-fg-muted'}`}>{label}</dt>
-                <dd className={`tabular-nums ${i === 0 ? 'text-lg font-semibold text-fg' : 'text-sm text-fg'}`}>{money(value)}</dd>
+                <dd className={`tabular-nums ${i === 0 ? 'text-lg font-semibold text-fg' : 'text-sm text-fg'}`}>{value != null ? money(value) : <span className="text-fg-faint text-[12px]">{t('dash.unavailable')}</span>}</dd>
               </div>
             ))}
           </dl>

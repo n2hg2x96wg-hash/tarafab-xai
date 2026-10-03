@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { getSupabaseEnv } from '@/lib/supabase/env'
+import { parseInvestmentSummary } from '@/lib/investmentSummary'
 
 export async function GET(request: NextRequest) {
   const { url, anonKey: key } = getSupabaseEnv()
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
     const { data: { user }, error: authErr } = await supabase.auth.getUser(token)
     if (authErr || !user) return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
 
-    const [{ data: profile, error: profileErr }, { data: account, error: accountErr }, { data: pendingTransactions, error: pendingErr }] = await Promise.all([
+    const [{ data: profile, error: profileErr }, { data: account, error: accountErr }, { data: pendingTransactions, error: pendingErr }, summary] = await Promise.all([
       supabase.from('profiles').select('full_name, role').eq('id', user.id).maybeSingle(),
       supabase
         .from('accounts')
@@ -30,6 +31,10 @@ export async function GET(request: NextRequest) {
         .eq('user_id', user.id)
         .in('status', ['pending_review', 'pending', 'requested', 'under_review', 'pending_verification', 'pending_blockchain_confirmation'])
         .in('type', ['deposit', 'withdrawal', 'transfer_out', 'transfer_in', 'fee', 'investment']),
+      // Investment totals from the investment records themselves (the one
+      // definition shared with Portfolio). accounts.invested_balance only
+      // holds active principal and drops to 0 when investments complete.
+      supabase.rpc('client_investment_summary'),
     ])
     // A failed read must not be shown as a zero balance.
     if (profileErr || accountErr || pendingErr) {
@@ -68,6 +73,8 @@ export async function GET(request: NextRequest) {
         pending_balance: Math.round((Number(savedAccount.pending_balance) * 100) + pendingAmountCents) / 100,
         pending_transaction_count: pendingOperations.length,
       },
+      // null when it could not be read: shown as unavailable, never as $0.00.
+      investments: parseInvestmentSummary(summary.error ? null : summary.data),
     })
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)

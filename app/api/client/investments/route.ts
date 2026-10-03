@@ -1,6 +1,7 @@
 import { featureBlocked } from '@/lib/features'
 import { NextRequest, NextResponse } from 'next/server'
 import { clientForRequest, dbError, idempotencyKey, unauthorized } from '@/lib/supabase/request'
+import { parseInvestmentSummary } from '@/lib/investmentSummary'
 
 // Read-only view of the Investment Center for the signed-in client. Every
 // query runs as the client, so row level security decides what is visible:
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest) {
   const { data: auth } = await supabase.auth.getUser()
   if (!auth?.user) return unauthorized()
 
-  const [products, investments, kyc, account] = await Promise.all([
+  const [products, investments, kyc, account, summary] = await Promise.all([
     supabase.from('investment_products').select('id, code, status, current_version_id').eq('status', 'active').order('created_at'),
     supabase.from('client_investments')
       .select('id, reference, product_id, product_version_id, principal, fee_amount, profit_amount, return_type, return_rate_pct, return_amount, expected_return, expected_total, currency, status, start_date, maturity_date, completed_at, rejection_reason, reviewed_at, created_at')
@@ -23,6 +24,8 @@ export async function GET(request: NextRequest) {
     supabase.rpc('client_kyc_status'),
     // The one existing balance record; nothing here recalculates it.
     supabase.from('accounts').select('available_balance, pending_balance, invested_balance').eq('user_id', auth.user.id).maybeSingle(),
+    // Same totals the Overview shows (client_investment_summary, all records).
+    supabase.rpc('client_investment_summary'),
   ])
   if (products.error) return dbError(products.error)
   if (investments.error) return dbError(investments.error)
@@ -92,6 +95,7 @@ export async function GET(request: NextRequest) {
     balance: account.data ? {
       available: Number(account.data.available_balance), pending: Number(account.data.pending_balance), invested: Number(account.data.invested_balance),
     } : null,
+    summary: parseInvestmentSummary(summary.error ? null : summary.data),
     kyc_verified: !!kycStatus && kycStatus.has_submission !== false && kycStatus.status === 'verified',
     // Investing opens only once an admin has made at least one product active.
     investing_enabled: (products.data || []).some(p => p.current_version_id),

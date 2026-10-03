@@ -4,6 +4,7 @@
 import { IconArrowDown, IconArrowUp, IconSwap } from '@/components/Icons'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
 import { statusLabel } from '@/lib/i18n/format'
+import type { InvestmentSummary } from '@/lib/investmentSummary'
 
 export interface Account {
   account_balance: number
@@ -15,6 +16,8 @@ export interface Account {
   trading_status?: 'active' | 'inactive' | null
   trading_strategy_name?: string | null
   trading_status_updated_at?: string | null
+  // From client_investment_summary(); null = could not be read (shown as unavailable).
+  investments?: InvestmentSummary | null
 }
 
 export interface UserInfo {

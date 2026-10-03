@@ -6,11 +6,14 @@ import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
 import { IconChart, IconClose, IconPie, IconShield, IconTrend } from '@/components/Icons'
 import { fmt } from '@/components/dashboard/shared'
 import { projection } from '@/lib/returns'
+import { parseInvestmentSummary, type InvestmentSummary } from '@/lib/investmentSummary'
 
 // The client's Investment Center. Everything shown is read from real records
 // through /api/client/investments, which runs under row level security.
 //
 // Each figure has one defined source and nothing is estimated:
+//   total invested      client_investment_summary().total_invested (shared
+//                       with Overview: active + historical principal)
 //   invested principal  sum of principal of the client's active investments
 //   pending             requests awaiting review; their amount is held in the
 //                       account's existing pending balance
@@ -38,7 +41,7 @@ type Adj = { id: string; investment_id: string; transaction_id: string | null; p
 type Balance = { available: number; pending: number; invested: number }
 type Data = {
   products: Product[]; versions: Version[]; investments: Investment[]; returns: { client_investment_id: string; amount: number }[]
-  events: Ev[]; transactions: LinkedTx[]; adjustments: Adj[]; balance: Balance | null; kyc_verified: boolean; investing_enabled: boolean
+  events: Ev[]; transactions: LinkedTx[]; adjustments: Adj[]; balance: Balance | null; summary: InvestmentSummary | null; kyc_verified: boolean; investing_enabled: boolean
 }
 
 const RISK_TONE = {
@@ -99,6 +102,7 @@ export function InvestmentCenter({ go, focusId, onFocusDone }: { go: (id: string
         products: raw.products!, versions: raw.versions!, investments: raw.investments!, returns: raw.returns!,
         events: Array.isArray(raw.events) ? raw.events : [], adjustments: Array.isArray(raw.adjustments) ? raw.adjustments : [], transactions: Array.isArray(raw.transactions) ? raw.transactions : [],
         balance: b && Number.isFinite(Number(b.available)) ? { available: Number(b.available), pending: Number(b.pending), invested: Number(b.invested) } : null,
+        summary: parseInvestmentSummary(raw.summary),
         kyc_verified: raw.kyc_verified === true, investing_enabled: raw.investing_enabled === true,
       })
     }
@@ -121,9 +125,14 @@ export function InvestmentCenter({ go, focusId, onFocusDone }: { go: (id: string
   const invs = data?.investments || []
   const active = invs.filter(i => i.status === 'active')
   const pending = invs.filter(i => i.status === 'pending_activation')
-  const principal = active.reduce((s, i) => s + Number(i.principal), 0)
-  const held = pending.reduce((s, i) => s + Number(i.principal), 0)
-  const realised = invs.reduce((s, i) => s + profitOf(i), 0)
+  // Totals come from the shared server summary (all records, same rules as
+  // Overview); the local sums over the listed records are only a fallback.
+  const sum = data?.summary ?? null
+  const principal = sum ? sum.active_principal : active.reduce((s, i) => s + Number(i.principal), 0)
+  const held = sum ? sum.pending_principal : pending.reduce((s, i) => s + Number(i.principal), 0)
+  const pendingN = sum ? sum.pending_count : pending.length
+  const realised = sum ? sum.investment_profit : invs.reduce((s, i) => s + profitOf(i), 0)
+  const totalInvested = sum ? sum.total_invested : null
   const activeValue = active.reduce((s, i) => s + Number(i.principal) + profitOf(i), 0)
   const hasInvestments = invs.length > 0
   const [filter, setFilter] = useState<Filter>('all')
@@ -143,16 +152,17 @@ export function InvestmentCenter({ go, focusId, onFocusDone }: { go: (id: string
   if (!data) {
     return (
       <div className="space-y-4" role="status" aria-label={t('common.loading')}>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">{Array.from({ length: 4 }, (_, i) => <div key={i} className="panel p-4 space-y-2"><div className="skeleton h-3 w-20" /><div className="skeleton h-6 w-24" /></div>)}</div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">{Array.from({ length: 6 }, (_, i) => <div key={i} className="panel p-4 space-y-2"><div className="skeleton h-3 w-20" /><div className="skeleton h-6 w-24" /></div>)}</div>
         <div className="panel p-5 space-y-3"><div className="skeleton h-4 w-40" /><div className="skeleton h-24" /></div>
       </div>
     )
   }
 
   const stats: { label: TKey; value: string; hint: TKey; muted?: boolean }[] = [
+    { label: 'dash.totalInvested', value: totalInvested != null ? money(totalInvested) : t('dash.unavailable'), hint: 'dash.totalInvestedHint', muted: totalInvested == null },
     { label: 'inv.principal', value: money(principal), hint: 'inv.principalHint' },
     { label: 'inv.activeCount', value: String(active.length), hint: 'inv.activeCountHint' },
-    { label: 'inv.f.pendingCount', value: pending.length ? `${pending.length} · ${money(held)}` : '0', hint: 'inv.f.pendingHint', muted: !pending.length },
+    { label: 'inv.f.pendingCount', value: pendingN ? `${pendingN} · ${money(held)}` : '0', hint: 'inv.f.pendingHint', muted: !pendingN },
     { label: 'inv.f.currentValue', value: money(activeValue), hint: 'inv.f.currentValueHint', muted: !active.length },
     { label: 'inv.f.profit', value: signed(realised), hint: 'inv.f.profitHint', muted: realised === 0 },
   ]
@@ -167,7 +177,7 @@ export function InvestmentCenter({ go, focusId, onFocusDone }: { go: (id: string
           </div>
           {data.balance && <p className="text-sm text-fg-muted">{t('inv.f.available')}: <span className="text-fg font-semibold tabular-nums">{money(data.balance.available)}</span></p>}
         </div>
-        <dl className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        <dl className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
           {stats.map(s => (
             <div key={s.label} className="panel p-4 min-w-0" title={t(s.hint)}>
               <dt className="text-[12px] text-fg-faint truncate">{t(s.label)}</dt>
