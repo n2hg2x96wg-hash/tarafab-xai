@@ -20,12 +20,19 @@ import { formatPrice } from '@/lib/assets'
 // has no account, so nothing is shown as running, completed or profitable.
 
 type Mode = 'full' | 'lite' | 'static'
+// Decided on the first render (this section only ever renders in the browser,
+// via LazyOnView), so its height is final when it mounts — no later jump.
+function pickMode(): Mode {
+  if (typeof window === 'undefined' || !window.matchMedia) return 'lite'
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return 'static'
+  return window.matchMedia('(min-width: 1024px)').matches && (navigator.hardwareConcurrency || 8) >= 4 ? 'full' : 'lite'
+}
 function useMode(): Mode {
-  const [m, setM] = useState<Mode>('lite')
+  const [m, setM] = useState<Mode>(pickMode)
   useEffect(() => {
     const rm = window.matchMedia('(prefers-reduced-motion: reduce)')
     const wide = window.matchMedia('(min-width: 1024px)')
-    const decide = () => setM(rm.matches ? 'static' : wide.matches && (navigator.hardwareConcurrency || 8) >= 4 ? 'full' : 'lite')
+    const decide = () => setM(pickMode())
     decide()
     rm.addEventListener?.('change', decide); wide.addEventListener?.('change', decide)
     return () => { rm.removeEventListener?.('change', decide); wide.removeEventListener?.('change', decide) }
