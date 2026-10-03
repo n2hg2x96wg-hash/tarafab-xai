@@ -13,6 +13,7 @@ import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import LazyOnView, { MountOnView } from '@/components/markets/LazyOnView'
 import { MarketSources } from '@/components/markets/MarketSources'
+import HashSettle from '@/components/landing/HashSettle'
 import { useTheme } from '@/lib/theme/ThemeProvider'
 
 // Decorative canvas: its code is fetched only once the browser is idle, so it
@@ -161,6 +162,7 @@ export default function LandingPage() {
 
   return (
     <div className="site min-h-screen bg-ink-950 text-fg">
+      <HashSettle />
       <Navbar />
       {adminSession && (
         <div className="fixed top-16 inset-x-0 z-30 flex justify-center px-3 pointer-events-none">
