@@ -25,6 +25,18 @@ export async function POST(request: NextRequest) {
     if (typeof amount !== 'number' || !(amount > 0)) return NextResponse.json({ error: 'Amount must be a positive number' }, { status: 400 })
     if (!method?.trim()) return NextResponse.json({ error: 'Deposit method is required' }, { status: 400 })
 
+    // Ethereum: validated against the admin's ETH receiving address; recorded
+    // as pending_review (never credited until an admin verifies it on-chain).
+    if (method.trim() === 'ethereum') {
+      const e = body as { eth_amount?: unknown; tx_hash?: unknown; from_address?: unknown }
+      const { data, error } = await supabase.rpc('client_submit_eth_deposit', {
+        p_amount: amount, p_eth_amount: Number(e.eth_amount), p_tx_hash: String(e.tx_hash ?? ''), p_from_address: String(e.from_address ?? ''),
+        p_notes: notes?.trim() || null, p_idempotency_key: idempotencyKey(request, body),
+      })
+      if (error) return dbError(error)
+      return NextResponse.json({ deposit: { id: data.id, reference: data.reference, status: data.status, created_at: data.created_at } })
+    }
+
     // Records the deposit as pending_review. Balances change only when an admin approves it.
     const { data, error } = await supabase.rpc('client_submit_deposit', {
       p_amount: amount,

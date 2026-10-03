@@ -101,15 +101,19 @@ export default function AdminFeesPage() {
                 <td><button onClick={() => { setFormErr(''); setRf({ id: r.id, service: r.service, label: r.label, asset: r.asset || '', chain_id: r.chain_id == null ? '' : String(r.chain_id), fixed_fee: String(r.fixed_fee), pct_fee: String(r.pct_fee), min_fee: String(r.min_fee), max_fee: r.max_fee == null ? '' : String(r.max_fee), enabled: r.enabled, effective_from: '', reason: '' }) }} className="text-violet-300 hover:text-violet-200">Edit</button></td>
               </tr>))}</tbody></table></div>
         )}
+        {rules && !rules.some(r => r.enabled && r.service === 'withdrawal') && (
+          <p className="mt-2 text-[11px] text-amber-300" role="status" data-no-withdrawal-rule>No enabled {SERVICE['withdrawal'] || 'Withdrawal'} rule: clients&apos; withdrawal preview shows “None” and no withdrawal fee is charged. Rules apply only to the service they are set for (“Any asset · Any network” widens the asset and network, not the service). Add a rule with service “{SERVICE['withdrawal'] || 'Withdrawal'}” to charge withdrawals.</p>
+        )}
         <p className="mt-2 text-[11px] text-slate-500">The most specific enabled rule applies (asset + network, then asset, then network, then general). Fee = fixed + percentage, kept between min and max, never more than the amount. Shown to clients as “Tarafab Service Fee” before they confirm.</p>
       </section>
 
       <section className="glass rounded-2xl border border-white/[0.08] p-4 mb-5">
         <div className="flex items-center justify-between gap-3 mb-3">
-          <h2 className="text-sm font-semibold text-white">Tarafab receiving addresses</h2>
+          <div><h2 className="text-sm font-semibold text-white">Tarafab receiving addresses</h2>
+            <p className="text-[11px] text-slate-500">The enabled ETH · Ethereum (chain 1) address is also the Ethereum option on the client Deposit page; disable it to hide that option.</p></div>
           <button onClick={() => { setFormErr(''); setAf({ ...emptyAddr }) }} className="text-xs rounded-lg bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5">Add address</button>
         </div>
-        {!addrs ? <p className="text-xs text-slate-500">Loading…</p> : !addrs.length ? <p className="text-xs text-slate-400">None configured. “Transfer to Tarafab” is shown to clients as not available.</p> : (
+        {!addrs ? <p className="text-xs text-slate-500">Loading…</p> : !addrs.length ? <p className="text-xs text-slate-400">None configured. “Transfer to Tarafab” and Ethereum deposits are shown to clients as not available.</p> : (
           <div className="overflow-x-auto"><table className="w-full text-xs"><thead><tr className="text-left text-slate-500"><th className="py-1.5 pr-3">Network</th><th className="pr-3">Asset</th><th className="pr-3">Receiving address</th><th className="pr-3">Confirmations</th><th className="pr-3">Status</th><th /></tr></thead>
             <tbody>{addrs.map(a => (
               <tr key={a.id} className="border-t border-white/[0.06] text-slate-300">

@@ -127,7 +127,7 @@ const en: Record<string, string> = {
   'wd.receive': 'Estimated amount received',
   'wd.feeNone': 'None',
   'wd.feeNote': 'The service fee is deducted from the withdrawn amount. Any blockchain network fee for the payout is not included here.',
-  'wd.feeUnavailable': 'The service fee could not be loaded; it will be shown on the request.',
+  'wd.feeUnavailable': 'Withdrawal fee information is temporarily unavailable.',
   'pr.title': 'Tarafab Premium',
   'pr.subtitle': 'Optional extras for active market users. Everything in your account keeps working on the free plan.',
   'pr.status.free': 'Free plan',

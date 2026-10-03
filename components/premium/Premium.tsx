@@ -376,9 +376,9 @@ function PortfolioAnalytics({ account, txs }: { account: Account | null; txs: Tx
 // Tarafab Service Fee for an amount, worked out by the server with the active
 // admin-configured rule (the same calculation used when the fee is charged).
 export type FeeQuote = { state: 'idle' | 'loading' | 'ok' | 'error'; fee?: number; net?: number }
-export function useServiceFee(service: 'withdrawal' | 'wallet_transfer', amount: number, extra?: { asset?: string; chainId?: number }) {
+export function useServiceFee(service: 'withdrawal' | 'wallet_transfer', amount: number, extra?: { asset?: string; chainId?: number; network?: string }) {
   const [q, setQ] = useState<FeeQuote>({ state: 'idle' })
-  const asset = extra?.asset, chainId = extra?.chainId
+  const asset = extra?.asset, chainId = extra?.chainId, network = extra?.network
   useEffect(() => {
     if (!(amount > 0)) { setQ({ state: 'idle' }); return }
     let alive = true
@@ -388,12 +388,13 @@ export function useServiceFee(service: 'withdrawal' | 'wallet_transfer', amount:
         const p = new URLSearchParams({ service, amount: String(amount) })
         if (asset) p.set('asset', asset)
         if (chainId) p.set('chain_id', String(chainId))
+        if (network) p.set('network', network)
         const r = await readJson<{ quote: { fee: number; net: number } }>(await authFetch(`/api/client/fees?${p}`))
         if (alive) setQ({ state: 'ok', fee: Number(r.quote.fee), net: Number(r.quote.net) })
-      } catch { if (alive) setQ({ state: 'error' }) }
+      } catch (e) { console.error('Service fee quote failed', e); if (alive) setQ({ state: 'error' }) }
     }, 350)
     return () => { alive = false; clearTimeout(id) }
-  }, [service, amount, asset, chainId])
+  }, [service, amount, asset, chainId, network])
   return q
 }
 
