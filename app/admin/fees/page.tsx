@@ -7,11 +7,11 @@ import AdminLayout from '@/components/AdminLayout'
 import { AdminLoadError } from '@/components/AdminLoadError'
 import { AdminModal as Modal, Field as L } from '@/components/AdminModal'
 
-type Rule = { id: string; service: 'wallet_transfer' | 'withdrawal'; label: string; asset: string | null; chain_id: number | null; fixed_fee: number; pct_fee: number; min_fee: number; max_fee: number | null; enabled: boolean; effective_from: string; updated_at: string }
+type Rule = { id: string; service: 'wallet_transfer' | 'withdrawal' | 'wallet_withdrawal'; label: string; asset: string | null; chain_id: number | null; fixed_fee: number; pct_fee: number; min_fee: number; max_fee: number | null; enabled: boolean; effective_from: string; updated_at: string }
 type Addr = { id: string; chain_id: number; network: string; asset: string; token_contract: string | null; decimals: number; address: string; min_confirmations: number; enabled: boolean }
 type FeeRow = { id: string; created_at: string; full_name: string | null; email: string | null; method: string; amount: number; reference: string | null; notes: string | null; status: string }
 
-const SERVICE: Record<string, string> = { wallet_transfer: 'External wallet → Tarafab transfer', withdrawal: 'Withdrawal' }
+const SERVICE: Record<string, string> = { withdrawal: 'Normal Withdrawal', wallet_withdrawal: 'External Wallet Transfer (to a linked wallet)', wallet_transfer: 'External wallet → Tarafab transfer (incoming)' }
 const NETS: [number, string][] = [[1, 'Ethereum'], [8453, 'Base'], [42161, 'Arbitrum One'], [10, 'OP Mainnet'], [137, 'Polygon'], [56, 'BNB Smart Chain']]
 // Canonical Ethereum mainnet stablecoin contracts, offered as a starting
 // point only; the admin confirms every value before saving.
@@ -104,6 +104,16 @@ export default function AdminFeesPage() {
         {rules && !rules.some(r => r.enabled && r.service === 'withdrawal') && (
           <p className="mt-2 text-[11px] text-amber-300" role="status" data-no-withdrawal-rule>No enabled {SERVICE['withdrawal'] || 'Withdrawal'} rule: clients&apos; withdrawal preview shows “None” and no withdrawal fee is charged. Rules apply only to the service they are set for (“Any asset · Any network” widens the asset and network, not the service). Add a rule with service “{SERVICE['withdrawal'] || 'Withdrawal'}” to charge withdrawals.</p>
         )}
+        {rules && !rules.some(r => r.enabled && r.service === 'wallet_withdrawal') && (
+          <p className="mt-2 text-[11px] text-amber-300" role="status" data-no-wallet-withdrawal-rule>No enabled {SERVICE.wallet_withdrawal} rule: withdrawals to linked wallets are charged no service fee. Add a rule with service “{SERVICE.wallet_withdrawal}”.</p>
+        )}
+        {rules && (() => {
+          // Sample check that External Wallet Transfer costs more than Normal Withdrawal (general rules).
+          const fee = (svc: string, amt: number) => { const r = rules.filter(x => x.enabled && x.service === svc && (!x.asset || ['ANY', '*', 'ALL'].includes(x.asset.trim().toUpperCase())) && x.chain_id == null)[0]; if (!r) return null
+            let f = Number(r.fixed_fee) + amt * Number(r.pct_fee) / 100; f = Math.max(f, Number(r.min_fee)); if (r.max_fee != null) f = Math.min(f, Number(r.max_fee)); return Math.min(f, amt) }
+          const bad = [100, 1000, 10000].filter(a => { const n = fee('withdrawal', a), x = fee('wallet_withdrawal', a); return n != null && x != null && x <= n })
+          return bad.length ? <p className="mt-2 text-[11px] text-amber-300" role="status" data-fee-order-warning>{SERVICE.wallet_withdrawal} is not more expensive than {SERVICE.withdrawal} at ${bad.join(', $')} (general rules).</p> : null
+        })()}
         <p className="mt-2 text-[11px] text-slate-500">The most specific enabled rule applies (asset + network, then asset, then network, then general). Fee = fixed + percentage, kept between min and max, never more than the amount. Shown to clients as “Tarafab Service Fee” before they confirm.</p>
       </section>
 
@@ -152,7 +162,8 @@ export default function AdminFeesPage() {
 
       {rf && (
         <Modal title={rf.id ? 'Edit fee rule' : 'New fee rule'} onClose={() => setRf(null)} onSave={saveRule} busy={busy} err={formErr}>
-          <L label="Service"><select className={field} value={rf.service} onChange={e => setRf({ ...rf, service: e.target.value })}><option value="wallet_transfer">{SERVICE.wallet_transfer}</option><option value="withdrawal">{SERVICE.withdrawal}</option></select></L>
+          <L label="Service"><select className={field} value={rf.service} onChange={e => setRf({ ...rf, service: e.target.value })}><option value="withdrawal">{SERVICE.withdrawal}</option><option value="wallet_withdrawal">{SERVICE.wallet_withdrawal}</option><option value="wallet_transfer">{SERVICE.wallet_transfer}</option></select></L>
+          <p className="text-[11px] text-slate-500 -mt-1">Normal Withdrawal: to an address the client types. External Wallet Transfer: to one of the client&apos;s linked, verified wallets (usually priced higher). Incoming: client sends crypto into Tarafab.</p>
           <L label="Label shown to clients"><input className={field} value={rf.label} onChange={e => setRf({ ...rf, label: e.target.value })} /></L>
           <div className="grid grid-cols-2 gap-2">
             <L label="Asset (blank = any)"><input className={field} value={rf.asset} onChange={e => setRf({ ...rf, asset: e.target.value.toUpperCase() })} placeholder="ETH" /></L>

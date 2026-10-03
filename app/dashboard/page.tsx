@@ -1256,8 +1256,11 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
   const inFlight = useRef(false)
   const amtNum = Math.round(parseFloat(amount) * 100) / 100
   // The destination's network decides which fee rule applies (manual addresses are Bitcoin).
-  const feeNetwork = wallets.find(w => w.id === destinationWalletId)?.network || 'Bitcoin'
-  const feeQ = useServiceFee('withdrawal', amtNum > 0 ? amtNum : 0, { network: feeNetwork })
+  // A linked & verified wallet = External Wallet Transfer (the server decides
+  // the service and its fee rule from the wallet id); a typed address = Normal
+  // Withdrawal on that address's network (Bitcoin).
+  const feeWallet = wallets.find(w => w.id === destinationWalletId)
+  const feeQ = useServiceFee('withdrawal', amtNum > 0 ? amtNum : 0, feeWallet ? { walletId: feeWallet.id } : { network: 'Bitcoin' })
   useEffect(() => {
     let active = true
     authFetch('/api/client/wallets')
@@ -1342,9 +1345,11 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
           onCancel={() => setReview(null)}
         >
           <dl className="divide-y divide-ink-700 text-sm">
+            <div className="flex justify-between gap-4 py-2.5"><dt className="text-fg-muted">Service</dt><dd className="text-fg text-right" data-review-service>{feeQ.state === 'ok' && feeQ.service ? (feeQ.service === 'wallet_withdrawal' ? 'External Wallet Transfer' : 'Normal Withdrawal') : '…'}</dd></div>
+            <div className="flex justify-between gap-4 py-2.5"><dt className="text-fg-muted">Asset · Network</dt><dd className="text-fg text-right">{feeQ.state === 'ok' && feeQ.asset ? `${feeQ.asset} · ` : ''}{review.network}</dd></div>
             <div className="flex justify-between gap-4 py-2.5"><dt className="text-fg-muted">{t('withdraw.amount')}</dt><dd className="text-fg font-semibold tabular-nums">${fmt(review.amt)}</dd></div>
             <div className="flex justify-between gap-4 py-2.5"><dt className="text-fg-muted">{t('withdraw.from')}</dt><dd className="text-fg">{t(source === 'profit_balance' ? 'withdraw.profitShort' : 'withdraw.availableShort')}</dd></div>
-            <div className="py-2.5"><dt className="text-fg-muted mb-1">{t('withdraw.yourAddress')} · {review.network}</dt><dd className="text-fg font-mono text-[13px] break-all">{review.address}</dd></div>
+            <div className="py-2.5"><dt className="text-fg-muted mb-1">{review.walletId ? 'Destination (linked wallet)' : t('withdraw.yourAddress')} · {review.network}</dt><dd className="text-fg font-mono text-[13px] break-all">{review.address}</dd></div>
           </dl>
           <div className="mt-3"><FeeRows q={feeQ} amount={review.amt} kind="withdrawal" /></div>
           <p className="mt-4 text-[13px] text-fg-muted leading-relaxed">{t('withdraw.reviewNote')}</p>

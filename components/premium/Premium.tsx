@@ -375,10 +375,10 @@ function PortfolioAnalytics({ account, txs }: { account: Account | null; txs: Tx
 
 // Tarafab Service Fee for an amount, worked out by the server with the active
 // admin-configured rule (the same calculation used when the fee is charged).
-export type FeeQuote = { state: 'idle' | 'loading' | 'ok' | 'error'; fee?: number; net?: number }
-export function useServiceFee(service: 'withdrawal' | 'wallet_transfer', amount: number, extra?: { asset?: string; chainId?: number; network?: string }) {
+export type FeeQuote = { state: 'idle' | 'loading' | 'ok' | 'error'; fee?: number; net?: number; service?: string; asset?: string | null }
+export function useServiceFee(service: 'withdrawal' | 'wallet_transfer', amount: number, extra?: { asset?: string; chainId?: number; network?: string; walletId?: string }) {
   const [q, setQ] = useState<FeeQuote>({ state: 'idle' })
-  const asset = extra?.asset, chainId = extra?.chainId, network = extra?.network
+  const asset = extra?.asset, chainId = extra?.chainId, network = extra?.network, walletId = extra?.walletId
   useEffect(() => {
     if (!(amount > 0)) { setQ({ state: 'idle' }); return }
     let alive = true
@@ -389,12 +389,13 @@ export function useServiceFee(service: 'withdrawal' | 'wallet_transfer', amount:
         if (asset) p.set('asset', asset)
         if (chainId) p.set('chain_id', String(chainId))
         if (network) p.set('network', network)
-        const r = await readJson<{ quote: { fee: number; net: number } }>(await authFetch(`/api/client/fees?${p}`))
-        if (alive) setQ({ state: 'ok', fee: Number(r.quote.fee), net: Number(r.quote.net) })
+        if (walletId) p.set('wallet_id', walletId)
+        const r = await readJson<{ quote: { fee: number; net: number; service?: string; asset?: string | null } }>(await authFetch(`/api/client/fees?${p}`))
+        if (alive) setQ({ state: 'ok', fee: Number(r.quote.fee), net: Number(r.quote.net), service: r.quote.service, asset: r.quote.asset ?? null })
       } catch (e) { console.error('Service fee quote failed', e); if (alive) setQ({ state: 'error' }) }
     }, 350)
     return () => { alive = false; clearTimeout(id) }
-  }, [service, amount, asset, chainId, network])
+  }, [service, amount, asset, chainId, network, walletId])
   return q
 }
 
@@ -403,9 +404,15 @@ export function FeeRows({ q, amount, kind }: { q: FeeQuote; amount: number; kind
   if (!(amount > 0)) return null
   if (q.state === 'error') return <p className="text-xs text-fg-faint">{pt('wd.feeUnavailable')}</p>
   return (
-    <div className="rounded-lg border border-ink-700 px-3 py-2 text-[13px] space-y-1" aria-live="polite">
-      <div className="flex justify-between gap-3"><span className="text-fg-muted">{pt('wd.serviceFee')}</span>
+    <div className="rounded-lg border border-ink-700 px-3 py-2 text-[13px] space-y-1" aria-live="polite" data-fee-box>
+      {kind === 'withdrawal' && q.state === 'ok' && q.service && (
+        <div className="flex justify-between gap-3"><span className="text-fg-muted">Withdrawal type</span>
+          <span className="text-fg text-right" data-withdrawal-type>{q.service === 'wallet_withdrawal' ? 'External Wallet Transfer' : 'Normal Withdrawal'}</span></div>
+      )}
+      <div className="flex justify-between gap-3"><span className="text-fg-muted">Amount</span><span className="text-fg tabular-nums">${fmt(amount)}</span></div>
+      <div className="flex justify-between gap-3"><span className="text-fg-muted">{q.state === 'ok' && q.service === 'wallet_withdrawal' ? 'External Wallet Transfer fee' : pt('wd.serviceFee')}</span>
         <span className="text-fg tabular-nums">{q.state !== 'ok' ? '…' : q.fee ? `$${fmt(q.fee)}` : pt('wd.feeNone')}</span></div>
+      {kind === 'withdrawal' && <div className="flex justify-between gap-3"><span className="text-fg-muted">Network fee</span><span className="text-fg-faint text-right">Not charged separately</span></div>}
       <div className="flex justify-between gap-3"><span className="text-fg-muted">{pt('wd.receive')}</span>
         <span className="text-fg font-medium tabular-nums">{q.state !== 'ok' ? '…' : `$${fmt(q.net ?? amount)}`}</span></div>
       {kind === 'withdrawal' && <p className="text-[11px] text-fg-faint">{pt('wd.feeNote')}</p>}
