@@ -75,7 +75,7 @@ function DayLine() {
   const d = pts.map((p, i) => `${i ? 'L' : 'M'}${((i / (pts.length - 1)) * w).toFixed(1)},${(hh - ((p - min) / span) * (hh - 8) - 4).toFixed(1)}`).join(' ')
   const color = pts[pts.length - 1] >= pts[0] ? chartColors.up : chartColors.down
   return (
-    <svg viewBox={`0 0 ${w} ${hh}`} className="w-full h-14" preserveAspectRatio="none" role="img" aria-label="Bitcoin price over the last 24 hours (historical data)">
+    <svg viewBox={`0 0 ${w} ${hh}`} className="w-full h-14" preserveAspectRatio="none" role="img" aria-label="Bitcoin 24-hour price history (historical data)">
       <path d={`${d} L${w},${hh} L0,${hh} Z`} style={{ fill: color, fillOpacity: 0.08 }} />
       <path d={d} fill="none" style={{ stroke: color }} strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
     </svg>
