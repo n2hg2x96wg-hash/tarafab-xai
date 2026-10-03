@@ -5,7 +5,7 @@ import { useI18n } from '@/lib/i18n/I18nProvider'
 import { marketsText } from '@/lib/i18n/markets'
 import { AutomationFlow } from '@/components/automation/AutomationFlow'
 import { useAssets } from './useAssets'
-import GlobalMarketVisual from './GlobalMarketVisual'
+import LiveMarketBoard from './LiveMarketBoard'
 
 const FEATURES = ['f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8'] as const
 const ICON: Record<string, string> = { f1: '◈', f2: '◉', f3: '⚡', f4: '▲', f5: '★', f6: '◐', f7: '▣', f8: '◆' }
@@ -27,8 +27,7 @@ export default function LandingMarkets() {
             <Link href="/sign-up" className="btn btn-solid mt-6 inline-flex">{t('gm.cta')}</Link>
           </div>
           <div>
-            <GlobalMarketVisual label={t('gm.caption')} />
-            <p className="mt-2 text-center text-[11px] text-fg-faint">{t('gm.caption')}</p>
+            <LiveMarketBoard />
           </div>
         </div>
         <ul className="mt-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

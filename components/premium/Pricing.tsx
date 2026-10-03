@@ -115,6 +115,16 @@ export function CurrencySelector({ pricing }: { pricing: DisplayPricing }) {
   )
 }
 
+// The price already shows the client's currency, so a plan description
+// sentence that announces a billing currency ("billed monthly in Nigerian
+// Naira") is dropped from the client card. The stored text is unchanged
+// (editable in Admin → Premium); other sentences are kept.
+const CURRENCY_WORDS = /\b(naira|ngn|dollars?|usd|pounds?|sterling|gbp|euros?|eur|cedis?|ghs|shillings?|kes|rand|zar|pesos?|php|rupees?|inr|dirhams?|aed)\b|[₦$£€]/i
+export function clientDescription(desc: string) {
+  const parts = (desc || '').trim().split(/(?<=[.!?])\s+/).filter(Boolean)
+  return parts.filter(p => !(/\b(billed|charged|paid|priced|payable)\b/i.test(p) && CURRENCY_WORDS.test(p))).join(' ').trim()
+}
+
 // "Premium Monthly NGN" → "Premium Monthly" for clients.
 export const displayName = (name: string) => name.replace(/\s+(NGN|USD)$/i, '')
 
@@ -162,7 +172,7 @@ export function PricingTable({ plans, freeLimits, currentPlanId, isFree, onChoos
                   <p className="mt-1 text-[15px] font-semibold text-fg">{displayName(p.name)}</p>
                   <PriceStack amount={p.promo_price ?? p.price} currency={p.currency} period={p.period} pricing={pricing} />
                   {p.promo_price != null && <p className="text-[12px] text-fg-faint"><s>{money(p.price, p.currency)}</s> {p.promo_label}</p>}
-                  {p.description && <p className="mt-2 text-[13px] text-fg-muted">{p.description}</p>}
+                  {clientDescription(p.description) && <p className="mt-2 text-[13px] text-fg-muted">{clientDescription(p.description)}</p>}
                   <ul className="mt-4 space-y-2 text-[13px] text-fg-muted flex-1">
                     {p.features.map(f => <li key={f} className="flex gap-2"><IconCheck width={14} height={14} className="mt-0.5 shrink-0 text-emerald-400" />{f}</li>)}
                   </ul>

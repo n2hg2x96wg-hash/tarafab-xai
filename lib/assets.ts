@@ -9,6 +9,8 @@ export type AssetQuote = {
   price: number | null; changePct: number | null; changeAbs: number | null
   high: number | null; low: number | null; prevClose: number | null; volume: number | null
   updatedAt: string | null; state: DataState; market: MarketStatus
+  // Data provider of this quote (display/attribution only).
+  source?: 'Coinbase Exchange' | 'CoinGecko' | 'Finnhub' | null
 }
 
 export const TIMEFRAMES = ['1H', '4H', '1D', '1W', '1M', '1Y'] as const

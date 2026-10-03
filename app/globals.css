@@ -466,3 +466,74 @@ body.dialog-open #chat-application { visibility: hidden !important; }
 @media (hover: hover) { .price-card:hover { transform: translateY(-3px); box-shadow: 0 18px 40px -24px rgba(0,0,0,.7); } }
 .price-card-hi { border-color: rgba(251, 191, 36, .45); background-image: radial-gradient(120% 60% at 50% 0%, rgba(251, 191, 36, .08), transparent 60%); }
 @media (prefers-reduced-motion: reduce) { .price-card, .price-card:hover { transition: none; transform: none; } }
+
+/* Loading placeholder for deferred sections: a soft moving sheen; still when
+   reduced motion is requested. */
+.skeleton-sheen { background: linear-gradient(100deg, transparent 20%, rgb(var(--fg) / 0.035) 50%, transparent 80%); background-size: 200% 100%; animation: skeletonSheen 1.6s ease-in-out infinite; }
+@keyframes skeletonSheen { 0% { background-position: 150% 0 } 100% { background-position: -50% 0 } }
+@media (prefers-reduced-motion: reduce) { .skeleton-sheen { animation: none; } }
+
+/* Live market board: a soft glow on tiles whose quote is live; the status dot
+   breathes only while the feed is live. Static with reduced motion. */
+.market-tile { transition: border-color .4s ease, transform .3s ease; }
+.market-tile-live { border-color: rgb(52 211 153 / 0.18); }
+.board-pulse { animation: boardPulse 2.4s ease-in-out infinite; }
+@keyframes boardPulse { 0%, 100% { box-shadow: 0 0 0 0 rgb(52 211 153 / .45) } 50% { box-shadow: 0 0 0 5px rgb(52 211 153 / 0) } }
+@media (prefers-reduced-motion: reduce) { .board-pulse { animation: none; } }
+
+/* ---------------------------------------------------------------------------
+   Scroll story (landing). --p (0..1) is the only value JavaScript writes; all
+   motion below is transform/opacity driven by it (GPU-composited). The stage
+   ignores pointer events so it never blocks buttons or the support widget. */
+.story-full { contain: layout paint; }
+.story-stage { position: relative; height: min(520px, 70vh); perspective: 1100px; perspective-origin: 50% 40%; pointer-events: none; --p: 0; }
+.story-plane { position: absolute; inset: 35% -20% -40% -20%; transform: rotateX(68deg) translateY(calc(var(--p) * -120px)); transform-origin: 50% 0;
+  background-image: linear-gradient(rgb(var(--accent) / .16) 1px, transparent 1px), linear-gradient(90deg, rgb(var(--accent) / .16) 1px, transparent 1px);
+  background-size: 44px 44px; mask-image: radial-gradient(70% 60% at 50% 20%, #000 30%, transparent 75%); -webkit-mask-image: radial-gradient(70% 60% at 50% 20%, #000 30%, transparent 75%); will-change: transform; }
+.story-orbit { position: absolute; inset: 0; transform-style: preserve-3d; transform: rotateX(6deg) rotateY(calc((var(--p) - .5) * -16deg)); will-change: transform; }
+.story-layer { position: absolute; left: 50%; top: 42%; width: min(360px, 80%); transform-style: preserve-3d;
+  transform: translate(-50%, -50%) translateY(calc(70px + var(--i) * 14px)) translateZ(calc(-80px - var(--i) * 40px)) scale(.9); opacity: .14;
+  transition: transform .7s cubic-bezier(.2,.7,.2,1), opacity .5s ease; will-change: transform, opacity; }
+.story-layer.is-active { transform: translate(-50%, -50%) translateZ(70px) scale(1); opacity: 1; }
+.story-layer.is-past { transform: translate(-50%, -50%) translateY(-150px) translateZ(-160px) scale(.86); opacity: 0; }
+.story-card { border-radius: 16px; border: 1px solid rgb(var(--ink-600) / .9); background: rgb(var(--ink-900) / .92); padding: 16px 18px;
+  box-shadow: 0 30px 60px -30px rgba(0,0,0,.75), 0 0 0 1px rgba(255,255,255,.02) inset; backdrop-filter: blur(6px); }
+.story-card[data-live="true"] { border-color: rgb(52 211 153 / .35); box-shadow: 0 30px 60px -30px rgba(0,0,0,.75), 0 0 40px -18px rgb(52 211 153 / .5); }
+.story-progress { position: absolute; left: 12%; right: 12%; bottom: 4%; height: 2px; background: rgb(var(--ink-700)); border-radius: 2px; overflow: hidden; }
+.story-progress span { display: block; height: 100%; background: rgb(var(--accent)); transform-origin: 0 50%; transform: scaleX(var(--p)); }
+.story-text { opacity: .4; transition: opacity .35s ease; }
+.story-text .story-body { display: none; }
+.story-text.is-active { opacity: 1; }
+.story-text.is-active .story-body { display: block; }
+.story-lite-step { opacity: 0; transform: translateY(16px); transition: opacity .5s ease, transform .6s cubic-bezier(.2,.7,.2,1); transition-delay: calc(var(--i) * 90ms); }
+.story-lite-step.is-in { opacity: 1; transform: none; }
+.story-lite .story-card { box-shadow: none; backdrop-filter: none; }
+@media (prefers-reduced-motion: reduce) {
+  .story-layer, .story-lite-step, .story-text { transition: none; }
+  .story-lite-step { opacity: 1; transform: none; }
+}
+
+/* Admin operations chart: columns on a slightly tilted floor. One-time
+   grow-in on first view; static under reduced motion. */
+.ops-stage { perspective: 900px; height: 150px; }
+.ops-floor {
+  height: 100%; display: flex; align-items: flex-end; gap: 6px; padding: 0 2px;
+  transform: rotateX(14deg); transform-origin: 50% 100%;
+  background: linear-gradient(to top, rgb(139 92 246 / .10), transparent 40%);
+  border-bottom: 1px solid rgb(255 255 255 / .08); border-radius: 6px;
+}
+.ops-col { flex: 1 1 0; height: 100%; display: flex; align-items: flex-end; min-width: 0; }
+.ops-bar {
+  width: 100%; height: max(var(--h), 2px); display: flex; flex-direction: column-reverse;
+  border-radius: 3px 3px 1px 1px; overflow: hidden; background: rgb(255 255 255 / .06);
+  transform: scaleY(0); transform-origin: 50% 100%;
+  transition: transform .6s cubic-bezier(.2,.7,.2,1) calc(var(--i) * 35ms), filter .2s;
+  box-shadow: 3px -2px 0 rgb(255 255 255 / .04);
+}
+.ops-bar > span { display: block; min-height: 2px; }
+.ops-chart[data-shown] .ops-bar { transform: scaleY(1); }
+.ops-col.is-picked .ops-bar { filter: brightness(1.3); }
+@media (prefers-reduced-motion: reduce) {
+  .ops-floor { transform: none; }
+  .ops-bar, .ops-chart[data-shown] .ops-bar { transform: none; transition: none; }
+}

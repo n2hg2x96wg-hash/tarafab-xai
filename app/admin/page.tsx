@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import AdminLayout from '@/components/AdminLayout'
 import { AdminLoadError } from '@/components/AdminLoadError'
+import OpsChart, { type Day } from '@/components/admin/OpsChart'
 
 type Client = {
   id: string
@@ -19,13 +20,69 @@ type Client = {
   } | null
 }
 
-type Stats = { total_customers: number; total_account_usd: number; total_available_usd: number; customers_with_accounts: number }
-// Totals come from the database (admin_stats) and the list is a small,
+type Overview = {
+  clients: { total: number; active: number; suspended: number; inactive: number; pending_verifications: number; new_7d: number }
+  balances: { account: number; available: number; invested: number; profit: number; pending: number }
+  deposits: { completed_count: number; completed_usd: number; pending: number }
+  withdrawals: { completed_count: number; completed_usd: number; pending: number }
+  investments: { active_count: number; active_principal: number; awaiting_activation: number; completed_count: number; completed_principal: number; products_open: number }
+  pending: { investments: number; deposits: number; withdrawals: number; verifications: number; transfers_review: number; payments_review: number }
+  system: { market_assets: number; market_live: number; market_newest: string | null; automations_active: number; engine_last_run: string | null; gateway_key: boolean | null; audit_24h: number }
+  daily: Day[]
+  recent: { action: string; entity: string | null; created_at: string; result: string | null; actor: string; target: string }[]
+  at: string
+}
+
+const usd = (n: number | string | null | undefined) => `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+function ago(iso: string | null | undefined) {
+  if (!iso) return null
+  const s = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000))
+  if (s < 60) return `${s}s ago`
+  const m = Math.round(s / 60); if (m < 60) return `${m} min ago`
+  const h = Math.round(m / 60); return h < 48 ? `${h} h ago` : `${Math.round(h / 24)} days ago`
+}
+const humanize = (a: string) => a.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase())
+
+type Tone = 'ok' | 'warn' | 'idle'
+const DOT: Record<Tone, string> = { ok: 'bg-emerald-400', warn: 'bg-amber-400', idle: 'bg-slate-500' }
+
+function Kpi({ label, value, sub, href }: { label: string; value: string | null; sub: React.ReactNode; href?: string }) {
+  const body = (
+    <>
+      <p className="text-slate-400 text-xs">{label}</p>
+      {value == null ? <div className="h-7 w-24 mt-2 rounded skeleton-sheen" /> : <p className="text-[17px] sm:text-xl lg:text-2xl font-bold text-white mt-1.5 tabular-nums [overflow-wrap:anywhere]">{value}</p>}
+      <p className="text-slate-500 text-[11px] mt-1">{sub}</p>
+    </>
+  )
+  const cls = 'glass rounded-2xl p-4 sm:p-5 border border-white/[0.08] block min-w-0'
+  return href ? <Link href={href} className={`${cls} hover:border-violet-500/30 transition-colors`}>{body}</Link> : <div className={cls}>{body}</div>
+}
+
+function Panel({ title, action, children, className = '' }: { title: string; action?: React.ReactNode; children: React.ReactNode; className?: string }) {
+  return (
+    <section className={`glass rounded-2xl border border-white/[0.08] p-4 sm:p-5 min-w-0 ${className}`}>
+      <div className="flex items-center justify-between gap-3 mb-3"><h2 className="text-sm font-semibold text-white">{title}</h2>{action}</div>
+      {children}
+    </section>
+  )
+}
+
+const LINK_GROUPS: { title: string; links: { label: string; href: string }[] }[] = [
+  { title: 'Clients', links: [{ label: 'All clients', href: '/admin/clients' }, { label: 'Verification', href: '/admin/verification' }, { label: 'Linked wallets', href: '/admin/wallets' }, { label: 'Notifications', href: '/admin/notifications' }] },
+  { title: 'Money', links: [{ label: 'Transactions', href: '/admin/transactions' }, { label: 'Investments', href: '/admin/investments' }, { label: 'Wallet transfers', href: '/admin/transfers' }, { label: 'Fees', href: '/admin/fees' }, { label: 'Reconciliation', href: '/admin/reconciliation' }] },
+  { title: 'Markets', links: [{ label: 'Assets & market data', href: '/admin/assets' }, { label: 'Automation Center', href: '/admin/automations' }] },
+  { title: 'System', links: [{ label: 'Premium', href: '/admin/premium' }, { label: 'Payments', href: '/admin/payments' }, { label: 'Feature controls', href: '/admin/features' }, { label: 'Audit logs', href: '/admin/audit-logs' }, { label: 'Settings', href: '/admin/settings' }] },
+]
+
+// Every figure comes from admin_overview(), a read-only database function
+// that refuses anyone who is not an admin. The client list below is a small,
 // server-filtered page, so the dashboard stays fast however many clients exist.
 export default function AdminPage() {
   const supabase = createClient()
   const [clients, setClients] = useState<Client[]>([])
-  const [stats, setStats] = useState<Stats | null>(null)
+  const [ov, setOv] = useState<Overview | null>(null)
+  const [ovError, setOvError] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [term, setTerm] = useState('')
@@ -37,7 +94,16 @@ export default function AdminPage() {
   useEffect(() => { const t = setTimeout(() => setTerm(search.trim()), 300); return () => clearTimeout(t) }, [search])
 
   useEffect(() => {
-    supabase.rpc('admin_stats').then(({ data, error }) => { if (!error && data) setStats(data as Stats) })
+    let alive = true
+    setRefreshing(true)
+    supabase.rpc('admin_overview').then(({ data, error }) => {
+      if (!alive) return
+      // A failed refresh keeps the last figures on screen and says so.
+      if (error || !data) setOvError(true)
+      else { setOv(data as Overview); setOvError(false) }
+      setRefreshing(false)
+    })
+    return () => { alive = false }
   }, [supabase, reload])
 
   useEffect(() => {
@@ -63,51 +129,134 @@ export default function AdminPage() {
 
   const filtered = clients
   const recentClients = clients
-  // Sum of the clients' Account Balances (spendable). The legacy recorded total
-  // (total_account_usd) is no longer kept in step with adjustments.
-  const totalAUM = Number(stats?.total_available_usd || 0)
-  const customers = { length: Number(stats?.total_customers || 0) }
-  const activeAccounts = Number(stats?.customers_with_accounts || 0)
+  const v = <T,>(f: (o: Overview) => T) => (ov ? f(ov) : null)
+
+  const pendingItems = ov ? [
+    { label: 'Deposits to review', n: ov.pending.deposits, href: '/admin/transactions?type=deposit' },
+    { label: 'Withdrawals to process', n: ov.pending.withdrawals, href: '/admin/transactions?type=withdrawal' },
+    { label: 'Investments awaiting activation', n: ov.pending.investments, href: '/admin/investments' },
+    { label: 'Identity verifications', n: ov.pending.verifications, href: '/admin/verification' },
+    { label: 'Wallet transfers to review', n: ov.pending.transfers_review, href: '/admin/transfers' },
+    { label: 'Payments to verify', n: ov.pending.payments_review, href: '/admin/payments' },
+  ] : []
+  const pendingTotal = pendingItems.reduce((n, p) => n + p.n, 0)
+
+  const system: { label: string; tone: Tone; detail: string; href: string }[] = ov ? (() => {
+    const s = ov.system
+    const feedFresh = s.market_newest && Date.now() - Date.parse(s.market_newest) < 10 * 60_000
+    const engineFresh = s.engine_last_run && Date.now() - Date.parse(s.engine_last_run) < 10 * 60_000
+    return [
+      { label: 'Market data feed', href: '/admin/assets',
+        tone: s.market_live > 0 && feedFresh ? 'ok' : 'warn',
+        detail: s.market_newest ? `${s.market_live} of ${s.market_assets} assets current · last quote ${ago(s.market_newest)}` : 'No quotes recorded yet' },
+      { label: 'Automation engine', href: '/admin/automations',
+        tone: s.automations_active === 0 ? 'idle' : engineFresh ? 'ok' : 'warn',
+        detail: s.automations_active === 0 ? 'No active automations' : `${s.automations_active} active · last evaluated ${ago(s.engine_last_run) || 'never'}` },
+      { label: 'Premium payment gateway', href: '/admin/payments',
+        tone: s.gateway_key ? 'ok' : 'warn',
+        detail: s.gateway_key ? 'Server key configured' : 'Server key not set — Premium checkout is unavailable' },
+      { label: 'Audit trail', href: '/admin/audit-logs', tone: 'ok', detail: `${s.audit_24h} events in the last 24 hours` },
+    ]
+  })() : []
 
   return (
     <AdminLayout title="Admin Dashboard" subtitle="Manage client accounts and platform activity">
       {loadError && <AdminLoadError message={loadError} onRetry={() => setReload(n => n + 1)} />}
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        {[
-          { label: 'Total Clients', value: customers.length.toString(), sub: 'registered users', icon: '◉' },
-          { label: 'Client Account Balances', value: `$${totalAUM.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, sub: 'total spendable balances', icon: '◈' },
-          { label: 'Active Accounts', value: activeAccounts.toString(), sub: 'with account records', icon: '⇄' },
-        ].map(stat => (
-          <div key={stat.label} className="glass rounded-2xl p-5 border border-white/[0.08]">
-            <div className="flex items-start justify-between mb-3">
-              <p className="text-slate-400 text-xs">{stat.label}</p>
-              <span className="text-violet-400 text-lg">{stat.icon}</span>
-            </div>
-            <p className="text-2xl font-bold text-white">{stats ? stat.value : '—'}</p>
-            <p className="text-slate-600 text-xs mt-1">{stat.sub}</p>
-          </div>
-        ))}
+      {ovError && <AdminLoadError message={ov ? 'The overview could not be refreshed. The figures shown are from the last successful load.' : 'The overview could not be loaded.'} onRetry={() => setReload(n => n + 1)} />}
+
+      <div className="flex items-center justify-between gap-3 mb-3 text-[11px] text-slate-500">
+        <span>{ov ? `Updated ${new Date(ov.at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}` : 'Loading overview…'}</span>
+        <button onClick={() => setReload(n => n + 1)} disabled={refreshing} className="px-2.5 py-1 rounded-lg border border-white/10 text-slate-300 hover:text-white hover:bg-white/5 disabled:opacity-50">{refreshing ? 'Refreshing…' : 'Refresh'}</button>
       </div>
 
-      {/* Quick links */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        {[
-          { label: 'View All Clients', href: '/admin/clients', color: 'violet' },
-          { label: 'Transactions', href: '/admin/transactions', color: 'blue' },
-          { label: 'Audit Logs', href: '/admin/audit-logs', color: 'slate' },
-          { label: 'Reconciliation audit', href: '/admin/reconciliation', color: 'yellow' },
-          { label: 'Assets & market data', href: '/admin/assets', color: 'blue' },
-          { label: 'Automation Center', href: '/admin/automations', color: 'violet' },
-          { label: 'Admin Login', href: '/admin/login', color: 'slate' },
-        ].map(link => (
-          <Link
-            key={link.label}
-            href={link.href}
-            className="glass rounded-xl p-4 border border-white/[0.08] hover:border-violet-500/30 hover:bg-violet-600/5 transition-all text-sm font-medium text-slate-300 hover:text-white text-center"
-          >
-            {link.label}
-          </Link>
+      {/* Key figures */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
+        <Kpi label="Total clients" href="/admin/clients" value={v(o => String(o.clients.total))}
+          sub={ov ? <>{ov.clients.active} active · {ov.clients.inactive} inactive{ov.clients.new_7d ? ` · ${ov.clients.new_7d} new this week` : ''}</> : ' '} />
+        <Kpi label="Client account balances" value={v(o => usd(o.balances.available))}
+          sub={ov ? <>spendable · {usd(ov.balances.pending)} pending</> : ' '} />
+        <Kpi label="Deposits completed" href="/admin/transactions?type=deposit" value={v(o => usd(o.deposits.completed_usd))}
+          sub={ov ? <>{ov.deposits.completed_count} completed · {ov.deposits.pending} pending</> : ' '} />
+        <Kpi label="Withdrawals completed" href="/admin/transactions?type=withdrawal" value={v(o => usd(o.withdrawals.completed_usd))}
+          sub={ov ? <>{ov.withdrawals.completed_count} completed · {ov.withdrawals.pending} pending</> : ' '} />
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-4 mb-4">
+        {/* Investments are their own block, never mixed into deposits. */}
+        <Panel title="Investments" action={<Link href="/admin/investments" className="text-xs text-violet-400 hover:text-violet-300">Manage →</Link>}>
+          {ov ? (
+            <dl className="grid grid-cols-2 gap-3 text-sm">
+              <div><dt className="text-[11px] text-slate-500">Active</dt><dd className="text-white font-semibold tabular-nums">{ov.investments.active_count} · {usd(ov.investments.active_principal)}</dd></div>
+              <div><dt className="text-[11px] text-slate-500">Awaiting activation</dt><dd className={`font-semibold tabular-nums ${ov.investments.awaiting_activation ? 'text-amber-300' : 'text-white'}`}>{ov.investments.awaiting_activation}</dd></div>
+              <div><dt className="text-[11px] text-slate-500">Completed</dt><dd className="text-white font-semibold tabular-nums">{ov.investments.completed_count} · {usd(ov.investments.completed_principal)}</dd></div>
+              <div><dt className="text-[11px] text-slate-500">Open products</dt><dd className="text-white font-semibold tabular-nums">{ov.investments.products_open}</dd></div>
+              <div className="col-span-2 pt-2 border-t border-white/[0.06]"><dt className="text-[11px] text-slate-500">Client invested · profit balances</dt><dd className="text-slate-300 tabular-nums">{usd(ov.balances.invested)} · {usd(ov.balances.profit)}</dd></div>
+            </dl>
+          ) : <div className="h-32 rounded-lg skeleton-sheen" />}
+        </Panel>
+
+        <Panel title="Needs attention" action={ov ? <span className={`text-[11px] px-2 py-0.5 rounded-full border ${pendingTotal ? 'border-amber-500/30 text-amber-300' : 'border-emerald-500/30 text-emerald-300'}`}>{pendingTotal ? `${pendingTotal} waiting` : 'All clear'}</span> : null}>
+          {ov ? (
+            <ul className="divide-y divide-white/[0.05] -my-1">
+              {pendingItems.map(p => (
+                <li key={p.label}>
+                  <Link href={p.href} className="flex items-center justify-between gap-3 py-2 text-[13px] text-slate-300 hover:text-white">
+                    <span className="min-w-0 truncate">{p.label}</span>
+                    <span className={`tabular-nums text-xs px-2 py-0.5 rounded-md ${p.n ? 'bg-amber-500/15 text-amber-300' : 'text-slate-600'}`}>{p.n}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : <div className="h-40 rounded-lg skeleton-sheen" />}
+        </Panel>
+
+        <Panel title="System status">
+          {ov ? (
+            <ul className="space-y-3">
+              {system.map(s => (
+                <li key={s.label}>
+                  <Link href={s.href} className="flex gap-2.5 group">
+                    <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${DOT[s.tone]}`} aria-hidden="true" />
+                    <span className="min-w-0">
+                      <span className="block text-[13px] text-slate-200 group-hover:text-white">{s.label}<span className="sr-only"> — {s.tone === 'ok' ? 'OK' : s.tone === 'warn' ? 'needs attention' : 'idle'}</span></span>
+                      <span className="block text-[11px] text-slate-500">{s.detail}</span>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : <div className="h-40 rounded-lg skeleton-sheen" />}
+        </Panel>
+      </div>
+
+      <div className="grid lg:grid-cols-5 gap-4 mb-4">
+        <Panel title="Activity" className="lg:col-span-3">
+          {ov ? <OpsChart days={ov.daily} /> : <div className="h-[210px] rounded-lg skeleton-sheen" />}
+        </Panel>
+        <Panel title="Recent admin activity" className="lg:col-span-2" action={<Link href="/admin/audit-logs" className="text-xs text-violet-400 hover:text-violet-300">Audit logs →</Link>}>
+          {ov ? ov.recent.length ? (
+            <ul className="space-y-2.5">
+              {ov.recent.slice(0, 7).map((r, i) => (
+                <li key={i} className="text-[12px] leading-snug">
+                  <span className="text-slate-200">{humanize(r.action)}</span>
+                  {r.result && r.result !== 'success' && <span className="ml-1.5 text-amber-300">({r.result})</span>}
+                  <span className="block text-[11px] text-slate-500 truncate">{`${r.actor || 'System'}${r.target ? ` → ${r.target}` : ''} · ${ago(r.created_at)}`}</span>
+                </li>
+              ))}
+            </ul>
+          ) : <p className="text-[13px] text-slate-500">No activity recorded yet.</p> : <div className="h-[210px] rounded-lg skeleton-sheen" />}
+        </Panel>
+      </div>
+
+      {/* Shortcuts, grouped */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+        {LINK_GROUPS.map(g => (
+          <nav key={g.title} aria-label={g.title} className="glass rounded-2xl border border-white/[0.08] p-4">
+            <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-2">{g.title}</p>
+            <ul className="space-y-1.5">
+              {g.links.map(l => <li key={l.href}><Link href={l.href} className="text-[13px] text-slate-300 hover:text-white">{l.label}</Link></li>)}
+            </ul>
+          </nav>
         ))}
       </div>
 

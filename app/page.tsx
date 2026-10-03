@@ -11,7 +11,8 @@ import { IconArrowDown, IconChart, IconCheck, IconGrid, IconList, IconLock, Icon
 import { FaqSection, HeroFloatPanels, HistorySection, NetworkSection, PlatformStatus, Reveal, TrustBar } from '@/components/LandingExtras'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import LazyOnView from '@/components/markets/LazyOnView'
+import LazyOnView, { MountOnView } from '@/components/markets/LazyOnView'
+import { MarketSources } from '@/components/markets/MarketSources'
 import { useTheme } from '@/lib/theme/ThemeProvider'
 
 // Decorative canvas: its code is fetched only once the browser is idle, so it
@@ -108,6 +109,7 @@ const safeguards: TKey[] = [
 
 const loadIntelligence = () => import('@/components/markets/LandingMarkets')
 const loadPricing = () => import('@/components/premium/LandingPricing')
+const loadStory = () => import('@/components/landing/ScrollStory')
 
 export default function LandingPage() {
   const router = useRouter()
@@ -251,6 +253,9 @@ export default function LandingPage() {
       {/* What the platform does */}
       <LazyOnView load={loadIntelligence} />
 
+      {/* Scroll-driven story: code fetched when the browser is idle, mounted near the viewport */}
+      <LazyOnView load={loadStory} minHeight={640} />
+
       <section id="platform" className="scroll-mt-16 border-b border-ink-700">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 lg:py-24">
           <Reveal><div className="mb-10 max-w-2xl">
@@ -280,28 +285,35 @@ export default function LandingPage() {
             <p className="mt-3 text-fg-muted">{t('landing.marketsBody')}</p>
           </div></Reveal>
 
-          <Reveal><div className="panel overflow-hidden mb-4">
-            <div className="flex items-center justify-between px-4 h-11 border-b border-ink-700 text-[13px]">
-              <span className="text-fg">BTC/USD</span>
-              <span className="text-fg-faint">{t('landing.livePrice')}</span>
-            </div>
-            <ErrorBoundary label={t('landing.livePrice')}><TradingViewWidget key={locale} /></ErrorBoundary>
-          </div></Reveal>
+          {/* The TradingView embed is a heavy third-party iframe: it is only
+              requested once the visitor scrolls near it. */}
+          <MountOnView className="mb-4 min-h-[466px] sm:min-h-[526px]">
+            <Reveal><div className="panel overflow-hidden mb-4">
+              <div className="flex items-center justify-between px-4 h-11 border-b border-ink-700 text-[13px]">
+                <span className="text-fg">BTC/USD</span>
+                <span className="text-fg-faint">{t('landing.livePrice')}</span>
+              </div>
+              <ErrorBoundary label={t('landing.livePrice')}><TradingViewWidget key={locale} /></ErrorBoundary>
+            </div></Reveal>
+          </MountOnView>
 
-          <div className="grid lg:grid-cols-[1fr_2fr] gap-4">
-            <Reveal className="h-full"><ErrorBoundary label={t('market.bitcoinMarket')}><BitcoinMarketCard /></ErrorBoundary></Reveal>
-            <Reveal delay={100}><ErrorBoundary label={t('market.blocksTitle')}><LatestBlocks /></ErrorBoundary></Reveal>
-          </div>
-          <div className="mt-4 flex flex-col gap-1 text-[11px] text-fg-faint sm:flex-row sm:items-center sm:justify-between">
-            <p>{t('landing.footer.attr')}</p>
-            <a href="https://www.coingecko.com/en/api" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-fg">{t('landing.footer.coinGecko')}</a>
-          </div>
+          <MountOnView className="min-h-[434px] lg:min-h-[278px]">
+            <div className="grid lg:grid-cols-[1fr_2fr] gap-4">
+              <Reveal className="h-full"><ErrorBoundary label={t('market.bitcoinMarket')}><BitcoinMarketCard /></ErrorBoundary></Reveal>
+              <Reveal delay={100}><ErrorBoundary label={t('market.blocksTitle')}><LatestBlocks /></ErrorBoundary></Reveal>
+            </div>
+          </MountOnView>
+          <MarketSources sources={['Coinbase Exchange', 'CoinGecko', 'mempool.space', 'TradingView chart']} className="mt-3 px-1" />
         </div>
       </section>
 
-      <ErrorBoundary label={t('market.historyTitle')} className="max-w-6xl mx-4 sm:mx-auto my-8"><HistorySection price={market.quotes['BTC-USD']?.price} /></ErrorBoundary>
+      <MountOnView className="max-w-6xl mx-4 sm:mx-6 lg:mx-auto my-8 min-h-[1200px] lg:min-h-[760px]">
+        <ErrorBoundary label={t('market.historyTitle')} className="max-w-6xl mx-4 sm:mx-auto my-8"><HistorySection price={market.quotes['BTC-USD']?.price} /></ErrorBoundary>
+      </MountOnView>
 
-      <ErrorBoundary label={t('network.title')} className="max-w-6xl mx-4 sm:mx-auto my-8"><NetworkSection /></ErrorBoundary>
+      <MountOnView className="max-w-6xl mx-4 sm:mx-6 lg:mx-auto my-8 min-h-[680px] lg:min-h-[330px]">
+        <ErrorBoundary label={t('network.title')} className="max-w-6xl mx-4 sm:mx-auto my-8"><NetworkSection /></ErrorBoundary>
+      </MountOnView>
 
       {/* How it works: the overall account and investment workflow */}
       <section id="how-it-works" className="scroll-mt-16 border-b border-ink-700">

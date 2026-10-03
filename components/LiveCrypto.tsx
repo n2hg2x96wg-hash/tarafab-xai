@@ -1,7 +1,8 @@
 'use client'
 
 import { chartColors } from '@/lib/chartColors'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useAssets } from '@/components/markets/assetStore'
 import { sharedSummary, useBtcHistory } from '@/components/useMarket'
 import { useI18n } from '@/lib/i18n/I18nProvider'
 import type { AssetQuote } from '@/lib/assets'
@@ -153,64 +154,13 @@ type TickerRow = {
 
 export function LiveTickerBar() {
   const { t } = useI18n()
-  const [rows, setRows] = useState<TickerRow[]>([])
-  useEffect(() => {
-    let active = true
-    let timer: ReturnType<typeof setTimeout> | undefined
-    let controller: AbortController | undefined
-    const refresh = async () => {
-      let requestController: AbortController | undefined
-      if (document.visibilityState === 'visible') {
-        const activeController = new AbortController()
-        requestController = activeController
-        controller = activeController
-        const timeout = setTimeout(() => activeController.abort(), 20_000)
-        try {
-          const response = await fetch('/api/market/assets', { cache: 'no-store', signal: activeController.signal })
-          if (!response.ok) throw new Error('Market data unavailable')
-          const body = await response.json() as { assets?: AssetQuote[] }
-          // Only real, current quotes; stale or unavailable assets are left out.
-          const usable: TickerRow[] = Array.isArray(body.assets) ? body.assets
-            .filter(a => typeof a?.id === 'string' && typeof a?.name === 'string' &&
-              a.price != null && Number.isFinite(a.price) && a.price > 0 && (a.state === 'live' || a.state === 'delayed'))
-            .map(a => ({ asset: { symbol: a.id, name: a.name }, quote: { price: a.price, change24h: a.changePct, status: a.state as 'live' | 'delayed' } })) : []
-          if (active && controller === requestController) {
-            setRows(previous => {
-              const unchanged = previous.length === usable.length && previous.every((row, index) => {
-                const next = usable[index]
-                return row.asset.symbol === next?.asset.symbol &&
-                  row.asset.name === next?.asset.name &&
-                  row.quote.price === next?.quote.price &&
-                  row.quote.change24h === next?.quote.change24h &&
-                  row.quote.status === next?.quote.status
-              })
-              return unchanged ? previous : usable
-            })
-          }
-        } catch {
-          if (active && controller === activeController) setRows([])
-        } finally {
-          clearTimeout(timeout)
-        }
-      }
-      if (active && (!requestController || controller === requestController)) timer = setTimeout(refresh, 30_000)
-    }
-    void refresh()
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') {
-        if (timer) clearTimeout(timer)
-        controller?.abort()
-        void refresh()
-      }
-    }
-    document.addEventListener('visibilitychange', onVisible)
-    return () => {
-      active = false
-      if (timer) clearTimeout(timer)
-      controller?.abort()
-      document.removeEventListener('visibilitychange', onVisible)
-    }
-  }, [])
+  // Shares the page's single /api/market/assets snapshot (no second request).
+  const { assets, error } = useAssets()
+  // Only real, current quotes; stale or unavailable assets are left out.
+  const rows: TickerRow[] = useMemo(() => (assets || [])
+    .filter(a => typeof a?.id === 'string' && typeof a?.name === 'string' &&
+      a.price != null && Number.isFinite(a.price) && a.price > 0 && (a.state === 'live' || a.state === 'delayed'))
+    .map(a => ({ asset: { symbol: a.id, name: a.name }, quote: { price: a.price, change24h: a.changePct, status: a.state as 'live' | 'delayed' } })), [assets])
 
   const renderItems = (copy: number) => rows.map(({ asset, quote }) => (
     <div key={`${copy}-${asset.symbol}`} className="flex items-center gap-2 sm:gap-3 px-5 sm:px-8 shrink-0 text-[12px] sm:text-[13px]">
@@ -227,7 +177,9 @@ export function LiveTickerBar() {
   return (
     <div className="relative overflow-hidden border-b border-ink-700 bg-ink-900 h-10 flex items-center marquee-mask" aria-label={t('market.livePrices')}>
       <div className={`flex w-max ${rows.length > 1 ? 'animate-marquee' : ''}`}>
-        {rows.length ? <>{renderItems(0)}<div className="flex" aria-hidden="true">{renderItems(1)}</div></> : null}
+        {rows.length ? <>{renderItems(0)}<div className="flex" aria-hidden="true">{renderItems(1)}</div></>
+          : assets === null && !error ? <span className="mx-5 inline-block h-3 w-64 rounded skeleton-sheen" aria-hidden="true" />
+          : <span className="px-5 text-[12px] text-fg-faint" role="status">Market data is temporarily unavailable · retrying automatically</span>}
       </div>
     </div>
   )

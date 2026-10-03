@@ -9,12 +9,13 @@ import { usMarketOpen, type AssetQuote, type DataState } from '@/lib/assets'
 // honest state. CDN-cached briefly so all visitors share one database read.
 export const dynamic = 'force-dynamic'
 const STALE_AFTER_MIN = 10
+const SOURCE: Record<string, AssetQuote['source']> = { coinbase: 'Coinbase Exchange', coingecko: 'CoinGecko', finnhub: 'Finnhub' }
 
 export async function GET() {
   const { url, anonKey } = getSupabaseEnv()
   const sb = createClient(url, anonKey, { auth: { persistSession: false, autoRefreshToken: false } })
   const [assets, quotes] = await Promise.all([
-    sb.from('market_assets').select('id, name, category, note, chart_enabled, automation_enabled, sort_order').order('sort_order').order('id'),
+    sb.from('market_assets').select('id, name, category, note, chart_enabled, automation_enabled, sort_order, provider').order('sort_order').order('id'),
     sb.from('market_quotes').select('asset_id, price, change_pct, change_abs, high, low, prev_close, volume, source_time, fetched_at, state'),
   ])
   if (assets.error) return NextResponse.json({ error: 'Market data is unavailable right now.' }, { status: 503 })
@@ -33,6 +34,7 @@ export async function GET() {
       low: r?.low != null ? Number(r.low) : null, prevClose: r?.prev_close != null ? Number(r.prev_close) : null,
       volume: r?.volume != null ? Number(r.volume) : null, updatedAt: r?.source_time || r?.fetched_at || null,
       state, market: state === 'unavailable' || state === 'error' ? 'unavailable' : crypto ? '24/7' : open ? 'open' : 'closed',
+      source: SOURCE[String((a as { provider?: string }).provider || '')] ?? null,
     }
   })
   return NextResponse.json({ assets: list, at: new Date().toISOString() }, { headers: { 'Cache-Control': 'public, s-maxage=15, stale-while-revalidate=30' } })

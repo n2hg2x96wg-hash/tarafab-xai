@@ -527,7 +527,8 @@ export function TrustBar({ marketStatus }: { marketStatus?: 'connecting' | 'live
   const liveFeed = marketStatus === 'live' || marketStatus === 'polling'
   const { t } = useI18n()
   const items: { label: string; sub: string }[] = [
-    { label: t(liveFeed ? 'trust.liveData' : 'trust.marketData'), sub: t(liveFeed ? 'trust.streaming' : 'trust.refreshing') },
+    // A failed feed says so; "Refreshing" is only shown while it is still connecting.
+    { label: t(liveFeed ? 'trust.liveData' : 'trust.marketData'), sub: t(liveFeed ? 'trust.streaming' : marketStatus === 'error' ? 'landing.status.unavailable' : 'trust.refreshing') },
     { label: t('trust.review'), sub: t('trust.reviewSub') },
     { label: t('trust.audit'), sub: t('trust.auditSub') },
     { label: t('trust.access'), sub: t('trust.accessSub') },
@@ -538,7 +539,7 @@ export function TrustBar({ marketStatus }: { marketStatus?: 'connecting' | 'live
         <div key={item.label} className="flex items-center gap-2.5">
           <span className="relative flex h-2 w-2 shrink-0">
             <span className={`absolute inline-flex h-full w-full rounded-full ${liveFeed ? 'bg-emerald-400 animate-ping opacity-60' : 'bg-fg-faint'}`} />
-            <span className={`relative inline-flex h-2 w-2 rounded-full ${liveFeed ? 'bg-emerald-400' : 'bg-fg-faint'}`} />
+            <span className={`relative inline-flex h-2 w-2 rounded-full ${liveFeed ? 'bg-emerald-400' : marketStatus === 'error' && item.label === t('trust.marketData') ? 'bg-amber-400' : 'bg-fg-faint'}`} />
           </span>
           <div className="leading-tight">
             <div className="text-[13px] font-medium text-fg">{item.label}</div>
