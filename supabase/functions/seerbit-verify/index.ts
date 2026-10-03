@@ -75,6 +75,12 @@ if (import.meta.main) Deno.serve(async (req) => {
   const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '')
   const { data: u } = gk ? { data: { user: null } } : token ? await db.auth.getUser(token) : { data: { user: null } }
   if (!gk && !u?.user) return json({ error: 'Please sign in again.' }, 401)
+  // Admin status check: reports only whether the SeerBit keys are present.
+  if ((body as { check?: boolean }).check === true && !gk) {
+    const { data: prof } = await db.from('profiles').select('role').eq('id', u!.user!.id).maybeSingle()
+    if (prof?.role !== 'admin') return json({ error: 'Not authorized.' }, 403)
+    return json({ configured: !!PUB && !!SEC })
+  }
   const ref = a ? a.reference : String(body.reference || '')
   if (!/^PAY-[A-Z0-9]{12}$/.test(ref)) return json({ error: 'Invalid payment reference.' }, 400)
 

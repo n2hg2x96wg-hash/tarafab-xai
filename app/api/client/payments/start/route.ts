@@ -15,8 +15,8 @@ export async function POST(request: NextRequest) {
   try { b = await request.json() } catch { return NextResponse.json({ error: 'Invalid request.' }, { status: 400 }) }
   const plan = String(b.plan_id ?? '')
   if (!/^[a-z0-9_-]{2,40}$/.test(plan)) return NextResponse.json({ error: 'Choose a plan.' }, { status: 400 })
+  // Optional hardening key; the database decides whether it is required.
   const key = gatewayKey()
-  if (key.length < 32) return NextResponse.json({ status: 'unavailable' }, { headers: { 'Cache-Control': 'no-store' } })
   const country = visitorCountry(request)
   const { data, error } = await supabase.rpc('gateway_start_payment', { p_key: key, p_plan: plan, p_country: country || '', p_idempotency_key: idempotencyKey(request, b as { idempotency_key?: unknown }) })
   if (error) return dbError(error)

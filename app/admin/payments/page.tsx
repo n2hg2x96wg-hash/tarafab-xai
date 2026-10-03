@@ -59,6 +59,8 @@ export default function AdminPaymentsPage() {
   const [sbToggle, setSbToggle] = useState<null | { plan: Plan; enable: boolean; reason: string }>(null)
   const [origin, setOrigin] = useState('')
   useEffect(() => { setOrigin(window.location.origin) }, [])
+  const [sbCreds, setSbCreds] = useState<boolean | null>(null)
+  useEffect(() => { supabase.functions.invoke('seerbit-verify', { body: { check: true } }).then(({ data }) => setSbCreds(typeof (data as { configured?: boolean } | null)?.configured === 'boolean' ? !!(data as { configured: boolean }).configured : null)).catch(() => setSbCreds(null)) }, [supabase, reload])
 
   const load = useCallback(async () => {
     const [l, p, a, g] = await Promise.all([
@@ -103,8 +105,10 @@ export default function AdminPaymentsPage() {
       <section className="glass rounded-2xl border border-white/[0.08] p-4 mb-5 text-xs" aria-labelledby="sb-title">
         <h2 id="sb-title" className="text-sm font-semibold text-white mb-2">SeerBit</h2>
         <dl className="grid sm:grid-cols-2 gap-x-6 gap-y-1">
-          <div><dt className="text-slate-500 inline">Gateway key: </dt><dd className="inline">{gateway?.configured ? <span className="text-emerald-400">configured</span> : <span className="text-amber-300">not configured (payments cannot start)</span>}</dd></div>
-          <div><dt className="text-slate-500 inline">Verification: </dt><dd className="inline">server-side via the seerbit-verify function</dd></div>
+          <div><dt className="text-slate-500 inline">Hosted payment links: </dt><dd className="inline">{(links || []).filter(l => l.enabled).length ? <span className="text-emerald-400">{(links || []).filter(l => l.enabled).length} active (customers can pay)</span> : <span className="text-amber-300">none active</span>}</dd></div>
+          <div><dt className="text-slate-500 inline">SeerBit verification credentials: </dt><dd className="inline">{sbCreds === null ? <span className="text-slate-400">checking…</span> : sbCreds ? <span className="text-emerald-400">configured</span> : <span className="text-amber-300">missing: payments wait for manual confirmation (SEERBIT_PUBLIC_KEY, SEERBIT_SECRET_KEY on the seerbit-verify function)</span>}</dd></div>
+          <div><dt className="text-slate-500 inline">Server gateway key (optional hardening, also enables webhook matching): </dt><dd className="inline">{gateway?.configured ? <span className="text-emerald-400">configured</span> : <span className="text-slate-300">not set: purchases still work</span>}</dd></div>
+          <div><dt className="text-slate-500 inline">Payments: </dt><dd className="inline">{(() => { const c = (st: string[]) => (attempts || []).filter(a => st.includes(a.status)).length; return <><span className="text-sky-300">{c(['redirected', 'pending_verification'])} pending</span> · <span className="text-emerald-400">{c(['successful'])} completed</span> · <span className="text-red-400">{c(['failed'])} failed</span> · <span className="text-slate-400">{c(['cancelled', 'expired'])} cancelled/expired</span></> })()}</dd></div>
           <div className="sm:col-span-2"><dt className="text-slate-500 inline">Return (redirect) URL for each SeerBit payment link: </dt><dd className="inline font-mono break-all">{origin}/payment/return</dd></div>
           <div className="sm:col-span-2"><dt className="text-slate-500 inline">Webhook URL (SeerBit dashboard → Settings → Webhooks): </dt><dd className="inline font-mono break-all">{origin}/api/webhooks/seerbit</dd></div>
         </dl>
@@ -116,6 +120,7 @@ export default function AdminPaymentsPage() {
             return (
               <li key={p.id} className="flex flex-wrap items-center gap-2">
                 <span className="text-white">{p.name}</span><span className="text-slate-500">{fmt(Number(p.promo_price ?? p.price), p.currency)}</span>
+                {pl.length > 0 && <span className={on && pl.some(l => l.enabled && Number(l.amount) === Number(p.promo_price ?? p.price) && l.currency === p.currency) ? 'text-emerald-400' : 'text-amber-300'}>{on ? (pl.some(l => l.enabled && Number(l.amount) === Number(p.promo_price ?? p.price) && l.currency === p.currency) ? 'Purchasable' : 'Not purchasable: link amount/currency differs from plan') : 'Not purchasable'}</span>}
                 {!pl.length ? <span className="ml-auto text-slate-500">No SeerBit link</span> : (
                   <button onClick={() => { setFormErr(''); setSbToggle({ plan: p, enable: !on, reason: '' }) }} aria-label={`${on ? 'Disable' : 'Enable'} SeerBit for ${p.name}`}
                     className={`ml-auto rounded-lg border px-2.5 py-1 ${on ? 'border-emerald-500/30 text-emerald-300' : 'border-white/[0.12] text-slate-300'}`}>{on ? 'SeerBit enabled' : 'SeerBit disabled'}</button>
@@ -170,7 +175,7 @@ export default function AdminPaymentsPage() {
       <section className="glass rounded-2xl border border-white/[0.08] p-4 mb-5 text-xs">
         <h2 className="text-sm font-semibold text-white mb-2">Payment gateway</h2>
         <p className="text-slate-400">Customers get a payment link only through the server gateway, which checks the visitor&apos;s country (from the hosting platform&apos;s IP geolocation), the plan, the amount and that the link is enabled. IP geolocation is an estimate: VPNs and proxies can change it, and an unknown location is always blocked.</p>
-        <p className="mt-2">Status: {gateway?.configured ? <span className="text-emerald-400">Gateway key set ({new Date(gateway.updated_at).toLocaleString()})</span> : <span className="text-amber-300">Not configured: payments are unavailable until a gateway key is set here and in Vercel.</span>}</p>
+        <p className="mt-2">Status: {gateway?.configured ? <span className="text-emerald-400">Gateway key set ({new Date(gateway.updated_at).toLocaleString()})</span> : <span className="text-slate-300">Not set (optional). Purchases through active SeerBit links work without it. Set it in Vercel (PAYMENT_GATEWAY_KEY) first, then save the same value here; once saved here it is required for every payment.</span>}</p>
         {!newKey ? <button onClick={generateKey} className="mt-3 rounded-lg border border-white/[0.12] px-3 py-1.5 text-slate-200">{gateway?.configured ? 'Replace gateway key' : 'Create gateway key'}</button> : (
           <div className="mt-3 space-y-2">
             <p className="text-amber-300">Copy this key now: it is not stored in readable form. Add it to Vercel as the environment variable <span className="font-mono">PAYMENT_GATEWAY_KEY</span> (not NEXT_PUBLIC), redeploy, then save it here.</p>
