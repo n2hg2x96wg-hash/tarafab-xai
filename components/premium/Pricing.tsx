@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { IconCheck } from '@/components/Icons'
 import { usePt } from '@/components/premium/Premium'
 
@@ -18,11 +18,32 @@ export function money(n: number, currency: string) {
   try { return new Intl.NumberFormat(currency === 'NGN' ? 'en-NG' : 'en-US', { style: 'currency', currency, maximumFractionDigits: n % 1 ? 2 : 0 }).format(n) } catch { return `${currency} ${n}` }
 }
 
+// Live USD/NGN display rate from /api/fx (shared across components).
+// undefined = loading, null = no reliable rate (then no USD line is shown).
+let fxPromise: Promise<number | null> | null = null
+export function useUsdNgn(): number | null | undefined {
+  const [rate, setRate] = useState<number | null | undefined>(undefined)
+  useEffect(() => {
+    fxPromise ||= fetch('/api/fx').then(r => (r.ok ? r.json() : null)).then(j => (j && Number.isFinite(j.rate) && j.rate > 0 ? Number(j.rate) : null)).catch(() => null)
+    let live = true
+    fxPromise.then(v => { if (live) setRate(v) })
+    return () => { live = false }
+  }, [])
+  return rate
+}
+export function usdEquivalent(amount: number, currency: string, rate: number | null | undefined) {
+  if (currency !== 'NGN' || !rate) return null
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount / rate)
+}
+// "Premium Monthly NGN" → "Premium Monthly" for clients.
+export const displayName = (name: string) => name.replace(/\s+(NGN|USD)$/i, '')
+
 export function PricingTable({ plans, freeLimits, currentPlanId, isFree, onChoose, busyId }: {
   plans: PricingPlan[]; freeLimits: { automations: number; watchlist: number } | null; currentPlanId?: string | null; isFree?: boolean
   onChoose: (p: PricingPlan) => void; busyId?: string
 }) {
   const pt = usePt()
+  const rate = useUsdNgn()
   const periods = useMemo(() => (['month', 'quarter', 'year'] as Period[]).filter(p => plans.some(x => x.period === p)), [plans])
   const [period, setPeriod] = useState<Period>(() => (periods.includes('month') ? 'month' : periods[0] || 'month'))
   const active = periods.includes(period) ? period : periods[0] || 'month'
@@ -57,8 +78,14 @@ export function PricingTable({ plans, freeLimits, currentPlanId, isFree, onChoos
               <p className="text-[12px] uppercase tracking-[0.14em] text-fg-faint">{pt(`pp.tier.${tier}`)}</p>
               {p ? (
                 <>
-                  <p className="mt-1 text-[15px] font-semibold text-fg">{p.name}</p>
+                  <p className="mt-1 text-[15px] font-semibold text-fg">{displayName(p.name)}</p>
                   <p className="mt-2 text-3xl font-semibold text-fg tabular-nums">{money(p.promo_price ?? p.price, p.currency)}<span className="text-sm font-normal text-fg-faint"> {pt(`pp.per.${p.period}`)}</span></p>
+                  {p.currency === 'NGN' && (
+                    // Space is reserved while the rate loads so prices do not shift.
+                    <p className="text-[13px] text-fg-muted tabular-nums min-h-[1.25rem]" data-usd-equivalent>
+                      {usdEquivalent(p.promo_price ?? p.price, p.currency, rate) ? <>≈ {usdEquivalent(p.promo_price ?? p.price, p.currency, rate)} {pt(`pp.per.${p.period}`)}</> : null}
+                    </p>
+                  )}
                   {p.promo_price != null && <p className="text-[12px] text-fg-faint"><s>{money(p.price, p.currency)}</s> {p.promo_label}</p>}
                   {p.description && <p className="mt-2 text-[13px] text-fg-muted">{p.description}</p>}
                   <ul className="mt-4 space-y-2 text-[13px] text-fg-muted flex-1">
@@ -67,7 +94,7 @@ export function PricingTable({ plans, freeLimits, currentPlanId, isFree, onChoos
                   {p.note && <p className="mt-3 text-[11px] text-fg-faint">{p.note}</p>}
                   <button onClick={() => onChoose(p)} disabled={!p.available || current || busyId === p.id}
                     className={`btn w-full mt-4 min-h-[44px] ${p.highlighted ? 'btn-solid' : 'btn-outline'}`}>
-                    {current ? pt('pp.current') : !p.available ? pt('pp.unavailable') : pt('pp.choose', { plan: p.name })}
+                    {current ? pt('pp.current') : !p.available ? pt('pp.unavailable') : pt('pp.choose', { plan: displayName(p.name) })}
                   </button>
                 </>
               ) : <p className="mt-3 text-[13px] text-fg-faint flex-1">{pt('pp.notOffered')}</p>}

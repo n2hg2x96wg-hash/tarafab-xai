@@ -10,7 +10,8 @@ import { Spinner } from '@/components/AuthShell'
 import { fmt, type Account, type Tx } from '@/components/dashboard/shared'
 import { TIMEFRAMES } from '@/lib/assets'
 import { hiddenState, useFeatures } from '@/components/ui/features'
-import { PricingTable, money as planMoney } from '@/components/premium/Pricing'
+import { createClient } from '@/lib/supabase/client'
+import { PricingTable, money as planMoney, useUsdNgn, usdEquivalent, displayName } from '@/components/premium/Pricing'
 import { newRequestKey } from '@/lib/authFetch'
 
 export type PremiumInfo = {
@@ -113,12 +114,20 @@ export function PremiumCenter({ account, txs }: { account: Account | null; txs: 
   const payKey = useRef(newRequestKey())
   // Payment-access gateway: the server checks the country, the plan, the
   // amount and availability; only then does it return SeerBit's page.
+  const fxRate = useUsdNgn()
   const startPay = async () => {
     if (!payReview) return
     setPayBusy(payReview.id); setErr('')
     try {
-      const r = await readJson<{ status: string; url?: string; reference?: string }>(await authFetch('/api/client/payments/start', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ plan_id: payReview.id, idempotency_key: payKey.current }) }))
+      // Eligibility is decided by the database from Cloudflare's cf-ipcountry,
+      // which Supabase's edge sets from this browser's own IP (a sent value is
+      // overwritten). No country is sent; plan price/currency/link are looked
+      // up server-side. Only the plan id goes out.
+      const sb = createClient()
+      const { data, error } = await (sb.rpc as unknown as (f: string, a: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>)
+        .call(sb, 'gateway_start_payment', { p_key: null, p_plan: payReview.id, p_country: null, p_idempotency_key: payKey.current })
+      if (error) throw new Error(error.message)
+      const r = (data || { status: 'disabled' }) as { status: string; url?: string; reference?: string }
       if (r.status === 'ok' && r.url && r.reference && /^https:\/\/pay\.seerbitapi\.com\//.test(r.url)) {
         try { sessionStorage.setItem('tarafab.payRef', r.reference) } catch { /* the return page also lists recent payments */ }
         window.location.assign(r.url); return
@@ -282,12 +291,15 @@ export function PremiumCenter({ account, txs }: { account: Account | null; txs: 
         <ConfirmModal title={pt('pay.reviewTitle')} confirmLabel={payBusy ? pt('pay.checking') : pt('pay.continue')} cancelLabel={pt('tr.cancel')} busy={!!payBusy}
           onCancel={() => { setPayReview(null); payKey.current = newRequestKey() }} onConfirm={startPay}>
           <dl className="divide-y divide-ink-700 text-sm">
-            <div className="flex justify-between gap-4 py-2"><dt className="text-fg-muted">{pt('pay.plan')}</dt><dd className="text-fg">{payReview.name}</dd></div>
+            <div className="flex justify-between gap-4 py-2"><dt className="text-fg-muted">{pt('pay.plan')}</dt><dd className="text-fg">{displayName(payReview.name)}</dd></div>
             <div className="flex justify-between gap-4 py-2"><dt className="text-fg-muted">{pt('pay.amount')}</dt><dd className="text-fg font-semibold tabular-nums">{planMoney(Number(payReview.promo_price ?? payReview.price), payReview.currency)}</dd></div>
+            {payReview.currency === 'NGN' && usdEquivalent(Number(payReview.promo_price ?? payReview.price), payReview.currency, fxRate) && (
+              <div className="flex justify-between gap-4 py-2"><dt className="text-fg-muted">{pt('pay.usdEq')}</dt><dd className="text-fg-muted tabular-nums">≈ {usdEquivalent(Number(payReview.promo_price ?? payReview.price), payReview.currency, fxRate)}</dd></div>
+            )}
             <div className="flex justify-between gap-4 py-2"><dt className="text-fg-muted">{pt('pay.billing')}</dt><dd className="text-fg">{pt(`pp.${payReview.period || payReview.interval}`)}</dd></div>
           </dl>
           <p className="mt-3 text-[12px] text-fg-muted">{pt('pay.secure')}</p>
-          {payReview.currency === 'USD' && <p className="mt-1 text-[12px] text-fg-faint">{pt('pay.ngnCheckout')}</p>}
+          {payReview.currency === 'NGN' && <p className="mt-1 text-[12px] text-fg-faint">{pt('pay.ngnCheckout')}</p>}
         </ConfirmModal>
       )}
       {confirmCancel && sub && (

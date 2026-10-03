@@ -4,7 +4,7 @@
 import type { Locale } from './config'
 
 const en: Record<string, string> = {
-  "pay.restrictedNg": "Premium checkout is currently available only in Nigeria.",
+  "pay.restrictedNg": "Online checkout is currently available in Nigeria only.",
   "pay.st.redirected": "Started",
   "pay.st.pending_verification": "Pending verification",
   "pay.st.successful": "Successful",
@@ -41,7 +41,8 @@ const en: Record<string, string> = {
   "pay.billing": "Billing",
   "pay.once": "One-time payment for one {period}",
   "pay.secure": "You will continue to SeerBit’s secure payment page. Premium activates only after the payment is verified.",
-  "pay.ngnCheckout": "Prices are shown in USD. Checkout is available in Nigeria only and is charged in NGN by SeerBit.",
+  "pay.ngnCheckout": "Prices are displayed in NGN with the current USD equivalent. Checkout is currently available in Nigeria and is processed in NGN by SeerBit.",
+  "pay.usdEq": "USD equivalent",
   "pay.continue": "Continue to payment",
   "pay.checking": "Checking payment availability…",
   "pay.regionTitle": "Payment unavailable in your region",
