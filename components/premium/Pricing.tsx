@@ -82,26 +82,24 @@ export function usdEquivalent(amount: number, currency: string, rate: number | n
 // (NGN display) shows ₦ as the headline with the USD equivalent underneath.
 // No reliable rate: the NGN price is the headline. Fixed placeholder while
 // the rate loads so prices do not shift.
+// One client-facing price, in the visitor's display currency (converted from
+// the plan's NGN price; NGN itself for Nigeria). No second currency line.
+// No reliable rate: the plan's real NGN price is shown (never an invented
+// conversion). A same-height placeholder while the rate loads, so cards do
+// not shift.
 export function PriceStack({ amount, currency, period, pricing, size = 'card' }: { amount: number; currency: string; period: string; pricing: DisplayPricing; size?: 'card' | 'modal' }) {
   const pt = usePt()
   const per = pt(`pp.per.${period}`)
   const big = size === 'card' ? 'text-3xl' : 'text-xl'
   const headline = (text: string, title?: string) => <p className={`${big} font-semibold text-fg tabular-nums whitespace-nowrap`} title={title}>{text}<span className="text-sm font-normal text-fg-faint"> {per}</span></p>
-  const sub = (text: string) => <p className="mt-0.5 text-[13px] text-fg-muted tabular-nums whitespace-nowrap" data-ngn-secondary>{text} {per}</p>
-  if (currency !== 'NGN') return <div className={size === 'card' ? 'mt-2' : ''} data-price-stack>{headline(money(amount, currency))}</div>
+  const wrap = (body: React.ReactNode, disp: string) => <div className={size === 'card' ? 'mt-2' : ''} data-price-stack data-display-currency={disp}>{body}</div>
+  if (currency !== 'NGN') return wrap(headline(money(amount, currency)), currency)
   const { currency: disp, rates } = pricing
-  const ngn = fmtMoney(amount, 'NGN')
-  let body
-  if (disp === 'NGN') {
-    const usd = convertNgn(amount, 'USD', rates)
-    body = <>{headline(ngn)}{usd != null ? sub(`≈ ${fmtMoney(usd, 'USD')} USD`) : rates === undefined ? <p className="mt-0.5 min-h-[1.25rem]" /> : null}</>
-  } else {
-    const local = convertNgn(amount, disp, rates)
-    body = local != null ? <>{headline(fmtMoney(local, disp), pt('pp.localApprox'))}{sub(`≈ ${ngn} NGN`)}</>
-      : rates === undefined ? <><p className={`${big} font-semibold tabular-nums`} aria-hidden="true"><span className="inline-block h-[1em] w-28 rounded-md bg-white/[0.06] animate-pulse align-middle" /></p>{sub(`≈ ${ngn} NGN`)}</>
-      : headline(ngn)
-  }
-  return <div className={size === 'card' ? 'mt-2' : ''} data-price-stack data-display-currency={disp}>{body}</div>
+  if (disp === 'NGN') return wrap(headline(fmtMoney(amount, 'NGN')), 'NGN')
+  const local = convertNgn(amount, disp, rates)
+  if (local != null) return wrap(headline(fmtMoney(local, disp), pt('pp.localApprox')), disp)
+  if (rates === undefined) return wrap(<p className={`${big} font-semibold tabular-nums`} aria-hidden="true"><span className="inline-block h-[1em] w-28 rounded-md bg-white/[0.06] animate-pulse align-middle" /></p>, disp)
+  return wrap(headline(fmtMoney(amount, 'NGN')), 'NGN')
 }
 
 // "Prices shown in" selector (display only; never affects checkout).

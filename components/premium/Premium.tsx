@@ -139,7 +139,7 @@ export function PremiumCenter({ account, txs }: { account: Account | null; txs: 
       if (r.status === 'region_blocked' || r.status === 'unknown_region') {
         const reason = r.status === 'region_blocked' ? 'restricted' : 'unverified'
         setPayBusy(''); setPayReview(null); payKey.current = newRequestKey()
-        window.history.replaceState(null, '', `/dashboard?payment=${reason}#premium`); setPayNotice(reason); return
+        window.history.replaceState(null, '', `/dashboard?payment=${reason}&plan=${encodeURIComponent(payReview.id)}#premium`); setPayNotice(reason); return
       }
       window.location.assign('/payment/unavailable?reason=disabled'); return
     } catch (e) { setErr(errorText(e)) }
@@ -300,7 +300,7 @@ export function PremiumCenter({ account, txs }: { account: Account | null; txs: 
             <div className="flex justify-between gap-4 py-2"><dt className="text-fg-muted">{pt('pay.billing')}</dt><dd className="text-fg">{pt(`pp.${payReview.period || payReview.interval}`)}</dd></div>
           </dl>
           <p className="mt-3 text-[12px] text-fg-muted">{pt('pay.secure')}</p>
-          {payReview.currency === 'NGN' && <p className="mt-1 text-[12px] text-fg-faint">{pt('pay.ngnCheckout')}</p>}
+          {payReview.currency === 'NGN' && <p className="mt-1 text-[12px] text-fg-faint">{pt(pricing.currency === 'NGN' ? 'pay.ngnCheckout' : 'pay.ngOnlyNote')}</p>}
         </ConfirmModal>
       )}
       {confirmCancel && sub && (

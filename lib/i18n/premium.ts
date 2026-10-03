@@ -4,7 +4,8 @@
 import type { Locale } from './config'
 
 const en: Record<string, string> = {
-  "pay.restrictedNg": "Premium checkout is currently available in Nigeria only. You can continue browsing Tarafab.XAi, but subscription checkout is restricted to eligible Nigerian customers.",
+  "pay.restrictedNg": "Online payment for this plan is currently available only through our supported Nigeria checkout. Your selected plan remains available for review.",
+  "pay.ngOnlyNote": "Online payment is currently available only through our supported Nigeria checkout. Eligibility is confirmed when you continue.",
   "pay.st.redirected": "Started",
   "pay.st.pending_verification": "Pending verification",
   "pay.st.successful": "Successful",
