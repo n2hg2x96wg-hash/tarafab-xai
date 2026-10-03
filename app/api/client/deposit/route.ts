@@ -1,9 +1,12 @@
+import { featureBlocked } from '@/lib/features'
 import { NextRequest, NextResponse } from 'next/server'
 import { clientForRequest, dbError, idempotencyKey, unauthorized } from '@/lib/supabase/request'
 
 export async function POST(request: NextRequest) {
   const { supabase } = clientForRequest(request)
   if (!supabase) return unauthorized()
+  // Switched off in Admin → Feature controls: refused here too, not only hidden.
+  { const blocked = await featureBlocked(supabase, 'deposits'); if (blocked) return blocked }
 
   // Hiding this section in the admin menu settings also switches it off here,
   // so it cannot be used by calling the API directly.

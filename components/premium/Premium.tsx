@@ -11,7 +11,7 @@ import { fmt, type Account, type Tx } from '@/components/dashboard/shared'
 import { TIMEFRAMES } from '@/lib/assets'
 import { hiddenState, useFeatures } from '@/components/ui/features'
 import { createClient } from '@/lib/supabase/client'
-import { PricingTable, money as planMoney, useUsdNgn, displayName, PriceStack } from '@/components/premium/Pricing'
+import { PricingTable, money as planMoney, useDisplayPricing, displayName, PriceStack } from '@/components/premium/Pricing'
 import { newRequestKey } from '@/lib/authFetch'
 
 export type PremiumInfo = {
@@ -114,7 +114,7 @@ export function PremiumCenter({ account, txs }: { account: Account | null; txs: 
   const payKey = useRef(newRequestKey())
   // Payment-access gateway: the server checks the country, the plan, the
   // amount and availability; only then does it return SeerBit's page.
-  const fxRate = useUsdNgn()
+  const pricing = useDisplayPricing()
   const startPay = async () => {
     if (!payReview) return
     setPayBusy(payReview.id); setErr('')
@@ -294,7 +294,7 @@ export function PremiumCenter({ account, txs }: { account: Account | null; txs: 
             <div className="flex justify-between gap-4 py-2"><dt className="text-fg-muted">{pt('pay.plan')}</dt><dd className="text-fg">{displayName(payReview.name)}</dd></div>
             <div className="flex justify-between items-start gap-4 py-2"><dt className="text-fg-muted">{pt('pay.amount')}</dt><dd className="text-right">
               {payReview.currency === 'NGN'
-                ? <PriceStack amount={Number(payReview.promo_price ?? payReview.price)} currency={payReview.currency} period={payReview.period || payReview.interval} rate={fxRate} size="modal" />
+                ? <PriceStack amount={Number(payReview.promo_price ?? payReview.price)} currency={payReview.currency} period={payReview.period || payReview.interval} pricing={pricing} size="modal" />
                 : <span className="text-fg font-semibold tabular-nums">{planMoney(Number(payReview.promo_price ?? payReview.price), payReview.currency)}</span>}
             </dd></div>
             <div className="flex justify-between gap-4 py-2"><dt className="text-fg-muted">{pt('pay.billing')}</dt><dd className="text-fg">{pt(`pp.${payReview.period || payReview.interval}`)}</dd></div>

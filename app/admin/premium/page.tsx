@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import AdminLayout from '@/components/AdminLayout'
 import { AdminLoadError } from '@/components/AdminLoadError'
 import { AdminModal, Field } from '@/components/AdminModal'
+import { CurrencySettings } from '@/components/admin/CurrencySettings'
 
 type Settings = { free_automation_limit: number; premium_automation_limit: number; free_watchlist_limit: number; premium_watchlist_limit: number; premium_timeframes: string[]; updated_at: string }
 type Plan = { id: string; name: string; billing_interval: 'month' | 'year'; price: number; currency: string; promo_price: number | null; promo_label: string | null; provider_price_id: string | null; enabled: boolean; sort_order: number; tier?: string; billing_period?: string | null; description?: string; features?: string[]; highlighted?: boolean }
@@ -67,6 +68,7 @@ export default function AdminPremiumPage() {
 
   return (
     <AdminLayout title="Premium" subtitle="Plans, limits and client subscriptions">
+      <CurrencySettings basePrices={(plans || []).filter(p => p.enabled && p.currency === 'NGN').map(p => ({ name: p.name, amount: Number(p.promo_price ?? p.price) }))} />
       {error && <AdminLoadError message={error} onRetry={() => setReload(n => n + 1)} />}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
         {[['Premium', count('premium')], ['Past due', count('past_due')], ['Cancelled', count('cancelled')], ['Expired', count('expired')]].map(([k, v]) => (

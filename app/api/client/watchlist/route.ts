@@ -1,3 +1,4 @@
+import { featureBlocked } from '@/lib/features'
 import { NextRequest, NextResponse } from 'next/server'
 import { clientForRequest, dbError, unauthorized } from '@/lib/supabase/request'
 import { clientIp, rateLimited } from '@/lib/rateLimit'
@@ -15,6 +16,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const { supabase } = clientForRequest(request)
   if (!supabase) return unauthorized()
+  // Switched off in Admin → Feature controls: refused here too, not only hidden.
+  { const blocked = await featureBlocked(supabase, 'watchlist'); if (blocked) return blocked }
   const limited = rateLimited(`watchlist:${clientIp(request)}`, 120, 60_000)
   if (limited) return limited
   let b: Record<string, unknown>

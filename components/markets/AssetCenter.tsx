@@ -9,6 +9,7 @@ import { marketsText } from '@/lib/i18n/markets'
 import { IconChart, IconClose, IconLock } from '@/components/Icons'
 import { AreaChart, Sparkline, sma } from './Charts'
 import { loadChart, useAssets } from './useAssets'
+import { hiddenState, useFeatures } from '@/components/ui/features'
 
 type Cat = 'all' | 'crypto' | 'stock' | 'index' | 'watchlist'
 const CATS: Cat[] = ['all', 'crypto', 'stock', 'index', 'watchlist']
@@ -44,6 +45,9 @@ function Change({ a, className = '' }: { a: AssetQuote; className?: string }) {
 export function AssetCenter({ onAutomate }: { onAutomate: (assetId: string) => void }) {
   const { t } = useMk()
   const { assets, error, reload } = useAssets()
+  // Admin → Feature controls (watchlist / charts); data is kept when off.
+  const feature = useFeatures()
+  const watchOff = hiddenState(feature('watchlist')), chartsOff = hiddenState(feature('charts'))
   const [cat, setCat] = useState<Cat>('all')
   const [q, setQ] = useState('')
   const [watch, setWatch] = useState<string[] | null>(null)
@@ -80,6 +84,7 @@ export function AssetCenter({ onAutomate }: { onAutomate: (assetId: string) => v
   // Sparklines for the cards on screen (crypto only; cached per session).
   useEffect(() => {
     const ac = new AbortController()
+    if (chartsOff) return
     const need = list.filter(a => a.chart && !sparks[a.id]).slice(0, 12)
     ;(async () => {
       for (const a of need) {
@@ -87,7 +92,7 @@ export function AssetCenter({ onAutomate }: { onAutomate: (assetId: string) => v
       }
     })()
     return () => ac.abort()
-  }, [list]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [list, chartsOff]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const live = (assets || []).filter(a => a.price != null && a.changePct != null && (a.state === 'live' || a.state === 'delayed'))
   const gainer = live.length ? live.reduce((m, a) => (a.changePct! > m.changePct! ? a : m)) : null
@@ -121,7 +126,7 @@ export function AssetCenter({ onAutomate }: { onAutomate: (assetId: string) => v
         <label className="sr-only" htmlFor="asset-search">{t('center.search')}</label>
         <input id="asset-search" type="search" value={q} onChange={e => setQ(e.target.value)} placeholder={t('center.searchPh')} className="field sm:flex-1" />
         <div className="seg flex-wrap" role="tablist" aria-label={t('center.categories')}>
-          {CATS.map(c => (
+          {CATS.filter(c => !(watchOff && c === 'watchlist')).map(c => (
             <button key={c} role="tab" aria-selected={cat === c} onClick={() => setCat(c)} className={`seg-btn ${cat === c ? 'seg-btn-on' : ''}`}>
               {t(`cat.${c}`)}{c === 'watchlist' && watch ? ` (${watch.length})` : ''}
             </button>
@@ -156,7 +161,7 @@ export function AssetCenter({ onAutomate }: { onAutomate: (assetId: string) => v
                     {a.price != null ? <p className="text-xl font-semibold tabular-nums text-fg">{formatPrice(a.price)}</p> : <p className="text-sm text-fg-muted">{t('status.dataUnavailable')}</p>}
                     <Change a={a} className="text-[13px]" />
                   </div>
-                  <Sparkline points={sparks[a.id] || []} up={a.changePct == null ? null : a.changePct >= 0} className="w-28 h-9 shrink-0" />
+                  {!chartsOff && <Sparkline points={sparks[a.id] || []} up={a.changePct == null ? null : a.changePct >= 0} className="w-28 h-9 shrink-0" />}
                 </button>
                 <div className="flex items-center justify-between gap-2">
                   <StatusBadge a={a} />
@@ -168,12 +173,12 @@ export function AssetCenter({ onAutomate }: { onAutomate: (assetId: string) => v
         </ul>
       )}
 
-      {selected && <AssetDetail a={selected} watched={(watch || []).includes(selected.id)} onWatch={() => toggleWatch(selected.id)} onAutomate={() => { setOpen(null); onAutomate(selected.id) }} onClose={() => setOpen(null)} />}
+      {selected && <AssetDetail a={selected} watchOff={watchOff} chartsOff={chartsOff} watched={(watch || []).includes(selected.id)} onWatch={() => toggleWatch(selected.id)} onAutomate={() => { setOpen(null); onAutomate(selected.id) }} onClose={() => setOpen(null)} />}
     </section>
   )
 }
 
-function AssetDetail({ a, watched, onWatch, onAutomate, onClose }: { a: AssetQuote; watched: boolean; onWatch: () => void; onAutomate: () => void; onClose: () => void }) {
+function AssetDetail({ a, watched, onWatch, onAutomate, onClose, watchOff = false, chartsOff = false }: { a: AssetQuote; watched: boolean; watchOff?: boolean; chartsOff?: boolean; onWatch: () => void; onAutomate: () => void; onClose: () => void }) {
   const { t, intl } = useMk()
   const [tf, setTf] = useState<Timeframe>('1D')
   const [chart, setChart] = useState<{ points: [number, number][]; available: boolean; reason?: string; premium?: boolean } | null>(null)
@@ -186,11 +191,11 @@ function AssetDetail({ a, watched, onWatch, onAutomate, onClose }: { a: AssetQuo
     ? [{ values: sma(chart.points, 20), color: 'rgb(56 189 248)', label: 'SMA 20' }, { values: sma(chart.points, 50), color: 'rgb(251 191 36)', label: 'SMA 50' }]
     : []), [smaOn, isPremium, chart])
   useEffect(() => {
-    if (!a.chart) { setChart({ points: [], available: false }); return }
+    if (!a.chart || chartsOff) { setChart({ points: [], available: false }); return }
     const ac = new AbortController(); setChart(null)
     loadChart(a.id, tf, ac.signal).then(setChart).catch(() => { if (!ac.signal.aborted) setChart({ points: [], available: false }) })
     return () => ac.abort()
-  }, [a.id, a.chart, tf])
+  }, [a.id, a.chart, tf, chartsOff])
   useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }; window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k) }, [onClose])
   const stats: [string, string][] = [
     [t('detail.high'), formatPrice(a.high)], [t('detail.low'), formatPrice(a.low)],
@@ -215,7 +220,7 @@ function AssetDetail({ a, watched, onWatch, onAutomate, onClose }: { a: AssetQuo
           <Change a={a} className="text-lg" />
           <StatusBadge a={a} />
         </div>
-        <div className="mt-5">
+        {!chartsOff && <div className="mt-5">
           {a.chart && (
             <div className="seg mb-3" role="tablist" aria-label={t('detail.timeframe')}>
               {TIMEFRAMES.map(x => <button key={x} role="tab" aria-selected={tf === x} onClick={() => (lockedTf(x) ? openPremiumGate(`${pt('pr.f.timeframes')}: ${x}`) : setTf(x))} className={`seg-btn ${tf === x ? 'seg-btn-on' : ''}`}>{x}{lockedTf(x) && <IconLock width={10} height={10} className="inline ml-0.5 -mt-0.5 text-amber-300" />}</button>)}
@@ -235,12 +240,12 @@ function AssetDetail({ a, watched, onWatch, onAutomate, onClose }: { a: AssetQuo
               : chart.premium ? <button onClick={() => openPremiumGate(`${pt('pr.f.timeframes')}: ${tf}`)} className="text-sm text-amber-300 flex items-center gap-2"><IconLock width={14} height={14} />{pt('pr.gateBody')}</button>
               : <p className="text-sm text-fg-muted flex items-center gap-2 px-4 text-center"><IconChart width={16} height={16} />{a.chart ? t('detail.chartUnavailable') : t('detail.chartNotOffered')}</p>}
           </div>
-        </div>
+        </div>}
         <dl className="mt-5 grid grid-cols-2 sm:grid-cols-5 gap-3">
           {stats.map(([k, v]) => <div key={k} className="rounded-lg border border-ink-700/60 px-3 py-2"><dt className="text-[11px] text-fg-faint">{k}</dt><dd className="text-sm text-fg tabular-nums mt-0.5 break-words">{v}</dd></div>)}
         </dl>
         <div className="mt-5 flex flex-col-reverse sm:flex-row gap-2">
-          <button onClick={onWatch} className="btn btn-outline flex-1">{watched ? `★ ${t('watch.inList')}` : `☆ ${t('watch.addShort')}`}</button>
+          {!watchOff && <button onClick={onWatch} className="btn btn-outline flex-1">{watched ? `★ ${t('watch.inList')}` : `☆ ${t('watch.addShort')}`}</button>}
           {a.automation && <button onClick={onAutomate} className="btn btn-solid flex-1">{t('center.createAutomation')}</button>}
         </div>
         <p className="mt-4 text-[11px] text-fg-faint">{t('center.disclosure')}</p>

@@ -29,6 +29,7 @@ import { AssetCenter } from '@/components/markets/AssetCenter'
 import { AutomationCenter } from '@/components/markets/AutomationCenter'
 import { FeeRows, PremiumCenter, PremiumGateHost, useServiceFee, usePt } from '@/components/premium/Premium'
 import { hiddenState, useFeatures } from '@/components/ui/features'
+import type { FeatureKey } from '@/lib/features'
 import { StateView } from '@/components/ui/State'
 import {
   HistoryTab, LoadMore, NotificationsTab, PerformanceTab, PortfolioTab, PreferencesTab, SecurityTab, SupportTab, noticesFrom,
@@ -151,7 +152,14 @@ export default function DashboardPage() {
   const feature = useFeatures()
   const pt = usePt()
   const NAV_FEATURE = { automations: 'automations', premium: 'premium' } as const
-  const hiddenNav = useMemo(() => [...savedHiddenNav, ...Object.entries(NAV_FEATURE).filter(([, k]) => hiddenState(feature(k))).map(([id]) => id)],
+  // Admin → Feature controls: each client module and the sections it covers.
+  const MODULE_SECTIONS: Partial<Record<FeatureKey, string[]>> = {
+    markets: ['markets', 'marketActivity', 'priceHistory'], portfolio: ['portfolio', 'performance'], wallet: ['wallet'],
+    deposits: ['deposit', 'depositHistory'], withdrawals: ['withdraw', 'withdrawalHistory'], activity: ['transactions'],
+    verification: ['verification'], announcements: ['notifications'], support: ['support'],
+  }
+  const hiddenNav = useMemo(() => [...savedHiddenNav, ...Object.entries(NAV_FEATURE).filter(([, k]) => hiddenState(feature(k))).map(([id]) => id),
+    ...Object.entries(MODULE_SECTIONS).filter(([k]) => hiddenState(feature(k as FeatureKey))).flatMap(([, ids]) => ids!)],
     [savedHiddenNav, feature]) // eslint-disable-line react-hooks/exhaustive-deps
   const soon = (id: string) => id in NAV_FEATURE && feature(NAV_FEATURE[id as keyof typeof NAV_FEATURE]) === 'coming_soon'
   const [navOrder, setNavOrder] = useState<string[]>([])
@@ -503,7 +511,7 @@ export default function DashboardPage() {
             {activeNav === 'automations' && !soon('automations') && <AutomationCenter presetAsset={autoAsset} onPresetUsed={() => setAutoAsset(null)} />}
             {activeNav === 'premium' && !soon('premium') && <PremiumCenter account={account} txs={txs} />}
             {activeNav === 'transactions' && <><TransactionsTab txs={txs} /><div className="mt-4"><LoadMore hasMore={hasMore} loading={loadingMore} onLoadMore={loadMore} /></div></>}
-            {activeNav === 'portfolio' && <div className="space-y-8"><InvestmentCenter go={go} focusId={focusInv} onFocusDone={() => setFocusInv(null)} /><PortfolioTab account={account} txs={txs} hasMore={hasMore} go={go} /></div>}
+            {activeNav === 'portfolio' && <div className="space-y-8">{!hiddenState(feature('investments')) && <InvestmentCenter go={go} focusId={focusInv} onFocusDone={() => setFocusInv(null)} />}<PortfolioTab account={account} txs={txs} hasMore={hasMore} go={go} /></div>}
             {activeNav === 'depositHistory' && <HistoryTab kind="deposit" txs={txs} hasMore={hasMore} loadingMore={loadingMore} onLoadMore={loadMore} go={go} />}
             {activeNav === 'withdrawalHistory' && <HistoryTab kind="withdrawal" txs={txs} hasMore={hasMore} loadingMore={loadingMore} onLoadMore={loadMore} go={go} />}
             {activeNav === 'security' && <SecurityTab user={user} />}
@@ -655,6 +663,7 @@ function KycChip({ go }: { go: (id: string) => void }) {
 
 /* Overview */
 function OverviewTab({ name, account, txs, go, can, labelOf }: { name: string; account: Account | null; txs: Tx[]; go: (id: string) => void; can: (id: string) => boolean; labelOf: (item: { id: string; label: TKey }) => string }) {
+  const feature = useFeatures()
   const recentTxs = txs.slice(0, 5)
   const pendingCount = account?.pending_transaction_count ?? txs.filter(x => x.status.startsWith('pending')).length
   const { t, intl } = useI18n()
@@ -739,13 +748,13 @@ function OverviewTab({ name, account, txs, go, can, labelOf }: { name: string; a
         )}
       </div>
 
-      {can('portfolio') && <ErrorBoundary label={t('inv.f.activeTitle')}><ActiveInvestmentsCard go={go} /></ErrorBoundary>}
+      {can('portfolio') && !hiddenState(feature('investments')) && <ErrorBoundary label={t('inv.f.activeTitle')}><ActiveInvestmentsCard go={go} /></ErrorBoundary>}
 
-      <TradingStatusCard
+      {!hiddenState(feature('trading_status')) && <TradingStatusCard
         status={account?.trading_status}
         strategyName={account?.trading_strategy_name}
         updatedAt={account?.trading_status_updated_at}
-      />
+      />}
 
       <div className="grid lg:grid-cols-[1fr_1.6fr] gap-4">
         <section className="panel p-5 sm:p-6" aria-labelledby="ov-perf">

@@ -3,6 +3,8 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 export type FeatureState = 'enabled' | 'disabled' | 'premium' | 'coming_soon' | 'unavailable' | 'admin_only'
 export type FeatureKey = 'automations' | 'premium' | 'wallet_transfer' | 'portfolio_analytics'
+  | 'markets' | 'charts' | 'watchlist' | 'portfolio' | 'investments' | 'wallet' | 'deposits' | 'withdrawals'
+  | 'activity' | 'verification' | 'announcements' | 'support' | 'trading_status'
 
 // Server-side gate used by API routes before an action. 'premium' features
 // are allowed here; the Premium entitlement itself is checked by the

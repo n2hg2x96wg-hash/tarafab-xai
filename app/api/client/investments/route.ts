@@ -1,3 +1,4 @@
+import { featureBlocked } from '@/lib/features'
 import { NextRequest, NextResponse } from 'next/server'
 import { clientForRequest, dbError, idempotencyKey, unauthorized } from '@/lib/supabase/request'
 
@@ -103,6 +104,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const { supabase } = clientForRequest(request)
   if (!supabase) return unauthorized()
+  // Switched off in Admin → Feature controls: refused here too, not only hidden.
+  { const blocked = await featureBlocked(supabase, 'investments'); if (blocked) return blocked }
 
   let body: Record<string, unknown>
   try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid request' }, { status: 400 }) }

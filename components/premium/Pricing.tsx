@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { CURRENCIES, DEFAULT_CURRENCY_CONFIG, isCurrency, parseCurrencyConfig, type CurrencyConfig } from '@/lib/currency'
 import { IconCheck } from '@/components/Icons'
 import { usePt } from '@/components/premium/Premium'
 
@@ -18,56 +19,104 @@ export function money(n: number, currency: string) {
   try { return new Intl.NumberFormat(currency === 'NGN' ? 'en-NG' : 'en-US', { style: 'currency', currency, maximumFractionDigits: n % 1 ? 2 : 0 }).format(n) } catch { return `${currency} ${n}` }
 }
 
-// Live USD/NGN display rate from /api/fx (shared across components).
-// undefined = loading, null = no reliable rate (then no USD line is shown).
-// The last good rate is kept in the browser (max 7 days) so the page can show
-// it at once and fall back to it if the rate service is briefly unavailable.
-let fxPromise: Promise<number | null> | null = null
-const FX_KEY = 'tarafab.fx.usdngn', FX_MAX_AGE = 7 * 24 * 3600_000
-function cachedRate(): number | null {
-  try { const c = JSON.parse(localStorage.getItem(FX_KEY) || 'null'); return c && Date.now() - c.at < FX_MAX_AGE && c.rate > 0 ? Number(c.rate) : null } catch { return null }
+// Display currency + exchange rates (display only; NGN is always what is
+// billed). Currency: the visitor's own choice, else their IP country (if
+// auto-detect is on and that currency is enabled), else the admin fallback.
+// Rates: /api/fx (USD-based), cached in the browser for instant display and
+// as a fallback for up to 7 days.
+type Fx = Record<string, number>
+type Geo = { country: string | null; currency: string; config: CurrencyConfig }
+let fxPromise: Promise<Fx | null> | null = null
+let geoPromise: Promise<Geo | null> | null = null
+const FX_KEY = 'tarafab.fx.rates', FX_MAX_AGE = 7 * 24 * 3600_000, CUR_KEY = 'tarafab.displayCurrency'
+const curSubs = new Set<(c: string) => void>()
+function cachedFx(): Fx | null {
+  try { const c = JSON.parse(localStorage.getItem(FX_KEY) || 'null'); return c && Date.now() - c.at < FX_MAX_AGE && c.rates?.NGN > 0 ? c.rates : null } catch { return null }
 }
-export function useUsdNgn(): number | null | undefined {
-  const [rate, setRate] = useState<number | null | undefined>(undefined)
+export type DisplayPricing = { currency: string; rates: Fx | null | undefined; country: string | null; enabled: string[]; setCurrency: (c: string) => void }
+export function useDisplayPricing(): DisplayPricing {
+  const [rates, setRates] = useState<Fx | null | undefined>(undefined)
+  const [geo, setGeo] = useState<Geo | null>(null)
+  const [chosen, setChosen] = useState<string | null>(null)
   useEffect(() => {
-    const cached = cachedRate()
-    if (cached) setRate(cached)
-    fxPromise ||= fetch('/api/fx').then(r => (r.ok ? r.json() : null)).then(j => (j && Number.isFinite(j.rate) && j.rate > 0 ? Number(j.rate) : null)).catch(() => null)
+    const cached = cachedFx()
+    if (cached) setRates(cached)
+    try { const c = localStorage.getItem(CUR_KEY); if (isCurrency(c)) setChosen(c) } catch { /* ignore */ }
+    fxPromise ||= fetch('/api/fx').then(r => (r.ok ? r.json() : null)).then(j => (j && j.rates && j.rates.NGN > 0 ? j.rates as Fx : null)).catch(() => null)
+    geoPromise ||= fetch('/api/geo').then(r => (r.ok ? r.json() : null)).then(j => (j ? { country: j.country ?? null, currency: String(j.currency || ''), config: parseCurrencyConfig(j.config) } : null)).catch(() => null)
     let live = true
     fxPromise.then(v => {
-      if (v) { try { localStorage.setItem(FX_KEY, JSON.stringify({ rate: v, at: Date.now() })) } catch { /* ignore */ } }
-      if (live) setRate(v ?? cached ?? null)
+      if (v) { try { localStorage.setItem(FX_KEY, JSON.stringify({ rates: v, at: Date.now() })) } catch { /* ignore */ } }
+      if (live) setRates(v ?? cached ?? null)
     })
-    return () => { live = false }
+    geoPromise.then(g => { if (live) setGeo(g) })
+    const sub = (c: string) => setChosen(c)
+    curSubs.add(sub)
+    return () => { live = false; curSubs.delete(sub) }
   }, [])
-  return rate
+  const cfg = geo?.config || DEFAULT_CURRENCY_CONFIG
+  const currency = chosen && cfg.enabled.includes(chosen) ? chosen : geo?.currency && cfg.enabled.includes(geo.currency) ? geo.currency : cfg.fallback
+  const setCurrency = (c: string) => { try { localStorage.setItem(CUR_KEY, c) } catch { /* ignore */ } curSubs.forEach(f => f(c)) }
+  return { currency, rates, country: geo?.country ?? null, enabled: cfg.enabled, setCurrency }
+}
+// NGN amount converted to `to` (null when no reliable rate).
+export function convertNgn(amount: number, to: string, rates: Fx | null | undefined) {
+  if (to === 'NGN') return amount
+  if (!rates?.NGN || !rates[to]) return null
+  return amount / rates.NGN * rates[to]
+}
+export function fmtMoney(n: number, c: string) {
+  try {
+    return new Intl.NumberFormat(c === 'NGN' ? 'en-NG' : 'en-US', { style: 'currency', currency: c, currencyDisplay: 'narrowSymbol',
+      minimumFractionDigits: c === 'NGN' && n % 1 === 0 ? 0 : 2, maximumFractionDigits: 2 }).format(n)
+  } catch { return `${c} ${n.toFixed(2)}` }
+}
+// Kept for callers of the previous API: NGN per USD.
+export function useUsdNgn(): number | null | undefined { const { rates } = useDisplayPricing(); return rates === undefined ? undefined : rates?.NGN ?? null }
+export function usdEquivalent(amount: number, currency: string, rate: number | null | undefined) {
+  if (currency !== 'NGN' || !rate) return null
+  return fmtMoney(amount / rate, 'USD')
 }
 
-// USD headline with the exact NGN price underneath (NGN plans); NGN only
-// when no reliable rate exists; a fixed-size placeholder while loading.
-export function PriceStack({ amount, currency, period, rate, size = 'card' }: { amount: number; currency: string; period: string; rate: number | null | undefined; size?: 'card' | 'modal' }) {
+// Local-currency headline with the original NGN price underneath. Nigeria
+// (NGN display) shows ₦ as the headline with the USD equivalent underneath.
+// No reliable rate: the NGN price is the headline. Fixed placeholder while
+// the rate loads so prices do not shift.
+export function PriceStack({ amount, currency, period, pricing, size = 'card' }: { amount: number; currency: string; period: string; pricing: DisplayPricing; size?: 'card' | 'modal' }) {
   const pt = usePt()
   const per = pt(`pp.per.${period}`)
   const big = size === 'card' ? 'text-3xl' : 'text-xl'
-  if (currency !== 'NGN') return <p className={`mt-2 ${big} font-semibold text-fg tabular-nums whitespace-nowrap`}>{money(amount, currency)}<span className="text-sm font-normal text-fg-faint"> {per}</span></p>
-  const usd = usdEquivalent(amount, currency, rate)
+  const headline = (text: string, title?: string) => <p className={`${big} font-semibold text-fg tabular-nums whitespace-nowrap`} title={title}>{text}<span className="text-sm font-normal text-fg-faint"> {per}</span></p>
+  const sub = (text: string) => <p className="mt-0.5 text-[13px] text-fg-muted tabular-nums whitespace-nowrap" data-ngn-secondary>{text} {per}</p>
+  if (currency !== 'NGN') return <div className={size === 'card' ? 'mt-2' : ''} data-price-stack>{headline(money(amount, currency))}</div>
+  const { currency: disp, rates } = pricing
+  const ngn = fmtMoney(amount, 'NGN')
+  let body
+  if (disp === 'NGN') {
+    const usd = convertNgn(amount, 'USD', rates)
+    body = <>{headline(ngn)}{usd != null ? sub(`≈ ${fmtMoney(usd, 'USD')} USD`) : rates === undefined ? <p className="mt-0.5 min-h-[1.25rem]" /> : null}</>
+  } else {
+    const local = convertNgn(amount, disp, rates)
+    body = local != null ? <>{headline(fmtMoney(local, disp), pt('pp.localApprox'))}{sub(`≈ ${ngn} NGN`)}</>
+      : rates === undefined ? <><p className={`${big} font-semibold tabular-nums`} aria-hidden="true"><span className="inline-block h-[1em] w-28 rounded-md bg-white/[0.06] animate-pulse align-middle" /></p>{sub(`≈ ${ngn} NGN`)}</>
+      : headline(ngn)
+  }
+  return <div className={size === 'card' ? 'mt-2' : ''} data-price-stack data-display-currency={disp}>{body}</div>
+}
+
+// "Prices shown in" selector (display only; never affects checkout).
+export function CurrencySelector({ pricing }: { pricing: DisplayPricing }) {
+  const pt = usePt()
   return (
-    <div className={size === 'card' ? 'mt-2' : ''} data-price-stack>
-      {usd ? (
-        <p className={`${big} font-semibold text-fg tabular-nums whitespace-nowrap`} title={pt('pp.usdApprox')}>{usd}<span className="text-sm font-normal text-fg-faint"> {per}</span></p>
-      ) : rate === undefined ? (
-        <p className={`${big} font-semibold tabular-nums`} aria-hidden="true"><span className="inline-block h-[1em] w-28 rounded-md bg-white/[0.06] animate-pulse align-middle" /></p>
-      ) : (
-        <p className={`${big} font-semibold text-fg tabular-nums whitespace-nowrap`}>{money(amount, currency)}<span className="text-sm font-normal text-fg-faint"> {per}</span></p>
-      )}
-      {(usd || rate === undefined) && <p className="mt-0.5 text-[13px] text-fg-muted tabular-nums whitespace-nowrap" data-ngn-secondary>≈ {money(amount, currency)} {per}</p>}
-    </div>
+    <label className="inline-flex items-center gap-2 text-[12px] text-fg-muted">
+      {pt('pp.showIn')}
+      <select value={pricing.currency} onChange={e => pricing.setCurrency(e.target.value)} className="field !py-1 !px-2 !w-auto text-[12px]" aria-label={pt('pp.showIn')} data-currency-select>
+        {pricing.enabled.map(c => <option key={c} value={c}>{c} · {CURRENCIES[c] || c}</option>)}
+      </select>
+    </label>
   )
 }
-export function usdEquivalent(amount: number, currency: string, rate: number | null | undefined) {
-  if (currency !== 'NGN' || !rate) return null
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount / rate)
-}
+
 // "Premium Monthly NGN" → "Premium Monthly" for clients.
 export const displayName = (name: string) => name.replace(/\s+(NGN|USD)$/i, '')
 
@@ -76,12 +125,13 @@ export function PricingTable({ plans, freeLimits, currentPlanId, isFree, onChoos
   onChoose: (p: PricingPlan) => void; busyId?: string
 }) {
   const pt = usePt()
-  const rate = useUsdNgn()
+  const pricing = useDisplayPricing()
   const periods = useMemo(() => (['month', 'quarter', 'year'] as Period[]).filter(p => plans.some(x => x.period === p)), [plans])
   const [period, setPeriod] = useState<Period>(() => (periods.includes('month') ? 'month' : periods[0] || 'month'))
   const active = periods.includes(period) ? period : periods[0] || 'month'
   return (
     <div className="pricing">
+      {plans.some(p => p.currency === 'NGN') && <div className="flex justify-end mb-3"><CurrencySelector pricing={pricing} /></div>}
       {periods.length > 1 && (
         <div className="flex justify-center mb-6">
           <div className="seg" role="tablist" aria-label={pt('pp.title')}>
@@ -112,7 +162,7 @@ export function PricingTable({ plans, freeLimits, currentPlanId, isFree, onChoos
               {p ? (
                 <>
                   <p className="mt-1 text-[15px] font-semibold text-fg">{displayName(p.name)}</p>
-                  <PriceStack amount={p.promo_price ?? p.price} currency={p.currency} period={p.period} rate={rate} />
+                  <PriceStack amount={p.promo_price ?? p.price} currency={p.currency} period={p.period} pricing={pricing} />
                   {p.promo_price != null && <p className="text-[12px] text-fg-faint"><s>{money(p.price, p.currency)}</s> {p.promo_label}</p>}
                   {p.description && <p className="mt-2 text-[13px] text-fg-muted">{p.description}</p>}
                   <ul className="mt-4 space-y-2 text-[13px] text-fg-muted flex-1">

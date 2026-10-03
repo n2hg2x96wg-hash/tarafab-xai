@@ -4,7 +4,7 @@
 import type { Locale } from './config'
 
 const en: Record<string, string> = {
-  "pay.restrictedNg": "Online checkout is currently available in Nigeria only.",
+  "pay.restrictedNg": "Premium checkout is currently available in Nigeria only. You can continue browsing Tarafab.XAi, but subscription checkout is restricted to eligible Nigerian customers.",
   "pay.st.redirected": "Started",
   "pay.st.pending_verification": "Pending verification",
   "pay.st.successful": "Successful",
@@ -41,7 +41,9 @@ const en: Record<string, string> = {
   "pay.billing": "Billing",
   "pay.once": "One-time payment for one {period}",
   "pay.secure": "You will continue to SeerBit’s secure payment page. Premium activates only after the payment is verified.",
-  "pay.ngnCheckout": "Payment will be processed in Nigerian Naira (NGN). The USD price is an approximate equivalent at the current exchange rate. Checkout is currently available in Nigeria only.",
+  "pay.ngnCheckout": "Payment will be processed in Nigerian Naira (NGN) at the original NGN price. Prices in other currencies are approximate equivalents at the current exchange rate. Checkout is currently available in Nigeria only.",
+  "pp.showIn": "Prices shown in",
+  "pp.localApprox": "Approximate equivalent of the original NGN price at the current exchange rate",
   "pp.usdApprox": "Approximate USD equivalent at the current exchange rate; charged in NGN",
   "pay.usdEq": "USD equivalent",
   "pay.continue": "Continue to payment",
