@@ -46,6 +46,8 @@ import { ConfirmModal } from '@/components/ConfirmModal'
 import { CommandSearch, type CommandItem } from '@/components/dashboard/CommandSearch'
 import { MarketActivityTab, PriceHistoryTab } from '@/components/dashboard/MarketTabs'
 import { Rise, useScrollDepth } from '@/components/dashboard/Motion'
+import { feedStatus } from '@/lib/marketStatus'
+import { useAssets } from '@/components/markets/assetStore'
 
 const BTC_ADDRESS = 'bc1qvpwmdln4nm6xa2k9q26l84pg4ud0uuqzk83053'
 
@@ -512,7 +514,7 @@ export default function DashboardPage() {
             {activeNav === 'automations' && !soon('automations') && <AutomationCenter presetAsset={autoAsset} onPresetUsed={() => setAutoAsset(null)} />}
             {activeNav === 'premium' && !soon('premium') && <PremiumCenter account={account} txs={txs} />}
             {activeNav === 'transactions' && <><TransactionsTab txs={txs} /><div className="mt-4"><LoadMore hasMore={hasMore} loading={loadingMore} onLoadMore={loadMore} /></div></>}
-            {activeNav === 'portfolio' && <div className="space-y-8">{!hiddenState(feature('investments')) && <InvestmentCenter go={go} focusId={focusInv} onFocusDone={() => setFocusInv(null)} />}<PortfolioTab account={account} txs={txs} hasMore={hasMore} go={go} /></div>}
+            {activeNav === 'portfolio' && <div className="space-y-8">{!hiddenState(feature('investments')) && <InvestmentCenter go={go} focusId={focusInv} onFocusDone={() => setFocusInv(null)} onAccountChanged={fetchData} />}<PortfolioTab account={account} txs={txs} hasMore={hasMore} go={go} /></div>}
             {activeNav === 'depositHistory' && <HistoryTab kind="deposit" txs={txs} hasMore={hasMore} loadingMore={loadingMore} onLoadMore={loadMore} go={go} />}
             {activeNav === 'withdrawalHistory' && <HistoryTab kind="withdrawal" txs={txs} hasMore={hasMore} loadingMore={loadingMore} onLoadMore={loadMore} go={go} />}
             {activeNav === 'security' && <SecurityTab user={user} />}
@@ -717,14 +719,14 @@ function OverviewTab({ name, account, txs, go, can, labelOf }: { name: string; a
           <dl className="ov-figures relative mt-5 grid grid-cols-1 sm:grid-cols-2 gap-x-6 rounded-xl bg-ink-950/55 border border-ink-700/70 px-4 py-1 backdrop-blur-sm" data-overview-figures>
             {([
               ['dash.totalInvested', inv ? inv.total_invested : null, 'total', inv && inv.total_count ? t('dash.countAll', { n: inv.total_count }) : undefined],
-              ['dash.activeInvestments', inv ? inv.active_principal : null, 'active', inv && inv.active_count ? t('dash.countActive', { n: inv.active_count }) : undefined],
+              ['dash.activeInvestments', inv ? inv.active_principal : null, 'active', inv && inv.active_count ? t('dash.countActive', { n: inv.active_count }) : inv && inv.pending_count ? t('dash.pendingOnly', { amount: money(inv.pending_principal) }) : undefined],
               ['dash.pending', account ? Number(account.pending_balance ?? 0) : null, 'pending', undefined],
               ['dash.profitReturn', account ? Number(account.profit_balance ?? 0) : null, 'profit', undefined],
             ] as [TKey, number | null, string, string | undefined][]).map(([label, value, key, hint]) => (
               <div key={key} data-figure={key} className="flex items-center justify-between gap-3 py-2.5 border-b border-ink-700/60 last:border-b-0 sm:[&:nth-last-child(2)]:border-b-0 min-w-0">
                 <dt className="min-w-0">
                   <span className="block text-[12.5px] text-fg-muted truncate" title={key === 'total' ? t('dash.totalInvestedHint') : undefined}>{t(label)}</span>
-                  {hint && <span className="block text-[11px] text-fg-faint truncate">{hint}</span>}
+                  {hint && <span className="block text-[11px] leading-snug text-fg-faint">{hint}</span>}
                 </dt>
                 <dd className="text-[15px] font-semibold text-fg tabular-nums text-right whitespace-nowrap">
                   {value != null ? <AnimatedPrice value={value} format={money} />
@@ -828,7 +830,7 @@ function OverviewTab({ name, account, txs, go, can, labelOf }: { name: string; a
         </div>
       )}
 
-      <TrustBar />
+      <DashTrustBar />
     </div>
   )
 }
@@ -1547,4 +1549,10 @@ function ProfileTab({ user, account }: { user: UserInfo | null; account: Account
       </div>
     </div>
   )
+}
+
+// The dashboard's trust bar reports the shared market feed's real state.
+function DashTrustBar() {
+  const { assets, error } = useAssets()
+  return <TrustBar marketStatus={feedStatus(assets, error)} />
 }

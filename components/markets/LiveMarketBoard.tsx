@@ -6,6 +6,7 @@ import { useBtcHistory } from '@/components/useMarket'
 import { formatPrice, type AssetQuote } from '@/lib/assets'
 import { chartColors } from '@/lib/chartColors'
 import { MarketSources } from './MarketSources'
+import { effectiveState } from '@/lib/marketStatus'
 
 // Real market board for the landing page (replaces the decorative globe).
 // Every number comes from /api/market/assets (quotes recorded server-side by
@@ -95,14 +96,16 @@ export default function LiveMarketBoard() {
   const { tiles, offline, sources, newest, liveCount } = useMemo(() => {
     const list = assets || []
     const crypto = list.filter(a => a.category === 'crypto')
+    // Shared status rule (lib/marketStatus): age and a failed refresh both downgrade "live".
     const tiles = [...crypto].sort((x, y) => (x.id === 'BTC' ? -1 : y.id === 'BTC' ? 1 : 0)).slice(0, 8)
+      .map(a => ({ ...a, state: effectiveState(a, error) as AssetQuote['state'] }))
     const offline = list.filter(a => a.category !== 'crypto' && !(a.price != null && (a.state === 'live' || a.state === 'delayed')))
     const shownSources = new Set<string>()
     tiles.forEach(a => { if (a.source && a.price != null) shownSources.add(a.source) })
     shownSources.add('CoinGecko') // fallback provider for BTC summary/history on this page
     const times = list.map(a => (a.updatedAt ? Date.parse(a.updatedAt) : NaN)).filter(Number.isFinite)
     return { tiles, offline, sources: Array.from(shownSources), newest: times.length ? Math.max(...times) : null, liveCount: tiles.filter(a => a.state === 'live').length }
-  }, [assets])
+  }, [assets, error])
 
   const state: 'loading' | 'error' | 'stale' | 'live' = assets === null ? (error ? 'error' : 'loading')
     // The last refresh failed: whatever is on screen is no longer current.
@@ -137,7 +140,7 @@ export default function LiveMarketBoard() {
           {at ? <span className="block mt-1 text-[11px] text-fg-faint">Last attempt {ago(Date.now() - at)}</span> : null}
         </div>
       ) : (
-        <ul className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2">{tiles.map(a => <Tile key={a.id} a={error && a.state === 'live' ? { ...a, state: 'stale' } : a} />)}</ul>
+        <ul className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2">{tiles.map(a => <Tile key={a.id} a={a} />)}</ul>
       )}
 
       <div className="mt-4 rounded-lg border border-ink-700/70 px-3 pt-2 pb-1">

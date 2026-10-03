@@ -66,6 +66,7 @@ const it: DeepPartial<typeof en> = {
     pageProblemBody: 'Il tuo conto e i tuoi saldi non sono interessati. Riprova oppure ricarica la pagina se il problema persiste.',
   },
   status: {
+    stale: 'Non aggiornato',
     live: 'In tempo reale',
     delayed: 'In ritardo',
     dataUnavailable: 'Dati non disponibili',
@@ -210,6 +211,7 @@ const it: DeepPartial<typeof en> = {
     accessSub: 'Accesso cifrato',
   },
   market: {
+    tickerUnavailable: 'Barra dei prezzi non disponibile · nuovo tentativo',
     livePrices: 'Prezzi in tempo reale',
     bitcoinMarket: 'Mercato Bitcoin',
     unavailable: 'I dati di mercato non sono al momento disponibili.',
@@ -354,6 +356,7 @@ const it: DeepPartial<typeof en> = {
     activeInvestments: 'Investimenti attivi',
     profitReturn: 'Profitto / rendimento',
     totalInvestedHint: 'Tutto il capitale registrato nei tuoi investimenti, compresi quelli completati.',
+    pendingOnly: "Niente di attivo — {amount} in attesa di attivazione",
     countAll: '{n} in totale · inclusi completati',
     countActive: '{n} attivi',
     unavailable: 'Non disponibile al momento',

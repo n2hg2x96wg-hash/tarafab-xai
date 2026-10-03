@@ -25,17 +25,22 @@ type Mode = 'full' | 'lite' | 'static'
 function pickMode(): Mode {
   if (typeof window === 'undefined' || !window.matchMedia) return 'lite'
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return 'static'
-  return window.matchMedia('(min-width: 1024px)').matches && (navigator.hardwareConcurrency || 8) >= 4 ? 'full' : 'lite'
+  // The 3D scene is transform/opacity only, so phones get it too (a smaller,
+  // stacked layout). Devices that ask to save data or report very few cores
+  // get the lighter stacked cards instead.
+  const nav = navigator as Navigator & { connection?: { saveData?: boolean }; deviceMemory?: number }
+  if (nav.connection?.saveData) return 'lite'
+  if ((nav.hardwareConcurrency || 8) < 4 && (nav.deviceMemory ?? 8) < 4) return 'lite'
+  return 'full'
 }
 function useMode(): Mode {
   const [m, setM] = useState<Mode>(pickMode)
   useEffect(() => {
     const rm = window.matchMedia('(prefers-reduced-motion: reduce)')
-    const wide = window.matchMedia('(min-width: 1024px)')
-    const decide = () => setM(pickMode())
+        const decide = () => setM(pickMode())
     decide()
-    rm.addEventListener?.('change', decide); wide.addEventListener?.('change', decide)
-    return () => { rm.removeEventListener?.('change', decide); wide.removeEventListener?.('change', decide) }
+    rm.addEventListener?.('change', decide)
+    return () => { rm.removeEventListener?.('change', decide) }
   }, [])
   return m
 }
@@ -167,23 +172,24 @@ export default function ScrollStory() {
 
   return (
     <section ref={sectionRef} className="story story-full border-b border-ink-700 relative" style={{ height: `${STEPS.length * 80 + 40}vh` }} aria-labelledby="story-title" data-story-mode="full">
-      <div className="sticky top-16 h-[calc(100vh-4rem)] overflow-hidden">
-        <div className="max-w-6xl h-full mx-auto px-6 grid grid-cols-[1fr_1.1fr] gap-10 items-center">
-          <div>
+      <div className="sticky top-16 h-[calc(100vh-4rem)] h-[calc(100svh-4rem)] overflow-hidden">
+        {/* Phones: scene on top, the current step below; from lg: side by side. */}
+        <div className="max-w-6xl h-full mx-auto px-4 sm:px-6 grid grid-rows-[minmax(0,1fr)_auto] lg:grid-rows-1 lg:grid-cols-[1fr_1.1fr] gap-3 lg:gap-10 items-center py-4 lg:py-0">
+          <div className="order-2 lg:order-none min-w-0">
             <p className="text-[12px] font-medium uppercase tracking-[0.14em] text-accent">How Tarafab works</p>
-            <h2 id="story-title" className="mt-3 text-[34px] font-semibold tracking-tight text-fg">From market data to a reviewed balance</h2>
-            <ol className="mt-8 space-y-3" aria-label="Steps">
+            <h2 id="story-title" className="mt-2 lg:mt-3 text-[22px] sm:text-[26px] lg:text-[34px] leading-tight font-semibold tracking-tight text-fg">From market data to a reviewed balance</h2>
+            <ol className="mt-3 lg:mt-8 space-y-3" aria-label="Steps">
               {STEPS.map((s, i) => (
-                <li key={s.title} className={`story-text ${i === step ? 'is-active' : ''}`} aria-current={i === step ? 'step' : undefined}>
+                <li key={s.title} className={`story-text ${i === step ? 'is-active' : 'max-lg:hidden'}`} aria-current={i === step ? 'step' : undefined}>
                   <p className="text-[11px] uppercase tracking-[0.14em] text-fg-faint">{String(i + 1).padStart(2, '0')} · {s.eyebrow}</p>
                   <p className="mt-1 text-[18px] font-semibold text-fg">{s.title}</p>
                   <p className="story-body mt-1 text-[14px] text-fg-muted leading-relaxed">{s.body}</p>
                 </li>
               ))}
             </ol>
-            <Link href="/sign-up" className="btn btn-solid mt-8 inline-flex">Open an account</Link>
+            <Link href="/sign-up" className="btn btn-solid mt-4 lg:mt-8 inline-flex">Open an account</Link>
           </div>
-          <div ref={stageRef} className="story-stage" data-step={step} aria-hidden="true">
+          <div ref={stageRef} className="story-stage order-1 lg:order-none min-h-0 h-full lg:h-auto" data-step={step} aria-hidden="true">
             <div className="story-plane" />
             <div className="story-orbit">
               {LAYERS.map((L, i) => <div key={i} className={`story-layer ${i === step ? 'is-active' : i < step ? 'is-past' : ''}`} style={{ ['--i' as string]: i }}>{L()}</div>)}

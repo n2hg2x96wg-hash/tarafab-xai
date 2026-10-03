@@ -10,6 +10,7 @@ import { IconChart, IconClose, IconLock } from '@/components/Icons'
 import { AreaChart, Sparkline, sma } from './Charts'
 import { loadChart, useAssets } from './useAssets'
 import { hiddenState, useFeatures } from '@/components/ui/features'
+import { effectiveState } from '@/lib/marketStatus'
 
 type Cat = 'all' | 'crypto' | 'stock' | 'index' | 'watchlist'
 const CATS: Cat[] = ['all', 'crypto', 'stock', 'index', 'watchlist']
@@ -44,7 +45,10 @@ function Change({ a, className = '' }: { a: AssetQuote; className?: string }) {
 
 export function AssetCenter({ onAutomate }: { onAutomate: (assetId: string) => void }) {
   const { t } = useMk()
-  const { assets, error, reload } = useAssets()
+  const { assets: raw, error, reload } = useAssets()
+  // Shared status rule (lib/marketStatus): an old quote, or one shown after a
+  // failed refresh, is labelled stale everywhere in this view.
+  const assets = useMemo(() => raw ? raw.map(a => ({ ...a, state: effectiveState(a, error) as AssetQuote['state'] })) : raw, [raw, error])
   // Admin → Feature controls (watchlist / charts); data is kept when off.
   const feature = useFeatures()
   const watchOff = hiddenState(feature('watchlist')), chartsOff = hiddenState(feature('charts'))

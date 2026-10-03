@@ -12,6 +12,10 @@ let snap: Snap = { assets: null, error: false, at: 0 }
 const subs = new Set<(s: Snap) => void>()
 let timer: ReturnType<typeof setInterval> | null = null
 let inflight: Promise<void> | null = null
+// Consecutive failures: retries back off (30 s, 60 s, 2 min … up to 5 min)
+// instead of hammering a failing endpoint; one success resets it.
+let failures = 0
+let nextAt = 0
 
 async function load() {
   if (inflight) return inflight
@@ -23,7 +27,12 @@ async function load() {
       // A reply without an asset list is a failure, not "no assets".
       if (!Array.isArray(j?.assets)) throw new Error('Malformed market data')
       snap = { assets: j.assets as AssetQuote[], error: false, at: Date.now() }
-    } catch { snap = { ...snap, error: true, at: Date.now() } }
+      failures = 0; nextAt = 0
+    } catch {
+      snap = { ...snap, error: true, at: Date.now() }
+      failures += 1
+      nextAt = Date.now() + Math.min(30_000 * 2 ** (failures - 1), 300_000)
+    }
     subs.forEach(f => f(snap))
   })().finally(() => { inflight = null })
   return inflight
@@ -36,7 +45,7 @@ export function useAssets() {
     subs.add(setS)
     if (!snap.assets || Date.now() - snap.at > 25_000) load()
     if (!timer) {
-      timer = setInterval(() => { if (document.visibilityState === 'visible') load() }, 30_000)
+      timer = setInterval(() => { if (document.visibilityState === 'visible' && Date.now() >= nextAt) load() }, 30_000)
       document.addEventListener('visibilitychange', onVisible)
     }
     return () => {

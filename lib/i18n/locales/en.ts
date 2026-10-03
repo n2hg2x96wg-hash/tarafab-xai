@@ -67,6 +67,7 @@ const en = {
     pageProblemBody: 'Your account and balances are not affected. Try again, or reload the page if this continues.',
   },
   status: {
+    stale: 'Stale',
     live: 'Live',
     delayed: 'Delayed',
     dataUnavailable: 'Data unavailable',
@@ -211,6 +212,7 @@ const en = {
     accessSub: 'Encrypted sign-in',
   },
   market: {
+    tickerUnavailable: 'Price ticker unavailable · retrying',
     livePrices: 'Live prices',
     bitcoinMarket: 'Bitcoin market',
     unavailable: 'Market data is unavailable right now.',
@@ -355,6 +357,7 @@ const en = {
     activeInvestments: 'Active investments',
     profitReturn: 'Profit / return',
     totalInvestedHint: 'All principal recorded in your investments, including completed ones.',
+    pendingOnly: "None active yet — {amount} is pending activation",
     countAll: '{n} total · incl. completed',
     countActive: '{n} active',
     unavailable: 'Not available right now',

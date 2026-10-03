@@ -66,6 +66,7 @@ const pt: DeepPartial<typeof en> = {
     pageProblemBody: 'A sua conta e os seus saldos não foram afetados. Tente novamente ou recarregue a página se o problema continuar.',
   },
   status: {
+    stale: 'Desatualizado',
     live: 'Em direto',
     delayed: 'Com atraso',
     dataUnavailable: 'Dados indisponíveis',
@@ -210,6 +211,7 @@ const pt: DeepPartial<typeof en> = {
     accessSub: 'Início de sessão encriptado',
   },
   market: {
+    tickerUnavailable: 'Faixa de preços indisponível · a tentar novamente',
     livePrices: 'Preços em direto',
     bitcoinMarket: 'Mercado de Bitcoin',
     unavailable: 'Os dados de mercado estão indisponíveis de momento.',
@@ -354,6 +356,7 @@ const pt: DeepPartial<typeof en> = {
     activeInvestments: 'Investimentos ativos',
     profitReturn: 'Lucro / retorno',
     totalInvestedHint: 'Todo o capital registado nos seus investimentos, incluindo os concluídos.',
+    pendingOnly: "Nada ativo ainda — {amount} a aguardar ativação",
     countAll: '{n} no total · incl. concluídos',
     countActive: '{n} ativo(s)',
     unavailable: 'Indisponível de momento',

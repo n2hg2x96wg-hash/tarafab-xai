@@ -565,3 +565,12 @@ body.dialog-open #chat-application { visibility: hidden !important; }
   .ov-grid { transform: none; }
   .ov-depth[data-flow="on"][data-vis] .ov-figures::before { animation: none; }
 }
+
+/* Scroll story on phones/tablets: the same 3D scene, sized to the space above
+   the current step (the stage fills the sticky viewport's free height). */
+@media (max-width: 1023px) {
+  .story-stage { height: 100%; min-height: 220px; perspective: 900px; }
+  .story-layer { width: min(330px, 88%); top: 46%; }
+  .story-layer.is-past { transform: translate(-50%, -50%) translateY(-110px) translateZ(-140px) scale(.86); }
+  .story-plane { inset: 40% -30% -40% -30%; }
+}

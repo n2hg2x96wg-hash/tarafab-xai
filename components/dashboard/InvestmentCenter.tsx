@@ -83,7 +83,7 @@ const matches = (f: Filter, status: string) =>
   : f === 'pending' ? status === 'pending_activation' || status === 'approved'
   : !['active', 'pending_activation', 'approved'].includes(status)
 
-export function InvestmentCenter({ go, focusId, onFocusDone }: { go: (id: string) => void; focusId?: string | null; onFocusDone?: () => void }) {
+export function InvestmentCenter({ go, focusId, onFocusDone, onAccountChanged }: { go: (id: string) => void; focusId?: string | null; onFocusDone?: () => void; onAccountChanged?: () => void }) {
   const { t, intl } = useI18n()
   const [data, setData] = useState<Data | null>(null)
   const [error, setError] = useState('')
@@ -158,9 +158,10 @@ export function InvestmentCenter({ go, focusId, onFocusDone }: { go: (id: string
     )
   }
 
-  const stats: { label: TKey; value: string; hint: TKey; muted?: boolean }[] = [
+  const stats: { label: TKey; value: string; hint: TKey; muted?: boolean; note?: string }[] = [
     { label: 'dash.totalInvested', value: totalInvested != null ? money(totalInvested) : t('dash.unavailable'), hint: 'dash.totalInvestedHint', muted: totalInvested == null },
-    { label: 'inv.principal', value: money(principal), hint: 'inv.principalHint' },
+    // $0 active while requests await activation is said in words, not left as a bare $0.00.
+    { label: 'inv.principal', value: money(principal), hint: 'inv.principalHint', note: principal === 0 && held > 0 ? t('dash.pendingOnly', { amount: money(held) }) : undefined },
     { label: 'inv.activeCount', value: String(active.length), hint: 'inv.activeCountHint' },
     { label: 'inv.f.pendingCount', value: pendingN ? `${pendingN} · ${money(held)}` : '0', hint: 'inv.f.pendingHint', muted: !pendingN },
     { label: 'inv.f.currentValue', value: money(activeValue), hint: 'inv.f.currentValueHint', muted: !active.length },
@@ -182,7 +183,7 @@ export function InvestmentCenter({ go, focusId, onFocusDone }: { go: (id: string
             <div key={s.label} className="panel p-4 min-w-0" title={t(s.hint)}>
               <dt className="text-[12px] text-fg-faint truncate">{t(s.label)}</dt>
               <dd className={`mt-1 text-lg font-semibold tabular-nums truncate ${s.muted ? 'text-fg-muted' : 'text-fg'}`}>{s.value}</dd>
-              <p className="mt-1 text-[11px] leading-snug text-fg-faint line-clamp-2">{t(s.hint)}</p>
+              <p className={`mt-1 text-[11px] leading-snug line-clamp-2 ${s.note ? 'text-amber-300' : 'text-fg-faint'}`} data-note={s.note ? '' : undefined}>{s.note || t(s.hint)}</p>
             </div>
           ))}
         </dl>
@@ -280,13 +281,13 @@ export function InvestmentCenter({ go, focusId, onFocusDone }: { go: (id: string
         </div>
       </section>
 
-      {open && <ProductDetail v={open} kycVerified={data.kyc_verified} balance={data.balance} onClose={() => setOpen(null)} onSubmitted={load} go={go} />}
+      {open && <ProductDetail v={open} kycVerified={data.kyc_verified} balance={data.balance} onClose={() => setOpen(null)} onSubmitted={() => { load(); onAccountChanged?.() }} go={go} />}
       {openInv && (
         <InvestmentDetail inv={openInv} v={versionById.get(openInv.product_version_id)}
           adjustments={data.adjustments.filter(a => a.investment_id === openInv.id)}
           events={data.events.filter(e => e.client_investment_id === openInv.id)}
           txs={data.transactions.filter(x => x.client_investment_id === openInv.id)}
-          onClose={() => setOpenInv(null)} onChanged={() => { setOpenInv(null); load() }} />
+          onClose={() => setOpenInv(null)} onChanged={() => { setOpenInv(null); load(); onAccountChanged?.() }} />
       )}
     </div>
   )

@@ -66,6 +66,7 @@ const de: DeepPartial<typeof en> = {
     pageProblemBody: 'Ihr Konto und Ihre Guthaben sind nicht betroffen. Versuchen Sie es erneut oder laden Sie die Seite neu, falls das Problem bestehen bleibt.',
   },
   status: {
+    stale: 'Veraltet',
     live: 'Live',
     delayed: 'Verzögert',
     dataUnavailable: 'Daten nicht verfügbar',
@@ -210,6 +211,7 @@ const de: DeepPartial<typeof en> = {
     accessSub: 'Verschlüsselte Anmeldung',
   },
   market: {
+    tickerUnavailable: 'Kursleiste nicht verfügbar · erneuter Versuch',
     livePrices: 'Live-Kurse',
     bitcoinMarket: 'Bitcoin-Markt',
     unavailable: 'Marktdaten sind derzeit nicht verfügbar.',
@@ -354,6 +356,7 @@ const de: DeepPartial<typeof en> = {
     activeInvestments: 'Aktive Investitionen',
     profitReturn: 'Gewinn / Rendite',
     totalInvestedHint: 'Das gesamte in Ihren Investitionen erfasste Kapital, einschließlich abgeschlossener.',
+    pendingOnly: "Noch nichts aktiv — {amount} wartet auf Aktivierung",
     countAll: '{n} insgesamt · inkl. abgeschlossener',
     countActive: '{n} aktiv',
     unavailable: 'Derzeit nicht verfügbar',

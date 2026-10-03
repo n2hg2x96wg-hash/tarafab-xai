@@ -6,6 +6,7 @@ import { useAssets } from '@/components/markets/assetStore'
 import { sharedSummary, useBtcHistory } from '@/components/useMarket'
 import { useI18n } from '@/lib/i18n/I18nProvider'
 import type { AssetQuote } from '@/lib/assets'
+import { effectiveState } from '@/lib/marketStatus'
 
 type Product = 'BTC-USD'
 const PRODUCTS: Product[] = ['BTC-USD']
@@ -149,7 +150,7 @@ function TickPrice({ quote, className = '' }: { quote?: Quote; className?: strin
 
 type TickerRow = {
   asset: { symbol: string; name: string }
-  quote: { price: number | null; change24h: number | null; status: 'live' | 'delayed' | 'unavailable' }
+  quote: { price: number | null; change24h: number | null; status: 'live' | 'delayed' | 'stale' | 'unavailable' }
 }
 
 export function LiveTickerBar() {
@@ -157,10 +158,13 @@ export function LiveTickerBar() {
   // Shares the page's single /api/market/assets snapshot (no second request).
   const { assets, error } = useAssets()
   // Only real, current quotes; stale or unavailable assets are left out.
+  // Labels follow the shared status rule (lib/marketStatus): a quote whose
+  // provider time is old, or shown after a failed refresh, reads STALE.
   const rows: TickerRow[] = useMemo(() => (assets || [])
-    .filter(a => typeof a?.id === 'string' && typeof a?.name === 'string' &&
-      a.price != null && Number.isFinite(a.price) && a.price > 0 && (a.state === 'live' || a.state === 'delayed'))
-    .map(a => ({ asset: { symbol: a.id, name: a.name }, quote: { price: a.price, change24h: a.changePct, status: a.state as 'live' | 'delayed' } })), [assets])
+    .filter(a => typeof a?.id === 'string' && typeof a?.name === 'string' && a.price != null && Number.isFinite(a.price) && a.price > 0)
+    .map(a => ({ a, st: effectiveState(a, error) }))
+    .filter(x => x.st !== 'unavailable')
+    .map(({ a, st }) => ({ asset: { symbol: a.id, name: a.name }, quote: { price: a.price, change24h: a.changePct, status: st as 'live' | 'delayed' | 'stale' } })), [assets, error])
 
   const renderItems = (copy: number) => rows.map(({ asset, quote }) => (
     <div key={`${copy}-${asset.symbol}`} className="flex items-center gap-2 sm:gap-3 px-5 sm:px-8 shrink-0 text-[12px] sm:text-[13px]">
@@ -169,7 +173,7 @@ export function LiveTickerBar() {
       <span className="min-w-[5.5rem] text-right text-fg font-medium tabular-nums">{usd(quote.price!)}</span>
       <Change value={quote.change24h} />
       <span className={`text-[10px] uppercase tracking-wide ${quote.status === 'live' ? 'text-emerald-400' : 'text-amber-400'}`}>
-        {quote.status === 'live' ? t('status.live') : t('status.delayed')}
+        {quote.status === 'live' ? t('status.live') : quote.status === 'stale' ? t('status.stale') : t('status.delayed')}
       </span>
     </div>
   ))
@@ -179,7 +183,7 @@ export function LiveTickerBar() {
       <div className={`flex w-max ${rows.length > 1 ? 'animate-marquee' : ''}`}>
         {rows.length ? <>{renderItems(0)}<div className="flex" aria-hidden="true">{renderItems(1)}</div></>
           : assets === null && !error ? <span className="mx-5 inline-block h-3 w-64 rounded skeleton-sheen" aria-hidden="true" />
-          : <span className="px-5 text-[12px] text-fg-faint" role="status">Market data is temporarily unavailable · retrying automatically</span>}
+          : <span className="px-5 text-[12px] text-fg-faint" role="status">{t('market.tickerUnavailable')}</span>}
       </div>
     </div>
   )
