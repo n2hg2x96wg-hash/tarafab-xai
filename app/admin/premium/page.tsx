@@ -104,6 +104,10 @@ export default function AdminPremiumPage() {
                   const ok = lk && Number(lk.amount) === Number(p.promo_price ?? p.price) && lk.currency === p.currency
                   if (lk) return <span className="font-sans"><span className={ok ? 'text-emerald-400' : 'text-amber-300'}>SeerBit{ok ? ' · linked' : ' · amount/currency mismatch'}</span><div className="font-mono text-slate-500 break-all">{lk.url}</div></span>
                   if (sbLinks.some(l => l.plan_id === p.id)) return <span className="text-amber-300 font-sans">SeerBit link disabled</span>
+                  // Display plan: checkout uses the enabled plan with the same tier/period that has an active SeerBit link.
+                  const per = (x: Plan) => (x as Plan & { billing_period?: string | null }).billing_period || x.billing_interval
+                  const via = (plans || []).find(q => q.id !== p.id && q.enabled && q.tier === p.tier && per(q) === per(p) && sbLinks.some(l => l.plan_id === q.id && l.enabled))
+                  if (via) return <span className="font-sans text-emerald-400">SeerBit via {via.name} (Nigeria only, NGN checkout)</span>
                   return p.provider_price_id || <span className="text-amber-300 font-sans">Not linked — cannot be purchased</span>
                 })()}</td>
                 <td className="pr-3">{p.enabled ? <span className="text-emerald-400">Enabled</span> : <span className="text-slate-500">Hidden</span>}</td>

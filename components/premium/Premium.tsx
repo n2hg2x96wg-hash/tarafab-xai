@@ -125,8 +125,14 @@ export function PremiumCenter({ account, txs }: { account: Account | null; txs: 
       }
       // Server not configured yet (gateway key): not a paused plan.
       if (r.status === 'unavailable') { setErr(pt('pr.paymentsOff')); setPayBusy(''); setPayReview(null); payKey.current = newRequestKey(); return }
-      const reason = r.status === 'region_blocked' ? 'region' : r.status === 'unknown_region' ? 'unknown' : 'disabled'
-      window.location.assign(`/payment/unavailable?reason=${reason}`); return
+      // Outside Nigeria (or location not confirmed): back to the dashboard
+      // with the message; the session is kept and no payment URL was sent.
+      if (r.status === 'region_blocked' || r.status === 'unknown_region') {
+        const reason = r.status === 'region_blocked' ? 'restricted' : 'unverified'
+        setPayBusy(''); setPayReview(null); payKey.current = newRequestKey()
+        window.history.replaceState(null, '', `/dashboard?payment=${reason}#premium`); setPayNotice(reason); return
+      }
+      window.location.assign('/payment/unavailable?reason=disabled'); return
     } catch (e) { setErr(errorText(e)) }
     setPayBusy(''); setPayReview(null); payKey.current = newRequestKey()
   }
@@ -281,6 +287,7 @@ export function PremiumCenter({ account, txs }: { account: Account | null; txs: 
             <div className="flex justify-between gap-4 py-2"><dt className="text-fg-muted">{pt('pay.billing')}</dt><dd className="text-fg">{pt(`pp.${payReview.period || payReview.interval}`)}</dd></div>
           </dl>
           <p className="mt-3 text-[12px] text-fg-muted">{pt('pay.secure')}</p>
+          {payReview.currency === 'USD' && <p className="mt-1 text-[12px] text-fg-faint">{pt('pay.ngnCheckout')}</p>}
         </ConfirmModal>
       )}
       {confirmCancel && sub && (
