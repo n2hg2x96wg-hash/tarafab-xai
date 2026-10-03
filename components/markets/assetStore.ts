@@ -19,8 +19,10 @@ async function load() {
     try {
       const r = await fetch('/api/market/assets', { cache: 'no-store' })
       if (!r.ok) throw new Error(String(r.status))
-      const j = await r.json() as { assets: AssetQuote[] }
-      snap = { assets: j.assets, error: false, at: Date.now() }
+      const j = await r.json() as { assets?: unknown }
+      // A reply without an asset list is a failure, not "no assets".
+      if (!Array.isArray(j?.assets)) throw new Error('Malformed market data')
+      snap = { assets: j.assets as AssetQuote[], error: false, at: Date.now() }
     } catch { snap = { ...snap, error: true, at: Date.now() } }
     subs.forEach(f => f(snap))
   })().finally(() => { inflight = null })
