@@ -79,7 +79,9 @@ function useTicker(ms = 15_000) {
   useEffect(() => { const t = setInterval(() => setN(n => n + 1), ms); return () => clearInterval(t) }, [ms])
 }
 
-export function PriceHistory() {
+// compact: the public page shows status, price, period and chart only; the
+// 24h figures stay in the dashboard's Price history.
+export function PriceHistory({ compact = false }: { compact?: boolean } = {}) {
   const [range, setRange] = useState<(typeof RANGES)[number]['id']>('30')
   const [hover, setHover] = useState<number | null>(null)
   const svgRef = useRef<SVGSVGElement>(null)
@@ -155,7 +157,7 @@ export function PriceHistory() {
           </div>
         </div>
 
-        <dl className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-5">
+        {!compact && <dl className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-5">
           {stats.map(([label, value]) => (
             <div key={label} className="rounded-md bg-ink-850 px-3.5 py-2.5 min-w-0">
               <dt className="text-[11px] uppercase tracking-wide text-fg-faint">{t(label)}</dt>
@@ -164,7 +166,7 @@ export function PriceHistory() {
               </dd>
             </div>
           ))}
-        </dl>
+        </dl>}
       </div>
 
       <div className="relative px-2 sm:px-3">
@@ -523,7 +525,8 @@ export function FaqSection() {
 /* Trust bar: every claim here is true and checkable — no invented activity,
    no promised returns. Legitimacy comes from verifiability, not from
    claiming automation that doesn't exist. */
-export function TrustBar({ marketStatus }: { marketStatus?: 'connecting' | 'live' | 'polling' | 'error' }) {
+// minimal: the public hero shows only the account assurances, not feed status.
+export function TrustBar({ marketStatus, minimal = false }: { marketStatus?: 'connecting' | 'live' | 'polling' | 'error'; minimal?: boolean }) {
   const liveFeed = marketStatus === 'live' || marketStatus === 'polling'
   const { t } = useI18n()
   const items: { label: string; sub: string }[] = [
@@ -533,6 +536,13 @@ export function TrustBar({ marketStatus }: { marketStatus?: 'connecting' | 'live
     { label: t('trust.audit'), sub: t('trust.auditSub') },
     { label: t('trust.access'), sub: t('trust.accessSub') },
   ]
+  if (minimal) return (
+    <ul className="flex flex-wrap gap-x-6 gap-y-2 text-[13px] text-fg-muted">
+      {items.slice(1).map(item => (
+        <li key={item.label} className="inline-flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-accent/80" aria-hidden="true" />{item.label}</li>
+      ))}
+    </ul>
+  )
   return (
     <div className="flex flex-wrap gap-x-8 gap-y-3 py-5 border-y border-ink-700">
       {items.map(item => (

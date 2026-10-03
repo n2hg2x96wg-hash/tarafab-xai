@@ -100,6 +100,13 @@ const en = {
     resetPassword: 'Reset password',
   },
   landing: {
+    scene: {
+      intelligence: 'Intelligence',
+      automation: 'Automation',
+      investments: 'Investments',
+      aria: 'Bitcoin price, connected to market intelligence, automation and investments',
+      noQuote: 'No current quote',
+    },
     footer: {
       tagline: "Digital-asset portfolio and investment platform.",
       platform: "Platform",
@@ -212,6 +219,8 @@ const en = {
     accessSub: 'Encrypted sign-in',
   },
   market: {
+    sourcesLabel: 'Market data sources',
+    sourcesDetails: 'Details',
     tickerUnavailable: 'Price ticker unavailable · retrying',
     livePrices: 'Live prices',
     bitcoinMarket: 'Bitcoin market',
@@ -573,7 +582,8 @@ const en = {
     groupMoney: 'Money',
     groupAccount: 'Account',
     groupSupport: 'Support',
-    portfolio: 'Portfolio',
+    portfolio: 'Investments',
+    analyticsTitle: 'Portfolio & analytics',
     depositHistory: 'Deposit history',
     withdrawalHistory: 'Withdrawal history',
     security: 'Security',

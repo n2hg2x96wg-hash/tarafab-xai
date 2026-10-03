@@ -574,3 +574,58 @@ body.dialog-open #chat-application { visibility: hidden !important; }
   .story-layer.is-past { transform: translate(-50%, -50%) translateY(-110px) translateZ(-140px) scale(.86); }
   .story-plane { inset: 40% -30% -40% -30%; }
 }
+
+/* Hero 3D scene (HeroScene): one real market node linked to three platform
+   nodes. --tx/--ty = pointer tilt (-1..1), --hp = scroll through the hero
+   (0..1). Transform/opacity only; still under reduced motion. */
+.hero-scene { --tx: 0; --ty: 0; --hp: 0; position: relative; height: 340px; perspective: 1000px; perspective-origin: 50% 30%; }
+.hs-floor { position: absolute; inset: 42% -18% -30% -18%; transform: rotateX(70deg) translateY(calc(var(--hp) * -90px)); transform-origin: 50% 0;
+  background-image: linear-gradient(rgb(var(--accent) / .14) 1px, transparent 1px), linear-gradient(90deg, rgb(var(--accent) / .14) 1px, transparent 1px);
+  background-size: 40px 40px; -webkit-mask-image: radial-gradient(60% 55% at 50% 30%, #000 25%, transparent 75%); mask-image: radial-gradient(60% 55% at 50% 30%, #000 25%, transparent 75%); }
+.hs-rig { position: absolute; inset: 0; transform-style: preserve-3d;
+  transform: rotateX(calc(8deg + var(--ty) * -6deg + var(--hp) * 10deg)) rotateY(calc(var(--tx) * 9deg)) translateZ(calc(var(--hp) * -60px));
+  transition: transform .5s cubic-bezier(.2,.7,.2,1); will-change: transform; }
+.hs-links { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; transform: translateZ(-20px); }
+.hs-links path { fill: none; stroke: rgb(var(--accent) / .45); stroke-width: 1.4; vector-effect: non-scaling-stroke; stroke-dasharray: 100; stroke-dashoffset: 100; transition: stroke-dashoffset 1.4s cubic-bezier(.2,.7,.2,1) .35s; }
+.hero-scene[data-vis] .hs-links path { stroke-dashoffset: 0; }
+.hs-main { position: absolute; left: 50%; top: 4%; width: min(300px, 82%); transform: translateX(-50%) translateZ(60px);
+  border-radius: 18px; border: 1px solid rgb(var(--ink-600) / .9); background: linear-gradient(160deg, rgb(var(--ink-800) / .95), rgb(var(--ink-900) / .92));
+  padding: 16px 18px; box-shadow: 0 40px 70px -35px rgba(0,0,0,.8), inset 0 1px 0 rgb(var(--contrast) / .06); backdrop-filter: blur(8px); }
+.hs-node { position: absolute; display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; font-size: 12px; white-space: nowrap;
+  color: rgb(var(--fg-muted)); border: 1px solid rgb(var(--ink-600) / .9); background: rgb(var(--ink-900) / .85); backdrop-filter: blur(6px);
+  box-shadow: 0 20px 40px -24px rgba(0,0,0,.8); opacity: 0; transition: opacity .6s ease, transform .8s cubic-bezier(.2,.7,.2,1); }
+.hs-dot { width: 7px; height: 7px; border-radius: 999px; background: rgb(var(--accent)); box-shadow: 0 0 12px rgb(var(--accent) / .8); }
+.hs-n1 { left: 17.5%; top: 78%; transform: translate(-50%, -50%) translateZ(10px) translateY(14px); }
+.hs-n2 { left: 50%;   top: 84%; transform: translate(-50%, -50%) translateZ(30px) translateY(14px); }
+.hs-n3 { left: 82.5%; top: 78%; transform: translate(-50%, -50%) translateZ(10px) translateY(14px); }
+.hero-scene[data-vis] .hs-node { opacity: 1; }
+.hero-scene[data-vis] .hs-n1 { transform: translate(-50%, -50%) translateZ(10px); transition-delay: .55s; }
+.hero-scene[data-vis] .hs-n2 { transform: translate(-50%, -50%) translateZ(30px); transition-delay: .7s; }
+.hero-scene[data-vis] .hs-n3 { transform: translate(-50%, -50%) translateZ(10px); transition-delay: .85s; }
+@media (max-width: 420px) { .hero-scene { height: 300px; } .hs-node { font-size: 11px; padding: 7px 10px; } .hs-n1 { left: 19%; } .hs-n3 { left: 81%; } }
+@media (prefers-reduced-motion: reduce) {
+  .hs-rig, .hs-floor { transform: none; transition: none; }
+  .hs-links path { stroke-dashoffset: 0; transition: none; }
+  .hs-node { opacity: 1; transition: none; }
+  .hero-scene .hs-n1, .hero-scene .hs-n2, .hero-scene .hs-n3,
+  .hero-scene[data-vis] .hs-n1, .hero-scene[data-vis] .hs-n2, .hero-scene[data-vis] .hs-n3 { transform: translate(-50%, -50%); transition: none; }
+}
+
+/* Story rail: four connected stages; the track fill follows --p (no loop).
+   Data points drift at their own depth with scroll. */
+.story-rail { position: absolute; left: 8%; right: 8%; bottom: 5%; height: 34px; transform: translateZ(0); }
+.story-track { position: absolute; left: 0; right: 0; top: 6px; height: 2px; border-radius: 2px; background: rgb(var(--ink-700)); overflow: hidden; }
+.story-track span { position: absolute; inset: 0; transform-origin: 0 50%; transform: scaleX(var(--p)); background: linear-gradient(90deg, rgb(var(--accent) / .3), rgb(var(--accent))); }
+.story-node { position: absolute; top: 0; left: calc(var(--k) * 100%); transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.story-node::before { content: ''; width: 14px; height: 14px; border-radius: 999px; border: 2px solid rgb(var(--ink-600)); background: rgb(var(--ink-900)); transition: border-color .35s, background-color .35s, box-shadow .35s; }
+.story-node.is-on::before { border-color: rgb(var(--accent)); background: rgb(var(--accent) / .25); }
+.story-node.is-now::before { background: rgb(var(--accent)); box-shadow: 0 0 0 5px rgb(var(--accent) / .15), 0 0 18px rgb(var(--accent) / .7); }
+.story-node i { font-style: normal; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: rgb(var(--fg-faint)); white-space: nowrap; }
+.story-node.is-now i { color: rgb(var(--fg)); }
+.story-pt { position: absolute; left: var(--x); top: var(--y); width: 6px; height: 6px; border-radius: 999px; background: rgb(var(--accent)); box-shadow: 0 0 14px rgb(var(--accent) / .8);
+  transform: translate3d(0, calc(var(--p) * -140px), var(--z)); opacity: .55; will-change: transform; }
+.story-layer { opacity: .2; }
+.story-layer.is-active { opacity: 1; }
+.story-layer.is-past { opacity: 0; }
+@media (max-width: 1023px) { .story-rail { left: 11%; right: 11%; bottom: 2%; } .story-node i { font-size: 9px; } .story-pt:nth-of-type(2) { display: none; } }
+@media (prefers-reduced-motion: reduce) { .story-pt { transform: none; } .story-node::before { transition: none; } }

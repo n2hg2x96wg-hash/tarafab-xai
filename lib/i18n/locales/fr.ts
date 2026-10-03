@@ -99,6 +99,13 @@ const fr: DeepPartial<typeof en> = {
     resetPassword: 'Réinitialiser le mot de passe',
   },
   landing: {
+    scene: {
+      intelligence: 'Intelligence',
+      automation: 'Automatisation',
+      investments: 'Investissements',
+      aria: 'Prix du Bitcoin, relié à l\'analyse de marché, à l\'automatisation et aux investissements',
+      noQuote: 'Aucune cotation actuelle',
+    },
     footer: {
       tagline: "Plateforme de portefeuille et d'investissement en actifs numériques.",
       platform: "Plateforme",
@@ -211,6 +218,8 @@ const fr: DeepPartial<typeof en> = {
     accessSub: 'Connexion chiffrée',
   },
   market: {
+    sourcesLabel: 'Sources des données de marché',
+    sourcesDetails: 'Détails',
     tickerUnavailable: 'Bandeau des prix indisponible · nouvelle tentative',
     livePrices: 'Cours en direct',
     bitcoinMarket: 'Marché du Bitcoin',
@@ -572,7 +581,8 @@ const fr: DeepPartial<typeof en> = {
     groupMoney: 'Fonds',
     groupAccount: 'Compte',
     groupSupport: 'Assistance',
-    portfolio: 'Portefeuille',
+    portfolio: 'Investissements',
+    analyticsTitle: 'Portefeuille et analyses',
     depositHistory: 'Historique des dépôts',
     withdrawalHistory: 'Historique des retraits',
     security: 'Sécurité',

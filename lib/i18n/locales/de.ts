@@ -99,6 +99,13 @@ const de: DeepPartial<typeof en> = {
     resetPassword: 'Passwort zurücksetzen',
   },
   landing: {
+    scene: {
+      intelligence: 'Analyse',
+      automation: 'Automatisierung',
+      investments: 'Investitionen',
+      aria: 'Bitcoin-Kurs, verbunden mit Marktanalyse, Automatisierung und Investitionen',
+      noQuote: 'Kein aktueller Kurs',
+    },
     footer: {
       tagline: "Portfolio- und Anlageplattform für digitale Vermögenswerte.",
       platform: "Plattform",
@@ -211,6 +218,8 @@ const de: DeepPartial<typeof en> = {
     accessSub: 'Verschlüsselte Anmeldung',
   },
   market: {
+    sourcesLabel: 'Marktdatenquellen',
+    sourcesDetails: 'Details',
     tickerUnavailable: 'Kursleiste nicht verfügbar · erneuter Versuch',
     livePrices: 'Live-Kurse',
     bitcoinMarket: 'Bitcoin-Markt',
@@ -572,7 +581,8 @@ const de: DeepPartial<typeof en> = {
     groupMoney: 'Geld',
     groupAccount: 'Konto',
     groupSupport: 'Support',
-    portfolio: 'Portfolio',
+    portfolio: 'Investitionen',
+    analyticsTitle: 'Portfolio und Analysen',
     depositHistory: 'Einzahlungsverlauf',
     withdrawalHistory: 'Auszahlungsverlauf',
     security: 'Sicherheit',

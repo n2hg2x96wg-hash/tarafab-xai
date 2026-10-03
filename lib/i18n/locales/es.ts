@@ -99,6 +99,13 @@ const es: DeepPartial<typeof en> = {
     resetPassword: 'Restablecer contraseña',
   },
   landing: {
+    scene: {
+      intelligence: 'Inteligencia',
+      automation: 'Automatización',
+      investments: 'Inversiones',
+      aria: 'Precio de Bitcoin, conectado con inteligencia de mercado, automatización e inversiones',
+      noQuote: 'Sin cotización actual',
+    },
     footer: {
       tagline: "Plataforma de cartera e inversión en activos digitales.",
       platform: "Plataforma",
@@ -211,6 +218,8 @@ const es: DeepPartial<typeof en> = {
     accessSub: 'Inicio de sesión cifrado',
   },
   market: {
+    sourcesLabel: 'Fuentes de datos de mercado',
+    sourcesDetails: 'Detalles',
     tickerUnavailable: 'Cinta de precios no disponible · reintentando',
     livePrices: 'Precios en directo',
     bitcoinMarket: 'Mercado de Bitcoin',
@@ -572,7 +581,8 @@ const es: DeepPartial<typeof en> = {
     groupMoney: 'Fondos',
     groupAccount: 'Cuenta',
     groupSupport: 'Soporte',
-    portfolio: 'Cartera',
+    portfolio: 'Inversiones',
+    analyticsTitle: 'Cartera y análisis',
     depositHistory: 'Historial de depósitos',
     withdrawalHistory: 'Historial de retiradas',
     security: 'Seguridad',

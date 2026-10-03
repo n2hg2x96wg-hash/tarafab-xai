@@ -290,14 +290,20 @@ export default function DashboardPage() {
 
   // Open the section named in the URL (#deposit etc.) after a refresh.
   useEffect(() => {
-    const raw = window.location.hash.slice(1)
-    // #investments/<id> opens that investment inside the Investment Center. The
-    // id only selects among the signed-in client's OWN investments (the API is
-    // scoped by row level security), so another client's id shows nothing.
-    const deep = /^investments\/([0-9a-f-]{36})$/i.exec(raw)
-    if (deep) setFocusInv(deep[1])
-    const id = deep || raw === 'investments' ? 'portfolio' : raw
-    if (NAV_IDS.has(id)) setActiveNav(id)
+    const apply = () => {
+      const raw = window.location.hash.slice(1)
+      // #investments/<id> opens that investment inside the Investment Center. The
+      // id only selects among the signed-in client's OWN investments (the API is
+      // scoped by row level security), so another client's id shows nothing.
+      const deep = /^investments\/([0-9a-f-]{36})$/i.exec(raw)
+      if (deep) setFocusInv(deep[1])
+      const id = deep || raw === 'investments' ? 'portfolio' : raw
+      if (NAV_IDS.has(id)) setActiveNav(id)
+    }
+    apply()
+    // Links to #section (e.g. #investments) also work while the dashboard is open.
+    window.addEventListener('hashchange', apply)
+    return () => window.removeEventListener('hashchange', apply)
   }, [])
 
   const loadMore = useCallback(async () => {
@@ -514,7 +520,7 @@ export default function DashboardPage() {
             {activeNav === 'automations' && !soon('automations') && <AutomationCenter presetAsset={autoAsset} onPresetUsed={() => setAutoAsset(null)} />}
             {activeNav === 'premium' && !soon('premium') && <PremiumCenter account={account} txs={txs} />}
             {activeNav === 'transactions' && <><TransactionsTab txs={txs} /><div className="mt-4"><LoadMore hasMore={hasMore} loading={loadingMore} onLoadMore={loadMore} /></div></>}
-            {activeNav === 'portfolio' && <div className="space-y-8">{!hiddenState(feature('investments')) && <InvestmentCenter go={go} focusId={focusInv} onFocusDone={() => setFocusInv(null)} onAccountChanged={fetchData} />}<PortfolioTab account={account} txs={txs} hasMore={hasMore} go={go} /></div>}
+            {activeNav === 'portfolio' && <div className="space-y-8">{!hiddenState(feature('investments')) && <InvestmentCenter go={go} focusId={focusInv} onFocusDone={() => setFocusInv(null)} onAccountChanged={fetchData} />}<section aria-labelledby="pf-analytics" className="space-y-3"><h2 id="pf-analytics" className="text-lg font-semibold tracking-tight text-fg">{t('nav2.analyticsTitle')}</h2><PortfolioTab account={account} txs={txs} hasMore={hasMore} go={go} /></section></div>}
             {activeNav === 'depositHistory' && <HistoryTab kind="deposit" txs={txs} hasMore={hasMore} loadingMore={loadingMore} onLoadMore={loadMore} go={go} />}
             {activeNav === 'withdrawalHistory' && <HistoryTab kind="withdrawal" txs={txs} hasMore={hasMore} loadingMore={loadingMore} onLoadMore={loadMore} go={go} />}
             {activeNav === 'security' && <SecurityTab user={user} />}

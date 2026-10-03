@@ -102,6 +102,13 @@ const ko: DeepPartial<typeof en> = {
     resetPassword: '비밀번호 재설정',
   },
   landing: {
+    scene: {
+      intelligence: '인텔리전스',
+      automation: '자동화',
+      investments: '투자',
+      aria: '시장 인텔리전스, 자동화, 투자와 연결된 비트코인 가격',
+      noQuote: '현재 시세 없음',
+    },
     footer: {
       tagline: "디지털 자산 포트폴리오 및 투자 플랫폼.",
       platform: "플랫폼",
@@ -214,6 +221,8 @@ const ko: DeepPartial<typeof en> = {
     accessSub: '암호화된 로그인',
   },
   market: {
+    sourcesLabel: '시장 데이터 출처',
+    sourcesDetails: '자세히',
     tickerUnavailable: '시세 표시줄을 사용할 수 없음 · 다시 시도 중',
     livePrices: '실시간 시세',
     bitcoinMarket: '비트코인 시장',
@@ -575,7 +584,8 @@ const ko: DeepPartial<typeof en> = {
     groupMoney: '자금',
     groupAccount: '계정',
     groupSupport: '지원',
-    portfolio: '포트폴리오',
+    portfolio: '투자',
+    analyticsTitle: '포트폴리오 및 분석',
     depositHistory: '입금 내역',
     withdrawalHistory: '출금 내역',
     security: '보안',

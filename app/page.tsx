@@ -1,58 +1,23 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
-import { BitcoinMarketCard } from '@/components/BitcoinMarket'
-import { HeroLivePanel, LatestBlocks, LiveTickerBar, useLiveMarket } from '@/components/LiveCrypto'
+import { LiveTickerBar, useLiveMarket } from '@/components/LiveCrypto'
 import { IconArrowDown, IconChart, IconCheck, IconGrid, IconList, IconLock, IconSwap, IconUser, Logo } from '@/components/Icons'
-import { FaqSection, HeroFloatPanels, HistorySection, NetworkSection, PlatformStatus, Reveal, TrustBar } from '@/components/LandingExtras'
+import { FaqSection, HeroFloatPanels, Reveal, TrustBar } from '@/components/LandingExtras'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import LazyOnView, { MountOnView } from '@/components/markets/LazyOnView'
-import { MarketSources } from '@/components/markets/MarketSources'
+import LazyOnView from '@/components/markets/LazyOnView'
 import HashSettle from '@/components/landing/HashSettle'
-import { useTheme } from '@/lib/theme/ThemeProvider'
+import HeroScene from '@/components/landing/HeroScene'
 
 // Decorative canvas: its code is fetched only once the browser is idle, so it
 // never competes with the page becoming interactive.
 const AmbientField = dynamic(() => import('@/components/AmbientField').then(m => m.AmbientField), { ssr: false })
 
-function TradingViewWidget() {
-  const ref = useRef<HTMLDivElement>(null)
-  const { resolved } = useTheme()
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const script = document.createElement('script')
-    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js'
-    script.async = true
-    script.innerHTML = JSON.stringify({
-      autosize: true,
-      symbol: 'COINBASE:BTCUSD',
-      interval: '60',
-      timezone: 'Etc/UTC',
-      theme: resolved,
-      style: '1',
-      locale: tvLocale(),
-      backgroundColor: resolved === 'light' ? 'rgba(255, 255, 255, 1)' : 'rgba(13, 16, 22, 1)',
-      gridColor: resolved === 'light' ? 'rgba(16, 21, 30, 0.06)' : 'rgba(255, 255, 255, 0.04)',
-      hide_side_toolbar: true,
-      allow_symbol_change: false,
-      save_image: false,
-      calendar: false,
-    })
-    el.appendChild(script)
-    return () => { el.innerHTML = '<div class="tradingview-widget-container__widget" style="height:100%;width:100%"></div>' }
-  }, [resolved])
-  return (
-    <div className="tradingview-widget-container h-[420px] sm:h-[480px]" ref={ref}>
-      <div className="tradingview-widget-container__widget" style={{ height: '100%', width: '100%' }} />
-    </div>
-  )
-}
 
 // Decorative line behind the hero. It is an abstract wave, not price data:
 // no axis, no values, and it never changes with the market. Two identical
@@ -66,14 +31,6 @@ const HERO_WAVE = (() => {
   }
   return `M${pts.join(' L')}`
 })()
-
-// TradingView reads the language from the page so its labels match.
-function tvLocale() {
-  const l = typeof document !== 'undefined' ? document.documentElement.lang : 'en'
-  // TradingView's own code for Korean is "kr", not the ISO "ko".
-  if (l === 'ko') return 'kr'
-  return ['en', 'fr', 'es', 'de', 'pt', 'it'].includes(l) ? l : 'en'
-}
 
 // The overall account and investment workflow, shown under "How it works".
 // The deposit-specific steps below stay separate, under "How deposits work".
@@ -104,6 +61,10 @@ const capabilities: { icon: typeof IconChart; title: TKey; body: TKey }[] = [
   { icon: IconCheck, title: 'landing.cap.auditTitle', body: 'landing.cap.auditBody' },
 ]
 
+// The public page shows four account capabilities; the full list is what
+// clients use in the dashboard.
+const PUBLIC_CAPS: TKey[] = ['landing.cap.portfolioTitle', 'landing.cap.depositTitle', 'landing.cap.historyTitle', 'landing.cap.securityTitle']
+
 const safeguards: TKey[] = [
   'landing.safeguards.g1', 'landing.safeguards.g2', 'landing.safeguards.g3', 'landing.safeguards.g4', 'landing.safeguards.g5',
 ]
@@ -122,7 +83,7 @@ export default function LandingPage() {
     if (w.requestIdleCallback) { const h = w.requestIdleCallback(() => setAmbient(true), { timeout: 2500 }); return () => w.cancelIdleCallback?.(h) }
     const t = setTimeout(() => setAmbient(true), 1200); return () => clearTimeout(t)
   }, [])
-  const { t, locale } = useI18n()
+  const { t } = useI18n()
 
   // A signed-in CLIENT is sent to their dashboard. A signed-in ADMIN is not
   // redirected: the public site is a legitimate place for an admin to be, and
@@ -235,28 +196,26 @@ export default function LandingPage() {
             <p className="rise-in mt-5 text-[13px] text-fg-faint max-w-md leading-relaxed" style={{ ['--i' as string]: 4 }}>
               {t('landing.risk')}
             </p>
+            {/* Three plain assurances; no backend status or technical metadata. */}
             <div className="rise-in mt-8" style={{ ['--i' as string]: 5 }}>
-              <TrustBar marketStatus={market.status} />
-            </div>
-            <div className="rise-in mt-5" style={{ ['--i' as string]: 6 }}>
-              <PlatformStatus marketStatus={market.status} />
+              <TrustBar minimal />
             </div>
           </div>
 
           <div className="relative rise-in" style={{ ['--i' as string]: 3 }}>
             <div className="absolute -inset-4 rounded-2xl bg-gradient-to-b from-accent/10 via-transparent to-transparent blur-2xl" aria-hidden="true" />
             <div className="relative">
-              <ErrorBoundary label={t('market.bitcoinMarket')}><HeroLivePanel {...market} /></ErrorBoundary>
+              <ErrorBoundary label={t('market.bitcoinMarket')}><HeroScene market={market} /></ErrorBoundary>
             </div>
           </div>
         </div>
       </section>
 
-      {/* What the platform does */}
-      <LazyOnView load={loadIntelligence} />
-
-      {/* Scroll-driven story: code fetched when the browser is idle, mounted near the viewport */}
+      {/* The product story, told in 3D as the visitor scrolls (code fetched when idle, mounted near the viewport). */}
       <LazyOnView load={loadStory} minHeight={640} />
+
+      {/* Markets: the real market board and a clean price-history chart. */}
+      <LazyOnView load={loadIntelligence} />
 
       <section id="platform" className="scroll-mt-16 border-b border-ink-700">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 lg:py-24">
@@ -265,8 +224,8 @@ export default function LandingPage() {
             <h2 className="text-3xl sm:text-[34px] font-semibold tracking-tight text-fg">{t('landing.platformTitle')}</h2>
             <p className="mt-3 text-fg-muted leading-relaxed">{t('landing.platformBody')}</p>
           </div></Reveal>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {capabilities.map(({ icon: Icon, title, body }, i) => (
+          <div className="grid sm:grid-cols-2 gap-3 max-w-4xl">
+            {capabilities.filter(c => PUBLIC_CAPS.includes(c.title)).map(({ icon: Icon, title, body }, i) => (
               <Reveal key={title} delay={(i % 4) * 70} className="h-full">
                 <div className="panel panel-lift p-5 h-full">
                   <span className="icon-tile mb-4"><Icon width={19} height={19} /></span>
@@ -278,44 +237,6 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
-
-      {/* Markets */}
-      <section id="markets" className="scroll-mt-16 border-b border-ink-700">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 lg:py-20">
-          <Reveal><div className="mb-8 max-w-2xl">
-            <h2 className="text-3xl font-semibold tracking-tight text-fg">{t('landing.marketsTitle')}</h2>
-            <p className="mt-3 text-fg-muted">{t('landing.marketsBody')}</p>
-          </div></Reveal>
-
-          {/* The TradingView embed is a heavy third-party iframe: it is only
-              requested once the visitor scrolls near it. */}
-          <MountOnView className="mb-4 min-h-[466px] sm:min-h-[526px]">
-            <Reveal><div className="panel overflow-hidden mb-4">
-              <div className="flex items-center justify-between px-4 h-11 border-b border-ink-700 text-[13px]">
-                <span className="text-fg">BTC/USD</span>
-                <span className="text-fg-faint">{t('landing.livePrice')}</span>
-              </div>
-              <ErrorBoundary label={t('landing.livePrice')}><TradingViewWidget key={locale} /></ErrorBoundary>
-            </div></Reveal>
-          </MountOnView>
-
-          <MountOnView className="min-h-[434px] lg:min-h-[278px]">
-            <div className="grid lg:grid-cols-[1fr_2fr] gap-4">
-              <Reveal className="h-full"><ErrorBoundary label={t('market.bitcoinMarket')}><BitcoinMarketCard /></ErrorBoundary></Reveal>
-              <Reveal delay={100}><ErrorBoundary label={t('market.blocksTitle')}><LatestBlocks /></ErrorBoundary></Reveal>
-            </div>
-          </MountOnView>
-          <MarketSources sources={['Coinbase Exchange', 'CoinGecko', 'mempool.space', 'TradingView chart']} className="mt-3 px-1" />
-        </div>
-      </section>
-
-      <MountOnView className="max-w-6xl mx-4 sm:mx-6 lg:mx-auto my-8 min-h-[1200px] lg:min-h-[760px]">
-        <ErrorBoundary label={t('market.historyTitle')} className="max-w-6xl mx-4 sm:mx-auto my-8"><HistorySection price={market.quotes['BTC-USD']?.price} /></ErrorBoundary>
-      </MountOnView>
-
-      <MountOnView className="max-w-6xl mx-4 sm:mx-6 lg:mx-auto my-8 min-h-[680px] lg:min-h-[330px]">
-        <ErrorBoundary label={t('network.title')} className="max-w-6xl mx-4 sm:mx-auto my-8"><NetworkSection /></ErrorBoundary>
-      </MountOnView>
 
       {/* How it works: the overall account and investment workflow */}
       <section id="how-it-works" className="scroll-mt-16 border-b border-ink-700">

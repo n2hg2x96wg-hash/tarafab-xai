@@ -99,6 +99,13 @@ const it: DeepPartial<typeof en> = {
     resetPassword: 'Reimposta password',
   },
   landing: {
+    scene: {
+      intelligence: 'Analisi',
+      automation: 'Automazione',
+      investments: 'Investimenti',
+      aria: 'Prezzo del Bitcoin, collegato ad analisi di mercato, automazione e investimenti',
+      noQuote: 'Nessuna quotazione attuale',
+    },
     footer: {
       tagline: "Piattaforma di portafoglio e investimento in asset digitali.",
       platform: "Piattaforma",
@@ -211,6 +218,8 @@ const it: DeepPartial<typeof en> = {
     accessSub: 'Accesso cifrato',
   },
   market: {
+    sourcesLabel: 'Fonti dei dati di mercato',
+    sourcesDetails: 'Dettagli',
     tickerUnavailable: 'Barra dei prezzi non disponibile · nuovo tentativo',
     livePrices: 'Prezzi in tempo reale',
     bitcoinMarket: 'Mercato Bitcoin',
@@ -572,7 +581,8 @@ const it: DeepPartial<typeof en> = {
     groupMoney: 'Fondi',
     groupAccount: 'Conto',
     groupSupport: 'Assistenza',
-    portfolio: 'Portafoglio',
+    portfolio: 'Investimenti',
+    analyticsTitle: 'Portafoglio e analisi',
     depositHistory: 'Storico versamenti',
     withdrawalHistory: 'Storico prelievi',
     security: 'Sicurezza',

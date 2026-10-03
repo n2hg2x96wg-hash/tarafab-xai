@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useAssets } from '@/components/markets/assetStore'
 import { formatPrice } from '@/lib/assets'
+import { effectiveState } from '@/lib/marketStatus'
 
 // Scroll-driven 3D story for the landing page.
 //
@@ -46,22 +47,24 @@ function useMode(): Mode {
 }
 
 const STEPS: { eyebrow: string; title: string; body: string }[] = [
-  { eyebrow: 'Market data', title: 'Real quotes, clearly labelled', body: 'Prices come from the market feed with their own timestamps. When a quote is delayed or unavailable, it says so — nothing is estimated.' },
-  { eyebrow: 'Automation', title: 'Rules that watch the market for you', body: 'Set a condition such as “BTC above a price”. The server checks it every minute and notifies you only when the market actually meets it.' },
-  { eyebrow: 'Portfolio', title: 'Every balance, one view', body: 'Account, invested and profit balances with the history behind each change — your real figures appear after you sign in.' },
-  { eyebrow: 'Review & security', title: 'Every deposit and withdrawal reviewed', body: 'Funds move only after verification. Each step is recorded in an audit trail you can follow from your dashboard.' },
+  { eyebrow: 'Market data', title: 'Real market information', body: 'Prices arrive from the market feed with their own timestamps. When a quote is delayed or unavailable, it says so — nothing is estimated.' },
+  { eyebrow: 'Automation', title: 'Rules evaluate market conditions', body: 'Set a condition such as “BTC above a price”. The server checks it every minute and notifies you only when the market actually meets it.' },
+  { eyebrow: 'Investments', title: 'Investments, managed in one place', body: 'Choose an available plan, follow each investment from request to active to completed, and see the return recorded against it.' },
+  { eyebrow: 'Account', title: 'Balances and activity, reviewed', body: 'Deposits and withdrawals move only after review, and every change to your balances is recorded in an audit trail you can follow.' },
 ]
 
 function MarketLayer() {
   const { assets, error } = useAssets()
   const btc = assets?.find(a => a.id === 'BTC') || null
-  const usable = !!btc && btc.price != null && (btc.state === 'live' || btc.state === 'delayed') && !error
-  const live = usable && btc!.state === 'live'
+  // Shared status rule (lib/marketStatus): old or failed-refresh quotes are stale, never live.
+  const st = btc ? effectiveState(btc, error) : null
+  const usable = !!btc && st !== null && st !== 'unavailable'
+  const live = st === 'live'
   return (
     <div className="story-card" data-live={live ? 'true' : 'false'}>
       <div className="flex items-center justify-between text-[11px] text-fg-faint">
         <span>BTC · USD</span>
-        <span className="inline-flex items-center gap-1.5"><span className={`w-1.5 h-1.5 rounded-full ${live ? 'bg-emerald-400 board-pulse' : usable ? 'bg-amber-400' : 'bg-fg-faint'}`} aria-hidden="true" />{live ? 'Live' : usable ? 'Delayed' : assets === null && !error ? 'Loading' : 'Unavailable'}</span>
+        <span className="inline-flex items-center gap-1.5"><span className={`w-1.5 h-1.5 rounded-full ${live ? 'bg-emerald-400 board-pulse' : usable ? 'bg-amber-400' : 'bg-fg-faint'}`} aria-hidden="true" />{live ? 'Live' : st === 'stale' ? 'Stale' : usable ? 'Delayed' : assets === null && !error ? 'Loading' : 'Unavailable'}</span>
       </div>
       <p className="mt-2 text-2xl font-semibold tabular-nums text-fg">{usable ? formatPrice(btc!.price!) : '—'}</p>
       {usable && btc!.changePct != null
@@ -88,43 +91,40 @@ function AutomationLayer() {
   )
 }
 
-function PortfolioLayer() {
+function InvestmentLayer() {
   return (
     <div className="story-card">
-      <div className="flex items-center justify-between"><span className="text-[11px] text-fg-faint">Portfolio</span><ExampleTag /></div>
-      <div className="mt-3 flex items-center gap-4">
-        <svg viewBox="0 0 42 42" className="w-16 h-16 shrink-0" aria-hidden="true">
-          <circle cx="21" cy="21" r="15.9" fill="none" stroke="rgb(var(--ink-600))" strokeWidth="5" />
-          <circle cx="21" cy="21" r="15.9" fill="none" stroke="rgb(var(--accent))" strokeOpacity=".7" strokeWidth="5" strokeDasharray="38 62" strokeDashoffset="25" />
-          <circle cx="21" cy="21" r="15.9" fill="none" stroke="rgb(52 211 153)" strokeOpacity=".6" strokeWidth="5" strokeDasharray="22 78" strokeDashoffset="-13" />
-        </svg>
-        <ul className="space-y-1 text-[12px] text-fg-muted">
-          <li>Account balance</li><li>Invested</li><li>Profit balance</li>
-        </ul>
-      </div>
-      <p className="mt-2 text-[11px] text-fg-faint">Layout only — your figures appear after sign-in.</p>
-    </div>
-  )
-}
-
-function ReviewLayer() {
-  return (
-    <div className="story-card">
-      <div className="flex items-center justify-between"><span className="text-[11px] text-fg-faint">How a deposit progresses</span><ExampleTag /></div>
-      <ol className="mt-3 space-y-1.5 text-[12px]">
-        {[['Submitted', 'bg-sky-400'], ['Under review', 'bg-amber-400'], ['Approved & credited', 'bg-emerald-400']].map(([s, c]) => (
-          <li key={s} className="flex items-center gap-2 text-fg-muted"><span className={`w-1.5 h-1.5 rounded-full ${c}`} aria-hidden="true" />{s}</li>
+      <div className="flex items-center justify-between"><span className="text-[11px] text-fg-faint">Investment lifecycle</span><ExampleTag /></div>
+      <ol className="mt-3 flex items-center gap-1.5 text-[11px]" aria-label="Requested, active, completed">
+        {[['Requested', 'border-sky-400/50 text-sky-300'], ['Active', 'border-emerald-400/50 text-emerald-300'], ['Completed', 'border-accent/50 text-accent']].map(([s, c], i) => (
+          <li key={s} className="flex items-center gap-1.5"><span className={`rounded-md border px-2 py-1 ${c}`}>{s}</span>{i < 2 && <span className="h-px w-3 bg-ink-600" aria-hidden="true" />}</li>
         ))}
       </ol>
-      <p className="mt-2 text-[11px] text-fg-faint">Each step is recorded in the audit trail.</p>
+      <p className="mt-3 text-[11px] text-fg-faint">Your plans and their status appear after sign-in.</p>
     </div>
   )
 }
 
-const LAYERS: (() => ReactNode)[] = [() => <MarketLayer />, () => <AutomationLayer />, () => <PortfolioLayer />, () => <ReviewLayer />]
+function AccountLayer() {
+  return (
+    <div className="story-card">
+      <div className="flex items-center justify-between"><span className="text-[11px] text-fg-faint">Your account</span><ExampleTag /></div>
+      <ul className="mt-3 space-y-1.5 text-[12px] text-fg-muted">
+        {['Account balance', 'Total invested', 'Profit / return'].map((x, i) => (
+          <li key={x} className="flex items-center justify-between gap-3"><span>{x}</span><span className="h-2 rounded bg-ink-700" style={{ width: `${58 - i * 12}px` }} aria-hidden="true" /></li>
+        ))}
+      </ul>
+      <p className="mt-3 text-[11px] text-fg-faint">Every change is reviewed and recorded in the audit trail.</p>
+    </div>
+  )
+}
+
+const LAYERS: (() => ReactNode)[] = [() => <MarketLayer />, () => <AutomationLayer />, () => <InvestmentLayer />, () => <AccountLayer />]
 
 export default function ScrollStory() {
   const mode = useMode()
+  // Phones scroll through the same four stages in less distance.
+  const [narrow] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches)
   const sectionRef = useRef<HTMLElement>(null)
   const stageRef = useRef<HTMLDivElement>(null)
   const stepRef = useRef(0)
@@ -171,7 +171,7 @@ export default function ScrollStory() {
   }
 
   return (
-    <section ref={sectionRef} className="story story-full border-b border-ink-700 relative" style={{ height: `${STEPS.length * 80 + 40}vh` }} aria-labelledby="story-title" data-story-mode="full">
+    <section ref={sectionRef} className="story story-full border-b border-ink-700 relative" style={{ height: `${narrow ? STEPS.length * 62 + 38 : STEPS.length * 80 + 40}vh` }} aria-labelledby="story-title" data-story-mode="full">
       <div className="sticky top-16 h-[calc(100vh-4rem)] h-[calc(100svh-4rem)] overflow-hidden">
         {/* Phones: scene on top, the current step below; from lg: side by side. */}
         <div className="max-w-6xl h-full mx-auto px-4 sm:px-6 grid grid-rows-[minmax(0,1fr)_auto] lg:grid-rows-1 lg:grid-cols-[1fr_1.1fr] gap-3 lg:gap-10 items-center py-4 lg:py-0">
@@ -189,12 +189,20 @@ export default function ScrollStory() {
             </ol>
             <Link href="/sign-up" className="btn btn-solid mt-4 lg:mt-8 inline-flex">Open an account</Link>
           </div>
-          <div ref={stageRef} className="story-stage order-1 lg:order-none min-h-0 h-full lg:h-auto" data-step={step} aria-hidden="true">
+          <div ref={stageRef} className="story-stage order-1 lg:order-none min-h-0" data-step={step} aria-hidden="true">
             <div className="story-plane" />
             <div className="story-orbit">
               {LAYERS.map((L, i) => <div key={i} className={`story-layer ${i === step ? 'is-active' : i < step ? 'is-past' : ''}`} style={{ ['--i' as string]: i }}>{L()}</div>)}
             </div>
-            <div className="story-progress"><span /></div>
+            {/* Data points drifting at different depths with scroll progress. */}
+            <span className="story-pt" style={{ ['--x' as string]: '12%', ['--y' as string]: '22%', ['--z' as string]: '-60px' }} />
+            <span className="story-pt" style={{ ['--x' as string]: '86%', ['--y' as string]: '30%', ['--z' as string]: '-120px' }} />
+            <span className="story-pt" style={{ ['--x' as string]: '74%', ['--y' as string]: '64%', ['--z' as string]: '20px' }} />
+            {/* The four stages, connected; the track fills as the visitor scrolls. */}
+            <div className="story-rail">
+              <div className="story-track"><span /></div>
+              {STEPS.map((s, i) => <span key={s.eyebrow} className={`story-node ${i <= step ? 'is-on' : ''} ${i === step ? 'is-now' : ''}`} style={{ ['--k' as string]: i / (STEPS.length - 1) }}><i>{s.eyebrow}</i></span>)}
+            </div>
           </div>
         </div>
       </div>
