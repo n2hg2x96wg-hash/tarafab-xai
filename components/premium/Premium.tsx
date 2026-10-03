@@ -11,7 +11,7 @@ import { fmt, type Account, type Tx } from '@/components/dashboard/shared'
 import { TIMEFRAMES } from '@/lib/assets'
 import { hiddenState, useFeatures } from '@/components/ui/features'
 import { createClient } from '@/lib/supabase/client'
-import { PricingTable, money as planMoney, useUsdNgn, usdEquivalent, displayName } from '@/components/premium/Pricing'
+import { PricingTable, money as planMoney, useUsdNgn, displayName, PriceStack } from '@/components/premium/Pricing'
 import { newRequestKey } from '@/lib/authFetch'
 
 export type PremiumInfo = {
@@ -292,10 +292,11 @@ export function PremiumCenter({ account, txs }: { account: Account | null; txs: 
           onCancel={() => { setPayReview(null); payKey.current = newRequestKey() }} onConfirm={startPay}>
           <dl className="divide-y divide-ink-700 text-sm">
             <div className="flex justify-between gap-4 py-2"><dt className="text-fg-muted">{pt('pay.plan')}</dt><dd className="text-fg">{displayName(payReview.name)}</dd></div>
-            <div className="flex justify-between gap-4 py-2"><dt className="text-fg-muted">{pt('pay.amount')}</dt><dd className="text-fg font-semibold tabular-nums">{planMoney(Number(payReview.promo_price ?? payReview.price), payReview.currency)}</dd></div>
-            {payReview.currency === 'NGN' && usdEquivalent(Number(payReview.promo_price ?? payReview.price), payReview.currency, fxRate) && (
-              <div className="flex justify-between gap-4 py-2"><dt className="text-fg-muted">{pt('pay.usdEq')}</dt><dd className="text-fg-muted tabular-nums">≈ {usdEquivalent(Number(payReview.promo_price ?? payReview.price), payReview.currency, fxRate)}</dd></div>
-            )}
+            <div className="flex justify-between items-start gap-4 py-2"><dt className="text-fg-muted">{pt('pay.amount')}</dt><dd className="text-right">
+              {payReview.currency === 'NGN'
+                ? <PriceStack amount={Number(payReview.promo_price ?? payReview.price)} currency={payReview.currency} period={payReview.period || payReview.interval} rate={fxRate} size="modal" />
+                : <span className="text-fg font-semibold tabular-nums">{planMoney(Number(payReview.promo_price ?? payReview.price), payReview.currency)}</span>}
+            </dd></div>
             <div className="flex justify-between gap-4 py-2"><dt className="text-fg-muted">{pt('pay.billing')}</dt><dd className="text-fg">{pt(`pp.${payReview.period || payReview.interval}`)}</dd></div>
           </dl>
           <p className="mt-3 text-[12px] text-fg-muted">{pt('pay.secure')}</p>
