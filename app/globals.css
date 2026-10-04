@@ -677,3 +677,19 @@ body.dialog-open #chat-application { visibility: hidden !important; }
 @keyframes eoSpin { to { transform: rotate(360deg); } }
 @keyframes eoBlink { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .eo-sweep, .eo-pt { animation: none !important; } }
+
+/* Public automation flow: steps light up in order once on screen. */
+.auto-flow-step { position: relative; display: flex; align-items: center; gap: 10px; font-size: 14px; color: rgb(var(--fg-muted)); padding-left: 2px; }
+.auto-flow-step:not(:last-child)::after { content: ''; position: absolute; left: 6px; top: 20px; height: 14px; width: 1px; background: linear-gradient(rgb(var(--accent) / .6), transparent); }
+.auto-flow-dot { width: 10px; height: 10px; border-radius: 999px; border: 2px solid rgb(var(--accent) / .7); background: rgb(var(--ink-900)); animation: autoStep 4s ease-in-out infinite; animation-delay: calc(var(--i) * .5s); }
+@keyframes autoStep { 0%, 70%, 100% { background: rgb(var(--ink-900)); box-shadow: none; } 12%, 30% { background: rgb(var(--accent)); box-shadow: 0 0 12px rgb(var(--accent) / .7); } }
+@media (prefers-reduced-motion: reduce) { .auto-flow-dot { animation: none; background: rgb(var(--accent) / .6); } }
+
+/* Investment lifecycle stepper: done steps filled, the current one glows. */
+.inv-life-step { display: flex; flex-direction: column; align-items: center; gap: 6px; color: rgb(var(--fg-faint)); position: relative; }
+.inv-life-step span { width: 12px; height: 12px; border-radius: 999px; border: 2px solid rgb(var(--ink-600)); background: rgb(var(--ink-900)); }
+.inv-life-step:not(:last-child)::after { content: ''; position: absolute; top: 5px; left: calc(50% + 9px); right: calc(-50% + 9px); height: 2px; background: rgb(var(--ink-700)); }
+.inv-life-step.is-done span { border-color: rgb(52 211 153 / .8); background: rgb(52 211 153 / .3); }
+.inv-life-step.is-done::after { background: rgb(52 211 153 / .5); }
+.inv-life-step.is-now { color: rgb(var(--fg)); }
+.inv-life-step.is-now span { border-color: rgb(52 211 153); background: rgb(52 211 153); box-shadow: 0 0 0 4px rgb(52 211 153 / .15), 0 0 14px rgb(52 211 153 / .6); }

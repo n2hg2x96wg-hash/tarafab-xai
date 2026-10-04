@@ -107,7 +107,13 @@ Deno.serve(async (req) => {
   try {
     const { data: assets, error: aErr } = await db.from('market_assets').select('id, name, category, provider, provider_symbol, enabled, automation_enabled')
     if (aErr) throw new Error('assets: ' + aErr.message)
-    const { data: rules, error: rErr } = await db.from('automations').select('id, asset_id, kind, target').eq('status', 'active')
+    // Admin operating mode (Admin -> Automation Center). Paused / maintenance:
+    // quotes are still recorded, but no rule is evaluated or triggered.
+    const { data: pres } = await db.from('automation_presentation').select('operating_mode').eq('id', 1).maybeSingle()
+    const mode = (pres as { operating_mode?: string } | null)?.operating_mode || 'active'
+    const { data: rules, error: rErr } = mode === 'active'
+      ? await db.from('automations').select('id, asset_id, kind, target').eq('status', 'active')
+      : { data: [], error: null }
     if (rErr) throw new Error('automations: ' + rErr.message)
     const byAsset = new Map<string, Rule[]>()
     for (const r of (rules || []) as Rule[]) byAsset.set(r.asset_id, [...(byAsset.get(r.asset_id) || []), r])

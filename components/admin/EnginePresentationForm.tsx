@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 // These settings change names, copy and visibility only — the status, the
 // monitored assets and every activity event always come from the engine's
 // own records and cannot be set here.
-type P = { panel_visible: boolean; preview_visible: boolean; display_name: string; asset_labels: string; description: string; animation: 'off' | 'subtle' | 'standard' }
+type P = { panel_visible: boolean; preview_visible: boolean; display_name: string; asset_labels: string; description: string; animation: 'off' | 'subtle' | 'standard'; operating_mode: 'active' | 'paused' | 'maintenance' }
 
 export function EnginePresentationForm() {
   const supabase = createClient()
@@ -28,9 +28,17 @@ export function EnginePresentationForm() {
   return (
     <section className="glass rounded-2xl border border-white/[0.08] p-4 sm:p-5 mb-5" aria-labelledby="eng-pres">
       <h2 id="eng-pres" className="text-sm font-semibold text-white">Engine presentation</h2>
-      <p className="mt-1 text-xs text-slate-400">Controls the automation panel on the client Investments page and the landing preview. Status (running / delayed / offline), monitored assets and activity always come from the engine itself and cannot be set here.</p>
+      <p className="mt-1 text-xs text-slate-400">Controls the automation panel on the client Investments page and the landing preview. Monitored assets and activity always come from the engine itself. Every save is recorded in the audit log with the previous and new values.</p>
       {!p ? <p className="mt-3 text-xs text-slate-500">{msg || 'Loading…'}</p> : (
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <label className="text-xs text-slate-300 sm:col-span-2">Engine operating mode
+            <select className={field} value={p.operating_mode || 'active'} onChange={e => setP({ ...p, operating_mode: e.target.value as P['operating_mode'] })}>
+              <option value="active">Active — rules are evaluated every minute</option>
+              <option value="paused">Paused — quotes still recorded, no rules evaluated</option>
+              <option value="maintenance">Maintenance — quotes still recorded, no rules evaluated</option>
+            </select>
+            <span className="mt-1 block text-[11px] text-slate-500">The engine itself reads this each run, so the status clients see matches what it actually does. Which assets can be automated is set per asset in Assets &amp; market data.</span>
+          </label>
           <label className="text-xs text-slate-300">Display name<input className={field} maxLength={60} value={p.display_name} onChange={e => setP({ ...p, display_name: e.target.value })} /></label>
           <label className="text-xs text-slate-300">Asset labels (shown when no live list is available)<input className={field} maxLength={80} value={p.asset_labels} onChange={e => setP({ ...p, asset_labels: e.target.value })} /></label>
           <label className="text-xs text-slate-300 sm:col-span-2">Explanatory copy<textarea className={field} rows={2} maxLength={280} value={p.description} onChange={e => setP({ ...p, description: e.target.value })} /></label>

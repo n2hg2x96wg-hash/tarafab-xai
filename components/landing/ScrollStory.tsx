@@ -101,7 +101,7 @@ function EngineLayer() {
     <div className="story-card" data-live={running ? 'true' : 'false'}>
       <div className="flex items-center justify-between text-[11px]">
         <span className="text-fg-faint truncate">{presentation.display_name}</span>
-        <span className="inline-flex items-center gap-1.5 text-fg-muted"><span className={`w-1.5 h-1.5 rounded-full ${running ? 'bg-emerald-400 board-pulse' : 'bg-fg-faint'}`} aria-hidden="true" />{running ? 'Running' : state === 'degraded' ? 'Delayed' : state === 'offline' ? 'Offline' : 'Unavailable'}</span>
+        <span className="inline-flex items-center gap-1.5 text-fg-muted"><span className={`w-1.5 h-1.5 rounded-full ${running ? 'bg-emerald-400 board-pulse' : 'bg-fg-faint'}`} aria-hidden="true" />{running ? 'Monitoring active' : state === 'paused' ? 'Paused' : state === 'maintenance' ? 'Maintenance' : state === 'degraded' ? 'Delayed' : state === 'offline' ? 'Offline' : 'Unavailable'}</span>
       </div>
       <p className="mt-2 text-[13px] text-fg">Monitoring {status && status.monitored_count ? status.monitored.slice(0, 3).join(' · ') + (status.monitored_count > 3 ? ` +${status.monitored_count - 3}` : '') : presentation.asset_labels}</p>
       <p className="mt-2 text-[11px] text-fg-faint">Automation does not guarantee investment returns.</p>

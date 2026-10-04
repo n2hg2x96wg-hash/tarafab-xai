@@ -11,8 +11,10 @@ import { authFetch, readJson } from '@/lib/authFetch'
 // change names and copy only. The engine evaluates rules and records/notifies;
 // it does not place trades, and nothing here implies it generates returns.
 
-const LABEL: Record<EngineState, string> = { running: 'Running · monitoring', degraded: 'Delayed', offline: 'Offline', unavailable: 'Unavailable' }
-const TONE: Record<EngineState, string> = { running: 'text-emerald-300 border-emerald-500/30 bg-emerald-500/[0.07]', degraded: 'text-amber-300 border-amber-500/30 bg-amber-500/[0.07]', offline: 'text-fg-muted border-ink-600 bg-ink-800/60', unavailable: 'text-fg-muted border-ink-600 bg-ink-800/60' }
+// The engine evaluates rules and records/notifies; it does not execute
+// trades, so the running state is labelled as monitoring.
+const LABEL: Record<EngineState, string> = { running: 'Monitoring active', paused: 'Paused', maintenance: 'Maintenance', degraded: 'Delayed', offline: 'Offline', unavailable: 'Unavailable' }
+const TONE: Record<EngineState, string> = { running: 'text-emerald-300 border-emerald-500/30 bg-emerald-500/[0.07]', paused: 'text-amber-300 border-amber-500/30 bg-amber-500/[0.07]', maintenance: 'text-sky-300 border-sky-500/30 bg-sky-500/[0.07]', degraded: 'text-amber-300 border-amber-500/30 bg-amber-500/[0.07]', offline: 'text-fg-muted border-ink-600 bg-ink-800/60', unavailable: 'text-fg-muted border-ink-600 bg-ink-800/60' }
 const EVENT_LABEL: Record<string, string> = { created: 'Rule created', triggered: 'Condition met · notification sent', resumed: 'Rule resumed', paused: 'Rule paused' }
 
 function ago(iso: string | null) {
@@ -21,13 +23,15 @@ function ago(iso: string | null) {
   return s < 60 ? `${s}s ago` : s < 3600 ? `${Math.round(s / 60)} min ago` : s < 86400 ? `${Math.round(s / 3600)} h ago` : new Date(iso).toLocaleDateString()
 }
 
-type Auto = { id: string; status: string; asset_id: string }
+type Auto = { id: string; status: string; asset_id: string; last_evaluated_at?: string | null }
 type Ev = { id: number | string; event: string; created_at: string; automation_id: string }
 
 export function EnginePanel({ variant = 'client', className = '' }: { variant?: 'client' | 'preview'; className?: string }) {
   const { status, state, loading, presentation: p } = useEngineStatus()
   const ref = useRef<HTMLDivElement>(null)
   const [mine, setMine] = useState<{ rules: Auto[]; events: Ev[] } | null | 'error'>(null)
+  const [, tick] = useState(0)
+  useEffect(() => { const t = setInterval(() => { if (document.visibilityState === 'visible') tick(n => n + 1) }, 15_000); return () => clearInterval(t) }, [])
 
   // Client: their own rules and events (scoped by row level security server-side).
   useEffect(() => {
@@ -51,6 +55,17 @@ export function EnginePanel({ variant = 'client', className = '' }: { variant?: 
   const activeRules = mine && mine !== 'error' ? mine.rules.filter(r => r.status === 'active').length : null
   const events = mine && mine !== 'error' ? [...mine.events].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).slice(0, 4) : []
 
+  // Re-render every 15 s for the relative times (only the labels change).
+  const stream: { key: string; label: string; at: string; tone: string }[] = []
+  if (status?.market_at) stream.push({ key: 'm', label: `Market data synchronized${status.monitored.length ? ` · ${status.monitored.slice(0, 2).join(', ')}` : ''}`, at: status.market_at, tone: 'bg-sky-400' })
+  if (status?.last_ok_at) stream.push({ key: 'c', label: state === 'paused' || state === 'maintenance' ? 'Engine cycle completed · rule evaluation paused' : `Automation cycle completed${status.last_evaluated != null ? ` · ${status.last_evaluated} rule${status.last_evaluated === 1 ? '' : 's'} evaluated` : ''}`, at: status.last_ok_at, tone: 'bg-emerald-400' })
+  if (variant === 'client' && mine && mine !== 'error') {
+    const lastEval = mine.rules.filter(r => r.last_evaluated_at).sort((a, b) => Date.parse(b.last_evaluated_at!) - Date.parse(a.last_evaluated_at!))[0]
+    if (lastEval) stream.push({ key: 'r', label: `Your ${lastEval.asset_id} rule evaluated`, at: lastEval.last_evaluated_at!, tone: 'bg-accent' })
+    for (const e of events) stream.push({ key: `e${e.id}`, label: EVENT_LABEL[e.event] || e.event, at: e.created_at, tone: e.event === 'triggered' ? 'bg-amber-400' : 'bg-fg-faint' })
+  }
+  stream.sort((a, b) => Date.parse(b.at) - Date.parse(a.at)); stream.splice(variant === 'client' ? 5 : 2)
+
   return (
     <section ref={ref} className={`engine-panel panel p-5 relative overflow-hidden ${className}`} data-engine-state={state} data-anim={p.animation} aria-labelledby={`eng-${variant}`}>
       <div className="flex items-start gap-4">
@@ -65,7 +80,7 @@ export function EnginePanel({ variant = 'client', className = '' }: { variant?: 
           <p className="text-[11px] uppercase tracking-[0.14em] text-accent">{variant === 'preview' ? 'Automation layer' : 'Automation'}</p>
           <h3 id={`eng-${variant}`} className="mt-0.5 text-[16px] font-semibold text-fg truncate">{p.display_name}</h3>
           <span className={`mt-2 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11.5px] ${TONE[state]}`} data-engine-label>
-            <span className={`w-1.5 h-1.5 rounded-full ${running ? 'bg-emerald-400 board-pulse' : state === 'degraded' ? 'bg-amber-400' : 'bg-fg-faint'}`} aria-hidden="true" />
+            <span className={`w-1.5 h-1.5 rounded-full ${running ? 'bg-emerald-400 board-pulse' : state === 'degraded' || state === 'paused' ? 'bg-amber-400' : state === 'maintenance' ? 'bg-sky-400' : 'bg-fg-faint'}`} aria-hidden="true" />
             {loading ? 'Checking…' : LABEL[state]}
           </span>
         </div>
@@ -78,16 +93,22 @@ export function EnginePanel({ variant = 'client', className = '' }: { variant?: 
         {variant === 'preview' && <div className="min-w-0 col-span-2"><dt className="text-[11px] text-fg-faint">Automation</dt><dd className="text-fg-muted">Rules evaluated automatically · activity recorded in your account</dd></div>}
       </dl>
 
-      {variant === 'client' && (
-        <div className="mt-4">
-          <p className="text-[11px] text-fg-faint mb-1.5">Your recent automation activity</p>
-          {events.length ? (
-            <ol className="engine-timeline space-y-2">
-              {events.map(e => <li key={e.id} className="flex items-center justify-between gap-3 text-[12.5px]"><span className="text-fg-muted truncate">{EVENT_LABEL[e.event] || e.event}</span><span className="text-fg-faint tabular-nums shrink-0">{ago(e.created_at)}</span></li>)}
-            </ol>
-          ) : <p className="text-[12.5px] text-fg-muted">{mine === 'error' ? 'Activity unavailable right now.' : 'No automation activity yet. Create a rule in Automation to start monitoring.'}</p>}
-        </div>
-      )}
+      {/* Activity stream: every line is a recorded timestamp (engine heartbeat,
+          latest stored quote, the client's own rule checks and rule events). */}
+      <div className="mt-4">
+        <p className="text-[11px] uppercase tracking-[0.12em] text-fg-faint mb-2">{variant === 'client' ? 'XAI activity' : 'Engine activity'}</p>
+        {stream.length ? (
+          <ol className="engine-timeline space-y-2" data-activity>
+            {stream.map(x => (
+              <li key={x.key} className="flex items-center justify-between gap-3 text-[12.5px]">
+                <span className="flex items-center gap-2 min-w-0"><span className={`w-1.5 h-1.5 rounded-full shrink-0 ${x.tone}`} aria-hidden="true" /><span className="text-fg-muted truncate">{x.label}</span></span>
+                <span className="text-fg-faint tabular-nums shrink-0">{ago(x.at)}</span>
+              </li>
+            ))}
+          </ol>
+        ) : <p className="text-[12.5px] text-fg-muted">{loading ? 'Loading activity…' : 'No recorded activity yet.'}</p>}
+        {variant === 'client' && mine && mine !== 'error' && !mine.rules.length && <p className="mt-2 text-[12px] text-fg-faint">You have no rules yet — create one in Automation to have it evaluated each minute.</p>}
+      </div>
 
       <p className="mt-4 text-[12px] text-fg-muted leading-relaxed">{p.description}</p>
       <p className="mt-2 text-[11px] text-fg-faint leading-relaxed">Automation does not guarantee investment returns. Market and investment outcomes can vary.</p>

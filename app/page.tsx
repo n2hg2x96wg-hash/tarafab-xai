@@ -72,6 +72,7 @@ const safeguards: TKey[] = [
 const loadIntelligence = () => import('@/components/markets/LandingMarkets')
 const loadPricing = () => import('@/components/premium/LandingPricing')
 const loadStory = () => import('@/components/landing/ScrollStory')
+const loadAutomation = () => import('@/components/landing/AutomationSection')
 
 export default function LandingPage() {
   const router = useRouter()
@@ -216,6 +217,9 @@ export default function LandingPage() {
 
       {/* Markets: the real market board and a clean price-history chart. */}
       <LazyOnView load={loadIntelligence} id="markets" />
+
+      {/* Intelligent automation: the engine's real status and activity. */}
+      <LazyOnView load={loadAutomation} id="automation" />
 
       <section id="platform" className="scroll-mt-16 border-b border-ink-700">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 lg:py-24">

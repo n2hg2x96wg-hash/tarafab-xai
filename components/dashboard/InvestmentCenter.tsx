@@ -80,7 +80,7 @@ function StatusBadge({ status }: { status: string }) {
 // Performance card. States: A active + recorded history, B active only,
 // C history only, D nothing yet. "History" is the running total of completed
 // return ledger entries (credits minus debits), dated as recorded.
-function PerformancePanel({ activeCount, activeAmount, recorded, txs, intl }: { activeCount: number; activeAmount: number; recorded: number; txs: LinkedTx[]; intl: string }) {
+function PerformancePanel({ activeCount, activeAmount, recorded, txs, intl, basis, stage }: { activeCount: number; activeAmount: number; recorded: number; txs: LinkedTx[]; intl: string; basis: number; stage: 0 | 1 | 2 | 3 | null }) {
   const { t } = useI18n()
   const pts = useMemo(() => {
     const rows = txs.filter(x => x.kind === 'return' && x.tx?.status === 'completed' && x.tx.created_at)
@@ -118,10 +118,19 @@ function PerformancePanel({ activeCount, activeAmount, recorded, txs, intl }: { 
           </span>
         )}
       </div>
+      {/* Lifecycle of the most relevant investment (active, else pending, else latest completed). */}
+      {stage != null && (
+        <ol className="inv-life mt-4 grid grid-cols-4 gap-1 text-[10.5px] text-center" aria-label="Investment lifecycle">
+          {['Requested', 'Active', 'Return recorded', 'Completed'].map((x, i) => (
+            <li key={x} className={`inv-life-step ${i < stage ? 'is-done' : i === stage ? 'is-now' : ''}`} aria-current={i === stage ? 'step' : undefined}><span aria-hidden="true" />{x}</li>
+          ))}
+        </ol>
+      )}
       {(isActive || chart) && (
         <dl className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
           {isActive && <div className="min-w-0"><dt className="text-[11px] text-fg-faint">{t('inv.f.perfActiveAmount')}</dt><dd className="text-base font-semibold text-fg tabular-nums truncate">{money(activeAmount)}</dd><dd className="text-[11px] text-fg-faint">{t('dash.countActive', { n: activeCount })}</dd></div>}
-          <div className="min-w-0"><dt className="text-[11px] text-fg-faint">{t('inv.f.perfRecorded')}</dt><dd className={`text-base font-semibold tabular-nums truncate ${recorded > 0 ? 'price-up' : recorded < 0 ? 'price-down' : 'text-fg'}`}>{signed(recorded)}</dd></div>
+          <div className="min-w-0"><dt className="text-[11px] text-fg-faint">{t('inv.f.perfRecorded')}</dt><dd className={`text-base font-semibold tabular-nums truncate ${recorded > 0 ? 'price-up' : recorded < 0 ? 'price-down' : 'text-fg'}`}>{signed(recorded)}</dd>
+            {basis > 0 && <dd className="text-[11px] text-fg-faint tabular-nums" title="Recorded return ÷ total invested principal">{pctOf(recorded, basis)}</dd>}</div>
           {last && <div className="min-w-0 col-span-2 sm:col-span-1"><dt className="text-[11px] text-fg-faint">{t('inv.f.perfLast')}</dt><dd className="text-sm text-fg">{d(last)}</dd></div>}
         </dl>
       )}
@@ -343,7 +352,8 @@ export function InvestmentCenter({ go, focusId, onFocusDone, onAccountChanged }:
           nothing is estimated or animated as if it were). */}
       <div className="grid gap-4 lg:grid-cols-[1.25fr_1fr] items-start">
         <PerformancePanel activeCount={sum ? sum.active_count : active.length} activeAmount={principal} recorded={realised}
-          txs={data.transactions} intl={intl} />
+          txs={data.transactions} intl={intl} basis={sum ? sum.total_invested : 0}
+          stage={active.length ? (active.some(i => profitOf(i) !== 0) ? 2 : 1) : pending.length ? 0 : invs.some(i => ['completed', 'matured', 'closed'].includes(i.status)) ? 3 : null} />
         {/* Related, not causal: the automation layer monitors; performance is
             what is recorded in the account. */}
         <EnginePanel variant="client" />

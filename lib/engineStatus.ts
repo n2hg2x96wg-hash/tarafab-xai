@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react'
 
-export type EngineState = 'running' | 'degraded' | 'offline' | 'unavailable'
-export type EnginePresentation = { panel_visible: boolean; preview_visible: boolean; display_name: string; asset_labels: string; description: string; animation: 'off' | 'subtle' | 'standard' }
-export type EngineStatus = { state: EngineState; last_ok_at: string | null; monitored_count: number; monitored: string[]; presentation: EnginePresentation; at: string }
+export type EngineState = 'running' | 'paused' | 'maintenance' | 'degraded' | 'offline' | 'unavailable'
+export type EnginePresentation = { panel_visible: boolean; preview_visible: boolean; display_name: string; asset_labels: string; description: string; animation: 'off' | 'subtle' | 'standard'; operating_mode?: 'active' | 'paused' | 'maintenance' }
+export type EngineStatus = { state: EngineState; last_ok_at: string | null; last_evaluated: number | null; market_at: string | null; monitored_count: number; monitored: string[]; presentation: EnginePresentation; at: string }
 
 const DEFAULT_P: EnginePresentation = { panel_visible: true, preview_visible: true, display_name: 'XAI Automation Engine', asset_labels: 'BTC · ETH · supported assets', description: 'Configure rules that monitor supported markets. The engine evaluates them every minute and records activity for review.', animation: 'standard' }
 
@@ -17,8 +17,10 @@ let timer: ReturnType<typeof setInterval> | null = null
 
 function parse(v: unknown): EngineStatus | null {
   const o = v as Partial<EngineStatus> | null
-  if (!o || typeof o !== 'object' || !['running', 'degraded', 'offline', 'unavailable'].includes(String(o.state))) return null
+  if (!o || typeof o !== 'object' || !['running', 'paused', 'maintenance', 'degraded', 'offline', 'unavailable'].includes(String(o.state))) return null
   return { state: o.state as EngineState, last_ok_at: typeof o.last_ok_at === 'string' ? o.last_ok_at : null,
+    last_evaluated: o.last_evaluated != null && Number.isFinite(Number(o.last_evaluated)) ? Number(o.last_evaluated) : null,
+    market_at: typeof o.market_at === 'string' ? o.market_at : null,
     monitored_count: Number(o.monitored_count) || 0, monitored: Array.isArray(o.monitored) ? o.monitored.filter(x => typeof x === 'string') : [],
     presentation: { ...DEFAULT_P, ...(o.presentation || {}) }, at: String(o.at || '') }
 }
