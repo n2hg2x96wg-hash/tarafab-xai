@@ -25,7 +25,7 @@ export function useMk() {
 export function StatusBadge({ a }: { a: AssetQuote }) {
   const { t } = useMk()
   const [label, cls, live] =
-    a.state === 'unavailable' || a.state === 'error' ? [t('status.unavailable'), 'text-fg-faint border-ink-600', false]
+    a.state === 'unavailable' || a.state === 'error' ? [a.reason === 'not_connected' ? t('status.notConnected') : a.reason === 'temporary' ? t('status.temporary') : t('status.unavailable'), 'text-fg-faint border-ink-600', false]
     : a.state === 'stale' ? [t('status.stale'), 'text-amber-300 border-amber-500/30', false]
     : a.market === '24/7' ? [t('status.247'), 'text-emerald-300 border-emerald-500/30', true]
     : a.market === 'open' ? [a.state === 'delayed' ? t('status.delayed') : t('status.open'), 'text-emerald-300 border-emerald-500/30', a.state === 'live']

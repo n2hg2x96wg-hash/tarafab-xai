@@ -629,3 +629,12 @@ body.dialog-open #chat-application { visibility: hidden !important; }
 .story-layer.is-past { opacity: 0; }
 @media (max-width: 1023px) { .story-rail { left: 11%; right: 11%; bottom: 2%; } .story-node i { font-size: 9px; } .story-pt:nth-of-type(2) { display: none; } }
 @media (prefers-reduced-motion: reduce) { .story-pt { transform: none; } .story-node::before { transition: none; } }
+
+/* Story lifecycle detail: the Track card's progress fills while its stage is
+   on screen (from the same --p, no timers); deposit steps appear in order. */
+.story-life-track { position: relative; height: 4px; border-radius: 4px; background: rgb(var(--ink-700)); overflow: hidden; }
+.story-life-track span { position: absolute; inset: 0; transform-origin: 0 50%; transform: scaleX(clamp(.08, calc((var(--p) - .58) * 4.2), 1));
+  background: linear-gradient(90deg, rgb(56 189 248), rgb(52 211 153) 55%, rgb(var(--accent))); }
+.story-step { opacity: .25; transform: translateX(-6px); transition: opacity .4s ease, transform .5s cubic-bezier(.2,.7,.2,1); transition-delay: calc(var(--d) * .22s); }
+.story-layer.is-active .story-step, .story-lite-step.is-in .story-step { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) { .story-step { opacity: 1; transform: none; transition: none; } .story-life-track span { transform: none; } }

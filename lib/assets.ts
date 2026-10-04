@@ -11,6 +11,9 @@ export type AssetQuote = {
   updatedAt: string | null; state: DataState; market: MarketStatus
   // Data provider of this quote (display/attribution only).
   source?: 'Coinbase Exchange' | 'CoinGecko' | 'Finnhub' | null
+  // Why there is no usable quote: the data source is not connected yet, or a
+  // temporary failure. null when a quote exists.
+  reason?: 'not_connected' | 'temporary' | null
 }
 
 export const TIMEFRAMES = ['1H', '4H', '1D', '1W', '1M', '1Y'] as const

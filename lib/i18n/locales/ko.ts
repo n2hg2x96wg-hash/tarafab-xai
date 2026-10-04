@@ -103,10 +103,10 @@ const ko: DeepPartial<typeof en> = {
   },
   landing: {
     scene: {
-      intelligence: '인텔리전스',
-      automation: '자동화',
-      investments: '투자',
-      aria: '시장 인텔리전스, 자동화, 투자와 연결된 비트코인 가격',
+      intelligence: '입금',
+      automation: '투자',
+      investments: '포트폴리오',
+      aria: '입금, 투자, 포트폴리오 확인의 출발점이 되는 비트코인 가격',
       noQuote: '현재 시세 없음',
     },
     footer: {

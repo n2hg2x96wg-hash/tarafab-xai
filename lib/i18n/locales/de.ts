@@ -100,10 +100,10 @@ const de: DeepPartial<typeof en> = {
   },
   landing: {
     scene: {
-      intelligence: 'Analyse',
-      automation: 'Automatisierung',
-      investments: 'Investitionen',
-      aria: 'Bitcoin-Kurs, verbunden mit Marktanalyse, Automatisierung und Investitionen',
+      intelligence: 'Einzahlen',
+      automation: 'Investieren',
+      investments: 'Portfolio',
+      aria: 'Bitcoin-Kurs als Ausgangspunkt zum Einzahlen, Investieren und Prüfen Ihres Portfolios',
       noQuote: 'Kein aktueller Kurs',
     },
     footer: {

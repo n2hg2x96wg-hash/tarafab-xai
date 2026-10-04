@@ -100,10 +100,10 @@ const fr: DeepPartial<typeof en> = {
   },
   landing: {
     scene: {
-      intelligence: 'Intelligence',
-      automation: 'Automatisation',
-      investments: 'Investissements',
-      aria: 'Prix du Bitcoin, relié à l\'analyse de marché, à l\'automatisation et aux investissements',
+      intelligence: 'Approvisionner',
+      automation: 'Investir',
+      investments: 'Portefeuille',
+      aria: 'Prix du Bitcoin, point de départ pour approvisionner, investir et suivre votre portefeuille',
       noQuote: 'Aucune cotation actuelle',
     },
     footer: {

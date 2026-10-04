@@ -101,10 +101,10 @@ const en = {
   },
   landing: {
     scene: {
-      intelligence: 'Intelligence',
-      automation: 'Automation',
-      investments: 'Investments',
-      aria: 'Bitcoin price, connected to market intelligence, automation and investments',
+      intelligence: 'Fund',
+      automation: 'Invest',
+      investments: 'Portfolio',
+      aria: 'Bitcoin price, the starting point for funding, investing and reviewing your portfolio',
       noQuote: 'No current quote',
     },
     footer: {

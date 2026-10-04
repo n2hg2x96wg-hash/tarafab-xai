@@ -150,7 +150,9 @@ export default function LiveMarketBoard() {
 
       {offline.length > 0 && state !== 'loading' && (
         <p className="mt-3 text-[12px] text-fg-faint" data-offline-note>
-          Stocks &amp; indices ({offline.slice(0, 4).map(a => a.id).join(', ')}{offline.length > 4 ? '…' : ''}): no current quote right now — shown as unavailable, never estimated.
+          {offline.every(a => a.reason === 'not_connected')
+            ? <>Stocks &amp; indices ({offline.slice(0, 4).map(a => a.id).join(', ')}{offline.length > 4 ? '…' : ''}): quotes are not connected yet — shown as unavailable, never estimated.</>
+            : <>Stocks &amp; indices ({offline.slice(0, 4).map(a => a.id).join(', ')}{offline.length > 4 ? '…' : ''}): temporarily unavailable — shown as unavailable, never estimated.</>}
         </p>
       )}
       <MarketSources sources={sources} className="mt-3 pt-3 border-t border-ink-700/70" />
