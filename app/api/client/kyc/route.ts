@@ -1,6 +1,7 @@
 import { featureBlocked } from '@/lib/features'
 import { NextRequest, NextResponse } from 'next/server'
 import { clientForRequest, dbError, unauthorized } from '@/lib/supabase/request'
+import { limitUser } from '@/lib/userRateLimit'
 
 type KycStatus = {
   status: string
@@ -31,6 +32,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const { supabase } = clientForRequest(request)
   if (!supabase) return unauthorized()
+  { const limited = await limitUser(supabase, 'kyc', 10, 3600); if (limited) return limited }
   // Switched off in Admin → Feature controls: refused here too, not only hidden.
   { const blocked = await featureBlocked(supabase, 'verification'); if (blocked) return blocked }
 

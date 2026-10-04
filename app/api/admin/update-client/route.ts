@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { clientForRequest, dbError, unauthorized } from '@/lib/supabase/request'
+import { requireAdmin } from '@/lib/adminGuard'
 
 export async function POST(request: NextRequest) {
   const { supabase } = clientForRequest(request)
   if (!supabase) return unauthorized()
+  { const denied = await requireAdmin(supabase, request); if (denied) return denied }
 
   try {
     const { user_id, full_name, account_status, verification_status, expected_updated_at } = await request.json() as {

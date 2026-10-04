@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { clientForRequest, dbError, idempotencyKey, unauthorized } from '@/lib/supabase/request'
+import { requireAdmin } from '@/lib/adminGuard'
 
 // Admin product management. Each action is a database function that checks
 // the caller is an admin, validates the input and writes an audit entry.
@@ -8,6 +9,7 @@ import { clientForRequest, dbError, idempotencyKey, unauthorized } from '@/lib/s
 export async function POST(request: NextRequest) {
   const { supabase } = clientForRequest(request)
   if (!supabase) return unauthorized()
+  { const denied = await requireAdmin(supabase, request); if (denied) return denied }
 
   let body: Record<string, unknown>
   try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid request' }, { status: 400 }) }

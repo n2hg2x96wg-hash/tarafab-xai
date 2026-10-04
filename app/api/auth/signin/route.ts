@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { getSupabaseEnv } from '@/lib/supabase/env'
 import { clientIp, rateLimited } from '@/lib/rateLimit'
+import { recordSecurityEvent } from '@/lib/securityEvents'
 
 export async function POST(request: NextRequest) {
   const { url, anonKey: key } = getSupabaseEnv()
@@ -12,7 +13,8 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body = await request.json()
+    const body = await request.json().catch(() => null)
+    if (!body || typeof body !== "object") return NextResponse.json({ error: "Invalid request" }, { status: 400 })
     const email = String(body.email || '').replace(/[^\x20-\x7E]/g, '')
     const password = String(body.password || '')
     if (!email || !password) {
@@ -25,6 +27,8 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
+      // Recorded for admins (Security events); never shown to the client.
+      if (error.status !== 429) await recordSecurityEvent('failed_login', null, clientIp(request), { email: email.toLowerCase().slice(0, 120) })
       return NextResponse.json({ error: error.status === 429 ? 'Too many attempts. Please wait a moment and try again.' : error.message }, { status: error.status === 429 ? 429 : 401 })
     }
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { clientForRequest, dbError, unauthorized } from '@/lib/supabase/request'
+import { requireAdmin } from '@/lib/adminGuard'
 
 // Short-lived link to a private identity document. Storage rules only let
 // admins (or the owning client) read the file, and the link expires in five
@@ -7,6 +8,7 @@ import { clientForRequest, dbError, unauthorized } from '@/lib/supabase/request'
 export async function GET(request: NextRequest) {
   const { supabase } = clientForRequest(request)
   if (!supabase) return unauthorized()
+  { const denied = await requireAdmin(supabase, request); if (denied) return denied }
 
   const path = request.nextUrl.searchParams.get('path') || ''
   if (!/^[0-9a-f-]{36}\/[\w.-]+$/i.test(path)) return NextResponse.json({ error: 'Invalid document path' }, { status: 400 })

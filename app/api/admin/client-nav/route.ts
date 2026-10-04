@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { clientForRequest, dbError, unauthorized } from '@/lib/supabase/request'
+import { requireAdmin } from '@/lib/adminGuard'
 
 // Saves which optional client sections are hidden. The database function
 // checks the caller is an admin, accepts only optional section ids, and
@@ -7,6 +8,7 @@ import { clientForRequest, dbError, unauthorized } from '@/lib/supabase/request'
 export async function POST(request: NextRequest) {
   const { supabase } = clientForRequest(request)
   if (!supabase) return unauthorized()
+  { const denied = await requireAdmin(supabase, request); if (denied) return denied }
   try {
     const { hidden, order, labels } = await request.json() as { hidden?: unknown; order?: unknown; labels?: unknown }
     const isIds = (v: unknown) => Array.isArray(v) && v.length <= 30 && v.every(h => typeof h === 'string')

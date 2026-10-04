@@ -3,6 +3,7 @@ import { clientForRequest, dbError, idempotencyKey, unauthorized } from '@/lib/s
 import { functionsUrl, getSupabaseEnv } from '@/lib/supabase/env'
 import { clientIp, rateLimited } from '@/lib/rateLimit'
 import { featureBlocked } from '@/lib/features'
+import { limitUser } from '@/lib/userRateLimit'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const COLS = 'id, reference, wallet_id, chain_id, network, asset, token_contract, decimals, from_address, to_address, quoted_amount, usd_rate, quoted_usd, quoted_fee_usd, quoted_credit_usd, quote_expires_at, tx_hash, submitted_at, required_confirmations, confirmations, received_amount, credit_rate, gross_usd, fee_usd, credited_usd, status, error, created_at, credited_at'
@@ -25,6 +26,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const { supabase, token } = clientForRequest(request)
   if (!supabase) return unauthorized()
+  { const limited = await limitUser(supabase, 'transfers', 15, 600); if (limited) return limited }
   const limited = rateLimited(`transfers:${clientIp(request)}`, 30, 60_000)
   if (limited) return limited
   let b: Record<string, unknown>

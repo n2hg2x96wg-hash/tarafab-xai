@@ -2,6 +2,7 @@ import { featureBlocked } from '@/lib/features'
 import { NextRequest, NextResponse } from 'next/server'
 import { clientForRequest, dbError, idempotencyKey, unauthorized } from '@/lib/supabase/request'
 import { parseInvestmentSummary } from '@/lib/investmentSummary'
+import { limitUser } from '@/lib/userRateLimit'
 
 // Read-only view of the Investment Center for the signed-in client. Every
 // query runs as the client, so row level security decides what is visible:
@@ -108,6 +109,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const { supabase } = clientForRequest(request)
   if (!supabase) return unauthorized()
+  { const limited = await limitUser(supabase, 'investments', 20, 600); if (limited) return limited }
   // Switched off in Admin → Feature controls: refused here too, not only hidden.
   { const blocked = await featureBlocked(supabase, 'investments'); if (blocked) return blocked }
 

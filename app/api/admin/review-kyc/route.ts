@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { clientForRequest, dbError, unauthorized } from '@/lib/supabase/request'
+import { requireAdmin } from '@/lib/adminGuard'
 
 // Verifies or rejects a verification request. The database function checks the
 // caller is an admin, records who acted and when, and only then changes the
@@ -7,6 +8,7 @@ import { clientForRequest, dbError, unauthorized } from '@/lib/supabase/request'
 export async function POST(request: NextRequest) {
   const { supabase } = clientForRequest(request)
   if (!supabase) return unauthorized()
+  { const denied = await requireAdmin(supabase, request); if (denied) return denied }
 
   try {
     const { submission_id, action, reason } = await request.json() as {

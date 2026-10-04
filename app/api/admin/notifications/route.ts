@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { clientForRequest, dbError, unauthorized } from '@/lib/supabase/request'
+import { requireAdmin } from '@/lib/adminGuard'
 
 const TYPES = ['account', 'deposit', 'withdrawal', 'security', 'announcement', 'investment']
 
@@ -7,6 +8,7 @@ const TYPES = ['account', 'deposit', 'withdrawal', 'security', 'announcement', '
 export async function GET(request: NextRequest) {
   const { supabase } = clientForRequest(request)
   if (!supabase) return unauthorized()
+  { const denied = await requireAdmin(supabase, request); if (denied) return denied }
   const { data, error } = await supabase.rpc('admin_notifications')
   if (error) return dbError(error)
   return NextResponse.json({ notifications: data || [] })
@@ -15,6 +17,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const { supabase } = clientForRequest(request)
   if (!supabase) return unauthorized()
+  { const denied = await requireAdmin(supabase, request); if (denied) return denied }
   try {
     const body = await request.json() as {
       action?: string; id?: string; user_id?: string | null; type?: string; title?: string; body?: string; cta_label?: string; cta_target?: string; investment_id?: string | null

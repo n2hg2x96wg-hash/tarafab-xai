@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { clientForRequest, dbError, idempotencyKey, unauthorized } from '@/lib/supabase/request'
+import { requireAdmin } from '@/lib/adminGuard'
 
 const VALID_FIELDS = ['account_balance', 'available_balance', 'invested_balance', 'pending_balance', 'profit_balance'] as const
 const VALID_OPS = ['credit', 'debit', 'set'] as const
@@ -11,6 +12,7 @@ type Op = typeof VALID_OPS[number]
 export async function POST(request: NextRequest) {
   const { supabase } = clientForRequest(request)
   if (!supabase) return unauthorized()
+  { const denied = await requireAdmin(supabase, request); if (denied) return denied }
 
   try {
     const body = await request.json() as {

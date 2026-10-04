@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import AdminLayout from '@/components/AdminLayout'
 import { AdminLoadError } from '@/components/AdminLoadError'
+import { SecurityEvents } from '@/components/admin/SecurityEvents'
 
 type Log = {
   id: string
@@ -72,6 +73,7 @@ export default function AuditLogsPage() {
 
   return (
     <AdminLayout title="Audit Logs" subtitle="Full immutable record of admin actions">
+      <SecurityEvents />
       {loadError && <AdminLoadError message={loadError} onRetry={() => setReload(n => n + 1)} />}
       <div className="flex flex-col sm:flex-row gap-3 mb-5">
         <input

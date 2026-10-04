@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { getSupabaseEnv, isJwt } from '@/lib/supabase/env'
 import { rateLimited } from '@/lib/rateLimit'
+import { limitUser } from '@/lib/userRateLimit'
 
 // Shared handler for the private files a client uploads: deposit receipts and
 // identity documents. Both buckets use the same rules, so the logic lives here
@@ -61,6 +62,8 @@ export async function uploadToBucket(request: NextRequest, bucket: string, limit
       global: { headers: { Authorization: `Bearer ${token}` } },
       auth: { persistSession: false, autoRefreshToken: false },
     })
+    // Shared across server instances (the in-memory limit above is per instance).
+    { const limited = await limitUser(storageClient, 'upload', 20, 600); if (limited) return limited }
 
     const ext = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'application/pdf': 'pdf' } as Record<string, string>)[file.type]
     // A client-supplied key names the file, so retrying the same upload after

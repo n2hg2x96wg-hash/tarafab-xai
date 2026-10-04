@@ -1,9 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // No next/image is used: the image-optimizer endpoint stays off, removing
+  // the attack surface of its published advisories.
   images: {
-    domains: [],
+    unoptimized: true,
   },
+  // Do not advertise the framework in response headers.
+  poweredByHeader: false,
   // Per-user and admin responses must never be stored by a CDN or shared
   // cache, so one person's data can never be served to another.
   async headers() {

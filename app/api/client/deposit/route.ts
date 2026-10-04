@@ -1,10 +1,12 @@
 import { featureBlocked } from '@/lib/features'
 import { NextRequest, NextResponse } from 'next/server'
 import { clientForRequest, dbError, idempotencyKey, unauthorized } from '@/lib/supabase/request'
+import { limitUser } from '@/lib/userRateLimit'
 
 export async function POST(request: NextRequest) {
   const { supabase } = clientForRequest(request)
   if (!supabase) return unauthorized()
+  { const limited = await limitUser(supabase, 'deposit', 10, 600); if (limited) return limited }
   // Switched off in Admin → Feature controls: refused here too, not only hidden.
   { const blocked = await featureBlocked(supabase, 'deposits'); if (blocked) return blocked }
 
