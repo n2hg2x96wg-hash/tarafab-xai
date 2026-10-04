@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { authFetch } from '@/lib/authFetch'
 import { createClient } from '@/lib/supabase/client'
 
 // Admin: how the automation engine is presented to clients and visitors.
@@ -16,7 +17,7 @@ export function EnginePresentationForm() {
   const [msg, setMsg] = useState('')
   const [busy, setBusy] = useState(false)
   useEffect(() => {
-    fetch('/api/automation/status', { cache: 'no-store' }).then(r => r.json()).then(j => j?.status?.presentation && setP(j.status.presentation)).catch(() => setMsg('Could not load the current settings.'))
+    authFetch('/api/automation/status', { cache: 'no-store' }).then(r => r.json()).then(j => j?.status?.presentation && setP(j.status.presentation)).catch(() => setMsg('Could not load the current settings.'))
   }, [])
   const save = async () => {
     if (!p) return
@@ -45,7 +46,7 @@ export function EnginePresentationForm() {
           <label className="text-xs text-slate-300">Animation<select className={field} value={p.animation} onChange={e => setP({ ...p, animation: e.target.value as P['animation'] })}><option value="standard">Standard</option><option value="subtle">Subtle</option><option value="off">Off</option></select></label>
           <div className="flex flex-col justify-end gap-2 text-xs text-slate-300">
             <label className="inline-flex items-center gap-2"><input type="checkbox" checked={p.panel_visible} onChange={e => setP({ ...p, panel_visible: e.target.checked })} /> Show panel to clients</label>
-            <label className="inline-flex items-center gap-2"><input type="checkbox" checked={p.preview_visible} onChange={e => setP({ ...p, preview_visible: e.target.checked })} /> Show landing preview</label>
+            {/* The engine panel is private to signed-in clients; the public site never shows it. */}
           </div>
           <div className="sm:col-span-2 flex items-center gap-3">
             <button onClick={save} disabled={busy} className="px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-500 text-sm font-medium text-white disabled:opacity-50">{busy ? 'Saving…' : 'Save'}</button>

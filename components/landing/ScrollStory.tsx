@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { useAssets } from '@/components/markets/assetStore'
 import { formatPrice } from '@/lib/assets'
 import { effectiveState } from '@/lib/marketStatus'
-import { useEngineStatus } from '@/lib/engineStatus'
 
 // Scroll-driven 3D story for the landing page.
 //
@@ -50,7 +49,7 @@ function useMode(): Mode {
 const STEPS: { eyebrow: string; title: string; body: string }[] = [
   { eyebrow: 'Market data', title: 'Real market information.', body: 'Prices arrive with their own timestamps. Delayed or unavailable quotes say so — nothing is estimated.' },
   { eyebrow: 'Analysis', title: 'Conditions, evaluated.', body: 'Configure rules that watch supported markets — a price level, a move over 24 hours. Each new quote is checked against them.' },
-  { eyebrow: 'Automation', title: 'An automation layer that keeps watch.', body: 'The engine evaluates your rules every minute and records activity for review, even when you are signed out.' },
+  { eyebrow: 'Automation', title: 'An automation layer that keeps watch.', body: 'Once you are signed in, the engine evaluates your rules every minute and records activity for your review.' },
   { eyebrow: 'Monitoring', title: 'Follow each investment.', body: 'Track every investment from request to active to completed, with each return recorded against it.' },
   { eyebrow: 'Portfolio', title: 'Review your portfolio.', body: 'Balances, investments and recorded performance in one place, with an audit trail behind every change.' },
 ]
@@ -92,19 +91,19 @@ function AnalysisLayer() {
   )
 }
 
-// Real engine status (verified heartbeat); 'Running' only when the database
-// confirms a recent successful run.
+// Informational only: how automation works once signed in. The private
+// engine status, rules and activity are shown only inside the client
+// dashboard, never on the public page.
 function EngineLayer() {
-  const { state, status, presentation } = useEngineStatus()
-  const running = state === 'running'
   return (
-    <div className="story-card" data-live={running ? 'true' : 'false'}>
-      <div className="flex items-center justify-between text-[11px]">
-        <span className="text-fg-faint truncate">{presentation.display_name}</span>
-        <span className="inline-flex items-center gap-1.5 text-fg-muted"><span className={`w-1.5 h-1.5 rounded-full ${running ? 'bg-emerald-400 board-pulse' : 'bg-fg-faint'}`} aria-hidden="true" />{running ? 'Monitoring active' : state === 'paused' ? 'Paused' : state === 'maintenance' ? 'Maintenance' : state === 'degraded' ? 'Delayed' : state === 'offline' ? 'Offline' : 'Unavailable'}</span>
-      </div>
-      <p className="mt-2 text-[13px] text-fg">Monitoring {status && status.monitored_count ? status.monitored.slice(0, 3).join(' · ') + (status.monitored_count > 3 ? ` +${status.monitored_count - 3}` : '') : presentation.asset_labels}</p>
-      <p className="mt-2 text-[11px] text-fg-faint">Automation does not guarantee investment returns.</p>
+    <div className="story-card">
+      <div className="flex items-center justify-between"><span className="text-[11px] text-fg-faint">How automation works</span><ExampleTag /></div>
+      <ol className="mt-3 space-y-2 text-[13px] text-fg">
+        {['You set a rule for a supported market', 'The engine checks it against market data every minute', 'You are notified when the condition is met'].map((x, i) => (
+          <li key={x} className="flex gap-2"><span className="text-accent tabular-nums">{i + 1}</span><span className="text-fg-muted">{x}</span></li>
+        ))}
+      </ol>
+      <p className="mt-3 text-[11px] text-fg-faint">Available after sign-in. Automation does not guarantee investment returns.</p>
     </div>
   )
 }

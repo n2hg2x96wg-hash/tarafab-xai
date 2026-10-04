@@ -39,6 +39,7 @@ const workflow: { title: TKey; body: TKey }[] = [
   { title: 'landing.flow.f2Title', body: 'landing.flow.f2Body' },
   { title: 'landing.flow.f3Title', body: 'landing.flow.f3Body' },
   { title: 'landing.flow.f4Title', body: 'landing.flow.f4Body' },
+  { title: 'landing.flow.fAiTitle', body: 'landing.flow.fAiBody' },
   { title: 'landing.flow.f5Title', body: 'landing.flow.f5Body' },
   { title: 'landing.flow.f6Title', body: 'landing.flow.f6Body' },
 ]
@@ -72,7 +73,6 @@ const safeguards: TKey[] = [
 const loadIntelligence = () => import('@/components/markets/LandingMarkets')
 const loadPricing = () => import('@/components/premium/LandingPricing')
 const loadStory = () => import('@/components/landing/ScrollStory')
-const loadAutomation = () => import('@/components/landing/AutomationSection')
 
 export default function LandingPage() {
   const router = useRouter()
@@ -219,7 +219,6 @@ export default function LandingPage() {
       <LazyOnView load={loadIntelligence} id="markets" />
 
       {/* Intelligent automation: the engine's real status and activity. */}
-      <LazyOnView load={loadAutomation} id="automation" />
 
       <section id="platform" className="scroll-mt-16 border-b border-ink-700">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 lg:py-24">
@@ -249,7 +248,7 @@ export default function LandingPage() {
             <h2 className="text-3xl font-semibold tracking-tight text-fg">{t('landing.workflowTitle')}</h2>
             <p className="mt-3 text-fg-muted">{t('landing.workflowBody')}</p>
           </div></Reveal>
-          <Reveal><ol className="grid sm:grid-cols-2 lg:grid-cols-3 gap-px bg-ink-700 border border-ink-700 rounded-lg overflow-hidden">
+          <Reveal><ol className="grid sm:grid-cols-2 lg:grid-cols-4 gap-px bg-ink-700 border border-ink-700 rounded-lg overflow-hidden">
             {workflow.map((s, i) => (
               <li key={s.title} className="bg-ink-950 p-6">
                 <div className="text-[13px] text-accent font-medium tabular-nums mb-3">{t('landing.step', { n: i + 1 })}</div>

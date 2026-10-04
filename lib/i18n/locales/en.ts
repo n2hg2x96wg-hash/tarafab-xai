@@ -165,7 +165,7 @@ const en = {
     marketsBody: 'The same live data you will see in your dashboard. Nothing on this page is simulated.',
     livePrice: 'Live price',
     howTitle: 'How deposits work',
-    howBody: 'A deposit is never credited automatically. Each one is checked by a person first.',
+    howBody: 'A deposit is never credited automatically. Each deposit is reviewed by our team before it is credited.',
     step: 'Step {n}',
     steps: {
       s1Title: 'Create an account',
@@ -189,6 +189,8 @@ const en = {
       f3Body: 'Send Bitcoin to the address shown in your dashboard and submit the receipt. Deposits are reviewed by our team before they are credited.',
       f4Title: 'Select an investment option',
       f4Body: 'Review the options available to your account and choose one according to the terms displayed for it. Read those terms before you commit funds.',
+      fAiTitle: 'AI-assisted automation',
+      fAiBody: 'Once signed in, you can set rules for supported markets. Our automation engine evaluates current market data against those rules every minute, records each check and notifies you when a condition is met. It monitors and alerts; returns are not guaranteed.',
       f5Title: 'Monitor your account',
       f5Body: 'Your dashboard shows your balance, investment status, transaction history, deposits and withdrawals in one place.',
       f6Title: 'Returns and withdrawals',

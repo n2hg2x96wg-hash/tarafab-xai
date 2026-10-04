@@ -164,7 +164,7 @@ const pt: DeepPartial<typeof en> = {
     marketsBody: 'Os mesmos dados em direto que verá no seu painel. Nada nesta página é simulado.',
     livePrice: 'Preço em direto',
     howTitle: 'Como funcionam os depósitos',
-    howBody: 'Um depósito nunca é creditado automaticamente. Cada um é primeiro verificado por uma pessoa.',
+    howBody: 'Um depósito nunca é creditado automaticamente. Cada depósito é analisado pela nossa equipe antes de ser creditado.',
     step: 'Passo {n}',
     steps: {
       s1Title: 'Crie uma conta',

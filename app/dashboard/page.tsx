@@ -241,7 +241,8 @@ export default function DashboardPage() {
     // A network failure while restoring the session is not the same as being
     // signed out: offer a retry instead of sending the user to sign in.
     if (error) { setSessionError(true); setLoading(false); return }
-    if (!data.session) { router.replace('/sign-in'); return }
+    // Keep a private deep link (e.g. #automations) through sign-in.
+    if (!data.session) { const h = window.location.hash.slice(1); router.replace(/^[a-zA-Z]{2,32}$/.test(h) ? `/sign-in?next=${encodeURIComponent(h)}` : '/sign-in'); return }
     await fetchData()
     setLoading(false)
   }, [supabase, router, fetchData])

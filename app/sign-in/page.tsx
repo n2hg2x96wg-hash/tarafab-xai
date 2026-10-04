@@ -44,7 +44,9 @@ export default function SignInPage() {
         if (data.access_token && data.refresh_token) {
           await supabase.auth.setSession({ access_token: data.access_token, refresh_token: data.refresh_token })
         }
-        router.push(data.role === 'admin' ? '/admin' : '/dashboard')
+        // Only a dashboard section name is accepted as the return target.
+        const next = new URLSearchParams(window.location.search).get('next') || ''
+        router.push(data.role === 'admin' ? '/admin' : /^[a-zA-Z]{2,32}$/.test(next) ? `/dashboard#${next}` : '/dashboard')
       } catch {
         setError(t('errors.network'))
       } finally {

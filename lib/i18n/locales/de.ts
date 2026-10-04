@@ -164,7 +164,7 @@ const de: DeepPartial<typeof en> = {
     marketsBody: 'Dieselben Live-Daten, die Sie in Ihrem Dashboard sehen. Nichts auf dieser Seite ist simuliert.',
     livePrice: 'Live-Kurs',
     howTitle: 'So funktionieren Einzahlungen',
-    howBody: 'Eine Einzahlung wird nie automatisch gutgeschrieben. Jede wird zuerst von einem Menschen geprüft.',
+    howBody: 'Eine Einzahlung wird nie automatisch gutgeschrieben. Jede wird von unserem Team geprüft, bevor sie gutgeschrieben wird.',
     step: 'Schritt {n}',
     steps: {
       s1Title: 'Konto erstellen',

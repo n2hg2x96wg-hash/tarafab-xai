@@ -5,7 +5,8 @@ import { useEngineStatus, type EngineState } from '@/lib/engineStatus'
 import { authFetch, readJson } from '@/lib/authFetch'
 import { hiddenState, useFeatures } from '@/components/ui/features'
 
-// The automation engine panel (client Investments page and landing preview).
+// The automation engine panel (client Investments page only — private to
+// signed-in clients; the public site never renders it).
 // Every state shown is verified: the engine status comes from the database's
 // view of the engine's own heartbeat; a client's rule count and timeline come
 // from their own automation records and events. Admin presentation settings
@@ -27,8 +28,8 @@ function ago(iso: string | null) {
 type Auto = { id: string; status: string; asset_id: string; last_evaluated_at?: string | null }
 type Ev = { id: number | string; event: string; created_at: string; automation_id: string }
 
-export function EnginePanel({ variant = 'client', className = '' }: { variant?: 'client' | 'preview'; className?: string }) {
-  const { status, state, loading, presentation: p } = useEngineStatus()
+export function EnginePanel({ className = '' }: { variant?: 'client'; className?: string }) {
+  const { status, state, loading, refreshed, nextAt, presentation: p } = useEngineStatus()
   const feature = useFeatures()
   const ref = useRef<HTMLDivElement>(null)
   const [mine, setMine] = useState<{ rules: Auto[]; events: Ev[] } | null | 'error'>(null)
@@ -37,13 +38,12 @@ export function EnginePanel({ variant = 'client', className = '' }: { variant?: 
 
   // Client: their own rules and events (scoped by row level security server-side).
   useEffect(() => {
-    if (variant !== 'client') return
     let alive = true
     authFetch('/api/client/automations').then(r => readJson<{ automations?: Auto[]; events?: Ev[] }>(r))
       .then(r => { if (alive) setMine(Array.isArray(r?.automations) ? { rules: r.automations, events: Array.isArray(r.events) ? r.events : [] } : 'error') })
       .catch(() => { if (alive) setMine('error') })
     return () => { alive = false }
-  }, [variant])
+  }, [refreshed])
 
   // Animate only while on screen.
   useEffect(() => {
@@ -52,8 +52,7 @@ export function EnginePanel({ variant = 'client', className = '' }: { variant?: 
   }, [])
 
   // Admin → Feature Control Center → Automations OFF hides the panel for clients.
-  if (variant === 'client' && (!p.panel_visible || hiddenState(feature('automations')))) return null
-  if (variant === 'preview' && !p.preview_visible) return null
+  if (!p.panel_visible || hiddenState(feature('automations'))) return null
   const running = state === 'running'
   const activeRules = mine && mine !== 'error' ? mine.rules.filter(r => r.status === 'active').length : null
   const events = mine && mine !== 'error' ? [...mine.events].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).slice(0, 4) : []
@@ -62,15 +61,15 @@ export function EnginePanel({ variant = 'client', className = '' }: { variant?: 
   const stream: { key: string; label: string; at: string; tone: string }[] = []
   if (status?.market_at) stream.push({ key: 'm', label: `Market data synchronized${status.monitored.length ? ` · ${status.monitored.slice(0, 2).join(', ')}` : ''}`, at: status.market_at, tone: 'bg-sky-400' })
   if (status?.last_ok_at) stream.push({ key: 'c', label: state === 'paused' || state === 'maintenance' ? 'Engine cycle completed · rule evaluation paused' : `Automation cycle completed${status.last_evaluated != null ? ` · ${status.last_evaluated} rule${status.last_evaluated === 1 ? '' : 's'} evaluated` : ''}`, at: status.last_ok_at, tone: 'bg-emerald-400' })
-  if (variant === 'client' && mine && mine !== 'error') {
+  if (mine && mine !== 'error') {
     const lastEval = mine.rules.filter(r => r.last_evaluated_at).sort((a, b) => Date.parse(b.last_evaluated_at!) - Date.parse(a.last_evaluated_at!))[0]
     if (lastEval) stream.push({ key: 'r', label: `Your ${lastEval.asset_id} rule evaluated`, at: lastEval.last_evaluated_at!, tone: 'bg-accent' })
     for (const e of events) stream.push({ key: `e${e.id}`, label: EVENT_LABEL[e.event] || e.event, at: e.created_at, tone: e.event === 'triggered' ? 'bg-amber-400' : 'bg-fg-faint' })
   }
-  stream.sort((a, b) => Date.parse(b.at) - Date.parse(a.at)); stream.splice(variant === 'client' ? 5 : 2)
+  stream.sort((a, b) => Date.parse(b.at) - Date.parse(a.at)); stream.splice(5)
 
   return (
-    <section ref={ref} className={`engine-panel panel p-5 relative overflow-hidden ${className}`} data-engine-state={state} data-anim={p.animation} aria-labelledby={`eng-${variant}`}>
+    <section ref={ref} className={`engine-panel panel p-5 relative overflow-hidden ${className}`} data-engine-state={state} data-anim={p.animation} aria-labelledby="eng-client">
       <div className="flex items-start gap-4">
         <div className="engine-orb shrink-0" aria-hidden="true">
           <span className="eo-ring r1" /><span className="eo-ring r2" /><span className="eo-sweep" />
@@ -80,8 +79,8 @@ export function EnginePanel({ variant = 'client', className = '' }: { variant?: 
           </span>
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] uppercase tracking-[0.14em] text-accent">{variant === 'preview' ? 'Automation layer' : 'Automation'}</p>
-          <h3 id={`eng-${variant}`} className="mt-0.5 text-[16px] font-semibold text-fg truncate">{p.display_name}</h3>
+          <p className="text-[11px] uppercase tracking-[0.14em] text-accent">Automation</p>
+          <h3 id="eng-client" className="mt-0.5 text-[16px] font-semibold text-fg truncate">{p.display_name}</h3>
           <span className={`mt-2 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11.5px] ${TONE[state]}`} data-engine-label>
             <span className={`w-1.5 h-1.5 rounded-full ${running ? 'bg-emerald-400 board-pulse' : state === 'degraded' || state === 'paused' ? 'bg-amber-400' : state === 'maintenance' ? 'bg-sky-400' : 'bg-fg-faint'}`} aria-hidden="true" />
             {loading ? 'Checking…' : LABEL[state]}
@@ -91,15 +90,15 @@ export function EnginePanel({ variant = 'client', className = '' }: { variant?: 
 
       <dl className="mt-4 grid grid-cols-2 gap-3 text-[12.5px]">
         <div className="min-w-0"><dt className="text-[11px] text-fg-faint">Last check</dt><dd className="text-fg tabular-nums">{status ? ago(status.last_ok_at) : '—'}</dd></div>
+        <div className="min-w-0"><dt className="text-[11px] text-fg-faint">Next check</dt><dd className="text-fg tabular-nums" data-next-check>{nextAt == null ? '—' : nextAt - Date.now() <= 5_000 ? 'Due now' : `in ~${Math.ceil((nextAt - Date.now()) / 1000)}s`}</dd></div>
         <div className="min-w-0"><dt className="text-[11px] text-fg-faint">Monitoring</dt><dd className="text-fg truncate" title={status?.monitored.join(', ')}>{status && status.monitored_count ? `${status.monitored.slice(0, 3).join(' · ')}${status.monitored_count > 3 ? ` +${status.monitored_count - 3}` : ''}` : p.asset_labels}</dd></div>
-        {variant === 'client' && <div className="min-w-0"><dt className="text-[11px] text-fg-faint">Your active rules</dt><dd className="text-fg tabular-nums">{activeRules == null ? (mine === 'error' ? 'Unavailable' : '—') : activeRules}</dd></div>}
-        {variant === 'preview' && <div className="min-w-0 col-span-2"><dt className="text-[11px] text-fg-faint">Automation</dt><dd className="text-fg-muted">Rules evaluated automatically · activity recorded in your account</dd></div>}
+        <div className="min-w-0"><dt className="text-[11px] text-fg-faint">Your active rules</dt><dd className="text-fg tabular-nums">{activeRules == null ? (mine === 'error' ? 'Unavailable' : '—') : activeRules}</dd></div>
       </dl>
 
       {/* Activity stream: every line is a recorded timestamp (engine heartbeat,
           latest stored quote, the client's own rule checks and rule events). */}
       <div className="mt-4">
-        <p className="text-[11px] uppercase tracking-[0.12em] text-fg-faint mb-2">{variant === 'client' ? 'XAI activity' : 'Engine activity'}</p>
+        <p className="text-[11px] uppercase tracking-[0.12em] text-fg-faint mb-2">XAI activity</p>
         {stream.length ? (
           <ol className="engine-timeline space-y-2" data-activity>
             {stream.map(x => (
@@ -110,7 +109,7 @@ export function EnginePanel({ variant = 'client', className = '' }: { variant?: 
             ))}
           </ol>
         ) : <p className="text-[12.5px] text-fg-muted">{loading ? 'Loading activity…' : 'No recorded activity yet.'}</p>}
-        {variant === 'client' && mine && mine !== 'error' && !mine.rules.length && <p className="mt-2 text-[12px] text-fg-faint">You have no rules yet — create one in Automation to have it evaluated each minute.</p>}
+        {mine && mine !== 'error' && !mine.rules.length && <p className="mt-2 text-[12px] text-fg-faint">You have no rules yet — create one in Automation to have it evaluated each minute.</p>}
       </div>
 
       <p className="mt-4 text-[12px] text-fg-muted leading-relaxed">{p.description}</p>

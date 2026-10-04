@@ -164,7 +164,7 @@ const fr: DeepPartial<typeof en> = {
     marketsBody: "Les mêmes données en direct que dans votre tableau de bord. Rien sur cette page n'est simulé.",
     livePrice: 'Cours en direct',
     howTitle: 'Fonctionnement des dépôts',
-    howBody: "Un dépôt n'est jamais crédité automatiquement. Chacun est d'abord vérifié par une personne.",
+    howBody: "Un dépôt n'est jamais crédité automatiquement. Chaque dépôt est vérifié par notre équipe avant d'être crédité.",
     step: 'Étape {n}',
     steps: {
       s1Title: 'Créez un compte',

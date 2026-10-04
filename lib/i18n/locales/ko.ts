@@ -167,7 +167,7 @@ const ko: DeepPartial<typeof en> = {
     marketsBody: '대시보드에서 보시게 될 것과 동일한 실시간 데이터입니다. 이 페이지에 시뮬레이션된 내용은 없습니다.',
     livePrice: '실시간 시세',
     howTitle: '입금 절차',
-    howBody: '입금은 절대 자동으로 적립되지 않습니다. 모든 입금은 먼저 담당자가 확인합니다.',
+    howBody: '입금은 절대 자동으로 적립되지 않습니다. 모든 입금은 적립되기 전에 저희 팀이 검토합니다.',
     step: '{n}단계',
     steps: {
       s1Title: '계좌 만들기',

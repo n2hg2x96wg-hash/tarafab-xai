@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { authFetch } from '@/lib/authFetch'
 
 export type EngineState = 'running' | 'paused' | 'maintenance' | 'degraded' | 'offline' | 'unavailable'
 export type EnginePresentation = { panel_visible: boolean; preview_visible: boolean; display_name: string; asset_labels: string; description: string; animation: 'off' | 'subtle' | 'standard'; operating_mode?: 'active' | 'paused' | 'maintenance' }
@@ -28,7 +29,7 @@ function load() {
   if (inflight) return inflight
   inflight = (async () => {
     try {
-      const r = await fetch('/api/automation/status', { cache: 'no-store' })
+      const r = await authFetch('/api/automation/status', { cache: 'no-store' })
       const s = parse((await r.json().catch(() => null))?.status)
       cache = s && r.ok ? { s, failed: false, at: Date.now() } : { ...cache, failed: true, at: Date.now() }
     } catch { cache = { ...cache, failed: true, at: Date.now() } }
@@ -37,17 +38,33 @@ function load() {
   return inflight
 }
 
+// Coming back to the tab refreshes at once if the reading is over 20 s old.
+// One listener and one timer for the whole page, however many panels mount;
+// both are removed when the last one unmounts.
+const onVisible = () => { if (document.visibilityState === 'visible' && Date.now() - cache.at > 20_000) load() }
+
 export function useEngineStatus() {
   const [c, setC] = useState(cache)
   useEffect(() => {
     subs.add(setC)
     if (!cache.s || Date.now() - cache.at > 50_000) load()
-    if (!timer) timer = setInterval(() => { if (document.visibilityState === 'visible') load() }, 60_000)
-    return () => { subs.delete(setC); if (!subs.size && timer) { clearInterval(timer); timer = null } }
+    if (!timer) {
+      timer = setInterval(() => { if (document.visibilityState === 'visible') load() }, 60_000)
+      document.addEventListener('visibilitychange', onVisible)
+    }
+    return () => {
+      subs.delete(setC)
+      if (!subs.size && timer) { clearInterval(timer); timer = null; document.removeEventListener('visibilitychange', onVisible) }
+    }
   }, [])
-  // A stale reading (the status itself older than 3 min) is not trusted as running.
+  // Running is shown only while it is verified: the engine's own heartbeat
+  // must be under 3 min old AND the latest refresh must have succeeded. A
+  // failed refresh with an older reading is "Delayed", never "running".
   const s = c.s
-  const state: EngineState = !s ? (c.failed ? 'unavailable' : 'unavailable')
+  const state: EngineState = !s ? 'unavailable'
+    : c.failed && s.state === 'running' ? 'degraded'
     : s.state === 'running' && s.last_ok_at && Date.now() - Date.parse(s.last_ok_at) > 3 * 60_000 ? 'degraded' : s.state
-  return { status: s, state, loading: !s && !c.failed, presentation: s?.presentation ?? DEFAULT_P }
+  // The engine is scheduled every minute; next check = last successful cycle + 60 s.
+  const nextAt = s?.last_ok_at && (state === 'running') ? Date.parse(s.last_ok_at) + 60_000 : null
+  return { status: s, state, loading: !s && !c.failed, refreshed: c.at, refreshFailed: c.failed, nextAt, presentation: s?.presentation ?? DEFAULT_P }
 }

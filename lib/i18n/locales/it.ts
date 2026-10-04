@@ -164,7 +164,7 @@ const it: DeepPartial<typeof en> = {
     marketsBody: 'Gli stessi dati in tempo reale che vedrai nella tua dashboard. Nulla in questa pagina è simulato.',
     livePrice: 'Prezzo in tempo reale',
     howTitle: 'Come funzionano i versamenti',
-    howBody: 'Un versamento non viene mai accreditato automaticamente. Ognuno viene prima controllato da una persona.',
+    howBody: "Un versamento non viene mai accreditato automaticamente. Ogni versamento viene verificato dal nostro team prima dell'accredito.",
     step: 'Passo {n}',
     steps: {
       s1Title: 'Crea un conto',
