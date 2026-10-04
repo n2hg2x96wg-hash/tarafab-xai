@@ -20,6 +20,10 @@ export async function GET(request: NextRequest) {
   if (!supabase) return unauthorized()
   const { data, error } = await supabase.rpc('client_premium_info')
   if (error) return dbError(error)
+  // Premium switched off: the free limits still apply (they govern free
+  // features), but no plans, checkout or Premium status are offered.
+  const off = await featureBlocked(supabase, 'premium')
+  if (off) return NextResponse.json({ ...(data as object), plans: [], payments: false, feature_disabled: true }, { headers: { 'Cache-Control': 'no-store' } })
   let payments = false
   try { payments = (await billing(token, { action: 'status' })).data.configured === true } catch { /* shown as unavailable */ }
   return NextResponse.json({ ...(data as object), payments })
@@ -33,7 +37,9 @@ export async function POST(request: NextRequest) {
   let b: Record<string, unknown>
   try { b = await request.json() } catch { return NextResponse.json({ error: 'Invalid request.' }, { status: 400 }) }
   if (!['checkout', 'cancel', 'resume'].includes(String(b.action))) return NextResponse.json({ error: 'Unknown action.' }, { status: 400 })
-  if (b.action === 'checkout') { const blocked = await featureBlocked(supabase, 'premium'); if (blocked) return blocked }
+  // Premium OFF refuses checkout and resume; cancel stays available so a
+  // paying subscriber can always stop billing.
+  if (b.action !== 'cancel') { const blocked = await featureBlocked(supabase, 'premium'); if (blocked) return blocked }
   if (b.action === 'checkout' && !/^[a-z0-9_-]{2,40}$/.test(String(b.plan_id ?? ''))) return NextResponse.json({ error: 'Choose a plan.' }, { status: 400 })
   try {
     const r = await billing(token, { action: b.action, plan_id: b.plan_id })

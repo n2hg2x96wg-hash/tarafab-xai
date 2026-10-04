@@ -59,7 +59,7 @@ const M: Record<Locale, Record<string, string>> = {
   "status.open": "Market open",
   "status.stale": "Data may be outdated",
   "status.unavailable": "Unavailable",
-  "status.notConnected": "Quote unavailable",
+  "status.notConnected": "Data source offline",
   "status.temporary": "Temporarily unavailable",
   "status.equitiesNotConnected": "Stock and index quotes are not connected yet — shown as unavailable, never estimated.",
   "cat.all": "All",

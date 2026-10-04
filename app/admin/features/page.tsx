@@ -6,7 +6,9 @@ import AdminLayout from '@/components/AdminLayout'
 import { AdminLoadError } from '@/components/AdminLoadError'
 import { AdminModal, Field } from '@/components/AdminModal'
 
-type Flag = { key: string; state: string; label: string; note: string; updated_at: string }
+type Flag = { key: string; state: string; label: string; note: string; updated_at: string; updated_by?: string | null }
+type Change = { id: number; actor_id: string | null; entity_id: string; created_at: string; details: { before?: { state?: string }; after?: { state?: string }; reason?: string } | null }
+const fmtWhen = (iso: string) => new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 const STATES: [string, string][] = [
   ['enabled', 'Enabled — available to clients'], ['premium', 'Premium — available with Tarafab Premium'],
   ['coming_soon', 'Coming soon — shown as coming soon, not usable'], ['unavailable', 'Unavailable — hidden (provider or data source down)'],
@@ -33,6 +35,7 @@ const CONTROLS: { key: string; label: string; hint: string }[] = [
   { key: 'verification', label: 'Verification', hint: 'KYC section' },
   { key: 'announcements', label: 'Announcements', hint: 'Notifications and team announcements' },
   { key: 'support', label: 'Support / contact', hint: 'Support section' },
+  { key: 'live_chat', label: 'Live chat', hint: 'Smartsupp chat bubble for clients and visitors' },
   { key: 'wallet_transfer', label: 'Transfer to Tarafab', hint: 'External wallet transfers' },
 ]
 const isOn = (state: string | undefined) => !state || !['disabled', 'unavailable', 'admin_only'].includes(state)
@@ -51,7 +54,14 @@ export default function AdminFeaturesPage() {
     const { data, error } = await (supabase.from('feature_flags') as any).select('*').order('key')
     if (error) { setError('Feature states could not be loaded.'); return }
     setRows(Array.isArray(data) ? data : []); setError('')
+    // Change history from the append-only audit log (admin-only by RLS).
+    const h = await (supabase.from('audit_logs') as any).select('id, actor_id, entity_id, created_at, details').eq('action', 'feature_state_changed').order('created_at', { ascending: false }).limit(20)
+    if (!h.error) setHistory(Array.isArray(h.data) ? h.data : [])
+    const ids = Array.from(new Set([...(data || []).map((f: Flag) => f.updated_by), ...((h.data || []) as Change[]).map(c => c.actor_id)].filter(Boolean))) as string[]
+    if (ids.length) { const p = await (supabase.from('profiles') as any).select('id, email, full_name').in('id', ids); if (!p.error) setWho(Object.fromEntries((p.data || []).map((x: { id: string; email?: string; full_name?: string }) => [x.id, x.full_name || x.email || 'Admin']))) }
   }, [supabase])
+  const [history, setHistory] = useState<Change[] | null>(null)
+  const [who, setWho] = useState<Record<string, string>>({})
   useEffect(() => { load() }, [load, reload])
   const [tog, setTog] = useState<null | { key: string; label: string; on: boolean; reason: string }>(null)
   const saveToggle = async () => {
@@ -72,7 +82,7 @@ export default function AdminFeaturesPage() {
     setEdit(null); load()
   }
   return (
-    <AdminLayout title="Feature states" subtitle="What clients can use; enforced by the server">
+    <AdminLayout title="Feature Control Center" subtitle="What clients can see and use — enforced by the server and database">
       {error && <AdminLoadError message={error} onRetry={() => setReload(n => n + 1)} />}
       <section className="glass rounded-2xl border border-white/[0.08] p-4 mb-5" aria-labelledby="fc-title">
         <h2 id="fc-title" className="text-sm font-semibold text-white">Client Dashboard Feature Controls</h2>
@@ -80,13 +90,17 @@ export default function AdminFeaturesPage() {
         {!rows ? <p className="text-xs text-slate-500">Loading…</p> : (
           <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
             {CONTROLS.filter(c => rows.some(f => f.key === c.key)).map(c => {
-              const st = rows.find(f => f.key === c.key)?.state
+              const row = rows.find(f => f.key === c.key)
+              const st = row?.state
               const on = isOn(st)
               return (
                 <li key={c.key} className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-white">{c.label}</p>
+                    <p className="text-sm text-white flex items-center gap-2">{c.label}
+                      <span className={`inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide ${on ? 'text-emerald-400' : 'text-red-300/80'}`} data-flag-status={c.key}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${on ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,.8)]' : 'bg-red-400/70'}`} aria-hidden="true" />{on ? 'Enabled' : 'Disabled'}</span></p>
                     <p className="text-[11px] text-slate-500 truncate">{c.hint}{st && st !== 'enabled' && st !== 'disabled' ? ` · ${st.replace('_', ' ')}` : ''}</p>
+                    <p className="text-[10.5px] text-slate-600 truncate">Access: {on ? (st === 'premium' ? 'Premium clients' : 'All clients') : 'No clients'}{row ? ` · Changed ${fmtWhen(row.updated_at)}${row.updated_by ? ` by ${who[row.updated_by] || 'an admin'}` : ''}` : ''}</p>
                   </div>
                   <button role="switch" aria-checked={on} aria-label={`${c.label}: ${on ? 'ON' : 'OFF'}`} onClick={() => { setFormErr(''); setTog({ key: c.key, label: c.label, on: !on, reason: '' }) }}
                     className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors ${on ? 'bg-emerald-500/80' : 'bg-slate-600/60'}`}>
@@ -97,6 +111,26 @@ export default function AdminFeaturesPage() {
               )
             })}
           </ul>
+        )}
+      </section>
+      <section className="glass rounded-2xl border border-white/[0.08] p-4 mb-5" aria-labelledby="fc-hist">
+        <h2 id="fc-hist" className="text-sm font-semibold text-white">Change history</h2>
+        <p className="mt-1 mb-3 text-xs text-slate-400">Every switch is recorded in the audit log with who changed it, when, and why. Clients never see this.</p>
+        {!history ? <p className="text-xs text-slate-500">Loading…</p> : !history.length ? <p className="text-xs text-slate-500">No changes recorded yet.</p> : (
+          <ol className="divide-y divide-white/[0.06]" data-flag-history>
+            {history.map(h => {
+              const label = CONTROLS.find(c => c.key === h.entity_id)?.label || h.entity_id
+              const b = h.details?.before?.state, a = h.details?.after?.state
+              return (
+                <li key={h.id} className="py-2 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-xs">
+                  <span className="text-white font-medium">{label}</span>
+                  <span className="text-slate-400"><span className={TONE[b || ''] || ''}>{isOn(b) ? 'Enabled' : 'Disabled'}</span> → <span className={TONE[a || ''] || ''}>{isOn(a) ? 'Enabled' : 'Disabled'}</span>{b && a && (b !== 'enabled' && b !== 'disabled' || a !== 'enabled' && a !== 'disabled') ? ` (${b} → ${a})` : ''}</span>
+                  <span className="text-slate-500">{h.actor_id ? who[h.actor_id] || 'Admin' : 'Admin'} · {fmtWhen(h.created_at)}</span>
+                  {h.details?.reason && <span className="text-slate-500 w-full truncate">“{h.details.reason}”</span>}
+                </li>
+              )
+            })}
+          </ol>
         )}
       </section>
       {tog && (

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useEngineStatus, type EngineState } from '@/lib/engineStatus'
 import { authFetch, readJson } from '@/lib/authFetch'
+import { hiddenState, useFeatures } from '@/components/ui/features'
 
 // The automation engine panel (client Investments page and landing preview).
 // Every state shown is verified: the engine status comes from the database's
@@ -28,6 +29,7 @@ type Ev = { id: number | string; event: string; created_at: string; automation_i
 
 export function EnginePanel({ variant = 'client', className = '' }: { variant?: 'client' | 'preview'; className?: string }) {
   const { status, state, loading, presentation: p } = useEngineStatus()
+  const feature = useFeatures()
   const ref = useRef<HTMLDivElement>(null)
   const [mine, setMine] = useState<{ rules: Auto[]; events: Ev[] } | null | 'error'>(null)
   const [, tick] = useState(0)
@@ -49,7 +51,8 @@ export function EnginePanel({ variant = 'client', className = '' }: { variant?: 
     const io = new IntersectionObserver(e => el.toggleAttribute('data-vis', e[0].isIntersecting)); io.observe(el); return () => io.disconnect()
   }, [])
 
-  if (variant === 'client' && !p.panel_visible) return null
+  // Admin → Feature Control Center → Automations OFF hides the panel for clients.
+  if (variant === 'client' && (!p.panel_visible || hiddenState(feature('automations')))) return null
   if (variant === 'preview' && !p.preview_visible) return null
   const running = state === 'running'
   const activeRules = mine && mine !== 'error' ? mine.rules.filter(r => r.status === 'active').length : null

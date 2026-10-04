@@ -66,18 +66,22 @@ export const openPremiumGate = (feature?: string) => window.dispatchEvent(new Cu
 
 export function PremiumBadge({ className = '' }: { className?: string }) {
   const pt = usePt()
+  const feature = useFeatures()
+  if (hiddenState(feature('premium'))) return null
   return <span className={`inline-flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-300 ${className}`}><IconLock width={10} height={10} />{pt('pr.badge')}</span>
 }
 
 export function PremiumGateHost({ onSeePremium }: { onSeePremium: () => void }) {
   const pt = usePt()
   const [feature, setFeature] = useState<string | null>(null)
+  const flags = useFeatures()
   useEffect(() => {
     const on = (e: Event) => setFeature((e as CustomEvent).detail?.feature || '')
     window.addEventListener('tarafab:premium-gate', on)
     return () => window.removeEventListener('tarafab:premium-gate', on)
   }, [])
-  if (feature === null) return null
+  // Premium switched off: no upsell; the action's own error is shown inline.
+  if (feature === null || hiddenState(flags('premium'))) return null
   return (
     <ConfirmModal title={pt('pr.gateTitle')} confirmLabel={pt('pr.seePremium')} cancelLabel={pt('pr.notNow')}
       onCancel={() => setFeature(null)} onConfirm={() => { setFeature(null); onSeePremium() }}>

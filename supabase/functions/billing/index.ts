@@ -112,6 +112,12 @@ if (import.meta.main) Deno.serve(async (req) => {
   const configured = !!STRIPE_KEY && !!WEBHOOK_SECRET
   if (body.action === 'status') return json({ configured })
   if (!configured) return json({ error: 'Premium payments are not available yet.', code: 'not_configured' }, 503)
+  // Admin -> Feature Control Center -> Premium OFF: no new or resumed
+  // subscriptions. Cancelling stays possible so nobody is kept on billing.
+  if (body.action === 'checkout' || body.action === 'resume') {
+    const { data: fs, error: fe } = await db.rpc('feature_state', { p_key: 'premium' })
+    if (fe || ['disabled', 'unavailable', 'admin_only'].includes(String(fs))) return json({ error: 'This feature is not available right now.', code: 'FEATURE_DISABLED' }, 403)
+  }
 
   const { data: current } = await db.from('subscriptions').select('*').eq('user_id', u.user.id).maybeSingle()
   try {

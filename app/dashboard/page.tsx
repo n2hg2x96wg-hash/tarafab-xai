@@ -28,7 +28,7 @@ import { WalletTab } from '@/components/dashboard/WalletTab'
 import { AssetCenter } from '@/components/markets/AssetCenter'
 import { AutomationCenter } from '@/components/markets/AutomationCenter'
 import { FeeRows, PremiumCenter, PremiumGateHost, useServiceFee, usePt } from '@/components/premium/Premium'
-import { hiddenState, useFeatures } from '@/components/ui/features'
+import { featuresLoaded, hiddenState, useFeatures } from '@/components/ui/features'
 import type { FeatureKey } from '@/lib/features'
 import { StateView } from '@/components/ui/State'
 import {
@@ -366,9 +366,11 @@ export default function DashboardPage() {
     return () => { document.body.style.overflow = prev; document.removeEventListener('keydown', onKey) }
   }, [sidebarOpen])
 
-  // A hidden section cannot stay open.
+  // A hidden section cannot stay open (decided once the server's feature
+  // states have arrived, so a link to an enabled section is not bounced;
+  // until then the section itself does not render).
   useEffect(() => {
-    if (hiddenNav.includes(activeNav)) setActiveNav('overview')
+    if (featuresLoaded() && hiddenNav.includes(activeNav)) setActiveNav('overview')
   }, [hiddenNav, activeNav])
 
   const [signingOut, setSigningOut] = useState(false)
@@ -517,8 +519,8 @@ export default function DashboardPage() {
             {activeNav === 'overview' && <OverviewTab name={displayName} account={account} txs={txs} go={go} can={id => !hiddenNav.includes(id)} labelOf={labelOf} />}
             {activeNav === 'markets' && <div className="space-y-10"><AssetCenter onAutomate={id => { setAutoAsset(id); go('automations') }} /><MarketsTab /></div>}
             {soon(activeNav) && <StateView state="unavailable" title={pt('ft.soon')} body={pt('ft.comingSoon')} />}
-            {activeNav === 'automations' && !soon('automations') && <AutomationCenter presetAsset={autoAsset} onPresetUsed={() => setAutoAsset(null)} />}
-            {activeNav === 'premium' && !soon('premium') && <PremiumCenter account={account} txs={txs} />}
+            {activeNav === 'automations' && !soon('automations') && !hiddenNav.includes('automations') && <AutomationCenter presetAsset={autoAsset} onPresetUsed={() => setAutoAsset(null)} />}
+            {activeNav === 'premium' && !soon('premium') && !hiddenNav.includes('premium') && <PremiumCenter account={account} txs={txs} />}
             {activeNav === 'transactions' && <><TransactionsTab txs={txs} /><div className="mt-4"><LoadMore hasMore={hasMore} loading={loadingMore} onLoadMore={loadMore} /></div></>}
             {activeNav === 'portfolio' && <div className="space-y-8">{!hiddenState(feature('investments')) && <InvestmentCenter go={go} focusId={focusInv} onFocusDone={() => setFocusInv(null)} onAccountChanged={fetchData} />}<section aria-labelledby="pf-analytics" className="space-y-3"><h2 id="pf-analytics" className="text-lg font-semibold tracking-tight text-fg">{t('nav2.analyticsTitle')}</h2><PortfolioTab account={account} txs={txs} hasMore={hasMore} go={go} /></section></div>}
             {activeNav === 'depositHistory' && <HistoryTab kind="deposit" txs={txs} hasMore={hasMore} loadingMore={loadingMore} onLoadMore={loadMore} go={go} />}
