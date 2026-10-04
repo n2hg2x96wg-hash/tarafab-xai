@@ -29,6 +29,7 @@ import { AssetCenter } from '@/components/markets/AssetCenter'
 import { AutomationCenter } from '@/components/markets/AutomationCenter'
 import { FeeRows, PremiumCenter, PremiumGateHost, useServiceFee, usePt } from '@/components/premium/Premium'
 import { featuresLoaded, hiddenState, useFeatures } from '@/components/ui/features'
+import { useEngineStatus } from '@/lib/engineStatus'
 import type { FeatureKey } from '@/lib/features'
 import { StateView } from '@/components/ui/State'
 import {
@@ -81,21 +82,20 @@ type Icon = ComponentType<SVGProps<SVGSVGElement>>
 type NavItem = { icon: Icon; label: TKey; id: string }
 // Grouped client navigation. Items marked `core` can never be hidden by the
 // admin navigation setting (it only accepts optional ids server-side too).
+// Command Center layout: every existing section, grouped by what the client
+// is doing. Ids are unchanged, so links, admin ordering/labels/hiding and
+// feature flags keep working exactly as before.
 const NAV_GROUPS: { label: TKey; items: (NavItem & { core?: boolean })[] }[] = [
-  { label: 'nav2.groupOverview', items: [
+  { label: 'nav4.groupMain', items: [
     { icon: IconGrid, label: 'dash.nav.overview', id: 'overview', core: true },
-  ] },
-  { label: 'nav3.groupMarkets', items: [
     { icon: IconChart, label: 'dash.nav.markets', id: 'markets' },
     { icon: IconSliders, label: 'automations.nav', id: 'automations' },
-    { icon: IconLock, label: 'premium.nav', id: 'premium' },
-    { icon: IconSwap, label: 'nav3.marketActivity', id: 'marketActivity' },
-    { icon: IconHistory, label: 'nav3.priceHistory', id: 'priceHistory' },
   ] },
-  { label: 'nav2.groupPortfolio', items: [
+  { label: 'nav4.groupInvestments', items: [
     { icon: IconPie, label: 'nav2.portfolio', id: 'portfolio' },
-    { icon: IconList, label: 'dash.nav.transactions', id: 'transactions' },
     { icon: IconTrend, label: 'nav3.performance', id: 'performance' },
+    { icon: IconList, label: 'dash.nav.transactions', id: 'transactions' },
+    { icon: IconLock, label: 'premium.nav', id: 'premium' },
   ] },
   { label: 'nav3.groupFunds', items: [
     { icon: IconWallet, label: 'wallet.nav', id: 'wallet' },
@@ -104,14 +104,16 @@ const NAV_GROUPS: { label: TKey; items: (NavItem & { core?: boolean })[] }[] = [
     { icon: IconHistory, label: 'nav2.depositHistory', id: 'depositHistory' },
     { icon: IconHistory, label: 'nav2.withdrawalHistory', id: 'withdrawalHistory' },
   ] },
+  { label: 'nav4.groupTools', items: [
+    { icon: IconHistory, label: 'nav3.priceHistory', id: 'priceHistory' },
+    { icon: IconSwap, label: 'nav3.marketActivity', id: 'marketActivity' },
+  ] },
   { label: 'nav2.groupAccount', items: [
     { icon: IconUser, label: 'dash.nav.profile', id: 'profile', core: true },
     { icon: IconShield, label: 'nav2.security', id: 'security', core: true },
     { icon: IconCheck, label: 'kyc.nav', id: 'verification' },
     { icon: IconBell, label: 'nav2.notifications', id: 'notifications' },
     { icon: IconSliders, label: 'nav2.preferences', id: 'preferences', core: true },
-  ] },
-  { label: 'nav2.groupSupport', items: [
     { icon: IconHelp, label: 'nav2.support', id: 'support' },
   ] },
 ]
@@ -357,15 +359,30 @@ export default function DashboardPage() {
     } catch { /* stays read locally; the next load shows the server state */ }
   }, [])
 
+  // Mobile drawer: opening it adds a history entry, so the phone's Back
+  // button closes the drawer instead of leaving the page. Closing it any
+  // other way (X, backdrop, Escape) pops that entry again.
+  const closeDrawer = useCallback(() => {
+    try { if ((window.history.state as { ccDrawer?: boolean } | null)?.ccDrawer) { window.history.back(); return } } catch { /* fall through */ }
+    setSidebarOpen(false)
+  }, [])
+  useEffect(() => {
+    if (!sidebarOpen) return
+    try { if (!(window.history.state as { ccDrawer?: boolean } | null)?.ccDrawer) window.history.pushState({ ...(window.history.state || {}), ccDrawer: true }, '') } catch { /* ignore */ }
+    const onPop = () => setSidebarOpen(false)
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [sidebarOpen])
+
   // Mobile drawer: Escape closes it and the page behind does not scroll.
   useEffect(() => {
     if (!sidebarOpen) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setSidebarOpen(false) }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeDrawer() }
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     document.addEventListener('keydown', onKey)
     return () => { document.body.style.overflow = prev; document.removeEventListener('keydown', onKey) }
-  }, [sidebarOpen])
+  }, [sidebarOpen, closeDrawer])
 
   // A hidden section cannot stay open (decided once the server's feature
   // states have arrived, so a link to an enabled section is not bounced;
@@ -426,11 +443,14 @@ export default function DashboardPage() {
     <div className="site min-h-screen bg-ink-950 text-fg lg:flex">
       <aside className={`fixed inset-y-0 left-0 z-40 w-[min(18rem,85vw)] ${collapsed ? 'lg:w-[72px]' : 'lg:w-64'} h-[100dvh] safe-top bg-ink-900 border-r border-ink-700 flex flex-col transition-[transform,width] duration-300 ease-[cubic-bezier(.2,.7,.2,1)] lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:shadow-none ${sidebarOpen ? 'translate-x-0 drawer-shadow' : '-translate-x-full'}`}>
         <div className={`h-16 flex items-center justify-between border-b border-ink-700 ${collapsed ? 'lg:px-0 lg:justify-center px-5' : 'px-5'}`}>
-          <Link href="/" aria-label={t('common.home')} className={collapsed ? 'lg:hidden' : ''}><Logo /></Link>
+          <Link href="/" aria-label={t('common.home')} className={`min-w-0 ${collapsed ? 'lg:hidden' : ''}`}>
+            <Logo />
+            <span className="block pl-9 -mt-0.5 text-[9px] font-medium uppercase tracking-[0.14em] whitespace-nowrap text-accent/80">{t('nav4.tagline')}</span>
+          </Link>
           <button onClick={toggleCollapsed} className="hidden lg:flex w-9 h-9 rounded-md items-center justify-center text-fg-faint hover:text-fg hover:bg-ink-850" aria-label={collapsed ? t('shell.expand') : t('shell.collapse')} aria-expanded={!collapsed}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16" /></svg>
           </button>
-          <button onClick={() => setSidebarOpen(false)} className="lg:hidden -mr-2 w-10 h-10 rounded-md flex items-center justify-center text-fg-muted hover:text-fg hover:bg-ink-850" aria-label={t('common.closeMenu')}><IconClose /></button>
+          <button onClick={closeDrawer} className="lg:hidden -mr-2 w-10 h-10 rounded-md flex items-center justify-center text-fg-muted hover:text-fg hover:bg-ink-850" aria-label={t('common.closeMenu')}><IconClose /></button>
         </div>
         <nav className="flex-1 px-3 py-3 overflow-y-auto overscroll-contain" aria-label={t('dash.dashboard')}>
           {NAV_GROUPS.map(group => {
@@ -450,7 +470,7 @@ export default function DashboardPage() {
                       }`}
                       aria-current={activeNav === id ? 'page' : undefined}
                     >
-                      <I width={17} height={17} className={`shrink-0 ${activeNav === id ? 'text-brand-300' : ''}`} aria-hidden="true" />
+                      <I width={17} height={17} className="shrink-0 transition-colors" aria-hidden="true" />
                       <span className={`flex-1 min-w-0 ${collapsed ? 'lg:sr-only' : ''}`}>{labelOf({ id, label })}</span>
                       {id === 'notifications' && unread > 0 && (
                         <span className={`shrink-0 min-w-5 h-5 px-1.5 rounded-full ${collapsed ? 'lg:absolute lg:top-0.5 lg:right-2 lg:min-w-4 lg:h-4 lg:px-1 lg:text-[10px]' : ''} bg-brand-500/15 text-brand-300 text-[11px] font-semibold tabular-nums inline-flex items-center justify-center`}>
@@ -465,9 +485,10 @@ export default function DashboardPage() {
           })}
         </nav>
         <div className={`p-3 border-t border-ink-700 safe-bottom ${collapsed ? 'lg:px-2' : ''}`}>
+          {!hiddenNav.includes('automations') && <AutomationStatus collapsed={collapsed} onOpen={() => go('automations')} />}
           <SystemStatus collapsed={collapsed} ok={!loadError} />
           <div className={`flex items-center gap-3 px-2 py-2 mb-1 ${collapsed ? 'lg:hidden' : ''}`}>
-            <span className="w-8 h-8 rounded-md bg-ink-800 border border-ink-700 flex items-center justify-center text-xs font-semibold text-fg shrink-0">{initials}</span>
+            <span className="w-9 h-9 rounded-full bg-accent/15 border border-accent/30 flex items-center justify-center text-xs font-semibold text-accent shrink-0">{initials}</span>
             <div className="min-w-0">
               <p className="text-sm text-fg truncate">{displayName}</p>
               <p className="text-xs text-fg-faint truncate">{user?.email}</p>
@@ -483,7 +504,7 @@ export default function DashboardPage() {
         </div>
       </aside>
 
-      {sidebarOpen && <div className="fixed inset-0 z-30 bg-black/55 backdrop-blur-[2px] lg:hidden backdrop-in" onClick={() => setSidebarOpen(false)} aria-hidden="true" />}
+      {sidebarOpen && <div className="fixed inset-0 z-30 bg-black/55 backdrop-blur-[3px] lg:hidden backdrop-in" onClick={closeDrawer} aria-hidden="true" />}
 
       <div className="flex-1 min-w-0">
         <header className="sticky top-0 z-20 h-16 flex items-center justify-between gap-4 px-4 sm:px-6 border-b border-ink-700/80 glass-bar">
@@ -590,6 +611,26 @@ function BottomNav({ active, can, go, onMenu, unread, t }: {
 /* Reports only what the dashboard itself observed: whether its last request
    to the account service succeeded. There is no separate monitoring, so it
    never claims every service is operational. */
+// Sidebar automation indicator. Wording follows the engine's verified state
+// (lib/engineStatus): the engine monitors and evaluates rules; it is never
+// described as trading.
+function AutomationStatus({ collapsed, onOpen }: { collapsed: boolean; onOpen: () => void }) {
+  const { t } = useI18n()
+  const { state, loading } = useEngineStatus()
+  const label = loading ? 'Checking…' : ({ running: 'Monitoring active', paused: 'Paused', maintenance: 'Maintenance', degraded: 'Delayed', offline: 'Offline', unavailable: 'Unavailable' } as const)[state]
+  const dot = state === 'running' ? 'bg-emerald-400 cc-pulse' : state === 'degraded' || state === 'paused' ? 'bg-amber-400' : state === 'maintenance' ? 'bg-sky-400' : 'bg-fg-faint'
+  return (
+    <button onClick={onOpen} data-sidebar-automation={state} title={`${t('nav4.automation')}: ${label}`}
+      className={`w-full mb-2 flex items-center gap-2.5 rounded-lg border border-ink-700 bg-ink-850/60 hover:border-accent/30 transition-colors px-2.5 py-2 text-left ${collapsed ? 'lg:justify-center lg:px-0' : ''}`}>
+      <span className={`relative w-2 h-2 shrink-0 rounded-full ${dot}`} aria-hidden="true" />
+      <span className={`min-w-0 leading-tight ${collapsed ? 'lg:sr-only' : ''}`}>
+        <span className="block text-[11px] text-fg-faint">{t('nav4.automation')}</span>
+        <span className="block text-[12.5px] text-fg truncate">{label}</span>
+      </span>
+    </button>
+  )
+}
+
 function SystemStatus({ collapsed, ok }: { collapsed: boolean; ok: boolean }) {
   const { t } = useI18n()
   return (

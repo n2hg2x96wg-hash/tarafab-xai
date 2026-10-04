@@ -110,7 +110,17 @@ body {
 /* Navigation item (sidebars) */
 .nav-item { color: rgb(var(--fg-muted)); }
 .nav-item:hover { color: rgb(var(--fg)); background: rgb(var(--ink-850)); }
-.nav-item-on { color: rgb(var(--fg)); background: linear-gradient(90deg, rgb(var(--brand-500) / .14), rgb(var(--brand-500) / .02)); box-shadow: inset 2px 0 0 rgb(var(--brand-400)); }
+.nav-item { transition: color .15s ease, background-color .15s ease; }
+.nav-item:active { transform: scale(.985); }
+/* Command Center active state: accent bar on the left, soft accent wash and glow. */
+.nav-item-on { color: rgb(var(--fg)); background: linear-gradient(90deg, rgb(var(--accent) / .16), rgb(var(--accent) / .03) 70%, transparent); box-shadow: 0 0 0 1px rgb(var(--accent) / .14), 0 6px 18px -10px rgb(var(--accent) / .45); }
+.nav-item-on::before { content: ''; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; border-radius: 0 3px 3px 0; background: rgb(var(--accent)); box-shadow: 0 0 10px rgb(var(--accent) / .7); }
+.nav-item-on svg { color: rgb(var(--accent)); }
+/* Sidebar automation status pulse (only while the engine is verified running). */
+.cc-pulse { position: relative; }
+.cc-pulse::after { content: ''; position: absolute; inset: -3px; border-radius: 9999px; background: rgb(52 211 153 / .45); animation: cc-pulse 2.4s ease-out infinite; }
+@keyframes cc-pulse { 0% { transform: scale(.6); opacity: .9; } 100% { transform: scale(1.9); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .cc-pulse::after { animation: none; opacity: 0; } .nav-item:active { transform: none; } }
 
 /* Status surfaces: colour is always paired with text or an icon */
 .alert { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 8px; border: 1px solid; font-size: 14px; }

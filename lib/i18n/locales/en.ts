@@ -666,6 +666,13 @@ const en = {
   sources: {
     footer: 'Market data is provided for informational purposes only. Prices may be delayed or unavailable.',
   },
+  nav4: {
+    groupMain: 'Main',
+    groupInvestments: 'Investments',
+    groupTools: 'Market tools',
+    tagline: 'Intelligent finance',
+    automation: 'XAI Automation',
+  },
   nav3: {
     groupMarkets: 'Markets',
     groupFunds: 'Funds',
