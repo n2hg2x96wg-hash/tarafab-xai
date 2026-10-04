@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useAssets } from '@/components/markets/assetStore'
 import { formatPrice } from '@/lib/assets'
 import { effectiveState } from '@/lib/marketStatus'
+import { useEngineStatus } from '@/lib/engineStatus'
 
 // Scroll-driven 3D story for the landing page.
 //
@@ -47,11 +48,11 @@ function useMode(): Mode {
 }
 
 const STEPS: { eyebrow: string; title: string; body: string }[] = [
-  { eyebrow: 'Market', title: 'Explore the market.', body: 'Follow real prices with their own timestamps. Delayed or unavailable quotes say so — nothing is estimated.' },
-  { eyebrow: 'Fund', title: 'Fund your account.', body: 'Deposit and submit your receipt. Our team reviews it before the amount is credited to your balance.' },
-  { eyebrow: 'Invest', title: 'Choose your investment.', body: 'Compare the available plans and their terms, then choose one with funds from your balance.' },
-  { eyebrow: 'Track', title: 'Track the lifecycle.', body: 'Follow each investment from request to active to completed, with every return recorded against it.' },
-  { eyebrow: 'Portfolio', title: 'Review your portfolio.', body: 'See balances, investments and recorded performance in one place, with an audit trail behind every change.' },
+  { eyebrow: 'Market data', title: 'Real market information.', body: 'Prices arrive with their own timestamps. Delayed or unavailable quotes say so — nothing is estimated.' },
+  { eyebrow: 'Analysis', title: 'Conditions, evaluated.', body: 'Configure rules that watch supported markets — a price level, a move over 24 hours. Each new quote is checked against them.' },
+  { eyebrow: 'Automation', title: 'An automation layer that keeps watch.', body: 'The engine evaluates your rules every minute and records activity for review, even when you are signed out.' },
+  { eyebrow: 'Monitoring', title: 'Follow each investment.', body: 'Track every investment from request to active to completed, with each return recorded against it.' },
+  { eyebrow: 'Portfolio', title: 'Review your portfolio.', body: 'Balances, investments and recorded performance in one place, with an audit trail behind every change.' },
 ]
 
 function MarketLayer() {
@@ -77,27 +78,33 @@ function MarketLayer() {
 
 function ExampleTag() { return <span className="rounded-full border border-ink-600 px-2 py-0.5 text-[10px] uppercase tracking-wide text-fg-faint">Example</span> }
 
-function FundLayer() {
+function AnalysisLayer() {
   return (
     <div className="story-card">
-      <div className="flex items-center justify-between"><span className="text-[11px] text-fg-faint">Deposit</span><ExampleTag /></div>
-      <ol className="mt-3 space-y-2 text-[12px]">
-        {[['Submitted', 'bg-sky-400'], ['Reviewed', 'bg-amber-400'], ['Credited to balance', 'bg-emerald-400']].map(([s, c], i) => (
-          <li key={s} className="story-step flex items-center gap-2 text-fg-muted" style={{ ['--d' as string]: i }}><span className={`w-2 h-2 rounded-full ${c}`} aria-hidden="true" />{s}</li>
+      <div className="flex items-center justify-between"><span className="text-[11px] text-fg-faint">Rule evaluation</span><ExampleTag /></div>
+      <p className="mt-2 text-[14px] font-semibold text-fg">BTC price above target</p>
+      <ol className="mt-3 flex items-center gap-1.5 text-[10.5px] text-fg-faint" aria-label="New quote, condition checked, result recorded">
+        {['New quote', 'Condition checked', 'Result recorded'].map((x, i) => (
+          <li key={x} className="story-step flex items-center gap-1.5" style={{ ['--d' as string]: i }}><span className="rounded-md border border-ink-600 px-1.5 py-1">{x}</span>{i < 2 && <span className="h-px w-3 bg-accent/50" aria-hidden="true" />}</li>
         ))}
       </ol>
     </div>
   )
 }
 
-function ChooseLayer() {
+// Real engine status (verified heartbeat); 'Running' only when the database
+// confirms a recent successful run.
+function EngineLayer() {
+  const { state, status, presentation } = useEngineStatus()
+  const running = state === 'running'
   return (
-    <div className="story-card">
-      <div className="flex items-center justify-between"><span className="text-[11px] text-fg-faint">Investment plans</span><ExampleTag /></div>
-      <ul className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
-        {['Duration', 'Return terms', 'Minimum', 'Entry fee'].map(x => <li key={x} className="rounded-lg border border-ink-700 px-2.5 py-2 text-fg-muted">{x}<span className="mt-1.5 block h-1.5 w-10 rounded bg-ink-700" aria-hidden="true" /></li>)}
-      </ul>
-      <p className="mt-3 text-[11px] text-fg-faint">Each plan shows its own terms before you commit.</p>
+    <div className="story-card" data-live={running ? 'true' : 'false'}>
+      <div className="flex items-center justify-between text-[11px]">
+        <span className="text-fg-faint truncate">{presentation.display_name}</span>
+        <span className="inline-flex items-center gap-1.5 text-fg-muted"><span className={`w-1.5 h-1.5 rounded-full ${running ? 'bg-emerald-400 board-pulse' : 'bg-fg-faint'}`} aria-hidden="true" />{running ? 'Running' : state === 'degraded' ? 'Delayed' : state === 'offline' ? 'Offline' : 'Unavailable'}</span>
+      </div>
+      <p className="mt-2 text-[13px] text-fg">Monitoring {status && status.monitored_count ? status.monitored.slice(0, 3).join(' · ') + (status.monitored_count > 3 ? ` +${status.monitored_count - 3}` : '') : presentation.asset_labels}</p>
+      <p className="mt-2 text-[11px] text-fg-faint">Automation does not guarantee investment returns.</p>
     </div>
   )
 }
@@ -131,7 +138,7 @@ function PortfolioLayer() {
   )
 }
 
-const LAYERS: (() => ReactNode)[] = [() => <MarketLayer />, () => <FundLayer />, () => <ChooseLayer />, () => <TrackLayer />, () => <PortfolioLayer />]
+const LAYERS: (() => ReactNode)[] = [() => <MarketLayer />, () => <AnalysisLayer />, () => <EngineLayer />, () => <TrackLayer />, () => <PortfolioLayer />]
 
 export default function ScrollStory() {
   const mode = useMode()
@@ -172,7 +179,7 @@ export default function ScrollStory() {
       <section className="story story-lite border-b border-ink-700" aria-labelledby="story-title" data-story-mode={mode}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14">
           <p className="text-[12px] font-medium uppercase tracking-[0.14em] text-accent">How Tarafab works</p>
-          <h2 id="story-title" className="mt-3 text-3xl font-semibold tracking-tight text-fg">From market to portfolio, step by step</h2>
+          <h2 id="story-title" className="mt-3 text-3xl font-semibold tracking-tight text-fg">Intelligent automation for market monitoring and portfolio management</h2>
           <ol className="mt-8 grid gap-4 sm:grid-cols-2">
             {STEPS.map((s, i) => <LiteStep key={s.title} i={i} s={s} motion={mode === 'lite'}>{LAYERS[i]()}</LiteStep>)}
           </ol>
@@ -189,7 +196,7 @@ export default function ScrollStory() {
         <div className="max-w-6xl h-full mx-auto px-4 sm:px-6 grid grid-rows-[minmax(0,1fr)_auto] lg:grid-rows-1 lg:grid-cols-[1fr_1.1fr] gap-3 lg:gap-10 items-center py-4 lg:py-0">
           <div className="order-2 lg:order-none min-w-0">
             <p className="text-[12px] font-medium uppercase tracking-[0.14em] text-accent">How Tarafab works</p>
-            <h2 id="story-title" className="mt-2 lg:mt-3 text-[22px] sm:text-[26px] lg:text-[34px] leading-tight font-semibold tracking-tight text-fg">From market to portfolio, step by step</h2>
+            <h2 id="story-title" className="mt-2 lg:mt-3 text-[22px] sm:text-[26px] lg:text-[34px] leading-tight font-semibold tracking-tight text-fg">Intelligent automation for market monitoring and portfolio management</h2>
             <ol className="mt-3 lg:mt-8 space-y-3" aria-label="Steps">
               {STEPS.map((s, i) => (
                 <li key={s.title} className={`story-text ${i === step ? 'is-active' : 'max-lg:hidden'}`} aria-current={i === step ? 'step' : undefined}>

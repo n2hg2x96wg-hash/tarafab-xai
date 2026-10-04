@@ -6,6 +6,7 @@ import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
 import { IconChart, IconClose, IconPie, IconShield, IconTrend } from '@/components/Icons'
 import { fmt } from '@/components/dashboard/shared'
 import { projection } from '@/lib/returns'
+import { EnginePanel } from '@/components/automation/EnginePanel'
 import { parseInvestmentSummary, type InvestmentSummary } from '@/lib/investmentSummary'
 
 // The client's Investment Center. Everything shown is read from real records
@@ -340,8 +341,13 @@ export function InvestmentCenter({ go, focusId, onFocusDone, onAccountChanged }:
       {/* Performance: active state from the investment records; history only
           from recorded return ledger entries (no valuation feed exists, so
           nothing is estimated or animated as if it were). */}
-      <PerformancePanel activeCount={sum ? sum.active_count : active.length} activeAmount={principal} recorded={realised}
-        txs={data.transactions} intl={intl} />
+      <div className="grid gap-4 lg:grid-cols-[1.25fr_1fr] items-start">
+        <PerformancePanel activeCount={sum ? sum.active_count : active.length} activeAmount={principal} recorded={realised}
+          txs={data.transactions} intl={intl} />
+        {/* Related, not causal: the automation layer monitors; performance is
+            what is recorded in the account. */}
+        <EnginePanel variant="client" />
+      </div>
 
       {open && <ProductDetail v={open} kycVerified={data.kyc_verified} balance={data.balance} onClose={() => setOpen(null)} onSubmitted={() => { load(); onAccountChanged?.() }} go={go} />}
       {openInv && (

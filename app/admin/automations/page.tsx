@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import AdminLayout from '@/components/AdminLayout'
 import { AdminLoadError } from '@/components/AdminLoadError'
+import { EnginePresentationForm } from '@/components/admin/EnginePresentationForm'
 
 type Row = { id: string; user_id: string; full_name: string | null; asset_id: string; kind: string; target: number; status: string; name: string; last_evaluated_at: string | null; last_price: number | null; last_data_state: string | null; triggered_at: string | null; trigger_price: number | null; last_error: string | null; created_at: string }
 type Overview = { counts: Record<string, number>; engine: { last_run_at: string | null; last_ok_at: string | null; last_error: string | null; last_evaluated: number | null; last_triggered: number | null } | null; triggered_24h: number; failed_24h: number }
@@ -46,6 +47,7 @@ export default function AdminAutomationsPage() {
   return (
     <AdminLayout title="Automation Center" subtitle="Client market alerts and the engine that evaluates them">
       {error && <AdminLoadError message={error} onRetry={() => setReload(n => n + 1)} />}
+      <EnginePresentationForm />
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
         {[['Active', c('active')], ['Paused', c('paused')], ['Triggered', c('triggered')], ['Failed', c('failed')]].map(([k, v]) => <div key={k as string} className="glass rounded-xl border border-white/[0.08] p-3"><p className="text-[11px] text-slate-500">{k}</p><p className="text-xl font-semibold text-white tabular-nums">{ov ? v : '—'}</p></div>)}
       </div>

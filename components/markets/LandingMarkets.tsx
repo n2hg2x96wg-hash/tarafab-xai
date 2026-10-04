@@ -7,6 +7,7 @@ import { PriceHistory } from '@/components/LandingExtras'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { MountOnView } from './LazyOnView'
 import LiveMarketBoard from './LiveMarketBoard'
+import { EnginePanel } from '@/components/automation/EnginePanel'
 
 export default function LandingMarkets() {
   const { locale } = useI18n()
@@ -29,6 +30,7 @@ export default function LandingMarkets() {
             <MountOnView className="min-h-[420px]">
               <ErrorBoundary label="Price history"><PriceHistory compact /></ErrorBoundary>
             </MountOnView>
+            <ErrorBoundary label="Automation"><EnginePanel variant="preview" /></ErrorBoundary>
           </div>
         </div>
       </div>

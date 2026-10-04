@@ -656,3 +656,24 @@ body.dialog-open #chat-application { visibility: hidden !important; }
 .inv-row[data-inv-status="completed"], .inv-row[data-inv-status="matured"], .inv-row[data-inv-status="closed"] { opacity: .88; }
 .inv-row[data-inv-status="completed"]::before, .inv-row[data-inv-status="matured"]::before, .inv-row[data-inv-status="closed"]::before { background: rgb(var(--ink-500, 120 120 130) / .6); }
 @media (prefers-reduced-motion: reduce) { .perf-ring span, .inv-live-dot { animation: none; } }
+
+/* Automation engine orb: rings, a radar sweep and three data points. Motion
+   runs only while the engine is verified running AND the panel is on screen
+   ([data-vis]); 'subtle' slows it, 'off' / reduced motion keep it still. */
+.engine-panel { background: radial-gradient(120% 90% at 0% 0%, rgb(var(--accent) / .08), transparent 55%), rgb(var(--ink-900)); }
+.engine-orb { position: relative; width: 64px; height: 64px; transform: perspective(300px) rotateX(18deg); }
+.eo-ring { position: absolute; inset: 0; border-radius: 999px; border: 1px solid rgb(var(--accent) / .35); }
+.eo-ring.r2 { inset: 12px; border-color: rgb(var(--accent) / .22); }
+.eo-sweep { position: absolute; inset: 0; border-radius: 999px; background: conic-gradient(from 0deg, rgb(var(--accent) / .35), transparent 22%); opacity: 0; }
+.eo-pt { position: absolute; width: 4px; height: 4px; border-radius: 999px; background: rgb(var(--accent)); box-shadow: 0 0 8px rgb(var(--accent)); opacity: .35; }
+.eo-pt.p1 { left: 10px; top: 18px; } .eo-pt.p2 { right: 9px; top: 30px; } .eo-pt.p3 { left: 30px; bottom: 6px; }
+.eo-core { position: absolute; inset: 20px; border-radius: 999px; display: grid; place-items: center; color: rgb(var(--accent)); background: rgb(var(--ink-850, 20 20 24)); border: 1px solid rgb(var(--accent) / .4); }
+.engine-panel[data-engine-state="running"] .eo-sweep { opacity: 1; }
+.engine-panel[data-engine-state="running"] .eo-pt { opacity: .9; }
+.engine-panel[data-engine-state="running"][data-vis]:not([data-anim="off"]) .eo-sweep { animation: eoSpin 3.6s linear infinite; }
+.engine-panel[data-engine-state="running"][data-vis]:not([data-anim="off"]) .eo-pt { animation: eoBlink 2.4s ease-in-out infinite; }
+.engine-panel[data-anim="subtle"] .eo-sweep { animation-duration: 7s !important; }
+.eo-pt.p2 { animation-delay: .8s !important; } .eo-pt.p3 { animation-delay: 1.6s !important; }
+@keyframes eoSpin { to { transform: rotate(360deg); } }
+@keyframes eoBlink { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .eo-sweep, .eo-pt { animation: none !important; } }
