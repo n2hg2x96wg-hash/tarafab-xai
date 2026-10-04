@@ -76,6 +76,70 @@ function StatusBadge({ status }: { status: string }) {
   return <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${STATUS_TONE[status] || 'text-fg-muted border-ink-600'}`}>{t(`inv.status.${status}` as TKey)}</span>
 }
 
+// Performance card. States: A active + recorded history, B active only,
+// C history only, D nothing yet. "History" is the running total of completed
+// return ledger entries (credits minus debits), dated as recorded.
+function PerformancePanel({ activeCount, activeAmount, recorded, txs, intl }: { activeCount: number; activeAmount: number; recorded: number; txs: LinkedTx[]; intl: string }) {
+  const { t } = useI18n()
+  const pts = useMemo(() => {
+    const rows = txs.filter(x => x.kind === 'return' && x.tx?.status === 'completed' && x.tx.created_at)
+      .map(x => ({ at: Date.parse(x.tx!.created_at), v: (x.tx!.direction === 'debit' ? -1 : 1) * Number(x.tx!.amount) }))
+      .filter(r => Number.isFinite(r.at) && Number.isFinite(r.v)).sort((a, b) => a.at - b.at)
+    let run = 0
+    return rows.map(r => ({ at: r.at, total: (run += r.v) }))
+  }, [txs])
+  const last = pts.length ? pts[pts.length - 1].at : null
+  const d = (ms: number) => new Date(ms).toLocaleDateString(intl, { day: 'numeric', month: 'short', year: 'numeric' })
+  const isActive = activeCount > 0
+  const chart = pts.length > 0 ? (() => {
+    const w = 600, h = 140, lead = Math.max(86_400_000, (pts[pts.length - 1].at - pts[0].at) * 0.15)
+    const series = [{ at: pts[0].at - lead, total: 0 }, ...pts]
+    const min = Math.min(0, ...series.map(p => p.total)), max = Math.max(...series.map(p => p.total), 1), span = max - min || 1
+    const t0 = series[0].at, t1 = Math.max(series[series.length - 1].at, t0 + 1)
+    const x = (at: number) => ((at - t0) / (t1 - t0)) * w, y = (v: number) => h - 8 - ((v - min) / span) * (h - 16)
+    // Step line: the total changes only when a return is recorded.
+    let dPath = `M0,${y(0)}`; series.slice(1).forEach(p => { dPath += ` H${x(p.at).toFixed(1)} V${y(p.total).toFixed(1)}` }); dPath += ` H${w}`
+    return (
+      <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="w-full h-36" role="img" aria-label={t('inv.f.perfChart')}>
+        <path d={`${dPath} V${h} H0 Z`} style={{ fill: 'rgb(var(--accent))', fillOpacity: 0.08 }} />
+        <path d={dPath} fill="none" style={{ stroke: 'rgb(var(--accent))' }} strokeWidth="1.6" vectorEffect="non-scaling-stroke" />
+        {pts.map(p => <circle key={p.at} cx={x(p.at)} cy={y(p.total)} r="3" style={{ fill: 'rgb(var(--accent))' }} />)}
+      </svg>
+    )
+  })() : null
+  return (
+    <section className="panel p-5 perf-panel" data-perf-state={isActive ? (chart ? 'A' : 'B') : chart ? 'C' : 'D'} aria-labelledby="inv-perf">
+      <div className="flex items-start justify-between gap-3">
+        <h3 id="inv-perf" className="text-[15px] font-semibold text-fg">{t('inv.performance')}</h3>
+        {isActive && (
+          <span className="perf-active inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/[0.07] px-2.5 py-1 text-[12px] text-emerald-300">
+            <span className="perf-ring" aria-hidden="true"><span /></span>{t('inv.f.perfActive')}
+          </span>
+        )}
+      </div>
+      {(isActive || chart) && (
+        <dl className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {isActive && <div className="min-w-0"><dt className="text-[11px] text-fg-faint">{t('inv.f.perfActiveAmount')}</dt><dd className="text-base font-semibold text-fg tabular-nums truncate">{money(activeAmount)}</dd><dd className="text-[11px] text-fg-faint">{t('dash.countActive', { n: activeCount })}</dd></div>}
+          <div className="min-w-0"><dt className="text-[11px] text-fg-faint">{t('inv.f.perfRecorded')}</dt><dd className={`text-base font-semibold tabular-nums truncate ${recorded > 0 ? 'price-up' : recorded < 0 ? 'price-down' : 'text-fg'}`}>{signed(recorded)}</dd></div>
+          {last && <div className="min-w-0 col-span-2 sm:col-span-1"><dt className="text-[11px] text-fg-faint">{t('inv.f.perfLast')}</dt><dd className="text-sm text-fg">{d(last)}</dd></div>}
+        </dl>
+      )}
+      {chart ? (
+        <div className="mt-4">
+          <p className="text-[11px] text-fg-faint mb-1">{t('inv.f.perfChart')}</p>
+          {chart}
+        </div>
+      ) : (
+        <div className="mt-4 rounded-xl border border-dashed border-ink-600 flex flex-col items-center justify-center text-center px-6 py-8">
+          <IconTrend width={20} height={20} className="text-fg-faint mb-2" aria-hidden="true" />
+          <p className="text-sm text-fg-muted max-w-sm">{isActive ? t('inv.f.perfNoHistory') : t('inv.performanceEmpty')}</p>
+          {isActive && <p className="text-[12px] text-fg-faint mt-1 max-w-sm">{t('inv.f.perfNoHistoryBody')}</p>}
+        </div>
+      )}
+    </section>
+  )
+}
+
 type Filter = 'all' | 'active' | 'pending' | 'completed'
 const FILTERS: [Filter, TKey][] = [['all', 'inv.f.filterAll'], ['active', 'inv.status.active'], ['pending', 'inv.f.filterPending'], ['completed', 'inv.f.filterClosed']]
 const matches = (f: Filter, status: string) =>
@@ -244,12 +308,13 @@ export function InvestmentCenter({ go, focusId, onFocusDone, onAccountChanged }:
               const v = versionById.get(i.product_version_id)
               return (
                 <li key={i.id}>
-                  <button onClick={() => setOpenInv(i)} className="w-full text-left px-5 py-4 flex items-center justify-between gap-4 hover:bg-ink-850 transition-colors">
+                  <button onClick={() => setOpenInv(i)} data-inv-status={i.status} className="inv-row w-full text-left px-4 sm:px-5 py-4 flex items-center justify-between gap-3 sm:gap-4 hover:bg-ink-850 transition-colors">
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-fg truncate">{v?.name || t('inv.product')}</p>
+                      <p className="text-sm font-medium text-fg truncate flex items-center gap-2">{i.status === 'active' && <span className="inv-live-dot" aria-hidden="true" />}<span className="truncate">{v?.name || t('inv.product')}</span></p>
                       <p className="text-xs text-fg-faint truncate">
                         {i.reference ? `${i.reference} · ` : ''}
-                        {i.status === 'active' || i.status === 'completed' ? t('inv.startsEnds', { start: date(i.start_date), end: date(i.maturity_date) }) : `${t('inv.f.submitted')} ${date(i.created_at)}`}
+                        {['completed', 'matured', 'closed'].includes(i.status) && i.completed_at ? t('inv.f.completedOn', { date: date(i.completed_at) })
+                          : i.status === 'active' || i.status === 'completed' ? t('inv.startsEnds', { start: date(i.start_date), end: date(i.maturity_date) }) : `${t('inv.f.submitted')} ${date(i.created_at)}`}
                       </p>
                       {i.status === 'rejected' && i.rejection_reason && <p className="text-xs text-danger-300 mt-0.5 line-clamp-2">{t('inv.f.rejectionReason')}: {i.rejection_reason}</p>}
                     </div>
@@ -272,14 +337,11 @@ export function InvestmentCenter({ go, focusId, onFocusDone, onAccountChanged }:
         )}
       </section>
 
-      {/* Performance: only ever drawn from recorded valuations, which do not exist yet */}
-      <section className="panel p-5" aria-labelledby="inv-perf">
-        <h3 id="inv-perf" className="text-[15px] font-semibold text-fg">{t('inv.performance')}</h3>
-        <div className="mt-4 h-40 rounded-xl border border-dashed border-ink-600 flex flex-col items-center justify-center text-center px-6">
-          <IconTrend width={20} height={20} className="text-fg-faint mb-2" aria-hidden="true" />
-          <p className="text-sm text-fg-muted max-w-sm">{t('inv.performanceEmpty')}</p>
-        </div>
-      </section>
+      {/* Performance: active state from the investment records; history only
+          from recorded return ledger entries (no valuation feed exists, so
+          nothing is estimated or animated as if it were). */}
+      <PerformancePanel activeCount={sum ? sum.active_count : active.length} activeAmount={principal} recorded={realised}
+        txs={data.transactions} intl={intl} />
 
       {open && <ProductDetail v={open} kycVerified={data.kyc_verified} balance={data.balance} onClose={() => setOpen(null)} onSubmitted={() => { load(); onAccountChanged?.() }} go={go} />}
       {openInv && (
