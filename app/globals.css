@@ -693,3 +693,22 @@ body.dialog-open #chat-application { visibility: hidden !important; }
 .inv-life-step.is-done::after { background: rgb(52 211 153 / .5); }
 .inv-life-step.is-now { color: rgb(var(--fg)); }
 .inv-life-step.is-now span { border-color: rgb(52 211 153); background: rgb(52 211 153); box-shadow: 0 0 0 4px rgb(52 211 153 / .15), 0 0 14px rgb(52 211 153 / .6); }
+
+/* Support chat launcher (opens the existing Smartsupp chat). Clears the
+   phone/tablet bottom bar and the iPhone home indicator. */
+.chat-launch { position: fixed; right: 16px; bottom: calc(20px + env(safe-area-inset-bottom)); z-index: 40; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+@media (max-width: 1023px) { .chat-launch { bottom: calc(84px + env(safe-area-inset-bottom)); } }
+.chat-launch-btn { position: relative; display: grid; place-items: center; width: 56px; height: 56px; border-radius: 9999px; color: #fff;
+  background: radial-gradient(circle at 30% 25%, rgb(139 92 246), rgb(91 33 182)); box-shadow: 0 10px 30px -8px rgb(124 58 237 / .6), inset 0 1px 0 rgb(255 255 255 / .2);
+  transition: transform .2s ease, box-shadow .2s ease; }
+.chat-launch-btn:hover { transform: translateY(-2px) scale(1.03); box-shadow: 0 14px 36px -8px rgb(124 58 237 / .75), inset 0 1px 0 rgb(255 255 255 / .25); }
+.chat-launch-btn:focus-visible { outline: 2px solid rgb(167 139 250); outline-offset: 3px; }
+.chat-launch-glow { position: absolute; inset: -4px; border-radius: inherit; border: 1px solid rgb(167 139 250 / .5); animation: chat-breathe 3.2s ease-in-out infinite; pointer-events: none; }
+.chat-launch-dot { position: absolute; right: 3px; bottom: 3px; width: 12px; height: 12px; border-radius: 9999px; border: 2px solid rgb(15 15 25); background: rgb(148 163 184); }
+.chat-launch-dot.is-ready { background: rgb(52 211 153); box-shadow: 0 0 8px rgb(52 211 153 / .8); }
+.chat-launch-dot.is-error { background: rgb(251 191 36); }
+.chat-launch-badge { position: absolute; top: -4px; right: -4px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 9999px; background: rgb(239 68 68); color: #fff; font-size: 11px; font-weight: 600; line-height: 20px; text-align: center; }
+.chat-fallback { width: min(300px, calc(100vw - 32px)); animation: chat-in .18s ease-out; }
+@keyframes chat-breathe { 0%, 100% { opacity: .25; transform: scale(1); } 50% { opacity: .8; transform: scale(1.08); } }
+@keyframes chat-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .chat-launch-glow, .chat-fallback { animation: none; } .chat-launch-btn { transition: none; } }
