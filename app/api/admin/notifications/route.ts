@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { clientForRequest, dbError, unauthorized } from '@/lib/supabase/request'
 import { requireAdmin } from '@/lib/adminGuard'
 
-const TYPES = ['account', 'deposit', 'withdrawal', 'security', 'announcement', 'investment']
+const TYPES = ['account', 'deposit', 'withdrawal', 'security', 'announcement', 'investment', 'release']
 
 // Admin-only: every database function here checks is_admin() itself.
 export async function GET(request: NextRequest) {

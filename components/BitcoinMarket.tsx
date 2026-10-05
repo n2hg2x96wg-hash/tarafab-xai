@@ -72,11 +72,13 @@ export function BitcoinMarketCard() {
 }
 
 // 24h area chart of real closing prices. It draws itself in once when it
-// first scrolls into view and only re-renders when new history arrives.
+// first scrolls into view; pointer/touch shows the recorded price at that
+// time. Only the loaded history is drawn — nothing is estimated.
 function BtcArea({ up }: { up: boolean }) {
   const { history, status } = useBtcHistory('1')
   const ref = useRef<HTMLDivElement>(null)
   const [seen, setSeen] = useState(false)
+  const [hover, setHover] = useState<number | null>(null)
   useEffect(() => {
     const el = ref.current; if (!el) return
     if (typeof IntersectionObserver === 'undefined') { setSeen(true); return }
@@ -86,30 +88,50 @@ function BtcArea({ up }: { up: boolean }) {
   const pts = history?.points || []
   if (status === 'error' || (status === 'ready' && pts.length < 2)) return null
   const W = 300, H = 72
-  let d = '', area = ''
-  if (pts.length >= 2) {
-    const xs = pts.map(p => p[0]), ys = pts.map(p => p[1])
-    const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys)
-    const sx = (x: number) => ((x - x0) / (x1 - x0 || 1)) * W
-    const sy = (y: number) => H - 4 - ((y - y0) / (y1 - y0 || 1)) * (H - 10)
-    d = pts.map((p, i) => `${i ? 'L' : 'M'}${sx(p[0]).toFixed(1)},${sy(p[1]).toFixed(1)}`).join('')
-    area = `${d}L${W},${H}L0,${H}Z`
-  }
+  const ys = pts.map(p => p[1])
+  const lo = pts.length ? Math.min(...ys) : 0, hi = pts.length ? Math.max(...ys) : 0
+  const x0 = pts.length ? pts[0][0] : 0, x1 = pts.length ? pts[pts.length - 1][0] : 1
+  const sx = (x: number) => ((x - x0) / (x1 - x0 || 1)) * W
+  const sy = (y: number) => H - 4 - ((y - lo) / (hi - lo || 1)) * (H - 10)
+  const d = pts.map((p, i) => `${i ? 'L' : 'M'}${sx(p[0]).toFixed(1)},${sy(p[1]).toFixed(1)}`).join('')
+  const area = pts.length >= 2 ? `${d}L${W},${H}L0,${H}Z` : ''
   const c = up ? 'var(--chart-up, 52 211 153)' : 'var(--chart-down, 248 113 113)'
+  const pick = (clientX: number) => {
+    const el = ref.current; if (!el || pts.length < 2) return
+    const r = el.getBoundingClientRect(); const f = Math.min(1, Math.max(0, (clientX - r.left) / r.width))
+    const t = x0 + f * (x1 - x0); let best = 0
+    for (let i = 1; i < pts.length; i++) if (Math.abs(pts[i][0] - t) < Math.abs(pts[best][0] - t)) best = i
+    setHover(best)
+  }
+  const hp = hover != null ? pts[hover] : null
+  const time = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   return (
-    <div ref={ref} className="mt-4 -mx-1 h-[72px]" data-btc-chart={pts.length ? 'ready' : 'loading'} aria-label="Bitcoin price over the last 24 hours" role="img">
-      {pts.length >= 2 ? (
-        <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className={`w-full h-full overflow-visible ${seen ? 'btc-draw' : 'opacity-0'}`} aria-hidden="true">
-          <defs>
-            <linearGradient id="btcFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={`rgb(${c})`} stopOpacity=".28" />
-              <stop offset="100%" stopColor={`rgb(${c})`} stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          <path d={area} fill="url(#btcFill)" className="btc-area" />
-          <path d={d} fill="none" stroke={`rgb(${c})`} strokeWidth="1.6" vectorEffect="non-scaling-stroke" strokeLinejoin="round" className="btc-line" />
-        </svg>
-      ) : <div className="skeleton h-full w-full rounded-lg" />}
+    <div className="mt-4">
+      <div className="flex items-baseline justify-between text-[11px] text-fg-faint tabular-nums h-4">
+        {hp ? <span className="text-fg" data-btc-readout>{usd(hp[1])} <span className="text-fg-faint">· {time(hp[0])}</span></span> : <span>Last 24h · hourly</span>}
+        {pts.length >= 2 && !hp && <span className="hidden sm:inline">Touch or hover to inspect</span>}
+      </div>
+      <div ref={ref} className="relative mt-1 -mx-1 h-[72px] touch-pan-y cursor-crosshair" data-btc-chart={pts.length ? 'ready' : 'loading'}
+        role="img" aria-label={pts.length >= 2 ? `Bitcoin price over the last 24 hours: from ${usd(pts[0][1])} to ${usd(pts[pts.length - 1][1])}, high ${usd(hi)}, low ${usd(lo)}.` : 'Bitcoin 24-hour price loading'}
+        onPointerMove={e => pick(e.clientX)} onPointerDown={e => pick(e.clientX)} onPointerLeave={() => setHover(null)}>
+        {pts.length >= 2 ? (
+          <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className={`w-full h-full overflow-visible ${seen ? 'btc-draw' : 'opacity-0'}`} aria-hidden="true">
+            <defs>
+              <linearGradient id="btcFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={`rgb(${c})`} stopOpacity=".28" />
+                <stop offset="100%" stopColor={`rgb(${c})`} stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            {/* Minimal gridlines at the day's high and low. */}
+            <line x1="0" x2={W} y1={sy(hi)} y2={sy(hi)} stroke="rgb(var(--contrast) / .08)" strokeDasharray="2 4" vectorEffect="non-scaling-stroke" />
+            <line x1="0" x2={W} y1={sy(lo)} y2={sy(lo)} stroke="rgb(var(--contrast) / .08)" strokeDasharray="2 4" vectorEffect="non-scaling-stroke" />
+            <path d={area} fill="url(#btcFill)" className="btc-area" />
+            <path d={d} fill="none" stroke={`rgb(${c})`} strokeWidth="1.6" vectorEffect="non-scaling-stroke" strokeLinejoin="round" className="btc-line" />
+            {hp && <line x1={sx(hp[0])} x2={sx(hp[0])} y1="0" y2={H} stroke="rgb(var(--contrast) / .25)" vectorEffect="non-scaling-stroke" />}
+          </svg>
+        ) : <div className="skeleton h-full w-full rounded-lg" />}
+        {hp && <span className="absolute w-2.5 h-2.5 -ml-[5px] -mt-[5px] rounded-full border-2 border-ink-950 pointer-events-none" style={{ left: `${(sx(hp[0]) / W) * 100}%`, top: `${(sy(hp[1]) / H) * 100}%`, background: `rgb(${c})` }} aria-hidden="true" />}
+      </div>
     </div>
   )
 }

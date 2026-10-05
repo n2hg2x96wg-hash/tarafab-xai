@@ -8,8 +8,8 @@ import { createClient } from '@/lib/supabase/client'
 import { authFetch, errorText, readJson } from '@/lib/authFetch'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
 
-type NoticeType = 'account' | 'deposit' | 'withdrawal' | 'security' | 'announcement' | 'investment'
-const TYPES: NoticeType[] = ['account', 'deposit', 'withdrawal', 'security', 'announcement', 'investment']
+type NoticeType = 'account' | 'deposit' | 'withdrawal' | 'security' | 'announcement' | 'investment' | 'release'
+const TYPES: NoticeType[] = ['account', 'deposit', 'withdrawal', 'security', 'announcement', 'investment', 'release']
 // Buttons can only open a client dashboard section, never an outside link
 // (the database enforces the same rule).
 const TARGETS: { id: string; label: TKey }[] = [

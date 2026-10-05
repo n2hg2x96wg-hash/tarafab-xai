@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, useRef, useCallback } from 'react'
+import { useEffect, useMemo, useState, useRef, useCallback, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { ComponentType, SVGProps } from 'react'
@@ -97,9 +97,9 @@ const NAV_GROUPS: { label: TKey; items: (NavItem & { core?: boolean })[] }[] = [
     { icon: IconList, label: 'dash.nav.transactions', id: 'transactions' },
   ] },
   { label: 'nav3.groupFunds', items: [
-    { icon: IconWallet, label: 'wallet.nav', id: 'wallet' },
     { icon: IconArrowDown, label: 'dash.nav.deposit', id: 'deposit' },
     { icon: IconArrowUp, label: 'dash.nav.withdraw', id: 'withdraw' },
+    { icon: IconWallet, label: 'wallet.nav', id: 'wallet' },
     { icon: IconHistory, label: 'nav2.depositHistory', id: 'depositHistory' },
     { icon: IconHistory, label: 'nav2.withdrawalHistory', id: 'withdrawalHistory' },
   ] },
@@ -114,6 +114,8 @@ const NAV_GROUPS: { label: TKey; items: (NavItem & { core?: boolean })[] }[] = [
     { icon: IconCheck, label: 'kyc.nav', id: 'verification' },
     { icon: IconBell, label: 'nav2.notifications', id: 'notifications' },
     { icon: IconSliders, label: 'nav2.preferences', id: 'preferences', core: true },
+  ] },
+  { label: 'nav2.groupSupport', items: [
     { icon: IconHelp, label: 'nav2.support', id: 'support' },
   ] },
 ]
@@ -415,6 +417,13 @@ export default function DashboardPage() {
     try { window.history.replaceState(null, '', id === 'overview' ? '/dashboard' : `/dashboard#${id}`) } catch { /* ignore */ }
   }
 
+  // What's New: the newest unread release notice from the team notification
+  // system. Dismissing marks it read (server-side), so it never pops up twice;
+  // it stays listed under Notifications.
+  const whatsNewNotice = !hiddenNav.includes('notifications') ? teamNotices.find(x => x.type === 'release' && !x.read) : undefined
+  const whatsNewNode = whatsNewNotice ? <WhatsNew key={whatsNewNotice.id} n={whatsNewNotice} onDismiss={() => markTeamRead([whatsNewNotice.id])}
+    onOpen={() => { markTeamRead([whatsNewNotice.id]); const target = whatsNewNotice.cta_target?.slice(1); go(target && NAV_IDS.has(target) ? target : 'notifications') }} /> : null
+
   if (loading) return <DashboardSkeleton label={t('common.loading')} />
 
   if (sessionError) {
@@ -552,7 +561,7 @@ export default function DashboardPage() {
           )}
           <PremiumGateHost onSeePremium={() => go('premium')} />
           <ErrorBoundary key={activeNav} label={current ? labelOf(current) : undefined}>
-            {activeNav === 'overview' && <OverviewTab name={displayName} account={account} txs={txs} go={go} can={id => !hiddenNav.includes(id)} labelOf={labelOf} />}
+            {activeNav === 'overview' && <OverviewTab whatsNew={whatsNewNode} name={displayName} account={account} txs={txs} go={go} can={id => !hiddenNav.includes(id)} labelOf={labelOf} />}
             {activeNav === 'markets' && <div className="space-y-10"><AssetCenter onAutomate={id => { setAutoAsset(id); go('automations') }} /><MarketsTab /></div>}
             {soon(activeNav) && <StateView state="unavailable" title={pt('ft.soon')} body={pt('ft.comingSoon')} />}
             {activeNav === 'automations' && !soon('automations') && !hiddenNav.includes('automations') && <AutomationCenter presetAsset={autoAsset} onPresetUsed={() => setAutoAsset(null)} />}
@@ -708,35 +717,93 @@ function greetingKey(): TKey {
 
 /* The client's real KYC state from the server. Nothing is shown until it
    has been read, and "verified" appears only when the server says so. */
-// Overview preview of the XAI automation engine: its verified state, the
-// connection to that status, and the markets it monitors. Opens Automation.
+// "What's New" card for a release notice published from Admin → Notifications.
+function WhatsNew({ n, onDismiss, onOpen }: { n: TeamNotice; onDismiss: () => void; onOpen: () => void }) {
+  return (
+    <section className="ov-glass ov-whatsnew relative overflow-hidden rounded-2xl p-4 sm:p-5" aria-labelledby={`wn-${n.id}`} data-whats-new={n.id}>
+      <div className="pointer-events-none absolute -top-16 -right-10 w-48 h-48 rounded-full bg-accent/10 blur-3xl" aria-hidden="true" />
+      <p className="relative text-[11px] font-medium uppercase tracking-[0.14em] text-accent">What&apos;s new</p>
+      <h2 id={`wn-${n.id}`} className="relative mt-1 text-[16px] font-semibold text-fg">{n.title}</h2>
+      {n.body && <p className="relative mt-1.5 text-[13.5px] leading-relaxed text-fg-muted">{n.body}</p>}
+      <div className="relative mt-3.5 flex items-center gap-2">
+        <button onClick={onOpen} className="btn btn-solid h-9 px-4 text-[13px]">{n.cta_label || 'Explore update'}</button>
+        <button onClick={onDismiss} className="h-9 px-3 rounded-lg text-[13px] text-fg-muted hover:text-fg hover:bg-ink-850 transition-colors">Dismiss</button>
+      </div>
+    </section>
+  )
+}
+
+// Overview card for XAI automation: the engine's verified state, when it
+// last checked, and a short stream of REAL events only — the engine's own
+// heartbeat and market sync timestamps plus this client's rule events.
+const AUTO_EVENT: Record<string, string> = { created: 'Rule created', triggered: 'Condition met · notification sent', resumed: 'Rule resumed', paused: 'Rule paused' }
+function agoShort(iso: string | null | undefined) {
+  if (!iso) return '—'
+  const s = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000))
+  return s < 60 ? `${s}s ago` : s < 3600 ? `${Math.round(s / 60)} min ago` : s < 86400 ? `${Math.round(s / 3600)} h ago` : new Date(iso).toLocaleDateString()
+}
 function OverviewAutomation({ onOpen }: { onOpen: () => void }) {
   const { t } = useI18n()
-  const { status, state, loading, refreshFailed, presentation } = useEngineStatus()
+  const { status, state, loading, refreshFailed, refreshed, presentation } = useEngineStatus()
+  const [events, setEvents] = useState<{ id: string | number; event: string; created_at: string; asset?: string }[] | null>(null)
+  // The client's own rule events, refreshed with the shared engine status.
+  useEffect(() => {
+    let alive = true
+    authFetch('/api/client/automations').then(r => readJson<{ automations?: { id: string; asset_id: string }[]; events?: { id: number; event: string; created_at: string; automation_id: string }[] }>(r))
+      .then(r => { if (!alive) return
+        const asset = new Map((r.automations || []).map(a => [a.id, a.asset_id]))
+        setEvents((r.events || []).map(e => ({ id: e.id, event: e.event, created_at: e.created_at, asset: asset.get(e.automation_id) }))) })
+      .catch(() => { if (alive) setEvents([]) })
+    return () => { alive = false }
+  }, [refreshed])
   if (!presentation.panel_visible) return null
   const label = loading ? 'Connecting…' : state === 'unavailable' && refreshFailed ? 'Error'
     : ({ running: 'Monitoring active', paused: 'Paused', maintenance: 'Maintenance', degraded: 'Delayed', offline: 'Offline', unavailable: 'Unavailable' } as const)[state]
   const on = state === 'running'
   const connected = !!status && !refreshFailed
   const assets = status?.monitored?.length ? status.monitored.slice(0, 4).join(' · ') + (status.monitored_count > 4 ? ` +${status.monitored_count - 4}` : '') : presentation.asset_labels
+  const stream: { key: string; label: string; at: string; tone: string }[] = []
+  if (status?.last_ok_at) stream.push({ key: 'c', label: `Automation check completed${status.last_evaluated != null ? ` · ${status.last_evaluated} rule${status.last_evaluated === 1 ? '' : 's'}` : ''}`, at: status.last_ok_at, tone: 'bg-emerald-400' })
+  if (status?.market_at) stream.push({ key: 'm', label: `Market monitored${status.monitored.length ? ` · ${status.monitored.slice(0, 2).join(', ')}` : ''}`, at: status.market_at, tone: 'bg-sky-400' })
+  for (const e of events || []) stream.push({ key: `e${e.id}`, label: `${AUTO_EVENT[e.event] || e.event}${e.asset ? ` · ${e.asset}` : ''}`, at: e.created_at, tone: e.event === 'triggered' ? 'bg-amber-400' : 'bg-fg-faint' })
+  stream.sort((a, b) => Date.parse(b.at) - Date.parse(a.at)); stream.splice(3)
   return (
-    <button onClick={onOpen} data-ov-automation={loading ? 'connecting' : state} className="ov-glass w-full text-left rounded-2xl p-4 sm:p-5 flex items-center gap-4 transition hover:-translate-y-0.5 active:scale-[.99]">
-      <span className="engine-orb shrink-0 scale-[.8] -m-1" aria-hidden="true" data-engine-state={state}>
-        <span className="eo-ring r1" /><span className="eo-ring r2" /><span className="eo-sweep" />
-        <span className="eo-core"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="8" width="14" height="10" rx="3" /><path d="M12 4v4M9 13h.01M15 13h.01" /></svg></span>
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-[11px] font-medium uppercase tracking-[0.14em] text-accent">{t('nav4.automation')}</span>
-        <span className="mt-0.5 flex items-center gap-2 text-[15px] font-semibold text-fg">
-          <span className={`w-2 h-2 rounded-full ${on ? 'bg-emerald-400 cc-pulse' : state === 'paused' || state === 'degraded' ? 'bg-amber-400' : 'bg-fg-faint'}`} aria-hidden="true" />{label}
+    <section className="ov-glass rounded-2xl p-4 sm:p-5" aria-labelledby="ov-auto" data-ov-automation={loading ? 'connecting' : state}>
+      <div className="flex items-center gap-4">
+        <span className="engine-orb shrink-0 scale-[.8] -m-1" aria-hidden="true" data-engine-state={state}>
+          <span className="eo-ring r1" /><span className="eo-ring r2" /><span className="eo-sweep" />
+          <span className="eo-core"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="8" width="14" height="10" rx="3" /><path d="M12 4v4M9 13h.01M15 13h.01" /></svg></span>
         </span>
-        <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12px] text-fg-faint">
-          <span className="inline-flex items-center gap-1.5"><span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-success-400' : 'bg-fg-faint'}`} aria-hidden="true" />{connected ? 'Connected' : loading ? 'Connecting' : 'Not connected'}</span>
-          <span className="truncate">{assets}</span>
-        </span>
-      </span>
-      <span className="text-fg-faint text-lg shrink-0" aria-hidden="true">›</span>
-    </button>
+        <div className="min-w-0 flex-1">
+          <h2 id="ov-auto" className="text-[11px] font-medium uppercase tracking-[0.14em] text-accent">{t('nav4.automation')}</h2>
+          <p className="mt-0.5 flex items-center gap-2 text-[15px] font-semibold text-fg">
+            <span className={`w-2 h-2 rounded-full transition-colors ${on ? 'bg-emerald-400 cc-pulse' : state === 'paused' || state === 'degraded' ? 'bg-amber-400' : 'bg-fg-faint'}`} aria-hidden="true" />{label}
+          </p>
+          <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12px] text-fg-faint">
+            <span className="inline-flex items-center gap-1.5"><span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-success-400' : 'bg-fg-faint'}`} aria-hidden="true" />{connected ? 'Connected' : loading ? 'Connecting' : 'Not connected'}</span>
+            <span className="truncate">{assets}</span>
+          </p>
+        </div>
+      </div>
+      <dl className="mt-4 grid grid-cols-2 gap-2 text-[12.5px]">
+        <div className="rounded-lg bg-[rgb(var(--contrast)/.035)] border border-[rgb(var(--contrast)/.06)] px-3 py-2"><dt className="text-[11px] text-fg-faint">Last activity</dt><dd className="text-fg tabular-nums">{agoShort(status?.last_ok_at)}</dd></div>
+        <div className="rounded-lg bg-[rgb(var(--contrast)/.035)] border border-[rgb(var(--contrast)/.06)] px-3 py-2"><dt className="text-[11px] text-fg-faint">System state</dt><dd className="text-fg truncate">{label}</dd></div>
+      </dl>
+      <div className="mt-4">
+        <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-fg-faint mb-2">XAI activity</p>
+        {stream.length ? (
+          <ol className="space-y-2" data-ov-activity>
+            {stream.map(x => (
+              <li key={x.key} className="flex items-center justify-between gap-3 text-[12.5px]">
+                <span className="flex items-center gap-2 min-w-0"><span className={`w-1.5 h-1.5 rounded-full shrink-0 ${x.tone}`} aria-hidden="true" /><span className="text-fg-muted truncate">{x.label}</span></span>
+                <span className="text-fg-faint tabular-nums shrink-0">{agoShort(x.at)}</span>
+              </li>
+            ))}
+          </ol>
+        ) : <p className="text-[12.5px] text-fg-muted" data-ov-activity-empty>{loading || events === null ? 'Loading activity…' : 'No recent automation activity.'}</p>}
+      </div>
+      <button onClick={onOpen} className="mt-4 inline-flex items-center gap-1.5 text-[13px] font-medium text-accent hover:brightness-110 min-h-9">View automation <span aria-hidden="true">→</span></button>
+    </section>
   )
 }
 
@@ -766,7 +833,7 @@ function KycChip({ go }: { go: (id: string) => void }) {
 }
 
 /* Overview */
-function OverviewTab({ name, account, txs, go, can, labelOf }: { name: string; account: Account | null; txs: Tx[]; go: (id: string) => void; can: (id: string) => boolean; labelOf: (item: { id: string; label: TKey }) => string }) {
+function OverviewTab({ name, account, txs, go, can, labelOf, whatsNew }: { whatsNew?: ReactNode; name: string; account: Account | null; txs: Tx[]; go: (id: string) => void; can: (id: string) => boolean; labelOf: (item: { id: string; label: TKey }) => string }) {
   const feature = useFeatures()
   const recentTxs = txs.slice(0, 5)
   const pendingCount = account?.pending_transaction_count ?? txs.filter(x => x.status.startsWith('pending')).length
@@ -820,29 +887,34 @@ function OverviewTab({ name, account, txs, go, can, labelOf }: { name: string; a
               profit / return and pending (the account's own recorded figures).
               Invested totals live in Portfolio → Investment Center and More →
               Account details, from the same investment records. */}
-          <dl className="ov-figures relative mt-6 grid grid-cols-2 divide-x divide-ink-700/70 border-t border-ink-700/70 pt-4" data-overview-figures>
+          {/* Secondary figures as one structured summary: each row is the
+              backend's own value (account profit/pending; invested from the
+              investment records, the same source as Investments). */}
+          <dl className="ov-figures relative mt-6 border-t border-ink-700/70 divide-y divide-ink-700/50" data-overview-figures>
             {([
               ['dash.profitReturn', account ? Number(account.profit_balance ?? 0) : null, 'profit'],
+              ['dash.invested', inv ? Number(inv.total_invested) : null, 'invested'],
               ['dash.pending', account ? Number(account.pending_balance ?? 0) : null, 'pending'],
-            ] as [TKey, number | null, string][]).map(([label, value, key], i) => (
-              <div key={key} data-figure={key} className={`min-w-0 ${i ? 'pl-4 sm:pl-6' : 'pr-4'}`}>
-                <dt className="text-[11px] font-medium uppercase tracking-[0.1em] text-fg-faint truncate">{t(label)}</dt>
-                <dd className={`mt-1.5 text-[17px] sm:text-[20px] font-semibold tabular-nums truncate ${key === 'profit' && value != null && value > 0 ? 'text-success-300' : 'text-fg/90'}`}>
+            ] as [TKey, number | null, string][]).map(([label, value, key]) => (
+              <div key={key} data-figure={key} className="flex items-center justify-between gap-4 py-3 min-w-0">
+                <div className="min-w-0">
+                  <dt className="text-[11px] font-medium uppercase tracking-[0.1em] text-fg-faint truncate">{t(label)}</dt>
+                  {value != null && key === 'profit' && (
+                    <dd className={`mt-0.5 inline-flex items-center gap-1 text-[11px] ${value > 0 ? 'text-success-400' : 'text-fg-faint'}`} data-profit-state={value > 0 ? 'positive' : 'none'}>
+                      {value > 0 ? <><span aria-hidden="true">↗</span> Return recorded</> : 'No return recorded yet'}
+                    </dd>
+                  )}
+                  {value != null && key === 'pending' && (
+                    <dd className="mt-0.5 inline-flex items-center gap-1.5 text-[11px] text-fg-faint" data-pending-state={value > 0 ? 'review' : 'clear'}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${value > 0 ? 'bg-amber-400' : 'bg-success-400'}`} aria-hidden="true" />{value > 0 ? 'Awaiting review' : 'Clear'}
+                    </dd>
+                  )}
+                </div>
+                <dd data-value className={`text-[17px] sm:text-[19px] font-semibold tabular-nums text-right whitespace-nowrap ${key === 'profit' && value != null && value > 0 ? 'text-success-300' : 'text-fg/90'}`}>
                   {value != null ? <AnimatedPrice value={value} format={money} />
                     : !account ? <span className="inline-block h-5 w-24 rounded skeleton align-middle" aria-hidden="true" />
                     : <span className="text-[12px] font-normal text-fg-faint">{t('dash.unavailable')}</span>}
                 </dd>
-                {/* Status lines come straight from the same recorded figure. */}
-                {value != null && key === 'profit' && (
-                  <dd className={`mt-1 inline-flex items-center gap-1 text-[11px] ${value > 0 ? 'text-success-400' : 'text-fg-faint'}`} data-profit-state={value > 0 ? 'positive' : 'none'}>
-                    {value > 0 ? <><span aria-hidden="true">↗</span> Return recorded</> : 'No return recorded yet'}
-                  </dd>
-                )}
-                {value != null && key === 'pending' && (
-                  <dd className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-fg-faint" data-pending-state={value > 0 ? 'review' : 'clear'}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${value > 0 ? 'bg-amber-400' : 'bg-success-400'}`} aria-hidden="true" />{value > 0 ? 'Awaiting review' : 'Clear'}
-                  </dd>
-                )}
               </div>
             ))}
           </dl>
@@ -875,6 +947,8 @@ function OverviewTab({ name, account, txs, go, can, labelOf }: { name: string; a
           <div className="hidden lg:block" />
         )}
       </div>
+
+      {whatsNew}
 
       {/* XAI automation preview: only while Automations is enabled for clients. */}
       {can('automations') && <Rise><OverviewAutomation onOpen={() => go('automations')} /></Rise>}
