@@ -505,7 +505,7 @@ export default function DashboardPage() {
             <LanguageSelector align="left" direction="up" />
             <ThemeSelector align="left" direction="up" />
             <button onClick={handleSignOut} disabled={signingOut} aria-busy={signingOut}
-              className="ml-auto inline-flex items-center gap-2 h-9 px-3 rounded-[.7rem] text-[13px] text-fg-muted hover:text-fg border border-transparent hover:border-red-400/30 hover:bg-red-500/[.06] active:scale-[.97] transition disabled:opacity-60">
+              className="ml-auto inline-flex items-center gap-2 h-9 px-3 whitespace-nowrap rounded-[.7rem] text-[13px] text-fg-muted hover:text-fg border border-transparent hover:border-red-400/30 hover:bg-red-500/[.06] active:scale-[.97] transition disabled:opacity-60">
               {signingOut ? <Spinner /> : <IconLogOut width={16} height={16} aria-hidden="true" />}{t('common.signOut')}
             </button>
           </div>
@@ -595,15 +595,16 @@ function BottomNav({ active, can, go, onMenu, unread, t }: {
     ['transactions', 'shell.activity', IconList],
   ] as [string, TKey, Icon][]).filter(([id]) => id === 'overview' || can(id))
   return (
-    <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 glass-bar border-t border-ink-700/80" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }} aria-label={t('shell.quickNav')}>
+    <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 cc-tabbar" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }} aria-label={t('shell.quickNav')}>
       <ul className="flex">
         {items.map(([id, label, I]) => {
           const on = active === id
           return (
             <li key={id} className="flex-1">
               <button onClick={() => go(id)} aria-current={on ? 'page' : undefined}
-                className={`w-full h-16 flex flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors active:scale-[.97] ${on ? 'text-fg' : 'text-fg-faint'}`}>
-                <span className={`flex items-center justify-center w-10 h-7 rounded-full transition-colors ${on ? 'bg-accent/15 text-accent' : ''}`}><I width={19} height={19} aria-hidden="true" /></span>
+                className={`relative w-full h-16 flex flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors active:scale-[.97] ${on ? 'text-fg' : 'text-fg-faint'}`}>
+                {on && <span className="cc-tab-ind" aria-hidden="true" />}
+                <span className={`flex items-center justify-center w-11 h-7 rounded-full transition-colors duration-200 ${on ? 'bg-accent/15 text-accent shadow-[0_0_14px_-4px_rgb(var(--accent)/.6)]' : ''}`}><I width={19} height={19} aria-hidden="true" /></span>
                 {t(label)}
               </button>
             </li>
@@ -707,6 +708,38 @@ function greetingKey(): TKey {
 
 /* The client's real KYC state from the server. Nothing is shown until it
    has been read, and "verified" appears only when the server says so. */
+// Overview preview of the XAI automation engine: its verified state, the
+// connection to that status, and the markets it monitors. Opens Automation.
+function OverviewAutomation({ onOpen }: { onOpen: () => void }) {
+  const { t } = useI18n()
+  const { status, state, loading, refreshFailed, presentation } = useEngineStatus()
+  if (!presentation.panel_visible) return null
+  const label = loading ? 'Connecting…' : state === 'unavailable' && refreshFailed ? 'Error'
+    : ({ running: 'Monitoring active', paused: 'Paused', maintenance: 'Maintenance', degraded: 'Delayed', offline: 'Offline', unavailable: 'Unavailable' } as const)[state]
+  const on = state === 'running'
+  const connected = !!status && !refreshFailed
+  const assets = status?.monitored?.length ? status.monitored.slice(0, 4).join(' · ') + (status.monitored_count > 4 ? ` +${status.monitored_count - 4}` : '') : presentation.asset_labels
+  return (
+    <button onClick={onOpen} data-ov-automation={loading ? 'connecting' : state} className="ov-glass w-full text-left rounded-2xl p-4 sm:p-5 flex items-center gap-4 transition hover:-translate-y-0.5 active:scale-[.99]">
+      <span className="engine-orb shrink-0 scale-[.8] -m-1" aria-hidden="true" data-engine-state={state}>
+        <span className="eo-ring r1" /><span className="eo-ring r2" /><span className="eo-sweep" />
+        <span className="eo-core"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="8" width="14" height="10" rx="3" /><path d="M12 4v4M9 13h.01M15 13h.01" /></svg></span>
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[11px] font-medium uppercase tracking-[0.14em] text-accent">{t('nav4.automation')}</span>
+        <span className="mt-0.5 flex items-center gap-2 text-[15px] font-semibold text-fg">
+          <span className={`w-2 h-2 rounded-full ${on ? 'bg-emerald-400 cc-pulse' : state === 'paused' || state === 'degraded' ? 'bg-amber-400' : 'bg-fg-faint'}`} aria-hidden="true" />{label}
+        </span>
+        <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12px] text-fg-faint">
+          <span className="inline-flex items-center gap-1.5"><span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-success-400' : 'bg-fg-faint'}`} aria-hidden="true" />{connected ? 'Connected' : loading ? 'Connecting' : 'Not connected'}</span>
+          <span className="truncate">{assets}</span>
+        </span>
+      </span>
+      <span className="text-fg-faint text-lg shrink-0" aria-hidden="true">›</span>
+    </button>
+  )
+}
+
 function KycChip({ go }: { go: (id: string) => void }) {
   const { t } = useI18n()
   const [state, setState] = useState<{ status: string; has_submission?: boolean } | null>(null)
@@ -725,8 +758,9 @@ function KycChip({ go }: { go: (id: string) => void }) {
   const key: TKey = status === 'verified' ? 'kyc.status.verified' : status === 'rejected' ? 'kyc.step.attention'
     : status === 'under_review' ? 'kyc.status.underReview' : status === 'pending' ? 'kyc.status.pending' : 'overview.kycStart'
   return (
-    <button onClick={() => go('verification')} className={`inline-flex items-center gap-2 h-9 px-3 rounded-full border text-[13px] font-medium transition-colors hover:brightness-110 ${tone}`}>
-      <IconShield width={15} height={15} aria-hidden="true" />{key === 'overview.kycStart' ? t(key) : `KYC · ${t(key)}`}
+    <button onClick={() => go('verification')} data-kyc={status} className={`inline-flex items-center gap-2 h-9 px-3.5 rounded-full border text-[13px] font-medium backdrop-blur-sm shadow-[inset_0_1px_0_rgb(var(--contrast)/.06)] transition hover:brightness-110 active:scale-[.97] ${tone}`}>
+      {status === 'verified' ? <span aria-hidden="true" className="w-4 h-4 rounded-full bg-success-500/20 grid place-items-center text-[10px]">✓</span> : <IconShield width={15} height={15} aria-hidden="true" />}
+      {status === 'verified' ? <span className="uppercase tracking-[0.08em] text-[11.5px] font-semibold">KYC verified</span> : key === 'overview.kycStart' ? t(key) : `KYC · ${t(key)}`}
     </button>
   )
 }
@@ -770,11 +804,14 @@ function OverviewTab({ name, account, txs, go, can, labelOf }: { name: string; a
 
       <div className="grid lg:grid-cols-[1.6fr_1fr] gap-4">
         {/* Primary: balance, the other balances and quick actions */}
-        <section ref={balRef} data-flow={inv && inv.active_count > 0 ? "on" : undefined} className="ov-depth relative overflow-hidden rounded-2xl border border-ink-700 p-5 sm:p-6 bg-[linear-gradient(135deg,rgb(var(--accent)/.10),rgb(var(--brand-500)/.05)_55%,transparent),rgb(var(--ink-900))] shadow-[inset_0_1px_0_rgb(var(--contrast)/.06),0_24px_48px_-28px_rgb(var(--shadow)/var(--shadow-strength))]" aria-labelledby="ov-bal">
+        <section ref={balRef} data-flow={inv && inv.active_count > 0 ? "on" : undefined} className="ov-depth ov-hero relative overflow-hidden rounded-2xl border border-ink-700 p-5 sm:p-6 bg-[linear-gradient(135deg,rgb(var(--accent)/.10),rgb(var(--brand-500)/.05)_55%,transparent),rgb(var(--ink-900))] shadow-[inset_0_1px_0_rgb(var(--contrast)/.06),0_24px_48px_-28px_rgb(var(--shadow)/var(--shadow-strength))]" aria-labelledby="ov-bal">
           {/* Restrained accent light in the corner; decorative only. */}
           <div className="pointer-events-none absolute -top-24 -right-16 w-64 h-64 rounded-full bg-accent/10 blur-3xl" aria-hidden="true" />
           {/* Faint depth grid, drifting slightly with scroll (--ov-p). */}
           <div className="ov-grid pointer-events-none absolute inset-0" aria-hidden="true" />
+          {/* Very slow gold light drifting across the panel (paused off screen
+              and for reduced motion). Decorative only; no numbers move. */}
+          <div className="ov-light pointer-events-none absolute inset-0" aria-hidden="true" />
           <p id="ov-bal" className="relative text-[12px] font-medium uppercase tracking-[0.12em] text-fg-faint">{t('dash.accountBalance')}</p>
           <p className="relative mt-2.5 text-[clamp(32px,9.5vw,46px)] leading-none font-semibold tracking-[-0.03em] text-fg tabular-nums break-all">
             <AnimatedPrice value={Number(account?.available_balance ?? 0)} format={money} />
@@ -790,11 +827,22 @@ function OverviewTab({ name, account, txs, go, can, labelOf }: { name: string; a
             ] as [TKey, number | null, string][]).map(([label, value, key], i) => (
               <div key={key} data-figure={key} className={`min-w-0 ${i ? 'pl-4 sm:pl-6' : 'pr-4'}`}>
                 <dt className="text-[11px] font-medium uppercase tracking-[0.1em] text-fg-faint truncate">{t(label)}</dt>
-                <dd className="mt-1.5 text-[17px] sm:text-[20px] font-semibold text-fg/90 tabular-nums truncate">
+                <dd className={`mt-1.5 text-[17px] sm:text-[20px] font-semibold tabular-nums truncate ${key === 'profit' && value != null && value > 0 ? 'text-success-300' : 'text-fg/90'}`}>
                   {value != null ? <AnimatedPrice value={value} format={money} />
                     : !account ? <span className="inline-block h-5 w-24 rounded skeleton align-middle" aria-hidden="true" />
                     : <span className="text-[12px] font-normal text-fg-faint">{t('dash.unavailable')}</span>}
                 </dd>
+                {/* Status lines come straight from the same recorded figure. */}
+                {value != null && key === 'profit' && (
+                  <dd className={`mt-1 inline-flex items-center gap-1 text-[11px] ${value > 0 ? 'text-success-400' : 'text-fg-faint'}`} data-profit-state={value > 0 ? 'positive' : 'none'}>
+                    {value > 0 ? <><span aria-hidden="true">↗</span> Return recorded</> : 'No return recorded yet'}
+                  </dd>
+                )}
+                {value != null && key === 'pending' && (
+                  <dd className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-fg-faint" data-pending-state={value > 0 ? 'review' : 'clear'}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${value > 0 ? 'bg-amber-400' : 'bg-success-400'}`} aria-hidden="true" />{value > 0 ? 'Awaiting review' : 'Clear'}
+                  </dd>
+                )}
               </div>
             ))}
           </dl>
@@ -804,13 +852,14 @@ function OverviewTab({ name, account, txs, go, can, labelOf }: { name: string; a
               {/* Four actions sit in a 2x2 grid on phones so each label has room
                   and each target stays large; one row from tablet width up. */}
               <div className={`grid gap-2 ${quick.length >= 4 ? 'grid-cols-2 sm:grid-cols-4' : quick.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
-                {quick.map(([id, label, I], i) => (
+                {quick.map(([id, label, I]) => (
                   <button
                     key={id}
                     onClick={() => go(id)}
-                    className={`group flex flex-col items-center justify-center gap-1.5 min-h-[64px] rounded-xl border px-2 text-[12.5px] font-medium transition-[color,background-color,border-color,transform] duration-150 active:scale-[.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${i === 0 ? 'border-accent/40 bg-accent/10 text-fg hover:bg-accent/15' : 'border-ink-700 bg-ink-900/60 text-fg-muted hover:text-fg hover:border-ink-500'}`}
+                    data-tile={id}
+                    className={`ov-tile ov-tile-${id} group flex flex-col items-center justify-center gap-2 min-h-[76px] rounded-2xl px-2 text-[12.5px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50`}
                   >
-                    <I width={18} height={18} aria-hidden="true" className={i === 0 ? 'text-accent' : ''} />
+                    <span className="ov-tile-icon w-8 h-8 rounded-xl grid place-items-center"><I width={17} height={17} aria-hidden="true" /></span>
                     <span className="text-center leading-tight">{labelOf({ id, label })}</span>
                   </button>
                 ))}
@@ -826,6 +875,9 @@ function OverviewTab({ name, account, txs, go, can, labelOf }: { name: string; a
           <div className="hidden lg:block" />
         )}
       </div>
+
+      {/* XAI automation preview: only while Automations is enabled for clients. */}
+      {can('automations') && <Rise><OverviewAutomation onOpen={() => go('automations')} /></Rise>}
 
       {can('portfolio') && !hiddenState(feature('investments')) && <Rise><ErrorBoundary label={t('inv.f.activeTitle')}><ActiveInvestmentsCard go={go} /></ErrorBoundary></Rise>}
 

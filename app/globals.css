@@ -724,3 +724,40 @@ body.dialog-open #chat-application { visibility: hidden !important; }
 .cc-ctl button[aria-haspopup]:hover { border-color: rgb(var(--accent) / .3); }
 .cc-drawer .cc-close { border: 1px solid rgb(var(--contrast) / .08); background: rgb(var(--contrast) / .04); }
 @media (prefers-reduced-transparency: reduce) { .cc-drawer { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgb(var(--ink-900)); } }
+
+/* ---------- Premium Overview ----------
+   Glass surfaces are tinted layers (no extra backdrop blur) so phones stay
+   smooth. All motion is decorative, paused off screen (data-vis) and for
+   reduced motion; no financial figure is animated except on a real change. */
+.ov-glass { background: linear-gradient(180deg, rgb(var(--contrast) / .045), rgb(var(--contrast) / .015)), rgb(var(--ink-900) / .9); border: 1px solid rgb(var(--contrast) / .08); box-shadow: inset 0 1px 0 rgb(var(--contrast) / .06), 0 20px 40px -28px rgb(0 0 0 / .7); }
+.ov-hero { border-color: rgb(var(--accent) / .16) !important; box-shadow: inset 0 1px 0 rgb(var(--contrast) / .08), 0 0 0 1px rgb(var(--contrast) / .02), 0 30px 60px -36px rgb(var(--accent) / .35), 0 24px 48px -28px rgb(0 0 0 / .8) !important; }
+.ov-light { background: radial-gradient(40% 60% at 20% 0%, rgb(var(--accent) / .12), transparent 70%); opacity: .9; }
+.ov-hero[data-vis] .ov-light { animation: ov-light-drift 18s ease-in-out infinite alternate; }
+@keyframes ov-light-drift { 0% { transform: translate3d(-6%, -4%, 0); } 100% { transform: translate3d(46%, 8%, 0); } }
+/* Action tiles */
+.ov-tile { color: rgb(var(--fg-muted)); background: linear-gradient(180deg, rgb(var(--contrast) / .05), rgb(var(--contrast) / .015)); border: 1px solid rgb(var(--contrast) / .08); box-shadow: inset 0 1px 0 rgb(var(--contrast) / .06); transition: transform .16s ease, border-color .16s ease, background-color .16s ease, color .16s ease, box-shadow .16s ease; }
+.ov-tile:hover { color: rgb(var(--fg)); transform: translateY(-2px); border-color: rgb(var(--contrast) / .16); box-shadow: inset 0 1px 0 rgb(var(--contrast) / .08), 0 10px 22px -14px rgb(0 0 0 / .8); }
+.ov-tile:active { transform: scale(.97); }
+.ov-tile-icon { background: rgb(var(--contrast) / .06); color: rgb(var(--fg-muted)); transition: color .16s ease, background-color .16s ease; }
+.ov-tile-deposit { color: rgb(var(--fg)); border-color: rgb(var(--accent) / .38); background: linear-gradient(180deg, rgb(var(--accent) / .16), rgb(var(--accent) / .05)); }
+.ov-tile-deposit .ov-tile-icon { background: rgb(var(--accent) / .2); color: rgb(var(--accent)); }
+.ov-tile-transactions .ov-tile-icon { background: rgb(56 189 248 / .12); color: rgb(125 211 252); }
+.ov-tile-markets .ov-tile-icon { background: rgb(var(--brand-500) / .14); color: rgb(var(--brand-300)); }
+/* BTC chart draw-in (once, when first visible) */
+.btc-draw { animation: btc-reveal 1.1s cubic-bezier(.2,.7,.2,1) both; }
+.btc-draw .btc-area { opacity: 0; animation: btc-fade .9s .35s ease forwards; }
+@keyframes btc-reveal { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes btc-fade { to { opacity: 1; } }
+/* Live pill: uppercase, very soft breathing dot */
+.live-pill { text-transform: uppercase; letter-spacing: .08em; font-size: 10.5px; font-weight: 600; box-shadow: 0 0 12px -6px rgb(52 211 153 / .7); }
+.live-breathe { opacity: .55; animation: live-breathe 2.8s ease-in-out infinite; }
+@keyframes live-breathe { 0%, 100% { transform: scale(1); opacity: .5; } 50% { transform: scale(2.2); opacity: 0; } }
+/* Glass bottom tab bar */
+.cc-tabbar { background: rgb(var(--ink-950) / .78); border-top: 1px solid rgb(var(--contrast) / .07); box-shadow: 0 -10px 30px -18px rgb(0 0 0 / .8); }
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) { .cc-tabbar { -webkit-backdrop-filter: blur(16px) saturate(140%); backdrop-filter: blur(16px) saturate(140%); } }
+.cc-tab-ind { position: absolute; top: 0; left: 50%; width: 22px; height: 2px; margin-left: -11px; border-radius: 0 0 2px 2px; background: rgb(var(--accent)); box-shadow: 0 0 10px rgb(var(--accent) / .8); }
+@media (prefers-reduced-motion: reduce) {
+  .ov-hero[data-vis] .ov-light, .live-breathe { animation: none; }
+  .btc-draw, .btc-draw .btc-area { animation: none; clip-path: none; opacity: 1; }
+  .ov-tile, .ov-tile:hover { transform: none; }
+}

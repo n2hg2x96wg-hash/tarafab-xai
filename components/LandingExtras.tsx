@@ -64,9 +64,9 @@ export function MarketStatusPill({ status }: { status: SummaryStatus }) {
     error: { t: t('common.unavailable'), c: 'text-red-400 border-red-500/30 bg-red-500/[0.06]', d: 'bg-red-400', pulse: false },
   }[status]
   return (
-    <span className={`tag ${map.c}`}>
+    <span className={`tag ${map.c} ${status === 'live' ? 'live-pill' : ''}`}>
       <span className="relative flex w-1.5 h-1.5">
-        {map.pulse && <span className={`absolute inline-flex h-full w-full rounded-full ${map.d} opacity-70 animate-ping`} />}
+        {map.pulse && <span className={`absolute inline-flex h-full w-full rounded-full ${map.d} live-breathe`} />}
         <span className={`relative inline-flex rounded-full w-1.5 h-1.5 ${map.d}`} />
       </span>
       {map.t}
