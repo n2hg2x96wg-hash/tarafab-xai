@@ -669,7 +669,7 @@ const en = {
   nav4: {
     groupMain: 'Main',
     groupInvestments: 'Investments',
-    groupTools: 'Analytics & tools',
+    groupTools: 'History & analytics',
     tagline: 'Intelligent finance',
     automation: 'XAI Automation',
   },

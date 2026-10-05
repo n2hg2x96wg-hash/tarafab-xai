@@ -705,3 +705,22 @@ body.dialog-open #chat-application { visibility: hidden !important; }
 .inv-life-step.is-done::after { background: rgb(52 211 153 / .5); }
 .inv-life-step.is-now { color: rgb(var(--fg)); }
 .inv-life-step.is-now span { border-color: rgb(52 211 153); background: rgb(52 211 153); box-shadow: 0 0 0 4px rgb(52 211 153 / .15), 0 0 14px rgb(52 211 153 / .6); }
+
+/* ---------- Glassmorphic client drawer ----------
+   One translucent layer with a single backdrop blur (on the drawer itself);
+   inner cards are tinted, not blurred again, to keep phones smooth. */
+.cc-drawer { background: linear-gradient(180deg, rgb(var(--ink-900) / .86), rgb(var(--ink-950) / .9)); border-right: 1px solid rgb(var(--contrast) / .07); box-shadow: inset -1px 0 0 rgb(var(--contrast) / .03); }
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .cc-drawer { -webkit-backdrop-filter: blur(18px) saturate(140%); backdrop-filter: blur(18px) saturate(140%); }
+}
+@media (max-width: 1023px) { .cc-drawer { border-radius: 0 18px 18px 0; } }
+.cc-sep { border-color: rgb(var(--contrast) / .06) !important; }
+.cc-glass { background: linear-gradient(180deg, rgb(var(--contrast) / .05), rgb(var(--contrast) / .02)); border: 1px solid rgb(var(--contrast) / .08); box-shadow: inset 0 1px 0 rgb(var(--contrast) / .06), 0 8px 24px -16px rgb(0 0 0 / .6); }
+.cc-drawer .nav-item:hover { background: rgb(var(--contrast) / .045); }
+.cc-drawer .nav-item-on { background: linear-gradient(90deg, rgb(var(--accent) / .18), rgb(var(--accent) / .05) 65%, rgb(var(--contrast) / .02)); box-shadow: inset 0 1px 0 rgb(var(--contrast) / .06), 0 0 0 1px rgb(var(--accent) / .16), 0 6px 20px -12px rgb(var(--accent) / .5); }
+.cc-drawer .nav-item-on svg { color: rgb(var(--accent)); filter: drop-shadow(0 0 4px rgb(var(--accent) / .45)); }
+/* Language + theme triggers: compact glass pills inside the drawer only. */
+.cc-ctl button[aria-haspopup] { height: 2.25rem; border-radius: .7rem; border-color: rgb(var(--contrast) / .09); background: rgb(var(--contrast) / .04); box-shadow: inset 0 1px 0 rgb(var(--contrast) / .05); }
+.cc-ctl button[aria-haspopup]:hover { border-color: rgb(var(--accent) / .3); }
+.cc-drawer .cc-close { border: 1px solid rgb(var(--contrast) / .08); background: rgb(var(--contrast) / .04); }
+@media (prefers-reduced-transparency: reduce) { .cc-drawer { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgb(var(--ink-900)); } }

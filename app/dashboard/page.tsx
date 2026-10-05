@@ -441,8 +441,8 @@ export default function DashboardPage() {
 
   return (
     <div className="site min-h-screen bg-ink-950 text-fg lg:flex">
-      <aside className={`fixed inset-y-0 left-0 z-40 w-[min(18rem,85vw)] ${collapsed ? 'lg:w-[72px]' : 'lg:w-64'} h-[100dvh] safe-top bg-ink-900 border-r border-ink-700 flex flex-col transition-[transform,width] duration-300 ease-[cubic-bezier(.2,.7,.2,1)] lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:shadow-none ${sidebarOpen ? 'translate-x-0 drawer-shadow' : '-translate-x-full'}`}>
-        <div className={`h-16 flex items-center justify-between border-b border-ink-700 ${collapsed ? 'lg:px-0 lg:justify-center px-5' : 'px-5'}`}>
+      <aside className={`fixed inset-y-0 left-0 z-40 w-[min(18rem,85vw)] ${collapsed ? 'lg:w-[72px]' : 'lg:w-64'} h-[100dvh] safe-top cc-drawer flex flex-col transition-[transform,width] duration-300 ease-[cubic-bezier(.2,.7,.2,1)] lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:shadow-none ${sidebarOpen ? 'translate-x-0 drawer-shadow' : '-translate-x-full'}`}>
+        <div className={`h-16 shrink-0 flex items-center justify-between border-b cc-sep ${collapsed ? 'lg:px-0 lg:justify-center px-5' : 'px-5'}`}>
           <Link href="/" aria-label={t('common.home')} className={`min-w-0 ${collapsed ? 'lg:hidden' : ''}`}>
             <Logo />
             <span className="block pl-9 -mt-0.5 text-[9px] font-medium uppercase tracking-[0.14em] whitespace-nowrap text-accent/80">{t('nav4.tagline')}</span>
@@ -450,7 +450,7 @@ export default function DashboardPage() {
           <button onClick={toggleCollapsed} className="hidden lg:flex w-9 h-9 rounded-md items-center justify-center text-fg-faint hover:text-fg hover:bg-ink-850" aria-label={collapsed ? t('shell.expand') : t('shell.collapse')} aria-expanded={!collapsed}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16" /></svg>
           </button>
-          <button onClick={closeDrawer} className="lg:hidden -mr-2 w-10 h-10 rounded-md flex items-center justify-center text-fg-muted hover:text-fg hover:bg-ink-850" aria-label={t('common.closeMenu')}><IconClose /></button>
+          <button onClick={closeDrawer} className="cc-close lg:hidden -mr-1 w-10 h-10 rounded-xl flex items-center justify-center text-fg-muted hover:text-fg hover:bg-ink-850" aria-label={t('common.closeMenu')}><IconClose /></button>
         </div>
         {/* Scrolls on its own; min-h-0 lets it shrink so the footer below
             never covers the last groups on short phones. */}
@@ -486,30 +486,32 @@ export default function DashboardPage() {
             )
           })}
           {/* Soft fade so a list that continues below reads as scrollable. */}
-          <div className="sticky bottom-0 h-6 -mx-3 bg-gradient-to-t from-ink-900 to-transparent pointer-events-none" aria-hidden="true" />
+          <div className="sticky bottom-0 h-6 -mx-3 bg-gradient-to-t from-ink-950/90 to-transparent pointer-events-none" aria-hidden="true" />
         </nav>
-        {/* Fixed account footer: compact so the navigation keeps the room. */}
-        <div className={`shrink-0 px-3 pt-2.5 pb-2.5 border-t border-ink-700 bg-ink-900 safe-bottom ${collapsed ? 'lg:px-2' : ''}`}>
+        {/* Fixed account footer (glass): automation status, the signed-in
+            account, then language / theme and sign out. Compact so the
+            navigation above keeps its room on short phones. */}
+        <div className={`shrink-0 px-3 pt-2.5 pb-2.5 border-t cc-sep safe-bottom space-y-2 ${collapsed ? 'lg:px-2' : ''}`}>
           {!hiddenNav.includes('automations') && <AutomationStatus collapsed={collapsed} onOpen={() => go('automations')} />}
-          <div className={`flex items-center gap-2.5 px-1 py-1.5 ${collapsed ? 'lg:justify-center lg:px-0' : ''}`}>
-            <span className="w-9 h-9 rounded-full bg-accent/15 border border-accent/30 flex items-center justify-center text-xs font-semibold text-accent shrink-0" title={collapsed ? displayName : undefined}>{initials}</span>
+          <div className={`cc-glass rounded-xl flex items-center gap-2.5 px-2.5 py-2 ${collapsed ? 'lg:justify-center lg:px-0 lg:bg-none lg:border-0 lg:shadow-none' : ''}`} data-account-card>
+            <span className="w-9 h-9 rounded-full bg-accent/15 border border-accent/30 flex items-center justify-center text-[13px] font-semibold text-accent shrink-0" title={collapsed ? displayName : undefined}>{initials}</span>
             <div className={`min-w-0 flex-1 leading-tight ${collapsed ? 'lg:hidden' : ''}`}>
-              <p className="text-[13.5px] text-fg truncate">{displayName}</p>
+              <p className="text-[13.5px] font-medium text-fg truncate">{displayName}</p>
               <p className="text-[11.5px] text-fg-faint truncate">{user?.email}</p>
+              <SystemStatus collapsed={collapsed} ok={!loadError} />
             </div>
-            <button onClick={handleSignOut} disabled={signingOut} aria-busy={signingOut} aria-label={t('common.signOut')} title={t('common.signOut')}
-              className={`shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-fg-muted hover:text-fg hover:bg-ink-850 active:scale-95 transition disabled:opacity-60 ${collapsed ? 'lg:hidden' : ''}`}>
-              {signingOut ? <Spinner /> : <IconLogOut width={17} height={17} />}
-            </button>
           </div>
-          <div className={`flex items-center gap-2 px-1 ${collapsed ? 'lg:hidden' : ''}`}>
+          <div className={`cc-ctl flex items-center gap-2 ${collapsed ? 'lg:hidden' : ''}`}>
             <LanguageSelector align="left" direction="up" />
             <ThemeSelector align="left" direction="up" />
-            <span className="ml-auto"><SystemStatus collapsed={collapsed} ok={!loadError} /></span>
+            <button onClick={handleSignOut} disabled={signingOut} aria-busy={signingOut}
+              className="ml-auto inline-flex items-center gap-2 h-9 px-3 rounded-[.7rem] text-[13px] text-fg-muted hover:text-fg border border-transparent hover:border-red-400/30 hover:bg-red-500/[.06] active:scale-[.97] transition disabled:opacity-60">
+              {signingOut ? <Spinner /> : <IconLogOut width={16} height={16} aria-hidden="true" />}{t('common.signOut')}
+            </button>
           </div>
           {/* Collapsed desktop rail: sign out stays reachable as an icon. */}
           {collapsed && (
-            <button onClick={handleSignOut} disabled={signingOut} aria-label={t('common.signOut')} className="hidden lg:flex w-full justify-center mt-1 min-h-10 items-center rounded-md text-fg-muted hover:text-fg hover:bg-ink-850">
+            <button onClick={handleSignOut} disabled={signingOut} aria-label={t('common.signOut')} className="hidden lg:flex w-full justify-center min-h-10 items-center rounded-md text-fg-muted hover:text-fg hover:bg-ink-850">
               {signingOut ? <Spinner /> : <IconLogOut width={17} height={17} />}
             </button>
           )}
@@ -638,7 +640,7 @@ function AutomationStatus({ collapsed, onOpen }: { collapsed: boolean; onOpen: (
   const dot = loading ? 'bg-fg-faint animate-pulse' : state === 'running' ? 'bg-emerald-400 cc-pulse' : state === 'degraded' || state === 'paused' ? 'bg-amber-400' : state === 'maintenance' ? 'bg-sky-400' : refreshFailed ? 'bg-red-400' : 'bg-fg-faint'
   return (
     <button onClick={onOpen} data-sidebar-automation={loading ? 'connecting' : state} title={`${t('nav4.automation')}: ${label}`}
-      className={`w-full mb-1 flex items-center gap-2.5 rounded-lg border border-ink-700 bg-ink-850/60 hover:border-accent/30 active:scale-[.99] transition px-2.5 min-h-10 text-left ${collapsed ? 'lg:justify-center lg:px-0' : ''}`}>
+      className={`cc-glass w-full flex items-center gap-2.5 rounded-xl hover:border-accent/30 active:scale-[.99] transition px-3 min-h-11 text-left ${collapsed ? 'lg:justify-center lg:px-0' : ''}`}>
       <span className={`relative w-2 h-2 shrink-0 rounded-full transition-colors ${dot}`} aria-hidden="true" />
       <span className={`flex-1 min-w-0 flex items-baseline justify-between gap-2 ${collapsed ? 'lg:sr-only' : ''}`}>
         <span className="text-[11.5px] text-fg-faint whitespace-nowrap">{t('nav4.automation')}</span>
@@ -651,9 +653,9 @@ function AutomationStatus({ collapsed, onOpen }: { collapsed: boolean; onOpen: (
 function SystemStatus({ collapsed, ok }: { collapsed: boolean; ok: boolean }) {
   const { t } = useI18n()
   return (
-    <div className={`flex items-center gap-1.5 text-[11.5px] whitespace-nowrap ${collapsed ? 'lg:justify-center' : ''}`} title={t(ok ? 'shell.statusOkHint' : 'shell.statusIssueHint')} data-connection={ok ? 'ok' : 'issue'}>
+    <div className={`mt-1 flex items-center gap-1.5 text-[11px] whitespace-nowrap ${collapsed ? 'lg:justify-center' : ''}`} title={t(ok ? 'shell.statusOkHint' : 'shell.statusIssueHint')} data-connection={ok ? 'ok' : 'issue'}>
       <span className={`w-1.5 h-1.5 shrink-0 rounded-full ${ok ? 'bg-success-400' : 'bg-warning-400'}`} aria-hidden="true" />
-      <span className={`text-fg-muted ${collapsed ? 'lg:sr-only' : ''}`}><span className="sr-only">{t('shell.status')}: </span>{t(ok ? 'shell.statusOk' : 'shell.statusIssue')}</span>
+      <span className={`text-fg-faint ${collapsed ? 'lg:sr-only' : ''}`}>{t('shell.status')}: <span className={ok ? 'text-success-400' : 'text-warning-400'}>{t(ok ? 'shell.statusOk' : 'shell.statusIssue')}</span></span>
     </div>
   )
 }
