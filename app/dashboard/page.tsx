@@ -95,7 +95,6 @@ const NAV_GROUPS: { label: TKey; items: (NavItem & { core?: boolean })[] }[] = [
     { icon: IconPie, label: 'nav2.portfolio', id: 'portfolio' },
     { icon: IconTrend, label: 'nav3.performance', id: 'performance' },
     { icon: IconList, label: 'dash.nav.transactions', id: 'transactions' },
-    { icon: IconLock, label: 'premium.nav', id: 'premium' },
   ] },
   { label: 'nav3.groupFunds', items: [
     { icon: IconWallet, label: 'wallet.nav', id: 'wallet' },
@@ -107,6 +106,7 @@ const NAV_GROUPS: { label: TKey; items: (NavItem & { core?: boolean })[] }[] = [
   { label: 'nav4.groupTools', items: [
     { icon: IconHistory, label: 'nav3.priceHistory', id: 'priceHistory' },
     { icon: IconSwap, label: 'nav3.marketActivity', id: 'marketActivity' },
+    { icon: IconLock, label: 'premium.nav', id: 'premium' },
   ] },
   { label: 'nav2.groupAccount', items: [
     { icon: IconUser, label: 'dash.nav.profile', id: 'profile', core: true },
@@ -452,7 +452,9 @@ export default function DashboardPage() {
           </button>
           <button onClick={closeDrawer} className="lg:hidden -mr-2 w-10 h-10 rounded-md flex items-center justify-center text-fg-muted hover:text-fg hover:bg-ink-850" aria-label={t('common.closeMenu')}><IconClose /></button>
         </div>
-        <nav className="flex-1 px-3 py-3 overflow-y-auto overscroll-contain" aria-label={t('dash.dashboard')}>
+        {/* Scrolls on its own; min-h-0 lets it shrink so the footer below
+            never covers the last groups on short phones. */}
+        <nav className="flex-1 min-h-0 px-3 pt-3 overflow-y-auto overscroll-contain" aria-label={t('dash.dashboard')}>
           {NAV_GROUPS.map(group => {
             const items = group.items.filter(i => i.core || !hiddenNav.includes(i.id)).map((it, i) => ({ it, r: rank(it.id, i) })).sort((a, b) => a.r - b.r).map(x => x.it)
             if (!items.length) return null
@@ -483,24 +485,34 @@ export default function DashboardPage() {
               </div>
             )
           })}
+          {/* Soft fade so a list that continues below reads as scrollable. */}
+          <div className="sticky bottom-0 h-6 -mx-3 bg-gradient-to-t from-ink-900 to-transparent pointer-events-none" aria-hidden="true" />
         </nav>
-        <div className={`p-3 border-t border-ink-700 safe-bottom ${collapsed ? 'lg:px-2' : ''}`}>
+        {/* Fixed account footer: compact so the navigation keeps the room. */}
+        <div className={`shrink-0 px-3 pt-2.5 pb-2.5 border-t border-ink-700 bg-ink-900 safe-bottom ${collapsed ? 'lg:px-2' : ''}`}>
           {!hiddenNav.includes('automations') && <AutomationStatus collapsed={collapsed} onOpen={() => go('automations')} />}
-          <SystemStatus collapsed={collapsed} ok={!loadError} />
-          <div className={`flex items-center gap-3 px-2 py-2 mb-1 ${collapsed ? 'lg:hidden' : ''}`}>
-            <span className="w-9 h-9 rounded-full bg-accent/15 border border-accent/30 flex items-center justify-center text-xs font-semibold text-accent shrink-0">{initials}</span>
-            <div className="min-w-0">
-              <p className="text-sm text-fg truncate">{displayName}</p>
-              <p className="text-xs text-fg-faint truncate">{user?.email}</p>
+          <div className={`flex items-center gap-2.5 px-1 py-1.5 ${collapsed ? 'lg:justify-center lg:px-0' : ''}`}>
+            <span className="w-9 h-9 rounded-full bg-accent/15 border border-accent/30 flex items-center justify-center text-xs font-semibold text-accent shrink-0" title={collapsed ? displayName : undefined}>{initials}</span>
+            <div className={`min-w-0 flex-1 leading-tight ${collapsed ? 'lg:hidden' : ''}`}>
+              <p className="text-[13.5px] text-fg truncate">{displayName}</p>
+              <p className="text-[11.5px] text-fg-faint truncate">{user?.email}</p>
             </div>
+            <button onClick={handleSignOut} disabled={signingOut} aria-busy={signingOut} aria-label={t('common.signOut')} title={t('common.signOut')}
+              className={`shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-fg-muted hover:text-fg hover:bg-ink-850 active:scale-95 transition disabled:opacity-60 ${collapsed ? 'lg:hidden' : ''}`}>
+              {signingOut ? <Spinner /> : <IconLogOut width={17} height={17} />}
+            </button>
           </div>
-          <div className={`flex items-center gap-2 px-2 mb-2 ${collapsed ? 'lg:hidden' : ''}`}>
+          <div className={`flex items-center gap-2 px-1 ${collapsed ? 'lg:hidden' : ''}`}>
             <LanguageSelector align="left" direction="up" />
             <ThemeSelector align="left" direction="up" />
+            <span className="ml-auto"><SystemStatus collapsed={collapsed} ok={!loadError} /></span>
           </div>
-          <button onClick={handleSignOut} disabled={signingOut} aria-busy={signingOut} className="w-full flex items-center gap-3 px-3 min-h-11 lg:min-h-10 rounded-md text-sm text-fg-muted hover:text-fg hover:bg-ink-850 transition-colors disabled:opacity-60">
-            {signingOut ? <Spinner /> : <IconLogOut width={17} height={17} />}<span className={collapsed ? 'lg:sr-only' : ''}>{t('common.signOut')}</span>
-          </button>
+          {/* Collapsed desktop rail: sign out stays reachable as an icon. */}
+          {collapsed && (
+            <button onClick={handleSignOut} disabled={signingOut} aria-label={t('common.signOut')} className="hidden lg:flex w-full justify-center mt-1 min-h-10 items-center rounded-md text-fg-muted hover:text-fg hover:bg-ink-850">
+              {signingOut ? <Spinner /> : <IconLogOut width={17} height={17} />}
+            </button>
+          )}
         </div>
       </aside>
 
@@ -614,18 +626,23 @@ function BottomNav({ active, can, go, onMenu, unread, t }: {
 // Sidebar automation indicator. Wording follows the engine's verified state
 // (lib/engineStatus): the engine monitors and evaluates rules; it is never
 // described as trading.
+// Sidebar automation indicator. Wording follows the engine's verified state
+// (lib/engineStatus): the engine monitors and evaluates rules; it is never
+// described as trading.
 function AutomationStatus({ collapsed, onOpen }: { collapsed: boolean; onOpen: () => void }) {
   const { t } = useI18n()
-  const { state, loading } = useEngineStatus()
-  const label = loading ? 'Checking…' : ({ running: 'Monitoring active', paused: 'Paused', maintenance: 'Maintenance', degraded: 'Delayed', offline: 'Offline', unavailable: 'Unavailable' } as const)[state]
-  const dot = state === 'running' ? 'bg-emerald-400 cc-pulse' : state === 'degraded' || state === 'paused' ? 'bg-amber-400' : state === 'maintenance' ? 'bg-sky-400' : 'bg-fg-faint'
+  const { state, loading, refreshFailed } = useEngineStatus()
+  const label = loading ? 'Connecting…'
+    : state === 'unavailable' && refreshFailed ? 'Error'
+    : ({ running: 'Monitoring active', paused: 'Paused', maintenance: 'Maintenance', degraded: 'Delayed', offline: 'Offline', unavailable: 'Unavailable' } as const)[state]
+  const dot = loading ? 'bg-fg-faint animate-pulse' : state === 'running' ? 'bg-emerald-400 cc-pulse' : state === 'degraded' || state === 'paused' ? 'bg-amber-400' : state === 'maintenance' ? 'bg-sky-400' : refreshFailed ? 'bg-red-400' : 'bg-fg-faint'
   return (
-    <button onClick={onOpen} data-sidebar-automation={state} title={`${t('nav4.automation')}: ${label}`}
-      className={`w-full mb-2 flex items-center gap-2.5 rounded-lg border border-ink-700 bg-ink-850/60 hover:border-accent/30 transition-colors px-2.5 py-2 text-left ${collapsed ? 'lg:justify-center lg:px-0' : ''}`}>
-      <span className={`relative w-2 h-2 shrink-0 rounded-full ${dot}`} aria-hidden="true" />
-      <span className={`min-w-0 leading-tight ${collapsed ? 'lg:sr-only' : ''}`}>
-        <span className="block text-[11px] text-fg-faint">{t('nav4.automation')}</span>
-        <span className="block text-[12.5px] text-fg truncate">{label}</span>
+    <button onClick={onOpen} data-sidebar-automation={loading ? 'connecting' : state} title={`${t('nav4.automation')}: ${label}`}
+      className={`w-full mb-1 flex items-center gap-2.5 rounded-lg border border-ink-700 bg-ink-850/60 hover:border-accent/30 active:scale-[.99] transition px-2.5 min-h-10 text-left ${collapsed ? 'lg:justify-center lg:px-0' : ''}`}>
+      <span className={`relative w-2 h-2 shrink-0 rounded-full transition-colors ${dot}`} aria-hidden="true" />
+      <span className={`flex-1 min-w-0 flex items-baseline justify-between gap-2 ${collapsed ? 'lg:sr-only' : ''}`}>
+        <span className="text-[11.5px] text-fg-faint whitespace-nowrap">{t('nav4.automation')}</span>
+        <span className="text-[12.5px] font-medium text-fg truncate">{label}</span>
       </span>
     </button>
   )
@@ -634,11 +651,9 @@ function AutomationStatus({ collapsed, onOpen }: { collapsed: boolean; onOpen: (
 function SystemStatus({ collapsed, ok }: { collapsed: boolean; ok: boolean }) {
   const { t } = useI18n()
   return (
-    <div className={`flex items-center gap-2.5 px-2 pb-2 text-xs ${collapsed ? 'lg:justify-center lg:px-0' : ''}`} title={t(ok ? 'shell.statusOkHint' : 'shell.statusIssueHint')}>
-      <span className={`relative flex w-2 h-2 shrink-0`}>
-        <span className={`w-2 h-2 rounded-full ${ok ? 'bg-success-400' : 'bg-warning-400'}`} />
-      </span>
-      <span className={`text-fg-faint ${collapsed ? 'lg:sr-only' : ''}`}>{t('shell.status')}: <span className="text-fg-muted">{t(ok ? 'shell.statusOk' : 'shell.statusIssue')}</span></span>
+    <div className={`flex items-center gap-1.5 text-[11.5px] whitespace-nowrap ${collapsed ? 'lg:justify-center' : ''}`} title={t(ok ? 'shell.statusOkHint' : 'shell.statusIssueHint')} data-connection={ok ? 'ok' : 'issue'}>
+      <span className={`w-1.5 h-1.5 shrink-0 rounded-full ${ok ? 'bg-success-400' : 'bg-warning-400'}`} aria-hidden="true" />
+      <span className={`text-fg-muted ${collapsed ? 'lg:sr-only' : ''}`}><span className="sr-only">{t('shell.status')}: </span>{t(ok ? 'shell.statusOk' : 'shell.statusIssue')}</span>
     </div>
   )
 }
@@ -759,21 +774,21 @@ function OverviewTab({ name, account, txs, go, can, labelOf }: { name: string; a
           {/* Faint depth grid, drifting slightly with scroll (--ov-p). */}
           <div className="ov-grid pointer-events-none absolute inset-0" aria-hidden="true" />
           <p id="ov-bal" className="relative text-[12px] font-medium uppercase tracking-[0.12em] text-fg-faint">{t('dash.accountBalance')}</p>
-          <p className="relative mt-2 text-[36px] sm:text-[44px] leading-none font-semibold tracking-[-0.03em] text-fg tabular-nums">
+          <p className="relative mt-2.5 text-[clamp(32px,9.5vw,46px)] leading-none font-semibold tracking-[-0.03em] text-fg tabular-nums break-all">
             <AnimatedPrice value={Number(account?.available_balance ?? 0)} format={money} />
           </p>
           {/* Balance first, then the two figures that change it soonest:
               profit / return and pending (the account's own recorded figures).
               Invested totals live in Portfolio → Investment Center and More →
               Account details, from the same investment records. */}
-          <dl className="ov-figures relative mt-5 grid grid-cols-2 divide-x divide-ink-700/70 border-t border-ink-700/70 pt-4" data-overview-figures>
+          <dl className="ov-figures relative mt-6 grid grid-cols-2 divide-x divide-ink-700/70 border-t border-ink-700/70 pt-4" data-overview-figures>
             {([
               ['dash.profitReturn', account ? Number(account.profit_balance ?? 0) : null, 'profit'],
               ['dash.pending', account ? Number(account.pending_balance ?? 0) : null, 'pending'],
             ] as [TKey, number | null, string][]).map(([label, value, key], i) => (
               <div key={key} data-figure={key} className={`min-w-0 ${i ? 'pl-4 sm:pl-6' : 'pr-4'}`}>
-                <dt className="text-[12px] text-fg-muted truncate">{t(label)}</dt>
-                <dd className="mt-1 text-[18px] sm:text-[20px] font-semibold text-fg tabular-nums whitespace-nowrap">
+                <dt className="text-[11px] font-medium uppercase tracking-[0.1em] text-fg-faint truncate">{t(label)}</dt>
+                <dd className="mt-1.5 text-[17px] sm:text-[20px] font-semibold text-fg/90 tabular-nums truncate">
                   {value != null ? <AnimatedPrice value={value} format={money} />
                     : !account ? <span className="inline-block h-5 w-24 rounded skeleton align-middle" aria-hidden="true" />
                     : <span className="text-[12px] font-normal text-fg-faint">{t('dash.unavailable')}</span>}
@@ -791,7 +806,7 @@ function OverviewTab({ name, account, txs, go, can, labelOf }: { name: string; a
                   <button
                     key={id}
                     onClick={() => go(id)}
-                    className={`group flex flex-col items-center justify-center gap-1.5 min-h-[64px] rounded-xl border px-2 text-[12.5px] font-medium transition-[color,background-color,border-color,transform] duration-150 active:scale-[.97] ${i === 0 ? 'border-accent/40 bg-accent/10 text-fg hover:bg-accent/15' : 'border-ink-700 bg-ink-900/60 text-fg-muted hover:text-fg hover:border-ink-500'}`}
+                    className={`group flex flex-col items-center justify-center gap-1.5 min-h-[64px] rounded-xl border px-2 text-[12.5px] font-medium transition-[color,background-color,border-color,transform] duration-150 active:scale-[.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${i === 0 ? 'border-accent/40 bg-accent/10 text-fg hover:bg-accent/15' : 'border-ink-700 bg-ink-900/60 text-fg-muted hover:text-fg hover:border-ink-500'}`}
                   >
                     <I width={18} height={18} aria-hidden="true" className={i === 0 ? 'text-accent' : ''} />
                     <span className="text-center leading-tight">{labelOf({ id, label })}</span>

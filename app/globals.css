@@ -344,6 +344,8 @@ html:has(.site) ::-webkit-scrollbar-thumb:hover { background: rgb(var(--ink-500)
 /* Room at the bottom of scrolling pages on phones so the floating support
    chat bubble never sits on top of the last button or chart. */
 @media (max-width: 1023px) { .chat-clearance { padding-bottom: calc(176px + env(safe-area-inset-bottom)); } }
+/* Desktop: room for the support bubble (bottom-right) below the last card. */
+@media (min-width: 1024px) { .chat-clearance { padding-bottom: 96px; } }
 /* Phones/tablets: when the browser scrolls a field or button into view (focus,
    validation, keyboard), stop above the fixed bottom navigation, not under it. */
 @media (max-width: 1023px) { html { scroll-padding-bottom: calc(96px + env(safe-area-inset-bottom)); } }
