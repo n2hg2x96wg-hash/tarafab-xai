@@ -761,3 +761,7 @@ body.dialog-open #chat-application { visibility: hidden !important; }
   .btc-draw, .btc-draw .btc-area { animation: none; clip-path: none; opacity: 1; }
   .ov-tile, .ov-tile:hover { transform: none; }
 }
+
+/* Hero headline: wrap only at word boundaries, never hyphenate or split words. */
+.hero-h1 { hyphens: none; -webkit-hyphens: none; word-break: normal; overflow-wrap: normal; text-wrap: balance; }
+.hero-h1 > span { text-wrap: wrap; }

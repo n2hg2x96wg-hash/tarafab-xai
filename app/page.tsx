@@ -174,31 +174,36 @@ export default function LandingPage() {
             </svg>
           </div>
         </div>
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-12 pb-14 lg:pt-20 lg:pb-20 grid lg:grid-cols-[1.08fr_1fr] gap-10 lg:gap-12 items-center">
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-8 pb-12 sm:pt-12 lg:pt-20 lg:pb-20 grid lg:grid-cols-[1.08fr_1fr] gap-12 lg:gap-12 items-center">
           <div>
-            <div className="rise-in inline-flex items-center gap-2 rounded-full border border-ink-600 bg-ink-900/70 px-3 py-1 text-[12px] text-fg-muted mb-6 backdrop-blur-sm" style={{ ['--i' as string]: 0 }}>
+            <div className="rise-in inline-flex items-center gap-2 rounded-full border border-ink-600 bg-ink-900/70 px-3 py-1 text-[12px] text-fg-muted mb-5 backdrop-blur-sm" style={{ ['--i' as string]: 0 }}>
               <span className="relative flex w-1.5 h-1.5">
                 {market.status === 'live' && <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-70 animate-ping" />}
                 <span className={`relative inline-flex rounded-full w-1.5 h-1.5 ${market.status === 'live' ? 'bg-emerald-400' : 'bg-fg-faint'}`} />
               </span>
               {t('landing.badge')}
             </div>
-            <h1 className="rise-in text-[38px] sm:text-[52px] lg:text-[60px] leading-[1.04] [overflow-wrap:anywhere] [hyphens:auto] font-semibold tracking-[-0.035em] text-fg" style={{ ['--i' as string]: 1 }}>
+            {/* Words never break: no hyphenation, normal wrapping, balanced lines.
+                The fluid size keeps the longest word ("intelligence.") whole
+                down to 320px; lines break only between words. */}
+            <h1 className="hero-h1 rise-in text-[clamp(30px,10.6vw,54px)] sm:text-[56px] lg:text-[54px] xl:text-[60px] leading-[1.05] font-semibold tracking-[-0.035em] text-fg" style={{ ['--i' as string]: 1 }}>
               {t('landing.heroTitle1')}
               <span className="block text-accent-sheen">{t('landing.heroTitle2')}</span>
             </h1>
-            <p className="rise-in mt-6 text-[17px] sm:text-lg text-fg-muted leading-relaxed max-w-xl" style={{ ['--i' as string]: 2 }}>
+            <p className="rise-in mt-4 sm:mt-6 text-[16px] sm:text-lg text-fg-muted leading-relaxed max-w-xl" style={{ ['--i' as string]: 2 }}>
               {t('landing.heroBody')}
             </p>
-            <div className="rise-in mt-8 flex flex-col sm:flex-row gap-3" style={{ ['--i' as string]: 3 }}>
+            <div data-hero-cta className="rise-in mt-6 sm:mt-8 flex flex-col sm:flex-row gap-3" style={{ ['--i' as string]: 3 }}>
               <Link href="/sign-up" className="btn btn-solid min-h-12 px-6">{t('common.openAccount')}</Link>
               <Link href="/sign-in" className="btn btn-outline min-h-12 px-6">{t('common.signIn')}</Link>
             </div>
-            <p className="rise-in mt-5 text-[13px] text-fg-faint max-w-md leading-relaxed" style={{ ['--i' as string]: 4 }}>
+            <p className="rise-in mt-4 sm:mt-5 text-[13px] text-fg-faint max-w-md leading-relaxed pr-14 sm:pr-0" style={{ ['--i' as string]: 4 }}>
               {t('landing.risk')}
             </p>
+ {/* Phones: the disclosure and assurances keep clear of the right-hand
+                strip where the support bubble floats (pr-14). */}
             {/* Three plain assurances; no backend status or technical metadata. */}
-            <div className="rise-in mt-8" style={{ ['--i' as string]: 5 }}>
+            <div className="rise-in mt-5 sm:mt-8 pr-14 sm:pr-0" style={{ ['--i' as string]: 5 }}>
               <TrustBar minimal />
             </div>
           </div>

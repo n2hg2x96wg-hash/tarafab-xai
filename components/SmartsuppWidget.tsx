@@ -38,10 +38,35 @@ export default function SmartsuppWidget() {
   // is switched OFF after loading, the bubble is hidden without a reload.
   const feature = useFeatures()
   const off = hiddenState(feature('live_chat'))
+  // Homepage: the bubble stays hidden while the hero's Open an account /
+  // Sign in buttons are on screen (on short phones it would sit on them),
+  // and appears once the visitor scrolls past them. One-shot: after that it
+  // stays visible, so an open conversation is never hidden by scrolling.
+  const [heroCta, setHeroCta] = useState(false)
   useEffect(() => {
-    const ss = (window as unknown as { smartsupp?: (...a: unknown[]) => void }).smartsupp
-    if (ss) ss(off ? 'chat:hide' : 'chat:show')
-  }, [off])
+    if (pathname !== '/' || typeof IntersectionObserver === 'undefined') { setHeroCta(false); return }
+    const el = document.querySelector('[data-hero-cta]'); if (!el) return
+    let seenOnce = false
+    const io = new IntersectionObserver(e => {
+      if (e[0].isIntersecting) { seenOnce = true; setHeroCta(true) }
+      else if (seenOnce) { setHeroCta(false); io.disconnect() }
+    })
+    io.observe(el); return () => io.disconnect()
+  }, [pathname])
+  useEffect(() => {
+    if (!allowed) return
+    // The loader runs lazily: wait (briefly) for Smartsupp's command queue.
+    const cmd = off || heroCta ? 'chat:hide' : 'chat:show'
+    let tries = 0
+    const apply = () => {
+      const ss = (window as unknown as { smartsupp?: (...a: unknown[]) => void }).smartsupp
+      if (ss) { ss(cmd); return true }
+      return false
+    }
+    if (apply()) return
+    const t = setInterval(() => { if (apply() || ++tries > 60) clearInterval(t) }, 250)
+    return () => clearInterval(t)
+  }, [off, heroCta, allowed])
   if (pathname?.startsWith('/admin') || !allowed || off) return null
 
   return (
