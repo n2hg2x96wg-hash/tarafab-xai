@@ -70,21 +70,21 @@ export function AutomationCenter({ presetAsset, onPresetUsed }: { presetAsset: s
     <section className="space-y-4" aria-labelledby="auto-title">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 id="auto-title" className="text-xl sm:text-2xl font-semibold tracking-tight text-fg">{t('auto.title')}</h2>
+          <h2 id="auto-title" className="text-[22px] font-semibold tracking-tight text-fg">{t('auto.title')}</h2>
           <p className="text-sm text-fg-faint mt-0.5">{t('auto.subtitle')}</p>
         </div>
         <button onClick={() => setWizard({})} className="btn btn-solid w-full sm:w-auto">{t('auto.new')}</button>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      <div className="panel p-1.5 grid grid-cols-3 sm:grid-cols-5 gap-1" data-auto-counts>
         {(['active', 'paused', 'triggered', 'failed'] as const).map(s => (
           <button key={s} onClick={() => setFilter(f => (f === s ? 'all' : s))} aria-pressed={filter === s}
-            className={`panel p-3 text-left transition-colors ${filter === s ? 'border-brand-400/50' : 'hover:border-ink-500'}`}>
-            <p className="text-[12px] text-fg-faint">{t(`auto.s.${s}`)}</p>
-            <p className="mt-1 text-xl font-semibold tabular-nums text-fg">{items ? counts(s) : '—'}</p>
+            className={`rounded-lg px-2.5 py-2 text-left min-w-0 transition-colors ${filter === s ? 'bg-brand-400/10 ring-1 ring-brand-400/40' : 'hover:bg-ink-850/60'}`}>
+            <p className="text-[11.5px] text-fg-faint truncate">{t(`auto.s.${s}`)}</p>
+            <p className="mt-0.5 text-[17px] font-semibold tabular-nums text-fg">{items ? counts(s) : '—'}</p>
           </button>
         ))}
-        <div className="panel p-3 col-span-2 sm:col-span-1"><p className="text-[12px] text-fg-faint">{t('auto.s.total')}</p><p className="mt-1 text-xl font-semibold tabular-nums text-fg">{items ? items.length : '—'}</p></div>
+        <div className="rounded-lg px-2.5 py-2 min-w-0"><p className="text-[11.5px] text-fg-faint truncate">{t('auto.s.total')}</p><p className="mt-0.5 text-[17px] font-semibold tabular-nums text-fg">{items ? items.length : '—'}</p></div>
       </div>
       <p className="text-[12px] text-fg-faint">{t('auto.howItWorks')}</p>
 

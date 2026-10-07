@@ -140,14 +140,14 @@ export function VerificationTab({ onStatusChange }: { onStatusChange?: (status: 
   const when = (iso: string | null) => iso ? new Date(iso).toLocaleDateString(intl, { dateStyle: 'medium' }) : ''
 
   return (
-    <div className="space-y-5 panel-in max-w-2xl">
+    <div className="dep space-y-5 panel-in max-w-2xl mx-auto">
       <div className="flex flex-wrap items-end justify-between gap-2">
-        <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-fg">{t('kyc.title')}</h2>
+        <h2 className="text-[22px] font-semibold tracking-tight text-fg">{t('kyc.title')}</h2>
       </div>
 
       <KycStepper status={hasSubmission ? status : 'unverified'} />
 
-      <div className={`panel p-5 sm:p-6 border ${TONE[status] || TONE.unverified}`}>
+      <div className={`rounded-2xl p-4 border ${TONE[status] || TONE.unverified}`} data-kyc-status>
         <div className="flex items-start gap-3">
           <span className="shrink-0 mt-0.5">
             {status === 'verified' ? <IconCheck width={18} height={18} aria-hidden="true" /> : <IconShield width={18} height={18} aria-hidden="true" />}
@@ -170,11 +170,11 @@ export function VerificationTab({ onStatusChange }: { onStatusChange?: (status: 
       {loadError && <FormError message={loadError} />}
 
       {canSubmit && (
-        <form onSubmit={submit} className="panel p-5 sm:p-6 space-y-4" noValidate>
+        <form onSubmit={submit} className="space-y-4 pt-2" noValidate>
           <div>
-            <h3 className="text-lg font-semibold text-fg">{status === 'rejected' ? t('kyc.resubmit') : t('kyc.formTitle')}</h3>
-            <p className="text-[14px] text-fg-muted mt-1">{t('kyc.why')}</p>
-            <p className="text-[14px] text-fg-muted mt-2">{t('kyc.formBody')}</p>
+            <h3 className="dep-h">{status === 'rejected' ? t('kyc.resubmit') : t('kyc.formTitle')}</h3>
+            <p className="text-[13px] text-fg-muted mt-1">{t('kyc.why')}</p>
+            <p className="text-[12.5px] text-fg-faint mt-1.5">{t('kyc.formBody')}</p>
           </div>
 
           <div>

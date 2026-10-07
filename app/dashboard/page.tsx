@@ -1622,7 +1622,7 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
   }
 
   return (
-    <div className="grid lg:grid-cols-[1fr_1.2fr] gap-4 items-start">
+    <div className="dep max-w-2xl mx-auto">
       {review && (
         <ConfirmModal
           title={t('withdraw.reviewTitle')}
@@ -1643,126 +1643,91 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
           <p className="mt-4 text-[13px] text-fg-muted leading-relaxed">{t('withdraw.reviewNote')}</p>
         </ConfirmModal>
       )}
-      <div className="space-y-4">
-        <div className="panel p-5 sm:p-6">
-          <h3 className="text-[15px] font-semibold text-fg mb-4">{t('withdraw.canWithdraw')}</h3>
-          <dl className="divide-y divide-ink-700">
+      <header className="mb-6">
+        <h2 className="text-[22px] font-semibold tracking-tight text-fg">{t('withdraw.title')}</h2>
+        <p className="mt-0.5 text-[14px] text-fg-muted">{t('withdraw.body')}</p>
+      </header>
+
+      <section aria-label={t('withdraw.title')}>
+      {done !== null && (
+        <div role="status" className="alert alert-success mb-5">
+          <IconCheck className="shrink-0 mt-px" width={16} height={16} aria-hidden="true" />
+          <span>{done ? t('withdraw.submittedRef', { ref: done }) : t('withdraw.submitted')}</span>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+        {error && <FormError message={error} />}
+
+        <fieldset>
+          <legend className="field-label">{t('withdraw.from')}</legend>
+          <div className="grid grid-cols-2 gap-2" role="radiogroup">
             {SOURCES.map(s => (
-              <div key={s.id} className="py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <dt className="text-sm text-fg-muted">{t(s.label)}</dt>
-                  <dd className="text-sm font-medium text-fg tabular-nums">${fmt(balanceOf(s.id))}</dd>
-                </div>
-                {reserved(s.id) > 0 && (
-                  <p className="text-xs text-fg-faint mt-1">{t('withdraw.reserved', { reserved: `$${fmt(reserved(s.id))}`, left: `$${fmt(withdrawable(s.id))}` })}</p>
-                )}
-              </div>
+              <label key={s.id} className={`dep-choice min-w-0 ${source === s.id ? 'dep-choice-on' : ''}`}>
+                <input type="radio" name="source" value={s.id} checked={source === s.id} onChange={() => { setSource(s.id); setError('') }} className="sr-only" />
+                <span className={`dep-radio ${source === s.id ? 'dep-radio-on' : ''}`} aria-hidden="true" />
+                <span className="min-w-0">
+                  <span className="block text-[14px] font-medium text-fg truncate">{t(s.short)}</span>
+                  <span className="block text-[12px] text-fg-faint tabular-nums truncate"><span className="sm:hidden">${fmt(withdrawable(s.id))}</span><span className="hidden sm:inline">{t('withdraw.availableAmount', { amount: `$${fmt(withdrawable(s.id))}` })}</span></span>
+                </span>
+              </label>
             ))}
-          </dl>
-        </div>
-
-        <div className="panel p-5 sm:p-6">
-          <h3 className="text-[15px] font-semibold text-fg mb-2">{t('withdraw.how')}</h3>
-          <ol className="space-y-2 text-sm text-fg-muted list-decimal pl-5">
-            <li>{t('withdraw.how1')}</li>
-            <li>{t('withdraw.how2')}</li>
-            <li>{t('withdraw.how3')}</li>
-            <li>{t('withdraw.how4')}</li>
-          </ol>
-        </div>
-
-        <div className="panel p-5 sm:p-6">
-          <h3 className="text-[15px] font-semibold text-fg mb-2">{t('withdraw.help')}</h3>
-          <p className="text-sm text-fg-muted mb-4">{t('withdraw.helpBody')}</p>
-          <a href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Account support')}`} className="btn btn-outline w-full sm:w-auto break-all">
-            <IconMail width={17} height={17} />{SUPPORT_EMAIL}
-          </a>
-        </div>
-      </div>
-
-      <div className="space-y-4 order-first lg:order-none">
-        <div className="panel p-5 sm:p-6">
-          <h3 className="text-[15px] font-semibold text-fg">{t('withdraw.title')}</h3>
-          <p className="text-[13px] text-fg-faint mt-1 mb-5">{t('withdraw.body')}</p>
-
-          {done !== null && (
-            <div role="status" className="alert alert-success mb-5">
-              <IconCheck className="shrink-0 mt-px" width={16} height={16} aria-hidden="true" />
-              <span>{done ? t('withdraw.submittedRef', { ref: done }) : t('withdraw.submitted')}</span>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-            {error && <FormError message={error} />}
-
-            <fieldset>
-              <legend className="field-label">{t('withdraw.from')}</legend>
-              <div className="grid grid-cols-2 gap-2">
-                {SOURCES.map(s => (
-                  <label key={s.id} className={`cursor-pointer min-w-0 rounded-md border px-3 py-2.5 transition-colors ${source === s.id ? 'border-accent bg-ink-850 shadow-[inset_0_0_0_1px_rgb(var(--accent)/.35)]' : 'border-ink-600 hover:border-ink-500'}`}>
-                    <input type="radio" name="source" value={s.id} checked={source === s.id} onChange={() => { setSource(s.id); setError('') }} className="sr-only" />
-                    <span className="flex items-center gap-1.5 text-sm text-fg">
-                      {source === s.id && <IconCheck width={14} height={14} className="shrink-0 text-accent" aria-hidden="true" />}
-                      {t(s.short)}
-                    </span>
-                    <span className="block text-xs text-fg-faint tabular-nums">{t('withdraw.availableAmount', { amount: `$${fmt(withdrawable(s.id))}` })}</span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-
-            <div>
-              <div className="flex items-center justify-between gap-3 mb-1.5">
-                <label htmlFor="w-amount" className="field-label !mb-0">{t('withdraw.amount')}</label>
-                <button type="button" onClick={() => setAmount(max > 0 ? max.toFixed(2) : '')} className="text-[13px] text-fg-muted hover:text-fg disabled:opacity-40" disabled={max <= 0}>{t('withdraw.max')}</button>
-              </div>
-              <input id="w-amount" type="number" inputMode="decimal" step="0.01" min="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className="field tabular-nums" disabled={submitting} />
-              <div className="mt-2"><FeeRows q={feeQ} amount={amtNum} kind="withdrawal" /></div>
-            </div>
-
-            <div>
-              <label htmlFor="w-destination" className="field-label">Withdrawal destination</label>
-              <select
-                id="w-destination"
-                value={destinationWalletId}
-                onChange={e => { setDestinationWalletId(e.target.value); setAddress(''); setError('') }}
-                className="field"
-                disabled={submitting}
-              >
-                <option value="">Enter a Bitcoin address</option>
-                {wallets.map(wallet => (
-                  <option key={wallet.id} value={wallet.id}>
-                    {wallet.wallet_name || wallet.label || 'Verified wallet'} · {wallet.network}
-                  </option>
-                ))}
-              </select>
-              {selectedWallet ? (
-                <p className="mt-2 break-all font-mono text-xs text-fg-muted">{selectedWallet.address}</p>
-              ) : (
-                <>
-                  <label htmlFor="w-address" className="sr-only">{t('withdraw.yourAddress')}</label>
-                  <input id="w-address" type="text" value={address} onChange={e => setAddress(e.target.value)} placeholder="bc1..." autoComplete="off" spellCheck={false} className="field mt-2 font-mono text-[13px]" disabled={submitting} />
-                  <p className="text-xs text-fg-faint mt-1.5">{t('withdraw.addressHelp')}</p>
-                </>
-              )}
-              {walletLoadError && <p role="status" className="mt-2 text-xs text-amber-300">Verified wallets could not be loaded. You can still enter a Bitcoin address.</p>}
-            </div>
-
-            <div>
-              <label htmlFor="w-notes" className="field-label">{t('common.notes')}</label>
-              <textarea id="w-notes" value={notes} onChange={e => setNotes(e.target.value)} rows={2} className="field resize-none" disabled={submitting} />
-            </div>
-
-            <button type="submit" disabled={submitting || max <= 0} className="btn btn-solid w-full">
-              {submitting ? <><Spinner />{t('common.submitting')}</> : max <= 0 ? t('withdraw.nothing') : t('withdraw.review')}
-            </button>
-          </form>
-        </div>
-
-        <div className="panel">
-          <div className="px-5 h-14 flex items-center border-b border-ink-700">
-            <h3 className="text-[15px] font-semibold text-fg">{t('withdraw.requests')}</h3>
           </div>
+          {/* Pending requests hold part of a balance; say so where the choice is made. */}
+          {reserved(source) > 0 && <p className="text-xs text-fg-faint mt-2" data-reserved-note>{t('withdraw.reserved', { reserved: `$${fmt(reserved(source))}`, left: `$${fmt(withdrawable(source))}` })}</p>}
+        </fieldset>
+
+        <div>
+          <div className="flex items-center justify-between gap-3 mb-1.5">
+            <label htmlFor="w-amount" className="field-label !mb-0">{t('withdraw.amount')}</label>
+            <button type="button" onClick={() => setAmount(max > 0 ? max.toFixed(2) : '')} className="text-[13px] text-fg-muted hover:text-fg disabled:opacity-40" disabled={max <= 0}>{t('withdraw.max')}</button>
+          </div>
+          <input id="w-amount" type="number" inputMode="decimal" step="0.01" min="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className="field tabular-nums" disabled={submitting} />
+          <div className="mt-2"><FeeRows q={feeQ} amount={amtNum} kind="withdrawal" /></div>
+        </div>
+
+        <div>
+          <label htmlFor="w-destination" className="field-label">Withdrawal destination</label>
+          <select
+            id="w-destination"
+            value={destinationWalletId}
+            onChange={e => { setDestinationWalletId(e.target.value); setAddress(''); setError('') }}
+            className="field"
+            disabled={submitting}
+          >
+            <option value="">Enter a Bitcoin address</option>
+            {wallets.map(wallet => (
+              <option key={wallet.id} value={wallet.id}>
+                {wallet.wallet_name || wallet.label || 'Verified wallet'} · {wallet.network}
+              </option>
+            ))}
+          </select>
+          {selectedWallet ? (
+            <p className="mt-2 break-all font-mono text-xs text-fg-muted">{selectedWallet.address}</p>
+          ) : (
+            <>
+              <label htmlFor="w-address" className="sr-only">{t('withdraw.yourAddress')}</label>
+              <input id="w-address" type="text" value={address} onChange={e => setAddress(e.target.value)} placeholder="bc1..." autoComplete="off" spellCheck={false} className="field mt-2 font-mono text-[13px]" disabled={submitting} />
+              <p className="text-xs text-fg-faint mt-1.5">{t('withdraw.addressHelp')}</p>
+            </>
+          )}
+          {walletLoadError && <p role="status" className="mt-2 text-xs text-amber-300">Verified wallets could not be loaded. You can still enter a Bitcoin address.</p>}
+        </div>
+
+        <div>
+          <label htmlFor="w-notes" className="field-label">{t('common.notes')}</label>
+          <textarea id="w-notes" value={notes} onChange={e => setNotes(e.target.value)} rows={2} className="field resize-none" disabled={submitting} />
+        </div>
+
+        <button type="submit" disabled={submitting || max <= 0} className="btn btn-solid w-full">
+          {submitting ? <><Spinner />{t('common.submitting')}</> : max <= 0 ? t('withdraw.nothing') : t('withdraw.review')}
+        </button>
+      </form>
+      </section>
+
+      <section aria-labelledby="wd-requests" className="mt-8">
+        <h3 id="wd-requests" className="dep-h">{t('withdraw.requests')}</h3>
+        <div className="dep-surface mt-3 !p-0 overflow-hidden" data-withdraw-requests>
           {withdrawals.length === 0 ? (
             <EmptyState title={t('withdraw.noRequests')} />
           ) : (
@@ -1783,7 +1748,29 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
             </ul>
           )}
         </div>
-      </div>
+      </section>
+
+      {/* Reference material stays one tap away instead of two extra cards. */}
+      <section className="mt-8 divide-y divide-ink-700/70 border-y border-ink-700/70 text-sm" data-withdraw-info>
+        <details className="group py-3">
+          <summary className="cursor-pointer list-none flex items-center justify-between gap-3 text-fg">{t('withdraw.how')}<span className="text-fg-faint transition-transform group-open:rotate-180" aria-hidden="true">▾</span></summary>
+          <ol className="mt-2 space-y-1.5 text-fg-muted list-decimal pl-5">
+            <li>{t('withdraw.how1')}</li>
+            <li>{t('withdraw.how2')}</li>
+            <li>{t('withdraw.how3')}</li>
+            <li>{t('withdraw.how4')}</li>
+          </ol>
+        </details>
+        <details className="group py-3">
+          <summary className="cursor-pointer list-none flex items-center justify-between gap-3 text-fg">{t('withdraw.help')}<span className="text-fg-faint transition-transform group-open:rotate-180" aria-hidden="true">▾</span></summary>
+          <p className="mt-2 text-fg-muted">{t('withdraw.helpBody')}</p>
+          <div className="mt-3">
+            <a href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Account support')}`} className="btn btn-outline w-full sm:w-auto break-all">
+            <IconMail width={17} height={17} />{SUPPORT_EMAIL}
+            </a>
+          </div>
+        </details>
+      </section>
     </div>
   )
 }

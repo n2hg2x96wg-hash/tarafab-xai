@@ -93,7 +93,7 @@ export function TxIcon({ type }: { type: string }) {
 
 export function EmptyState({ title, body }: { title: string; body?: string }) {
   return (
-    <div className="px-6 py-12 text-center">
+    <div className="px-5 py-8 text-center">
       <p className="text-sm text-fg">{title}</p>
       {body && <p className="text-[13px] text-fg-faint mt-1">{body}</p>}
     </div>

@@ -247,17 +247,19 @@ export function InvestmentCenter({ go, focusId, onFocusDone, onAccountChanged }:
       <section aria-labelledby="inv-title">
         <div className="flex flex-wrap items-end justify-between gap-2 mb-3">
           <div>
-            <h2 id="inv-title" className="text-xl sm:text-2xl font-semibold tracking-tight text-fg">{t('inv.title')}</h2>
+            <h2 id="inv-title" className="text-[22px] font-semibold tracking-tight text-fg">{t('inv.title')}</h2>
             <p className="text-sm text-fg-faint mt-0.5">{t('inv.subtitle')}</p>
           </div>
           {data.balance && <p className="text-sm text-fg-muted">{t('inv.f.available')}: <span className="text-fg font-semibold tabular-nums">{money(data.balance.available)}</span></p>}
         </div>
-        <dl className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
+        {/* Figures as a quiet stat list (hairline above each) rather than six cards.
+            The explanation of each figure stays available as its tooltip; a warning note still shows. */}
+        <dl className="panel px-4 py-3.5 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-x-4 gap-y-3" data-inv-stats>
           {stats.map(s => (
-            <div key={s.label} className="panel p-4 min-w-0" title={t(s.hint)}>
-              <dt className="text-[12px] text-fg-faint truncate">{t(s.label)}</dt>
-              <dd className={`mt-1 text-lg font-semibold tabular-nums truncate ${s.muted ? 'text-fg-muted' : 'text-fg'}`}>{s.value}</dd>
-              <p className={`mt-1 text-[11px] leading-snug line-clamp-2 ${s.note ? 'text-amber-300' : 'text-fg-faint'}`} data-note={s.note ? '' : undefined}>{s.note || t(s.hint)}</p>
+            <div key={s.label} className="min-w-0" title={t(s.hint)}>
+              <dt className="text-[11.5px] leading-tight text-fg-faint">{t(s.label)}</dt>
+              <dd className={`mt-0.5 font-semibold tabular-nums break-words ${s.value.length > 14 ? 'text-[13px] leading-snug' : 'text-[16px]'} ${s.muted ? 'text-fg-muted' : 'text-fg'}`}>{s.value}</dd>
+              {s.note && <p className="mt-0.5 text-[11px] leading-snug text-amber-300" data-note="">{s.note}</p>}
             </div>
           ))}
         </dl>
@@ -267,9 +269,9 @@ export function InvestmentCenter({ go, focusId, onFocusDone, onAccountChanged }:
       <section id="inv-products" className="scroll-mt-20" aria-labelledby="inv-products-title">
         <h3 id="inv-products-title" className="text-[15px] font-semibold text-fg mb-3">{t('inv.f.plans')}</h3>
         {offers.length === 0 ? (
-          <div className="panel px-5 py-10 text-center">
-            <span className="mx-auto mb-3 w-11 h-11 rounded-xl border border-ink-700 flex items-center justify-center text-fg-faint"><IconChart width={20} height={20} /></span>
-            <p className="text-fg font-medium">{t('inv.f.noPlans')}</p>
+          <div className="panel px-4 py-4 flex items-center gap-3">
+            <span className="shrink-0 w-9 h-9 rounded-lg border border-ink-700 flex items-center justify-center text-fg-faint"><IconChart width={17} height={17} /></span>
+            <p className="text-[14px] text-fg-muted">{t('inv.f.noPlans')}</p>
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 gap-3">
@@ -339,10 +341,10 @@ export function InvestmentCenter({ go, focusId, onFocusDone, onAccountChanged }:
             })}
           </ul>
         ) : (
-          <div className="px-5 py-10 text-center">
-            <span className="mx-auto mb-3 w-11 h-11 rounded-xl border border-ink-700 flex items-center justify-center text-fg-faint"><IconPie width={20} height={20} /></span>
-            <p className="text-fg font-medium">{t('inv.f.noInvestments')}</p>
-            {offers.length > 0 && <a href="#inv-products" className="btn btn-outline btn-sm mt-4">{t('inv.explore')}</a>}
+          <div className="px-4 py-4 flex flex-wrap items-center gap-3">
+            <span className="shrink-0 w-9 h-9 rounded-lg border border-ink-700 flex items-center justify-center text-fg-faint"><IconPie width={17} height={17} /></span>
+            <p className="text-[14px] text-fg-muted flex-1 min-w-0">{t('inv.f.noInvestments')}</p>
+            {offers.length > 0 && <a href="#inv-products" className="btn btn-outline btn-sm">{t('inv.explore')}</a>}
           </div>
         )}
       </section>
