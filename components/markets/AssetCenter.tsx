@@ -43,12 +43,18 @@ function Change({ a, className = '' }: { a: AssetQuote; className?: string }) {
   return <span className={`tabular-nums ${up ? 'price-up' : 'price-down'} ${className}`}>{up ? '+' : ''}{a.changePct.toFixed(2)}%</span>
 }
 
+export const isUsable = (a: AssetQuote) => a.price != null && a.price > 0 && (a.state === 'live' || a.state === 'delayed' || a.state === 'stale')
+
 export function AssetCenter({ onAutomate }: { onAutomate: (assetId: string) => void }) {
   const { t } = useMk()
   const { assets: raw, error, reload } = useAssets()
   // Shared status rule (lib/marketStatus): an old quote, or one shown after a
   // failed refresh, is labelled stale everywhere in this view.
-  const assets = useMemo(() => raw ? raw.map(a => ({ ...a, state: effectiveState(a, error) as AssetQuote['state'] })) : raw, [raw, error])
+  // Clients only see assets with a usable quote. An asset whose feed is not
+  // connected or down (e.g. a stock with no provider yet) is hidden here, not
+  // deleted: its record and admin settings stay, and it reappears on its own
+  // once real data arrives.
+  const assets = useMemo(() => raw ? raw.map(a => ({ ...a, state: effectiveState(a, error) as AssetQuote['state'] })).filter(isUsable) : raw, [raw, error])
   // Admin → Feature controls (watchlist / charts); data is kept when off.
   const feature = useFeatures()
   const watchOff = hiddenState(feature('watchlist')), chartsOff = hiddenState(feature('charts'))
@@ -110,7 +116,6 @@ export function AssetCenter({ onAutomate }: { onAutomate: (assetId: string) => v
           <h2 id="asset-center" className="text-xl sm:text-2xl font-semibold tracking-tight text-fg">{t('center.title')}</h2>
           <p className="text-sm text-fg-faint mt-0.5">{t('center.subtitle')}</p>
         </div>
-        <p className="text-[12px] text-fg-faint">{t('center.disclosure')}</p>
       </div>
 
       {/* Overview */}
@@ -143,6 +148,9 @@ export function AssetCenter({ onAutomate }: { onAutomate: (assetId: string) => v
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{Array.from({ length: 6 }, (_, i) => <div key={i} className="panel h-[148px] animate-pulse" />)}</div>
       ) : !assets ? (
         <div className="panel p-6 text-sm text-fg-muted flex flex-wrap items-center gap-3"><span>{t('center.loadError')}</span><button onClick={() => reload()} className="btn btn-sm btn-outline">{t('common.retry')}</button></div>
+      ) : assets.length === 0 ? (
+        <div className="panel px-6 py-10 text-center" data-market-unavailable><p className="text-sm text-fg">Market data temporarily unavailable.</p>
+          <button onClick={() => reload()} className="btn btn-sm btn-outline mt-3">{t('common.retry')}</button></div>
       ) : list.length === 0 ? (
         <div className="panel px-6 py-10 text-center"><p className="text-sm text-fg">{cat === 'watchlist' && !q ? t('center.watchEmpty') : t('center.noMatch')}</p>
           {cat === 'watchlist' && !q && <p className="text-[13px] text-fg-faint mt-1">{t('center.watchEmptyBody')}</p>}</div>
@@ -176,6 +184,9 @@ export function AssetCenter({ onAutomate }: { onAutomate: (assetId: string) => v
           })}
         </ul>
       )}
+
+      {/* Required provider attribution, kept quiet at the foot of the page. */}
+      <p className="text-[11px] text-fg-faint" data-market-attribution>{t('center.disclosure')} Crypto data provided by <a href="https://www.coingecko.com/en/api" target="_blank" rel="noopener noreferrer" className="hover:text-fg-muted underline-offset-2 hover:underline">CoinGecko</a>.</p>
 
       {selected && <AssetDetail a={selected} watchOff={watchOff} chartsOff={chartsOff} watched={(watch || []).includes(selected.id)} onWatch={() => toggleWatch(selected.id)} onAutomate={() => { setOpen(null); onAutomate(selected.id) }} onClose={() => setOpen(null)} />}
     </section>

@@ -93,18 +93,18 @@ export default function LiveMarketBoard() {
   }, [])
   useClock(onScreen)
 
-  const { tiles, offline, sources, newest, liveCount } = useMemo(() => {
+  const { tiles, sources, newest, liveCount } = useMemo(() => {
     const list = assets || []
     const crypto = list.filter(a => a.category === 'crypto')
     // Shared status rule (lib/marketStatus): age and a failed refresh both downgrade "live".
     const tiles = [...crypto].sort((x, y) => (x.id === 'BTC' ? -1 : y.id === 'BTC' ? 1 : 0)).slice(0, 8)
       .map(a => ({ ...a, state: effectiveState(a, error) as AssetQuote['state'] }))
-    const offline = list.filter(a => a.category !== 'crypto' && !(a.price != null && (a.state === 'live' || a.state === 'delayed')))
+      .filter(a => a.price != null && a.state !== 'unavailable' && a.state !== 'error')
     const shownSources = new Set<string>()
     tiles.forEach(a => { if (a.source && a.price != null) shownSources.add(a.source) })
     shownSources.add('CoinGecko') // fallback provider for BTC summary/history on this page
     const times = list.map(a => (a.updatedAt ? Date.parse(a.updatedAt) : NaN)).filter(Number.isFinite)
-    return { tiles, offline, sources: Array.from(shownSources), newest: times.length ? Math.max(...times) : null, liveCount: tiles.filter(a => a.state === 'live').length }
+    return { tiles, sources: Array.from(shownSources), newest: times.length ? Math.max(...times) : null, liveCount: tiles.filter(a => a.state === 'live').length }
   }, [assets, error])
 
   const state: 'loading' | 'error' | 'stale' | 'live' = assets === null ? (error ? 'error' : 'loading')
@@ -148,13 +148,6 @@ export default function LiveMarketBoard() {
         <DayLine />
       </div>
 
-      {offline.length > 0 && state !== 'loading' && (
-        <p className="mt-3 text-[12px] text-fg-faint" data-offline-note>
-          {offline.every(a => a.reason === 'not_connected')
-            ? <>Stocks &amp; indices ({offline.slice(0, 4).map(a => a.id).join(', ')}{offline.length > 4 ? '…' : ''}): data source offline — no prices are shown or estimated until a provider is connected.</>
-            : <>Stocks &amp; indices ({offline.slice(0, 4).map(a => a.id).join(', ')}{offline.length > 4 ? '…' : ''}): temporarily unavailable — shown as unavailable, never estimated.</>}
-        </p>
-      )}
       <MarketSources sources={sources} className="mt-3 pt-3 border-t border-ink-700/70" />
     </div>
   )
