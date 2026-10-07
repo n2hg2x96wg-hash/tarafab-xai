@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { validOption, type Row } from '@/lib/depositOptions'
 import { clientForRequest, dbError, idempotencyKey, unauthorized } from '@/lib/supabase/request'
 import { functionsUrl, getSupabaseEnv } from '@/lib/supabase/env'
 import { clientIp, rateLimited } from '@/lib/rateLimit'
@@ -20,7 +21,11 @@ export async function GET(request: NextRequest) {
   ])
   if (t.error) return dbError(t.error)
   if (d.error) return dbError(d.error)
-  return NextResponse.json({ transfers: t.data || [], destinations: d.data || [] })
+  // Automatic on-chain transfers: only complete records (strict check, no
+  // filling). A token without its stored contract would otherwise be sent —
+  // and verified — as the network's native coin.
+  const destinations = (d.data || []).filter(x => validOption(x as Row))
+  return NextResponse.json({ transfers: t.data || [], destinations })
 }
 
 export async function POST(request: NextRequest) {
@@ -40,6 +45,10 @@ export async function POST(request: NextRequest) {
       if (!UUID.test(String(b.wallet_id ?? '')) || !UUID.test(String(b.destination_id ?? '')) || !/^\d+(\.\d{1,18})?$/.test(amount) || !(Number(amount) > 0)) {
         return NextResponse.json({ error: 'Check the wallet, asset and amount.' }, { status: 400 })
       }
+      // The destination must be a complete receiving address (a token needs
+      // its stored contract); otherwise it is not offered for transfers.
+      { const { data: dest } = await supabase.from('deposit_addresses').select('asset, network, chain_id, address, min_confirmations, token_contract, decimals').eq('id', String(b.destination_id)).eq('enabled', true).maybeSingle()
+        if (!dest || !validOption(dest as Row)) return NextResponse.json({ error: 'This transfer destination is not available right now.' }, { status: 400 }) }
       const { data, error } = await supabase.rpc('client_transfer_quote', { p_wallet_id: b.wallet_id, p_deposit_address_id: b.destination_id, p_amount: amount, p_idempotency_key: idempotencyKey(request, b as { idempotency_key?: unknown }) })
       if (error) return dbError(error)
       return NextResponse.json({ transfer: data })

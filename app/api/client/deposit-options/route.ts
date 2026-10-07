@@ -20,7 +20,9 @@ export async function GET(request: NextRequest) {
   const rows = (data || []) as Row[]
   const options: DepositOption[] = []
   for (const r of rows) {
-    const o = validOption(r)
+    // Manual, admin-reviewed deposits: an empty token contract is filled with
+    // the network's official contract so the option is not silently lost.
+    const o = validOption(r, { canonical: true })
     if (o) options.push(o)
     else console.warn('deposit-options: enabled receiving address skipped (invalid or unsupported)', { asset: r.asset, chain_id: r.chain_id })
   }

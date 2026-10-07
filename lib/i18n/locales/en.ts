@@ -292,7 +292,7 @@ const en = {
     q1: 'How long does a deposit take to show in my balance?',
     a1: 'First the Bitcoin network has to confirm your transfer. A new block is added about every 10 minutes on average, and busy periods can take longer. After that, our team checks your receipt and the transfer. Your balance updates the moment it is approved, and you can follow the status in your dashboard.',
     q2: 'Why is my deposit showing as pending?',
-    a2: 'Every deposit is reviewed by a person before it is credited. Pending means we have your submission and it has not been approved yet. Uploading a clear receipt and the transaction ID helps us match it faster.',
+    a2: 'Every deposit is reviewed by our team before it is credited. Pending means we have your submission and it has not been approved yet. Uploading a clear receipt and the transaction ID helps us match it faster.',
     q3: 'How do I withdraw?',
     a3: "Open Withdraw in your dashboard, choose whether to withdraw from your account balance or your profit balance, enter the amount and your Bitcoin address, and submit. Nothing is deducted until the request is approved. If it is declined, your balance stays the same.",
     q4: 'What is the profit balance?',
@@ -451,7 +451,7 @@ const en = {
   kyc: {
     nav: 'KYC Verification',
     title: 'KYC Verification',
-    why: 'KYC verification helps us confirm your identity and protect your account. Your documents are reviewed by a person before your account is marked as verified.',
+    why: 'KYC verification helps us confirm your identity and protect your account. Your documents are reviewed by our team before your account is marked as verified.',
     step: {
       submit: 'Submit details',
       review: 'Review',

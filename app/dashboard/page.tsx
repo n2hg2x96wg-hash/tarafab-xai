@@ -449,7 +449,7 @@ export default function DashboardPage() {
   const current = navItems.find(n => n.id === activeNav)
 
   return (
-    <div className="site min-h-screen bg-ink-950 text-fg lg:flex">
+    <div className="site cc-app min-h-screen bg-ink-950 text-fg lg:flex">
       <aside className={`fixed inset-y-0 left-0 z-40 w-[min(18rem,85vw)] ${collapsed ? 'lg:w-[72px]' : 'lg:w-64'} h-[100dvh] safe-top cc-drawer flex flex-col transition-[transform,width] duration-300 ease-[cubic-bezier(.2,.7,.2,1)] lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:shadow-none ${sidebarOpen ? 'translate-x-0 drawer-shadow' : '-translate-x-full'}`}>
         <div className={`h-16 shrink-0 flex items-center justify-between border-b cc-sep ${collapsed ? 'lg:px-0 lg:justify-center px-5' : 'px-5'}`}>
           <Link href="/" aria-label={t('common.home')} className={`min-w-0 ${collapsed ? 'lg:hidden' : ''}`}>
@@ -1188,7 +1188,7 @@ function DepositTab({ onSuccess, go, can }: { onSuccess: () => void; go: (id: st
   // Crypto options (ETH, USDT · BNB Smart Chain, …) come from Admin → Fees &
   // Transfers → Tarafab receiving addresses: each is shown only while its
   // record is enabled and valid (checked by the server).
-  type CryptoOpt = { asset: string; network: string; chain_id: number; address: string; min_confirmations: number; token_contract: string | null; decimals: number }
+  type CryptoOpt = { asset: string; network: string; chain_id: number; address: string; min_confirmations: number; token_contract: string | null; decimals: number; standard?: string }
   const [opts, setOpts] = useState<CryptoOpt[] | undefined>(undefined)
   const [ethNotice, setEthNotice] = useState('')
   const [ethAmount, setEthAmount] = useState('')
@@ -1223,8 +1223,8 @@ function DepositTab({ onSuccess, go, can }: { onSuccess: () => void; go: (id: st
 
   const copyAddress = () => {
     navigator.clipboard.writeText(isEth ? eth!.address : BTC_ADDRESS).then(() => {
+      // One confirmation only: the button itself reads "Copied".
       setCopied(true); setTimeout(() => setCopied(false), 2000)
-      toast.show(t('common.copied'))
     }).catch(() => {})
   }
 
@@ -1324,13 +1324,56 @@ function DepositTab({ onSuccess, go, can }: { onSuccess: () => void; go: (id: st
     )
   }
 
+  // Step 1: every method the system offers. Crypto options are exactly the
+  // enabled receiving addresses (asset + network pairs) from the server.
+  const ASSET_INFO: Record<string, { glyph: string; name: string; tone: string }> = {
+    BTC: { glyph: '₿', name: 'Bitcoin', tone: 'bg-amber-500/15 text-amber-300' }, ETH: { glyph: 'Ξ', name: 'Ethereum', tone: 'bg-sky-500/15 text-sky-300' },
+    USDT: { glyph: 'T', name: 'Tether USD', tone: 'bg-emerald-500/15 text-emerald-300' }, USDC: { glyph: '$', name: 'USD Coin', tone: 'bg-blue-500/15 text-blue-300' },
+  }
+  const choices: { value: string; glyph: string; tone: string; title: string; sub: string; group: 'crypto' | 'other' }[] = [
+    { value: 'bitcoin', ...ASSET_INFO.BTC, title: 'Bitcoin', sub: 'BTC · Bitcoin Network', group: 'crypto' },
+    ...(opts || []).map(o => { const i = ASSET_INFO[o.asset] || { glyph: o.asset.slice(0, 1), name: o.asset, tone: 'bg-ink-700 text-fg' }
+      return { value: optKey(o), glyph: i.glyph, tone: i.tone, title: i.name, sub: `${o.asset} · ${o.network}${o.standard && o.standard !== 'Native' ? ` · ${o.standard}` : ''}`, group: 'crypto' as const } }),
+    { value: 'bank_transfer', glyph: '🏦', tone: 'bg-ink-700 text-fg-muted', title: t('dash.method.bank_transfer'), sub: 'Reviewed by our team', group: 'other' },
+    { value: 'wire_transfer', glyph: '⇄', tone: 'bg-ink-700 text-fg-muted', title: t('dash.method.wire_transfer'), sub: 'Reviewed by our team', group: 'other' },
+    { value: 'other', glyph: '…', tone: 'bg-ink-700 text-fg-muted', title: t('dash.method.other'), sub: 'Describe it in the notes', group: 'other' },
+  ]
   return (
+    <div className="space-y-4">
+      <section className="panel p-5 sm:p-6" aria-labelledby="dep-step1">
+        <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-accent">01</p>
+        <h3 id="dep-step1" className="mt-0.5 text-[16px] font-semibold text-fg">Choose asset / payment method</h3>
+        <p className="mt-1 text-[13px] text-fg-faint">Only methods that are currently enabled are listed. Each crypto option is one asset on one network.</p>
+        {opts === undefined && <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2" aria-label={t('common.loading')}>{[0, 1, 2].map(i => <div key={i} className="skeleton h-[60px] rounded-xl" />)}</div>}
+        {(['crypto', 'other'] as const).map(g => (
+          <div key={g} role="radiogroup" aria-label={g === 'crypto' ? 'Crypto' : 'Other methods'} className="mt-4">
+            <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.12em] text-fg-faint">{g === 'crypto' ? 'Crypto' : 'Other methods'}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {choices.filter(c => c.group === g && (g === 'other' || opts !== undefined || c.value === 'bitcoin')).map(c => {
+                const on = method === c.value
+                return (
+                  <label key={c.value} data-method={c.value} className={`dep-choice ${on ? 'dep-choice-on' : ''}`}>
+                    <input type="radio" name="method" value={c.value} checked={on} onChange={() => setMethod(c.value)} disabled={submitting} className="sr-only" />
+                    <span className={`w-9 h-9 shrink-0 rounded-xl grid place-items-center text-[15px] font-semibold ${c.tone}`} aria-hidden="true">{c.glyph}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[14px] font-medium text-fg truncate">{c.title}</span>
+                      <span className="block text-[12px] text-fg-faint truncate">{c.sub}</span>
+                    </span>
+                    <span className={`w-4 h-4 shrink-0 rounded-full border-2 ${on ? 'border-accent bg-accent shadow-[inset_0_0_0_3px_rgb(var(--ink-900))]' : 'border-ink-500'}`} aria-hidden="true" />
+                  </label>
+                )
+              })}
+            </div>
+          </div>
+        ))}
+        {ethNotice && <p className="mt-3 text-[12px] text-amber-300" role="status">{ethNotice}</p>}
+      </section>
     <div className="grid lg:grid-cols-2 gap-4 items-start">
       {isEth ? (
       <div className="panel p-5 sm:p-6" data-deposit-asset={eth!.asset} data-chain-id={eth!.chain_id}>
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="text-[15px] font-semibold text-fg">{eth!.asset === 'ETH' && eth!.chain_id === 1 ? 'Ethereum (ETH)' : eth!.asset}</h3>
-          <span className="rounded-full border border-sky-400/30 bg-sky-400/10 px-2 py-0.5 text-[11px] text-sky-300">{eth!.network} Network</span>
+          <span className="rounded-full border border-sky-400/30 bg-sky-400/10 px-2 py-0.5 text-[11px] text-sky-300">{eth!.network}{eth!.standard && eth!.standard !== 'Native' ? ` · ${eth!.standard}` : ' Network'}</span>
         </div>
         <p className="text-[13px] text-fg-faint mt-1 mb-5">Send {eth!.asset} on the {eth!.network} network to the Tarafab address below, then submit the transaction details.</p>
         <div className="w-44 h-44 mx-auto sm:mx-0 mb-5 bg-[#fff] rounded-md p-2">
@@ -1340,6 +1383,8 @@ function DepositTab({ onSuccess, go, can }: { onSuccess: () => void; go: (id: st
         <dl className="mb-3 grid grid-cols-2 gap-2 text-[13px]">
           <div><dt className="text-fg-faint">Asset</dt><dd className="text-fg">{eth!.asset === 'ETH' && eth!.chain_id === 1 ? 'Ethereum (ETH)' : eth!.asset}</dd></div>
           <div><dt className="text-fg-faint">Network</dt><dd className="text-fg">{eth!.network} <span className="text-fg-faint">(chain {eth!.chain_id})</span></dd></div>
+          <div><dt className="text-fg-faint">Confirmations</dt><dd className="text-fg tabular-nums" data-confirmations>{eth!.min_confirmations}+</dd></div>
+          {eth!.standard && eth!.standard !== 'Native' && <div><dt className="text-fg-faint">Token standard</dt><dd className="text-fg">{eth!.standard}</dd></div>}
           {eth!.token_contract && <div className="col-span-2"><dt className="text-fg-faint">Token contract</dt><dd className="text-fg font-mono text-[12px] break-all" data-token-contract>{eth!.token_contract}</dd></div>}
         </dl>
         <label className="field-label">Tarafab {eth!.asset === 'ETH' && eth!.chain_id === 1 ? 'Ethereum' : `${eth!.asset} (${eth!.network})`} receiving address</label>
@@ -1353,7 +1398,7 @@ function DepositTab({ onSuccess, go, can }: { onSuccess: () => void; go: (id: st
           <IconAlert className="shrink-0 text-amber-400 mt-px" width={16} height={16} aria-hidden="true" />
           <span className="text-fg-muted">{eth!.asset === 'ETH' && eth!.chain_id === 1
             ? 'Send only ETH on the Ethereum network (Ethereum Mainnet) to this address. Do not send Bitcoin, tokens, or ETH on another network (such as Base, Arbitrum or BNB Smart Chain): those funds may be lost.'
-            : `Send only ${eth!.asset} on ${eth!.network} (chain ${eth!.chain_id}), using the token contract shown, to this address. Sending another token or using another network may lose the funds.`} Your deposit stays pending until Tarafab verifies the transaction on-chain ({eth!.min_confirmations}+ confirmations).</span>
+            : `Send only ${eth!.asset} on the selected network — ${eth!.network}${eth!.standard && eth!.standard !== 'Native' ? ` (${eth!.standard})` : ''}, chain ${eth!.chain_id} — to this address. Sending any other asset, or ${eth!.asset} through another network (for example ${eth!.chain_id === 56 ? 'Ethereum / ERC-20' : 'BNB Smart Chain / BEP-20'}), can result in permanent loss of funds.`} Your deposit stays pending until Tarafab verifies the transaction on-chain ({eth!.min_confirmations}+ confirmations).</span>
         </div>
       </div>
       ) : (
@@ -1388,17 +1433,6 @@ function DepositTab({ onSuccess, go, can }: { onSuccess: () => void; go: (id: st
             <input id="amount" type="number" inputMode="decimal" step="0.01" min="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" required className="field tabular-nums" disabled={submitting} />
           </div>
 
-          <div>
-            <label htmlFor="method" className="field-label">{t('deposit.method')}</label>
-            <select id="method" value={method} onChange={e => setMethod(e.target.value)} className="field" disabled={submitting}>
-              <option value="bitcoin">{t('dash.method.bitcoin')}</option>
-              {(opts || []).map(o => <option key={optKey(o)} value={optKey(o)}>{optLabel(o)}</option>)}
-              <option value="bank_transfer">{t('dash.method.bank_transfer')}</option>
-              <option value="wire_transfer">{t('dash.method.wire_transfer')}</option>
-              <option value="other">{t('dash.method.other')}</option>
-            </select>
-            {ethNotice && <p className="mt-1.5 text-[12px] text-amber-300" role="status">{ethNotice}</p>}
-          </div>
 
           {isEth && (
             <div className="space-y-4" data-eth-fields>
@@ -1432,6 +1466,7 @@ function DepositTab({ onSuccess, go, can }: { onSuccess: () => void; go: (id: st
           </button>
         </form>
       </div>
+    </div>
     </div>
   )
 }

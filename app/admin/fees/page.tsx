@@ -18,6 +18,8 @@ const NETS: [number, string][] = [[1, 'Ethereum'], [8453, 'Base'], [42161, 'Arbi
 const KNOWN: Record<string, { contract: string; decimals: number }> = {
   '1:USDC': { contract: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', decimals: 6 },
   '1:USDT': { contract: '0xdac17f958d2ee523a2206206994597c13d831ec7', decimals: 6 },
+  '56:USDT': { contract: '0x55d398326f99059ff775485246999027b3197955', decimals: 18 },
+  '56:USDC': { contract: '0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d', decimals: 18 },
 }
 const usd = (n: number | null | undefined) => n == null ? '—' : `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 const emptyRule = { id: '', service: 'wallet_transfer', label: 'Tarafab Service Fee', asset: '', chain_id: '', fixed_fee: '0', pct_fee: '0', min_fee: '0', max_fee: '', enabled: false, effective_from: '', reason: '' }
@@ -128,11 +130,15 @@ export default function AdminFeesPage() {
             <tbody>{addrs.map(a => (
               <tr key={a.id} className="border-t border-white/[0.06] text-slate-300">
                 <td className="py-2 pr-3">{a.network} ({a.chain_id})</td>
-                <td className="pr-3">{a.asset}{a.token_contract && <div className="text-slate-500 font-mono">{a.token_contract.slice(0, 10)}… · {a.decimals} dp</div>}</td>
+                <td className="pr-3">{a.asset}{a.token_contract && <div className="text-slate-500 font-mono">{a.token_contract.slice(0, 10)}… · {a.decimals} dp</div>}
+                  {/* A token saved without its contract: clients still see it for
+                      manual deposits (official contract filled in), but automatic
+                      wallet transfers skip it until the contract is saved. */}
+                  {!a.token_contract && !['ETH', 'BNB', 'POL'].includes(a.asset) && <div className="mt-0.5 text-amber-300" data-missing-contract>Token contract not set{KNOWN[`${a.chain_id}:${a.asset}`] ? ` — Edit to fill the official ${a.asset} contract` : ''}. Wallet transfers are off for this address.</div>}</td>
                 <td className="pr-3 font-mono break-all">{a.address}</td>
                 <td className="pr-3">{a.min_confirmations}</td>
                 <td className="pr-3">{a.enabled ? <span className="text-emerald-400">Enabled</span> : <span className="text-slate-500">Disabled</span>}</td>
-                <td><button onClick={() => { setFormErr(''); setAf({ id: a.id, chain_id: String(a.chain_id), network: a.network, asset: a.asset, token_contract: a.token_contract || '', decimals: String(a.decimals), address: a.address, min_confirmations: String(a.min_confirmations), enabled: a.enabled, reason: '' }) }} className="text-violet-300 hover:text-violet-200">Edit</button></td>
+                <td><button onClick={() => { setFormErr(''); setAf({ id: a.id, chain_id: String(a.chain_id), network: a.network, asset: a.asset, token_contract: a.token_contract || KNOWN[`${a.chain_id}:${a.asset}`]?.contract || '', decimals: String(a.token_contract ? a.decimals : KNOWN[`${a.chain_id}:${a.asset}`]?.decimals ?? a.decimals), address: a.address, min_confirmations: String(a.min_confirmations), enabled: a.enabled, reason: '' }) }} className="text-violet-300 hover:text-violet-200">Edit</button></td>
               </tr>))}</tbody></table></div>
         )}
         <p className="mt-2 text-[11px] text-slate-500">Use addresses Tarafab controls. Transfers are credited only after the transaction is verified on-chain (destination, token, amount, sender = the client’s verified wallet, confirmations). Reconcile in <Link href="/admin/transfers" className="text-violet-300">Wallet transfers →</Link></p>
