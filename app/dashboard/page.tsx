@@ -562,12 +562,12 @@ export default function DashboardPage() {
           <PremiumGateHost onSeePremium={() => go('premium')} />
           <ErrorBoundary key={activeNav} label={current ? labelOf(current) : undefined}>
             {activeNav === 'overview' && <OverviewTab whatsNew={whatsNewNode} name={displayName} account={account} txs={txs} go={go} can={id => !hiddenNav.includes(id)} labelOf={labelOf} />}
-            {activeNav === 'markets' && <div className="space-y-10"><AssetCenter onAutomate={id => { setAutoAsset(id); go('automations') }} /><MarketsTab /></div>}
+            {activeNav === 'markets' && <div className="space-y-6"><AssetCenter onAutomate={id => { setAutoAsset(id); go('automations') }} /><MarketsTab /></div>}
             {soon(activeNav) && <StateView state="unavailable" title={pt('ft.soon')} body={pt('ft.comingSoon')} />}
             {activeNav === 'automations' && !soon('automations') && !hiddenNav.includes('automations') && <AutomationCenter presetAsset={autoAsset} onPresetUsed={() => setAutoAsset(null)} />}
             {activeNav === 'premium' && !soon('premium') && !hiddenNav.includes('premium') && <PremiumCenter account={account} txs={txs} />}
             {activeNav === 'transactions' && <><TransactionsTab txs={txs} /><div className="mt-4"><LoadMore hasMore={hasMore} loading={loadingMore} onLoadMore={loadMore} /></div></>}
-            {activeNav === 'portfolio' && <div className="space-y-8">{!hiddenState(feature('investments')) && <InvestmentCenter go={go} focusId={focusInv} onFocusDone={() => setFocusInv(null)} onAccountChanged={fetchData} />}<section aria-labelledby="pf-analytics" className="space-y-3"><h2 id="pf-analytics" className="text-lg font-semibold tracking-tight text-fg">{t('nav2.analyticsTitle')}</h2><PortfolioTab account={account} txs={txs} hasMore={hasMore} go={go} /></section></div>}
+            {activeNav === 'portfolio' && <div className="space-y-6">{!hiddenState(feature('investments')) && <InvestmentCenter go={go} focusId={focusInv} onFocusDone={() => setFocusInv(null)} onAccountChanged={fetchData} />}<section aria-labelledby="pf-analytics" className="space-y-3"><h2 id="pf-analytics" className="text-lg font-semibold tracking-tight text-fg">{t('nav2.analyticsTitle')}</h2><PortfolioTab account={account} txs={txs} hasMore={hasMore} go={go} /></section></div>}
             {activeNav === 'depositHistory' && <HistoryTab kind="deposit" txs={txs} hasMore={hasMore} loadingMore={loadingMore} onLoadMore={loadMore} go={go} />}
             {activeNav === 'withdrawalHistory' && <HistoryTab kind="withdrawal" txs={txs} hasMore={hasMore} loadingMore={loadingMore} onLoadMore={loadMore} go={go} />}
             {activeNav === 'security' && <SecurityTab user={user} />}

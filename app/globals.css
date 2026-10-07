@@ -813,3 +813,6 @@ body.dialog-open #chat-application { visibility: hidden !important; }
   border: 1px solid rgb(var(--contrast) / .1); box-shadow: 0 -20px 50px -20px rgb(0 0 0 / .7); animation: sheet-in .22s cubic-bezier(.2,.7,.2,1) both; }
 @keyframes sheet-in { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .dep-choice, .dep-choice:active { transition: none; transform: none; } .dep-sheet { animation: none; } }
+
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }

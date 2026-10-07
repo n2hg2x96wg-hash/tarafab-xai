@@ -110,31 +110,31 @@ export function AssetCenter({ onAutomate }: { onAutomate: (assetId: string) => v
   const selected = (assets || []).find(a => a.id === open) || null
 
   return (
-    <section className="space-y-4" aria-labelledby="asset-center">
+    <section className="space-y-3 sm:space-y-4" aria-labelledby="asset-center">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 id="asset-center" className="text-xl sm:text-2xl font-semibold tracking-tight text-fg">{t('center.title')}</h2>
+          <h2 id="asset-center" className="text-lg sm:text-xl font-semibold tracking-tight text-fg">{t('center.title')}</h2>
           <p className="text-sm text-fg-faint mt-0.5">{t('center.subtitle')}</p>
         </div>
       </div>
 
-      {/* Overview */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="panel p-4"><p className="text-[12px] text-fg-faint">{t('center.tracked')}</p>
-          <p className="mt-1 text-lg font-semibold text-fg tabular-nums">{assets ? t('center.liveOf', { live: live.length, total: assets.length }) : '—'}</p></div>
+      {/* At a glance: one quiet strip instead of three separate cards. */}
+      <div className="panel grid grid-cols-3 divide-x divide-ink-700/70" data-market-glance>
+        <div className="px-3 py-2.5 sm:px-4 min-w-0"><p className="text-[11px] leading-tight text-fg-faint">{t('center.tracked')}</p>
+          <p className="mt-0.5 text-[15px] sm:text-base font-semibold text-fg tabular-nums truncate">{assets ? t('center.liveOf', { live: live.length, total: assets.length }) : '—'}</p></div>
         {[['center.topGainer', gainer], ['center.topLoser', loser]].map(([k, a]) => (
-          <button key={k as string} disabled={!a} onClick={() => a && setOpen((a as AssetQuote).id)} className="panel p-4 text-left hover:border-ink-500 transition-colors disabled:opacity-60">
-            <p className="text-[12px] text-fg-faint">{t(k as string)}</p>
-            {a ? <p className="mt-1 text-lg font-semibold text-fg"><span>{(a as AssetQuote).name}</span> <Change a={a as AssetQuote} className="text-base" /></p> : <p className="mt-1 text-sm text-fg-muted">{t('status.unavailable')}</p>}
+          <button key={k as string} disabled={!a} onClick={() => a && setOpen((a as AssetQuote).id)} className="px-3 py-2.5 sm:px-4 min-w-0 text-left hover:bg-ink-850/50 transition-colors disabled:opacity-60">
+            <p className="text-[11px] leading-tight text-fg-faint">{t(k as string)}</p>
+            {a ? <p className="mt-0.5 flex flex-wrap items-baseline gap-x-1.5 text-[15px] sm:text-base font-semibold text-fg"><span>{(a as AssetQuote).id}</span><Change a={a as AssetQuote} className="text-[12.5px]" /></p> : <p className="mt-0.5 text-[13px] text-fg-muted">—</p>}
           </button>
         ))}
       </div>
 
       {/* Search + categories */}
-      <div className="panel p-3 flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
         <label className="sr-only" htmlFor="asset-search">{t('center.search')}</label>
         <input id="asset-search" type="search" value={q} onChange={e => setQ(e.target.value)} placeholder={t('center.searchPh')} className="field sm:flex-1" />
-        <div className="seg flex-wrap" role="tablist" aria-label={t('center.categories')}>
+        <div className="seg max-w-full overflow-x-auto no-scrollbar whitespace-nowrap" role="tablist" aria-label={t('center.categories')}>
           {CATS.filter(c => !(watchOff && c === 'watchlist')).map(c => (
             <button key={c} role="tab" aria-selected={cat === c} onClick={() => setCat(c)} className={`seg-btn ${cat === c ? 'seg-btn-on' : ''}`}>
               {t(`cat.${c}`)}{c === 'watchlist' && watch ? ` (${watch.length})` : ''}
@@ -155,11 +155,11 @@ export function AssetCenter({ onAutomate }: { onAutomate: (assetId: string) => v
         <div className="panel px-6 py-10 text-center"><p className="text-sm text-fg">{cat === 'watchlist' && !q ? t('center.watchEmpty') : t('center.noMatch')}</p>
           {cat === 'watchlist' && !q && <p className="text-[13px] text-fg-faint mt-1">{t('center.watchEmptyBody')}</p>}</div>
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <ul className="grid gap-2.5 sm:gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {list.map(a => {
             const on = (watch || []).includes(a.id)
             return (
-              <li key={a.id} className="panel asset-card p-4 flex flex-col gap-3">
+              <li key={a.id} className="panel asset-card p-3.5 flex flex-col gap-2.5">
                 <div className="flex items-start gap-3">
                   <button onClick={() => setOpen(a.id)} className="min-w-0 flex-1 text-left">
                     <p className="text-[15px] font-semibold text-fg truncate">{a.name}</p>
