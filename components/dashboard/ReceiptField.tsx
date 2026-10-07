@@ -57,14 +57,14 @@ export function ReceiptField({ file, onChange, disabled, id = 'receipt', label, 
       {!file ? (
         <label
           htmlFor={id}
-          className={`flex flex-col items-center justify-center gap-2 min-h-[104px] px-4 py-5 rounded-lg border border-dashed border-ink-600 bg-ink-950/40 text-center transition-colors ${disabled ? 'opacity-60' : 'cursor-pointer hover:border-ink-500 hover:bg-ink-850/60'}`}
+          className={`flex flex-col items-center justify-center gap-2 min-h-[104px] px-4 py-5 rounded-xl border border-dashed border-ink-600 bg-ink-950/40 text-center transition-colors ${disabled ? 'opacity-60' : 'cursor-pointer hover:border-ink-500 hover:bg-ink-850/60'}`}
         >
           <IconFile width={20} height={20} className="text-fg-faint" aria-hidden="true" />
           <span className="text-[14px] font-medium text-fg">{choose ?? t('deposit.chooseFile')}</span>
           <span className="text-xs text-fg-faint">{help ?? t('deposit.receiptHelp')}</span>
         </label>
       ) : (
-        <div className={`flex items-center gap-3 p-3 rounded-lg border bg-ink-950/40 ${tooBig || wrongType ? 'border-danger-400/50' : 'border-ink-700'}`}>
+        <div className={`flex items-center gap-2 p-3 rounded-xl border bg-ink-950/40 ${tooBig || wrongType ? 'border-danger-400/50' : 'border-ink-700'}`}>
           <span className="shrink-0 w-12 h-12 rounded-md overflow-hidden border border-ink-700 bg-ink-850 flex items-center justify-center">
             {preview
               // eslint-disable-next-line @next/next/no-img-element
@@ -79,6 +79,8 @@ export function ReceiptField({ file, onChange, disabled, id = 'receipt', label, 
             </span>
           </span>
           {!tooBig && !wrongType && <IconCheck width={16} height={16} className="shrink-0 text-emerald-400" aria-hidden="true" />}
+          {/* Replace re-opens the same file picker (same input, same checks). */}
+          {!disabled && <label htmlFor={id} className="shrink-0 cursor-pointer rounded-md px-2 h-9 inline-flex items-center text-[12.5px] text-fg-muted hover:text-fg hover:bg-ink-800 transition-colors">Replace</label>}
           <button
             type="button"
             onClick={clear}

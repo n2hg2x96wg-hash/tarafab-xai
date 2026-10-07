@@ -791,12 +791,25 @@ body.dialog-open #chat-application { visibility: hidden !important; }
 .cc-app main tbody tr:hover { background: rgb(var(--contrast) / .025); }
 /* Section headings inside panels */
 .cc-app main .panel > h2:first-child, .cc-app main .panel > h3:first-child { letter-spacing: -.01em; }
-/* Deposit method choices */
-.dep-choice { position: relative; display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 10px 12px; border-radius: 14px; cursor: pointer;
-  border: 1px solid rgb(var(--contrast) / .08); background: linear-gradient(180deg, rgb(var(--contrast) / .04), rgb(var(--contrast) / .012));
-  transition: border-color .15s ease, background-color .15s ease, transform .15s ease, box-shadow .15s ease; }
-.dep-choice:hover { border-color: rgb(var(--contrast) / .16); }
+/* Deposit page primitives (reusable: section heading, group label, option
+   row, compact surface, warning, bottom sheet). Light structure, no giant
+   containers. */
+.dep-h { font-size: 15px; font-weight: 600; color: rgb(var(--fg)); letter-spacing: -.01em; }
+.dep-group { margin-bottom: 8px; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .12em; color: rgb(var(--fg-faint)); }
+.dep-choice { position: relative; display: flex; align-items: center; gap: 12px; min-height: 54px; padding: 8px 12px; border-radius: 12px; cursor: pointer;
+  border: 1px solid rgb(var(--contrast) / .07); background: rgb(var(--contrast) / .025);
+  transition: border-color .15s ease, background-color .15s ease, transform .15s ease; }
+.dep-choice:hover { border-color: rgb(var(--contrast) / .14); background: rgb(var(--contrast) / .04); }
 .dep-choice:active { transform: scale(.99); }
-.dep-choice:focus-within { box-shadow: 0 0 0 3px rgb(var(--accent) / .3); }
-.dep-choice-on { border-color: rgb(var(--accent) / .5); background: linear-gradient(180deg, rgb(var(--accent) / .12), rgb(var(--accent) / .03)); box-shadow: 0 8px 22px -14px rgb(var(--accent) / .55); }
-@media (prefers-reduced-motion: reduce) { .dep-choice, .dep-choice:active { transition: none; transform: none; } }
+.dep-choice:has(:focus-visible) { outline: 2px solid rgb(var(--accent) / .45); outline-offset: 2px; }
+.dep-choice-on { border-color: rgb(var(--accent) / .55); background: rgb(var(--accent) / .06); }
+.dep-radio { width: 16px; height: 16px; flex-shrink: 0; border-radius: 9999px; border: 1.5px solid rgb(var(--contrast) / .25); transition: border-color .15s ease, box-shadow .15s ease; }
+.dep-radio-on { border: 5px solid rgb(var(--accent)); }
+.dep-surface { padding: 16px; border-radius: 16px; border: 1px solid rgb(var(--contrast) / .08);
+  background: linear-gradient(180deg, rgb(var(--contrast) / .04), rgb(var(--contrast) / .012)); box-shadow: inset 0 1px 0 rgb(var(--contrast) / .05); }
+.dep-warn { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; font-size: 12.5px; line-height: 1.5;
+  color: rgb(var(--fg-muted)); background: rgb(var(--warning-500) / .07); border: 1px solid rgb(var(--warning-500) / .25); }
+.dep-sheet { background: linear-gradient(180deg, rgb(var(--contrast) / .05), rgb(var(--contrast) / .015)), rgb(var(--ink-900) / .97);
+  border: 1px solid rgb(var(--contrast) / .1); box-shadow: 0 -20px 50px -20px rgb(0 0 0 / .7); animation: sheet-in .22s cubic-bezier(.2,.7,.2,1) both; }
+@keyframes sheet-in { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .dep-choice, .dep-choice:active { transition: none; transform: none; } .dep-sheet { animation: none; } }
