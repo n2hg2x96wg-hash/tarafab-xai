@@ -808,6 +808,12 @@ const ko: DeepPartial<typeof en> = {
     none: '일치하는 항목이 없습니다.',
   },
   txc: {
+    typeGroup: '거래 유형',
+    gDeposits: '입금',
+    gInvestments: '투자',
+    gWithdrawals: '출금',
+    gProfit: '수익',
+    gFees: '수수료',
     search: '참조 번호, 유형 또는 금액 검색',
     anyStatus: '모든 상태',
     from: '시작일',

@@ -817,6 +817,18 @@ body.dialog-open #chat-application { visibility: hidden !important; }
 .no-scrollbar { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 
+/* Transactions type chips: one row, scrolls sideways, never wraps. The padding
+   keeps the focus ring inside the scroll box so it is never clipped. */
+.tx-chips { display: flex; flex-wrap: nowrap; gap: 6px; overflow-x: auto; padding-block: 4px; scroll-padding-inline: 16px; -webkit-overflow-scrolling: touch; }
+.tx-chip { flex: none; display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 12px; border-radius: 999px; white-space: nowrap;
+  font-size: 13px; color: rgb(var(--fg-muted)); background: rgb(var(--contrast) / .03); border: 1px solid rgb(var(--contrast) / .09);
+  transition: color .15s ease, background-color .15s ease, border-color .15s ease; }
+.tx-chip:hover { color: rgb(var(--fg)); border-color: rgb(var(--contrast) / .16); }
+.tx-chip:focus-visible { outline: 2px solid rgb(var(--focus)); outline-offset: 1px; }
+.tx-chip-on, .tx-chip-on:hover { color: rgb(var(--fg)); font-weight: 600; background: rgb(var(--accent) / .1); border-color: rgb(var(--accent) / .5); }
+.tx-chip-on svg { color: rgb(var(--accent-text)); }
+@media (prefers-reduced-motion: reduce) { .tx-chip { transition: none; } }
+
 /* Payment-method sheet: slide/fade out on close (same feel as sheet-in). */
 .sheet-out { animation: sheet-out .18s cubic-bezier(.4,0,1,1) both !important; }
 @keyframes sheet-out { to { transform: translateY(100%); opacity: .6; } }

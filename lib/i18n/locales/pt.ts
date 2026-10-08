@@ -805,6 +805,12 @@ const pt: DeepPartial<typeof en> = {
     none: 'Nenhuma secção corresponde.',
   },
   txc: {
+    typeGroup: 'Tipo de transação',
+    gDeposits: 'Depósitos',
+    gInvestments: 'Investimentos',
+    gWithdrawals: 'Levantamentos',
+    gProfit: 'Lucro',
+    gFees: 'Taxas',
     search: 'Pesquisar referência, tipo ou montante',
     anyStatus: 'Qualquer estado',
     from: 'De',

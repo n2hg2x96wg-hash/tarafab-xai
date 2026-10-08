@@ -816,6 +816,12 @@ const en = {
     none: 'No matching sections.',
   },
   txc: {
+    typeGroup: 'Transaction type',
+    gDeposits: 'Deposits',
+    gInvestments: 'Investments',
+    gWithdrawals: 'Withdrawals',
+    gProfit: 'Profit',
+    gFees: 'Fees',
     search: 'Search reference, type or amount',
     anyStatus: 'Any status',
     from: 'From date',

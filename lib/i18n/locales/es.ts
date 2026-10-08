@@ -805,6 +805,12 @@ const es: DeepPartial<typeof en> = {
     none: 'No hay secciones que coincidan.',
   },
   txc: {
+    typeGroup: 'Tipo de transacción',
+    gDeposits: 'Depósitos',
+    gInvestments: 'Inversiones',
+    gWithdrawals: 'Retiros',
+    gProfit: 'Beneficio',
+    gFees: 'Comisiones',
     search: 'Buscar referencia, tipo o importe',
     anyStatus: 'Cualquier estado',
     from: 'Desde',

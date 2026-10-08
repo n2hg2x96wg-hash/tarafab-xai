@@ -51,7 +51,7 @@ import { Rise, useScrollDepth } from '@/components/dashboard/Motion'
 import { feedStatus } from '@/lib/marketStatus'
 import { useAssets } from '@/components/markets/assetStore'
 import { effectiveState } from '@/lib/marketStatus'
-import { isAccountCredit, txSign } from '@/lib/txCategory'
+import { isAccountCredit, txCategory, txSign, type TxCategory } from '@/lib/txCategory'
 
 const BTC_ADDRESS = 'bc1qvpwmdln4nm6xa2k9q26l84pg4ud0uuqzk83053'
 
@@ -1075,19 +1075,32 @@ const STATUS_GROUPS: Record<string, string[]> = {
   rejected: ['rejected', 'failed'],
 }
 
+// The six primary type filters. A group lists the categories it covers
+// (lib/txCategory, decided by the stored source): Deposits includes account
+// credits, Fees includes the Tarafab Service Fee. Profit is investment returns
+// only — an admin profit-balance adjustment, a balance adjustment or a transfer
+// is not guessed into a group and appears under All, with its own row label.
+const TX_GROUPS: { id: string; label: TKey; cats: TxCategory[] }[] = [
+  { id: 'all', label: 'common.all', cats: [] },
+  { id: 'deposits', label: 'txc.gDeposits', cats: ['deposit'] },
+  { id: 'investments', label: 'txc.gInvestments', cats: ['investment'] },
+  { id: 'withdrawals', label: 'txc.gWithdrawals', cats: ['withdrawal'] },
+  { id: 'profit', label: 'txc.gProfit', cats: ['profit'] },
+  { id: 'fees', label: 'txc.gFees', cats: ['fee'] },
+]
+
 function TransactionsTab({ txs }: { txs: Tx[] }) {
-  const [filter, setFilter] = useState('')
+  const [filter, setFilter] = useState('all')
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const { t, intl } = useI18n()
-  const types = Array.from(new Set(txs.map(x => txLabel(x, t))))
   // Everything filters the records already loaded; nothing is re-fetched.
   const q = query.trim().toLowerCase()
+  const group = TX_GROUPS.find(g => g.id === filter) || TX_GROUPS[0]
   const filtered = txs.filter(x => {
-    // Filter on the client-facing label so the tabs match the rows they show.
-    if (filter && txLabel(x, t) !== filter) return false
+    if (group.cats.length && !group.cats.includes(txCategory(x))) return false
     if (status && !STATUS_GROUPS[status]?.includes(x.status)) return false
     const day = x.created_at.slice(0, 10)
     if (from && day < from) return false
@@ -1099,6 +1112,19 @@ function TransactionsTab({ txs }: { txs: Tx[] }) {
 
   return (
     <div className="space-y-4">
+      {/* One row of type chips; scrolls sideways on narrow screens, never wraps. */}
+      <div role="group" aria-label={t('txc.typeGroup')} className="tx-chips no-scrollbar -mx-4 px-4 sm:-mx-1 sm:px-1" data-tx-chips>
+        {TX_GROUPS.map(g => {
+          const on = filter === g.id
+          return (
+            <button key={g.id} type="button" aria-pressed={on} onClick={() => setFilter(g.id)}
+              className={`tx-chip ${on ? 'tx-chip-on' : ''}`} data-tx-group={g.id}>
+              {on && <svg aria-hidden viewBox="0 0 16 16" className="h-3 w-3 shrink-0" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><path d="M3.5 8.5l3 3 6-7" /></svg>}
+              {t(g.label)}
+            </button>
+          )
+        })}
+      </div>
       <div className="grid gap-2.5 sm:gap-3 sm:grid-cols-[1fr_auto] lg:grid-cols-[1fr_auto_auto_auto]" data-tx-filters>
         <label className="sr-only" htmlFor="tx-search">{t('txc.search')}</label>
         <input id="tx-search" type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder={t('txc.search')} className="field" />
@@ -1120,21 +1146,6 @@ function TransactionsTab({ txs }: { txs: Tx[] }) {
         <div className="flex items-center justify-between gap-3 text-[13px] text-fg-muted">
           <span>{filtered.length === 1 ? t('dash.txCountOne') : t('dash.txCountMany', { n: filtered.length })}</span>
           <button onClick={() => { setQuery(''); setStatus(''); setFrom(''); setTo('') }} className="btn btn-sm btn-ghost">{t('txc.clear')}</button>
-        </div>
-      )}
-      {types.length > 1 && (
-        <div className="seg flex-wrap max-w-full" role="tablist">
-          {['', ...types].map(ty => (
-            <button
-              key={ty || 'all'}
-              onClick={() => setFilter(ty)}
-              role="tab"
-              aria-selected={filter === ty}
-              className={`seg-btn ${filter === ty ? 'seg-btn-on' : ''}`}
-            >
-              {ty || t('common.all')}
-            </button>
-          ))}
         </div>
       )}
 
@@ -1160,7 +1171,7 @@ function TransactionsTab({ txs }: { txs: Tx[] }) {
                       <td className="px-5 py-3.5">
                         <span className="inline-flex items-center gap-2.5"><TxIcon type={tx.type} tx={tx} /><span className="text-fg">{txLabel(tx, t)}</span></span>
                         {isAccountCredit(tx) ? <p className="text-xs text-fg-faint pl-[42px]">{t('dash.txType.accountCredit')}</p>
-                          : tx.method && tx.type !== 'adjustment' && <p className="text-xs text-fg-faint pl-[42px]">{tx.type === 'withdrawal' ? t(tx.method === 'profit_balance' ? 'withdraw.fromProfit' : 'withdraw.fromAvailable') : methodLabel(tx.method, t)}</p>}
+                          : tx.method && tx.type !== 'adjustment' && methodLabel(tx.method, t) !== txLabel(tx, t) && <p className="text-xs text-fg-faint pl-[42px]">{tx.type === 'withdrawal' ? t(tx.method === 'profit_balance' ? 'withdraw.fromProfit' : 'withdraw.fromAvailable') : methodLabel(tx.method, t)}</p>}
                       </td>
                       <td className={`px-5 py-3.5 text-right tabular-nums ${txSign(tx) > 0 ? 'price-up' : 'text-fg'}`} data-signed-amount>{signedAmount(tx)}</td>
                       <td className="px-5 py-3.5 text-right text-fg-muted tabular-nums">{tx.fee ? `$${fmt(tx.fee)}` : '-'}</td>
