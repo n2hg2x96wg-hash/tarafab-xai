@@ -15,7 +15,7 @@ import { authFetch, errorText, newRequestKey, readJson, RequestError } from '@/l
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
 import {
   EmptyState, OPEN_STATUSES, StatusTag, SUPPORT_EMAIL, TxIcon, fmt, methodLabel, txLabel,
-  type Account, type Tx, type UserInfo,
+  type Account, type Tx, type UserInfo, PageIntro,
 } from '@/components/dashboard/shared'
 import { LanguageSelector } from '@/components/LanguageSelector'
 import { ThemeSelector } from '@/components/ThemeSelector'
@@ -482,6 +482,7 @@ export default function DashboardPage() {
                         activeNav === id ? 'nav-item-on font-medium' : 'nav-item'
                       }`}
                       aria-current={activeNav === id ? 'page' : undefined}
+                      data-nav-id={id}
                     >
                       <I width={17} height={17} className="shrink-0 transition-colors" aria-hidden="true" />
                       <span className={`flex-1 min-w-0 ${collapsed ? 'lg:sr-only' : ''}`}>{labelOf({ id, label })}</span>
@@ -562,6 +563,8 @@ export default function DashboardPage() {
             </div>
           )}
           <PremiumGateHost onSeePremium={() => go('premium')} />
+          {/* Pages without their own title get the shared intro (menu label + one line). */}
+          {current && INTRO_SUB[activeNav] !== undefined && <PageIntro title={labelOf(current)} sub={INTRO_SUB[activeNav] ? t(INTRO_SUB[activeNav] as TKey) : undefined} />}
           <ErrorBoundary key={activeNav} label={current ? labelOf(current) : undefined}>
             {activeNav === 'overview' && <OverviewTab whatsNew={whatsNewNode} name={displayName} account={account} txs={txs} go={go} can={id => !hiddenNav.includes(id)} labelOf={labelOf} />}
             {activeNav === 'markets' && <div className="space-y-6"><AssetCenter onAutomate={id => { setAutoAsset(id); go('automations') }} /><MarketsTab /></div>}
@@ -596,6 +599,12 @@ export default function DashboardPage() {
 
 /* Phone navigation: the four places people go most, plus the full menu.
    Hidden sections drop out; the bar is a phone layout, not a shrunken sidebar. */
+// Sections whose content has no title of its own, and the i18n key of their subtitle ('' = title only).
+const INTRO_SUB: Record<string, string> = {
+  transactions: '', depositHistory: '', withdrawalHistory: '', performance: 'performance.body', profile: '', security: 'security.body',
+  notifications: 'notices.body', preferences: 'prefs.body', support: 'support.body', marketActivity: '', priceHistory: '',
+}
+
 function BottomNav({ active, can, go, onMenu, unread, t }: {
   active: string; can: (id: string) => boolean; go: (id: string) => void; onMenu: () => void; unread: number; t: (k: TKey) => string
 }) {
@@ -1091,7 +1100,7 @@ function TransactionsTab({ txs }: { txs: Tx[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="panel p-3 sm:p-4 grid gap-3 sm:grid-cols-[1fr_auto] lg:grid-cols-[1fr_auto_auto_auto]">
+      <div className="grid gap-2.5 sm:gap-3 sm:grid-cols-[1fr_auto] lg:grid-cols-[1fr_auto_auto_auto]" data-tx-filters>
         <label className="sr-only" htmlFor="tx-search">{t('txc.search')}</label>
         <input id="tx-search" type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder={t('txc.search')} className="field" />
         <label className="sr-only" htmlFor="tx-status">{t('dash.colStatus')}</label>

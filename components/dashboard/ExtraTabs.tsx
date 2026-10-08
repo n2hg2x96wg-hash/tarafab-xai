@@ -171,7 +171,6 @@ export function SecurityTab({ user }: { user: UserInfo | null }) {
   ]
   return (
     <div className="max-w-lg space-y-4">
-      <p className="text-sm text-fg-muted">{t('security.body')}</p>
       <div className="panel p-5 sm:p-6">
         <dl className="divide-y divide-ink-700">
           {rows.map(([label, value]) => (
@@ -204,7 +203,6 @@ export function PreferencesTab() {
   const { t } = useI18n()
   return (
     <div className="max-w-lg space-y-4">
-      <p className="text-sm text-fg-muted">{t('prefs.body')}</p>
       <div className="panel p-5 sm:p-6"><ThemeSelector variant="list" /></div>
       <div className="panel p-5 sm:p-6"><LanguageSelector variant="list" /></div>
       <div className="panel p-5 sm:p-6">
@@ -228,7 +226,6 @@ export function SupportTab() {
   }
   return (
     <div className="max-w-lg space-y-4">
-      <p className="text-sm text-fg-muted">{t('support.body')}</p>
       <div className="panel p-5 sm:p-6 space-y-3">
         <a href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Account support')}`} className="btn btn-solid w-full">
           <IconMail width={17} height={17} aria-hidden="true" />{t('support.email')}
@@ -287,7 +284,6 @@ export function NotificationsTab({ notices, seenAt, team, onRead, go }: {
   const when = (d: string) => new Date(d).toLocaleString(intl, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
   return (
     <div className="max-w-2xl space-y-5 panel-in">
-      <p className="text-sm text-fg-muted">{t('notices.body')}</p>
 
       {team.length > 0 && (
         <section className="panel overflow-hidden" aria-labelledby="nt-team">
@@ -370,17 +366,17 @@ export function PerformanceTab({ txs, hasMore }: { txs: Tx[]; hasMore: boolean }
 
   return (
     <div className="space-y-4 max-w-4xl panel-in">
-      <p className="text-sm text-fg-muted">{t('performance.body')}</p>
-      <div className="grid sm:grid-cols-2 gap-4">
-        <div className="panel p-5">
-          <p className="text-[13px] text-fg-muted">{t('performance.returnsTotal')}</p>
-          <p className={`mt-1 text-2xl font-semibold tabular-nums ${totals.returns > 0 ? 'price-up' : 'text-fg'}`}>{money(totals.returns)}</p>
-          <p className="text-xs text-fg-faint mt-1">{t('performance.credits')}: {credits.length}</p>
+      {/* Two headline figures in one strip, not two cards. */}
+      <div className="panel grid grid-cols-2 divide-x divide-ink-700/70" data-perf-summary>
+        <div className="p-4 min-w-0">
+          <p className="text-[12px] text-fg-faint">{t('performance.returnsTotal')}</p>
+          <p className={`mt-0.5 text-[20px] sm:text-2xl font-semibold tabular-nums break-words ${totals.returns > 0 ? 'price-up' : 'text-fg'}`}>{money(totals.returns)}</p>
+          <p className="text-[11.5px] text-fg-faint mt-0.5">{t('performance.credits')}: {credits.length}</p>
         </div>
-        <div className="panel p-5">
-          <p className="text-[13px] text-fg-muted">{t('performance.netDeposits')}</p>
-          <p className="mt-1 text-2xl font-semibold text-fg tabular-nums">{money(totals.deposited - totals.withdrawn)}</p>
-          <p className="text-xs text-fg-faint mt-1">{t('performance.netDepositsHint')}</p>
+        <div className="p-4 min-w-0">
+          <p className="text-[12px] text-fg-faint">{t('performance.netDeposits')}</p>
+          <p className="mt-0.5 text-[20px] sm:text-2xl font-semibold text-fg tabular-nums break-words">{money(totals.deposited - totals.withdrawn)}</p>
+          <p className="text-[11.5px] text-fg-faint mt-0.5">{t('performance.netDepositsHint')}</p>
         </div>
       </div>
       <section className="panel overflow-hidden" aria-labelledby="pf-months">

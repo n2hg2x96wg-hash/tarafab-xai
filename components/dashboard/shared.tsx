@@ -78,8 +78,16 @@ export function txLabel(tx: Tx, t: T) {
   return t(`dash.txType.${tx.type}` as TKey) || tx.type.replace(/_/g, ' ')
 }
 
+// Display name for a stored method code. Known codes are translated; common
+// coin codes read as names; anything else is tidied (never shown raw like "btc").
+const COIN: Record<string, string> = { btc: 'Bitcoin (BTC)', eth: 'Ethereum (ETH)', ethereum: 'Ethereum (ETH)', usdt: 'Tether (USDT)', usdc: 'USD Coin (USDC)' }
 export function methodLabel(method: string, t: T) {
-  return t(`dash.method.${method}` as TKey) || method.replace(/_/g, ' ')
+  const known = t(`dash.method.${method}` as TKey)
+  if (known && known !== `dash.method.${method}`) return known
+  const k = method.toLowerCase()
+  if (COIN[k]) return COIN[k]
+  const words = method.replace(/[_-]+/g, ' ').trim()
+  return words ? words.charAt(0).toUpperCase() + words.slice(1) : method
 }
 
 export function TxIcon({ type }: { type: string }) {
@@ -88,6 +96,17 @@ export function TxIcon({ type }: { type: string }) {
     <span className="w-8 h-8 rounded-md bg-ink-800 border border-ink-700 flex items-center justify-center text-fg-muted shrink-0">
       <I width={16} height={16} />
     </span>
+  )
+}
+
+// One page intro for every client page: the same title size and muted
+// subtitle as Deposit / Withdraw / Wallet, so no page starts differently.
+export function PageIntro({ title, sub }: { title: string; sub?: string }) {
+  return (
+    <header className="mb-5" data-page-intro>
+      <h2 className="text-[22px] font-semibold tracking-tight text-fg [text-wrap:balance] break-normal hyphens-none">{title}</h2>
+      {sub && <p className="mt-0.5 text-[14px] text-fg-muted max-w-2xl">{sub}</p>}
+    </header>
   )
 }
 
