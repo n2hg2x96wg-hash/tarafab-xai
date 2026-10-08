@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useI18n } from '@/lib/i18n/I18nProvider'
@@ -13,6 +13,9 @@ export default function SignInPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  // Arrived here because the session could not be renewed (see SESSION_EXPIRED).
+  const [expired, setExpired] = useState(false)
+  useEffect(() => { setExpired(new URLSearchParams(window.location.search).get('expired') === '1') }, [])
   const router = useRouter()
   const supabase = createClient()
   const { t } = useI18n()
@@ -42,7 +45,9 @@ export default function SignInPage() {
           return
         }
         if (data.access_token && data.refresh_token) {
-          await supabase.auth.setSession({ access_token: data.access_token, refresh_token: data.refresh_token })
+          // Never continue to the dashboard without a stored session (it would bounce straight back here).
+          const { error: sessionError } = await supabase.auth.setSession({ access_token: data.access_token, refresh_token: data.refresh_token })
+          if (sessionError) { setError(t('errors.network')); return }
         }
         // Only a dashboard section name is accepted as the return target.
         const next = new URLSearchParams(window.location.search).get('next') || ''
@@ -62,6 +67,7 @@ export default function SignInPage() {
       footer={<>{t('auth.noAccount')} <Link href="/sign-up" className="text-fg underline underline-offset-4 hover:text-accent">{t('common.openAccount')}</Link></>}
     >
       <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+        {expired && !error && <p role="status" className="alert alert-info text-sm" data-session-expired>Your session ended for your security. Sign in again to continue where you left off.</p>}
         {error && <FormError message={error} />}
 
         <div>

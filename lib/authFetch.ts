@@ -16,6 +16,10 @@ export class RequestError extends Error {
   constructor(message: string, public status: number, public code?: ErrorCode) { super(message) }
 }
 
+// Fired on window when a request was refused and the refresh token could not
+// renew the session (expired, revoked or signed out elsewhere).
+export const SESSION_EXPIRED = 'tarafab:session-expired'
+
 async function currentToken(force = false) {
   const auth = createClient().auth
   if (force) {
@@ -53,6 +57,9 @@ export async function authFetch(url: string, init: RequestInit = {}, timeoutMs =
         if (res.status === 401) {
           const fresh = await currentToken(true).catch(() => null)
           if (fresh) res = await send(fresh)
+          // The session could not be renewed: tell the app once so it can
+          // clear the screen and send the user to sign in (see SESSION_EXPIRED).
+          else if (typeof window !== 'undefined') window.dispatchEvent(new Event(SESSION_EXPIRED))
         }
         return res
       })(),

@@ -11,7 +11,7 @@ import { FormError, Spinner } from '@/components/AuthShell'
 import { TrustBar } from '@/components/LandingExtras'
 import { TradingStatusCard } from '@/components/TradingStatus'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { authFetch, errorText, newRequestKey, readJson, RequestError } from '@/lib/authFetch'
+import { authFetch, errorText, newRequestKey, readJson, RequestError, SESSION_EXPIRED } from '@/lib/authFetch'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
 import {
   EmptyState, OPEN_STATUSES, StatusTag, SUPPORT_EMAIL, TxIcon, fmt, methodLabel, txLabel,
@@ -224,7 +224,7 @@ export default function DashboardPage() {
       }
       if (notes.status === 'fulfilled' && Array.isArray(notes.value.notifications)) setTeamNotices(notes.value.notifications)
       const expired = [acc, tx].some(r => r.status === 'rejected' && r.reason instanceof RequestError && r.reason.status === 401)
-      if (expired) router.replace('/sign-in')
+      if (expired) window.dispatchEvent(new Event(SESSION_EXPIRED))
       lastLoad.current = Date.now()
       setRefreshing(false)
     })()
@@ -255,11 +255,29 @@ export default function DashboardPage() {
 
   useEffect(() => { init() }, [init])
 
+  // Session could not be renewed (refresh token expired or revoked): hide the
+  // account's figures at once, drop the dead session from this browser only
+  // (local scope, no network), and go to sign-in keeping the current section
+  // so the user lands back where they were. Runs once per page.
+  const expiredOnce = useRef(false)
+  useEffect(() => {
+    const onExpired = () => {
+      if (expiredOnce.current) return
+      expiredOnce.current = true
+      setAccount(null); setTxs([]); setTeamNotices([])
+      const h = window.location.hash.slice(1)
+      router.replace(`/sign-in?expired=1${/^[a-zA-Z]{2,32}$/.test(h) ? `&next=${encodeURIComponent(h)}` : ''}`)
+      supabase.auth.signOut({ scope: 'local' }).catch(() => {})
+    }
+    window.addEventListener(SESSION_EXPIRED, onExpired)
+    return () => window.removeEventListener(SESSION_EXPIRED, onExpired)
+  }, [supabase, router])
+
   // One listener per mounted dashboard, removed on unmount. Signing out in
   // another tab signs this tab out too.
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT') { router.replace('/sign-in'); return }
+      if (event === 'SIGNED_OUT') { if (!expiredOnce.current) router.replace('/sign-in'); return }
       // A different account signed in (e.g. in another tab): never show the
       // previous account's figures under the new session. Reload cleanly.
       if (session?.user && userId.current && session.user.id !== userId.current) window.location.replace('/dashboard')
