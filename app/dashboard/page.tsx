@@ -1028,12 +1028,16 @@ function OverviewTab({ name, account, txs, go, can, labelOf, whatsNew }: { whats
 // The chart header's status comes from the same freshness rule as every other
 // market label (lib/marketStatus): "Live" only for a current BTC quote.
 function BtcFeedState() {
-  const { assets, error } = useAssets()
+  const { assets, error, reload } = useAssets()
   const btc = assets?.find(a => a.id === 'BTC')
-  const st = btc ? effectiveState(btc, !!error) : assets ? 'unavailable' : null
+  const st = btc ? effectiveState(btc, !!error) : assets || error ? 'unavailable' : null
   if (!st) return <span className="text-fg-faint">…</span>
   const [label, dot] = st === 'live' ? ['Live', 'bg-emerald-400 live-dot'] : st === 'delayed' ? ['Delayed', 'bg-amber-400'] : st === 'stale' ? ['Stale', 'bg-amber-400'] : ['Unavailable', 'bg-fg-faint']
-  return <span className="inline-flex items-center gap-1.5 text-fg-faint" data-btc-feed={st}><span className={`w-1.5 h-1.5 rounded-full ${dot}`} aria-hidden="true" />{label}</span>
+  const badge = <><span className={`w-1.5 h-1.5 rounded-full ${dot}`} aria-hidden="true" />{label}</>
+  // Not live: one tap re-checks the feed (same request the 30-second refresh makes).
+  return st === 'live'
+    ? <span className="inline-flex items-center gap-1.5 text-fg-faint" data-btc-feed={st}>{badge}</span>
+    : <button onClick={() => reload()} className="inline-flex items-center gap-1.5 text-fg-faint hover:text-fg-muted" data-btc-feed={st} title="Check again">{badge}</button>
 }
 
 function MarketsTab() {
