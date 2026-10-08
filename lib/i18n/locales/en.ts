@@ -405,6 +405,8 @@ const en = {
       deposit: 'Deposit',
       withdrawal: 'Withdrawal',
       adjustment: 'Adjustment',
+      profitAdjustment: 'Profit adjustment',
+      accountCredit: 'Account credit',
       profit: 'Profit',
       return: 'Return',
       transfer: 'Transfer',

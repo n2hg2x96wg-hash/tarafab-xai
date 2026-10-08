@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { isAccountCredit, txCategory } from '@/lib/txCategory'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -133,7 +134,7 @@ export default function ClientDetailPage() {
       (supabase.from('accounts') as any)
         .select('*').eq('user_id', id).maybeSingle() as Promise<{ data: Account | null; error: { message: string } | null }>,
       (supabase.from('transactions') as any)
-        .select('id, type, method, direction, amount, status, notes, created_at, effective_at')
+        .select('id, type, method, direction, source, amount, status, notes, created_at, effective_at')
         .eq('user_id', id)
         .order('effective_at', { ascending: false })
         .limit(20) as Promise<{ data: Transaction[] | null; error: { message: string } | null }>,
@@ -400,7 +401,7 @@ export default function ClientDetailPage() {
               onClick={() => setTab('adjust')}
               className="text-sm font-semibold text-accent-ink bg-accent hover:bg-accent-hover px-5 py-3 rounded-xl transition-colors shadow-[0_8px_24px_-10px_rgba(247,147,26,0.6)]"
             >
-              Adjust balance
+              Fund / adjust balance
             </button>
             <button
               onClick={() => setTab('edit')}
@@ -429,8 +430,8 @@ export default function ClientDetailPage() {
       {/* Adjust tab */}
       {tab === 'adjust' && (
         <div className="glass rounded-2xl p-5 sm:p-6 border border-white/[0.08] max-w-lg">
-          <h2 className="text-sm font-semibold text-white mb-1">Account Balance &amp; Profit</h2>
-          <p className="text-xs text-slate-500 mb-5">All adjustments are logged to the audit trail with full details.</p>
+          <h2 className="text-sm font-semibold text-white mb-1">Fund account or adjust a balance</h2>
+          <p className="text-xs text-slate-500 mb-5">All changes are logged to the audit trail with full details. To record an investment&rsquo;s return, use that investment&rsquo;s profit control: only that is shown to the client as Profit.</p>
 
           {adjustSuccess && (
             <div className="mb-5 p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm flex items-center gap-2">
@@ -483,6 +484,15 @@ export default function ClientDetailPage() {
                   </button>
                 ))}
               </div>
+              {/* How the client will see the resulting entry (same rule as the database: lib/txCategory). */}
+              <p className="mt-2 text-[11px] text-slate-400" data-client-sees>
+                Client sees: <span className="text-slate-200 font-medium">{
+                  adjustForm.field === 'available_balance'
+                    ? (adjustForm.operation === 'debit' ? 'Adjustment (debit)' : adjustForm.operation === 'credit' ? 'Deposit · Account credit' : 'Deposit · Account credit if raised, Adjustment if lowered')
+                    : adjustForm.field === 'profit_balance' ? 'Profit adjustment (not an investment return)'
+                    : 'Adjustment'
+                }</span>
+              </p>
             </div>
 
             <div>
@@ -661,9 +671,12 @@ export default function ClientDetailPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-medium text-white capitalize">
-                        {(tx.type === 'adjustment' || tx.type === 'return' ? 'profit' : tx.type).replace(/_/g, ' ')}
-                        {tx.type === 'adjustment' && tx.method && <span className="text-slate-500 font-normal"> · {tx.method.replace(/_/g, ' ')}</span>}
+                      {/* Named by the event that created it (lib/txCategory): an admin top-up of the
+                          spendable balance is a Deposit (account credit), never Profit. */}
+                      <p className="text-sm font-medium text-white capitalize" data-admin-tx-type={txCategory(tx)}>
+                        {txCategory(tx).replace(/_/g, ' ')}
+                        {isAccountCredit(tx) ? <span className="text-slate-500 font-normal normal-case"> · account credit</span>
+                          : tx.type === 'adjustment' && tx.method && <span className="text-slate-500 font-normal"> · {tx.method.replace(/_/g, ' ')}</span>}
                       </p>
                       <p className="text-sm font-semibold text-white shrink-0">
                         ${(tx.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}

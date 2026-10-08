@@ -405,6 +405,8 @@ const ko: DeepPartial<typeof en> = {
       deposit: '입금',
       withdrawal: '출금',
       adjustment: '조정',
+      profitAdjustment: '수익 조정',
+      accountCredit: '계정 입금',
       profit: '수익',
       return: '반환',
       transfer: '이체',

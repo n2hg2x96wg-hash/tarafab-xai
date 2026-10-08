@@ -15,7 +15,7 @@ import { authFetch, errorText, newRequestKey, readJson, RequestError, SESSION_EX
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
 import {
   EmptyState, OPEN_STATUSES, StatusTag, SUPPORT_EMAIL, TxIcon, fmt, methodLabel, txLabel,
-  type Account, type Tx, type UserInfo, PageIntro, SettingsRow, SettingsSection,
+  type Account, type Tx, type UserInfo, PageIntro, SettingsRow, SettingsSection, signedAmount,
 } from '@/components/dashboard/shared'
 import { LanguageSelector } from '@/components/LanguageSelector'
 import { ThemeSelector } from '@/components/ThemeSelector'
@@ -51,6 +51,7 @@ import { Rise, useScrollDepth } from '@/components/dashboard/Motion'
 import { feedStatus } from '@/lib/marketStatus'
 import { useAssets } from '@/components/markets/assetStore'
 import { effectiveState } from '@/lib/marketStatus'
+import { isAccountCredit, txSign } from '@/lib/txCategory'
 
 const BTC_ADDRESS = 'bc1qvpwmdln4nm6xa2k9q26l84pg4ud0uuqzk83053'
 
@@ -1000,14 +1001,14 @@ function OverviewTab({ name, account, txs, go, can, labelOf, whatsNew }: { whats
               {recentTxs.map(tx => (
                 <li key={tx.id} className="flex items-center justify-between gap-4 px-5 py-3.5 transition-colors hover:bg-ink-850/60">
                   <div className="flex items-center gap-3 min-w-0">
-                    <TxIcon type={tx.type} />
+                    <TxIcon type={tx.type} tx={tx} />
                     <div className="min-w-0">
-                      <p className="text-sm text-fg truncate">{txLabel(tx, t)}</p>
+                      <p className="text-sm text-fg truncate">{txLabel(tx, t)}{isAccountCredit(tx) && <span className="text-fg-faint font-normal"> · {t('dash.txType.accountCredit')}</span>}</p>
                       <p className="text-xs text-fg-faint">{new Date(tx.created_at).toLocaleDateString(intl, { month: 'short', day: 'numeric', year: 'numeric' })}</p>
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-sm font-medium text-fg tabular-nums mb-1">${fmt(tx.amount)}</p>
+                    <p className={`text-sm font-medium tabular-nums mb-1 ${txSign(tx) > 0 ? 'price-up' : 'text-fg'}`} data-signed-amount>{signedAmount(tx)}</p>
                     <StatusTag status={tx.status} />
                   </div>
                 </li>
@@ -1157,10 +1158,11 @@ function TransactionsTab({ txs }: { txs: Tx[] }) {
                   {filtered.map(tx => (
                     <tr key={tx.id} className="hover:bg-ink-850 transition-colors">
                       <td className="px-5 py-3.5">
-                        <span className="text-fg">{txLabel(tx, t)}</span>
-                        {tx.method && tx.type !== 'adjustment' && <p className="text-xs text-fg-faint">{tx.type === 'withdrawal' ? t(tx.method === 'profit_balance' ? 'withdraw.fromProfit' : 'withdraw.fromAvailable') : methodLabel(tx.method, t)}</p>}
+                        <span className="inline-flex items-center gap-2.5"><TxIcon type={tx.type} tx={tx} /><span className="text-fg">{txLabel(tx, t)}</span></span>
+                        {isAccountCredit(tx) ? <p className="text-xs text-fg-faint pl-[42px]">{t('dash.txType.accountCredit')}</p>
+                          : tx.method && tx.type !== 'adjustment' && <p className="text-xs text-fg-faint pl-[42px]">{tx.type === 'withdrawal' ? t(tx.method === 'profit_balance' ? 'withdraw.fromProfit' : 'withdraw.fromAvailable') : methodLabel(tx.method, t)}</p>}
                       </td>
-                      <td className="px-5 py-3.5 text-right text-fg tabular-nums">${fmt(tx.amount)}</td>
+                      <td className={`px-5 py-3.5 text-right tabular-nums ${txSign(tx) > 0 ? 'price-up' : 'text-fg'}`} data-signed-amount>{signedAmount(tx)}</td>
                       <td className="px-5 py-3.5 text-right text-fg-muted tabular-nums">{tx.fee ? `$${fmt(tx.fee)}` : '-'}</td>
                       <td className="px-5 py-3.5"><StatusTag status={tx.status} /></td>
                       <td className="px-5 py-3.5 text-xs text-fg-muted font-mono">{tx.reference || '-'}</td>
@@ -1180,16 +1182,16 @@ function TransactionsTab({ txs }: { txs: Tx[] }) {
                   <ul className="divide-y divide-[rgb(var(--contrast)/.06)]">
                     {list.map(tx => (
                       <li key={tx.id} className="flex items-center gap-3 px-4 py-3" data-tx-row={tx.status}>
-                        <TxIcon type={tx.type} />
+                        <TxIcon type={tx.type} tx={tx} />
                         <div className="min-w-0 flex-1">
-                          <p className="text-[14px] text-fg truncate">{txLabel(tx, t)}</p>
+                          <p className="text-[14px] text-fg truncate">{txLabel(tx, t)}{isAccountCredit(tx) && <span className="text-fg-faint"> · {t('dash.txType.accountCredit')}</span>}</p>
                           <p className="text-[12px] text-fg-faint truncate">
                             {new Date(tx.created_at).toLocaleTimeString(intl, { hour: 'numeric', minute: '2-digit' })}
                             {tx.reference ? <> · <span className="font-mono">{tx.reference}</span></> : null}
                           </p>
                         </div>
                         <div className="text-right shrink-0">
-                          <p className="text-[14px] font-semibold text-fg tabular-nums">${fmt(tx.amount)}</p>
+                          <p className={`text-[14px] font-semibold tabular-nums ${txSign(tx) > 0 ? 'price-up' : 'text-fg'}`} data-signed-amount>{signedAmount(tx)}</p>
                           <StatusTag status={tx.status} />
                         </div>
                       </li>

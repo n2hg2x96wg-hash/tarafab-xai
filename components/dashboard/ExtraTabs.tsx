@@ -15,18 +15,22 @@ import {
   EmptyState, OPEN_STATUSES, SettingsRow, SettingsSection, StatusTag, SUPPORT_EMAIL, TxIcon, fmt, methodLabel, txLabel,
   type Account, type Tx, type UserInfo,
 } from './shared'
+import { isAccountCredit, txCategory, txSign } from '@/lib/txCategory'
 
 const money = (n: number) => `$${fmt(n)}`
 
-// Totals from completed records only: deposits credited, withdrawals paid,
-// and returns/profit credited by the team (adjustments with direction credit).
+// Totals from completed records only, by what each record means
+// (lib/txCategory): deposits credited (client deposits and account credits),
+// withdrawals paid, and profit = investment returns only. An admin top-up is
+// never counted as profit.
 export function txTotals(txs: Tx[]) {
   let deposited = 0, withdrawn = 0, returns = 0
   for (const x of txs) {
     if (x.status !== 'completed' && x.status !== 'approved') continue
-    if (x.type === 'deposit') deposited += Number(x.amount)
-    else if (x.type === 'withdrawal') withdrawn += Number(x.amount)
-    else if (x.type === 'adjustment' && x.direction === 'credit') returns += Number(x.amount)
+    const c = txCategory(x), sign = txSign(x)
+    if (c === 'deposit' && sign >= 0) deposited += Number(x.amount)
+    else if (c === 'withdrawal') withdrawn += Number(x.amount)
+    else if (c === 'profit') returns += sign < 0 ? -Number(x.amount) : Number(x.amount)
   }
   return { deposited, withdrawn, returns }
 }
@@ -98,7 +102,8 @@ export function HistoryTab({ kind, txs, hasMore, loadingMore, onLoadMore, go }: 
   kind: 'deposit' | 'withdrawal'; txs: Tx[]; hasMore: boolean; loadingMore: boolean; onLoadMore: () => void; go: (id: string) => void
 }) {
   const { t, intl } = useI18n()
-  const rows = txs.filter(x => x.type === kind)
+  // By meaning: Deposit history includes account credits made by Tarafab (admin funding).
+  const rows = txs.filter(x => txCategory(x) === kind)
   return (
     <div className="space-y-4 max-w-4xl">
       <div className="panel overflow-hidden">
@@ -111,11 +116,12 @@ export function HistoryTab({ kind, txs, hasMore, loadingMore, onLoadMore, go }: 
             {rows.map(x => (
               <li key={x.id} className="flex items-start justify-between gap-4 px-4 sm:px-5 py-3.5">
                 <div className="flex items-start gap-3 min-w-0">
-                  <TxIcon type={x.type} />
+                  <TxIcon type={x.type} tx={x} />
                   <div className="min-w-0">
                     <p className="text-sm text-fg">
                       {kind === 'withdrawal'
                         ? t(x.method === 'profit_balance' ? 'withdraw.fromProfit' : 'withdraw.fromAvailable')
+                        : isAccountCredit(x) ? t('dash.txType.accountCredit')
                         : x.method ? methodLabel(x.method, t) : txLabel(x, t)}
                     </p>
                     <p className="text-xs text-fg-faint">
@@ -268,7 +274,7 @@ export function noticesFrom(txs: Tx[]): Notice[] {
       if (tx.status === 'completed' || tx.status === 'approved') out.push({ id: tx.id, tx, kind: 'approved', at: tx.updated_at || tx.created_at })
       else if (tx.status === 'rejected') out.push({ id: tx.id, tx, kind: 'rejected', at: tx.updated_at || tx.created_at })
       else if (OPEN_STATUSES.includes(tx.status)) out.push({ id: tx.id, tx, kind: 'pending', at: tx.created_at })
-    } else if (tx.type === 'adjustment' && tx.status === 'completed') {
+    } else if ((tx.type === 'adjustment' || txCategory(tx) === 'profit') && tx.status === 'completed') {
       out.push({ id: tx.id, tx, kind: 'credited', at: tx.created_at })
     }
   }
@@ -362,16 +368,17 @@ export function NotificationsTab({ notices, seenAt, team, onRead, go }: {
 export function PerformanceTab({ txs, hasMore }: { txs: Tx[]; hasMore: boolean }) {
   const { t, intl } = useI18n()
   const totals = useMemo(() => txTotals(txs), [txs])
-  const credits = useMemo(() => txs.filter(x => x.type === 'adjustment' && x.direction === 'credit' && x.status === 'completed'), [txs])
+  const credits = useMemo(() => txs.filter(x => txCategory(x) === 'profit' && txSign(x) > 0 && x.status === 'completed'), [txs])
   const months = useMemo(() => {
     const m = new Map<string, { deposits: number; withdrawals: number; returns: number }>()
     for (const x of txs) {
       if (x.status !== 'completed' && x.status !== 'approved') continue
       const key = x.created_at.slice(0, 7)
       const row = m.get(key) ?? { deposits: 0, withdrawals: 0, returns: 0 }
-      if (x.type === 'deposit') row.deposits += Number(x.amount)
-      else if (x.type === 'withdrawal') row.withdrawals += Number(x.amount)
-      else if (x.type === 'adjustment' && x.direction === 'credit') row.returns += Number(x.amount)
+      const c = txCategory(x)
+      if (c === 'deposit' && txSign(x) >= 0) row.deposits += Number(x.amount)
+      else if (c === 'withdrawal') row.withdrawals += Number(x.amount)
+      else if (c === 'profit') row.returns += txSign(x) < 0 ? -Number(x.amount) : Number(x.amount)
       else continue
       m.set(key, row)
     }

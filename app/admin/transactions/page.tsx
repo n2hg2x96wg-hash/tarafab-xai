@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { isAccountCredit, txCategory, type TxCategory } from '@/lib/txCategory'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import AdminLayout from '@/components/AdminLayout'
@@ -12,6 +13,8 @@ type Tx = {
   id: string
   user_id: string
   type: string
+  direction?: string | null
+  source?: string | null
   method: string | null
   amount: number
   fee: number | null
@@ -35,11 +38,18 @@ const STATUS_STYLE: Record<string, string> = {
 }
 
 const PAGE = 50
-// Stored 'adjustment' (and any legacy 'return') rows are shown and filtered as
-// Profit; the stored type is never rewritten. Transfers are unused, so they only
-// appear if such rows ever exist.
-const KNOWN_TYPES = ['deposit', 'withdrawal', 'profit', 'investment', 'fee']
-const typeKey = (type: string) => (type === 'adjustment' || type === 'return' ? 'profit' : type)
+// Shown and filtered by what each transaction means (lib/txCategory, from the
+// database-set `source`): an admin top-up of the spendable balance is a
+// Deposit (account credit); only investment returns are Profit. Stored types
+// and amounts are never rewritten.
+const KNOWN_TYPES: TxCategory[] = ['deposit', 'withdrawal', 'profit', 'investment', 'fee', 'adjustment', 'profit_adjustment']
+const CATEGORY_SOURCES: Partial<Record<TxCategory, string[]>> = {
+  deposit: ['client_deposit', 'admin_funding'], profit: ['investment_profit'], profit_adjustment: ['profit_adjustment'],
+  investment: ['investment_principal'], withdrawal: ['withdrawal'], fee: ['fee'], adjustment: ['admin_debit', 'balance_adjustment'], transfer: ['transfer'],
+}
+const typeKey = (tx: Pick<Tx, 'type' | 'method' | 'direction' | 'source'>) => txCategory(tx)
+const typeText = (tx: Pick<Tx, 'type' | 'method' | 'direction' | 'source'>) =>
+  typeKey(tx).replace(/_/g, ' ') + (isAccountCredit(tx) ? ' · account credit' : '')
 const KNOWN_STATUSES = ['pending', 'pending_review', 'pending_verification', 'pending_blockchain_confirmation', 'requested', 'under_review', 'approved', 'processing', 'completed', 'rejected', 'failed', 'cancelled']
 
 export default function TransactionsPage() {
@@ -74,10 +84,10 @@ export default function TransactionsPage() {
   // behind a fixed row cap. Name search also narrows the loaded rows below.
   const fetchTxs = async (before?: string) => {
     let q = (supabase.from('transactions') as any)
-      .select('id, user_id, type, method, amount, fee, status, notes, reference, address, created_at, effective_at, profiles(full_name)')
+      .select('id, user_id, type, method, direction, source, amount, fee, status, notes, reference, address, created_at, effective_at, profiles(full_name)')
       .order('effective_at', { ascending: false }).order('id', { ascending: false })
       .limit(PAGE + 1)
-    if (filterType) q = q.eq('type', filterType)
+    if (filterType) { const src = CATEGORY_SOURCES[filterType as TxCategory]; q = src ? q.in('source', src) : q.eq('type', filterType) }
     if (filterStatus) q = q.eq('status', filterStatus)
     if (before) q = q.lt('effective_at', before)
     if (term && /^[0-9a-f-]{36}$/i.test(term)) q = q.or(`id.eq.${term},user_id.eq.${term}`)
@@ -158,12 +168,12 @@ export default function TransactionsPage() {
     const s = search.toLowerCase()
     const matchSearch = !search || name.includes(s) || tx.id.toLowerCase().includes(s) || tx.user_id.toLowerCase().includes(s) || (tx.reference || '').toLowerCase().includes(s)
     const matchStatus = !filterStatus || tx.status === filterStatus
-    const matchType = !filterType || typeKey(tx.type) === filterType
+    const matchType = !filterType || typeKey(tx) === filterType
     return matchSearch && matchStatus && matchType
   })
 
   const allStatuses = Array.from(new Set([...KNOWN_STATUSES, ...txs.map(t => t.status), ...(filterStatus ? [filterStatus] : [])])).sort()
-  const allTypes = Array.from(new Set([...KNOWN_TYPES, ...txs.map(t => typeKey(t.type)), ...(filterType ? [filterType] : [])])).sort()
+  const allTypes = Array.from(new Set([...KNOWN_TYPES, ...txs.map(t => typeKey(t)), ...(filterType ? [filterType] : [])])).sort()
 
   return (
     <AdminLayout title="Transactions" subtitle="All platform transactions">
@@ -264,7 +274,7 @@ export default function TransactionsPage() {
                         <p className="text-[10px] text-slate-600 font-mono">{tx.user_id.slice(0, 12)}…</p>
                       </td>
                       <td className="px-5 py-4">
-                        <span className="text-xs text-slate-300 capitalize">{typeKey(tx.type).replace(/_/g, ' ')}</span>
+                        <span className="text-xs text-slate-300 capitalize" data-admin-tx-type={typeKey(tx)}>{typeText(tx)}</span>
                         {tx.method && <p className="text-[10px] text-slate-600 mt-0.5">{sourceLabel(tx)}</p>}
                         {tx.address && <p className="text-[10px] text-slate-400 mt-0.5 font-mono break-all max-w-[180px] select-all">{tx.address}</p>}
                         {receiptPath(tx.notes) && (
@@ -320,7 +330,7 @@ export default function TransactionsPage() {
                   <div className="flex items-center justify-between mb-2">
                     <div>
                       <p className="text-sm font-medium text-white">{tx.profiles?.full_name || 'Unknown'}</p>
-                      <p className="text-xs text-slate-500 capitalize">{typeKey(tx.type).replace(/_/g, ' ')}</p>
+                      <p className="text-xs text-slate-500 capitalize">{typeText(tx)}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-bold text-white">${(tx.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>

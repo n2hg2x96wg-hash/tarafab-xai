@@ -3,7 +3,8 @@
 import type { ReactNode } from 'react'
 
 // Types and small display helpers shared by the dashboard sections.
-import { IconArrowDown, IconArrowUp, IconSwap } from '@/components/Icons'
+import { IconArrowDown, IconArrowUp, IconFile, IconPie, IconSwap, IconTrend } from '@/components/Icons'
+import { txCategory, txSign } from '@/lib/txCategory'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
 import { statusLabel } from '@/lib/i18n/format'
 import type { InvestmentSummary } from '@/lib/investmentSummary'
@@ -43,6 +44,8 @@ export interface Tx {
   notes: string | null
   address?: string | null
   direction?: 'credit' | 'debit' | null
+  // Business event that created the row (set by the database; see lib/txCategory).
+  source?: string | null
   created_at: string
   updated_at?: string
 }
@@ -72,9 +75,14 @@ export function fmt(n: number) {
 
 export type T = ReturnType<typeof useI18n>['t']
 export function txLabel(tx: Tx, t: T) {
-  // Stored 'adjustment' and legacy 'return' records are shown as Profit; the
-  // stored rows are left untouched (direction still decides the sign).
-  if (tx.type === 'adjustment' || tx.type === 'return') return t('dash.txType.profit')
+  // Named by the event that created the row (lib/txCategory), not by whether
+  // the balance went up: an admin top-up is a Deposit, only an investment
+  // return is Profit.
+  const c = txCategory(tx)
+  if (c === 'profit') return t('dash.txType.profit')
+  if (c === 'profit_adjustment') return t('dash.txType.profitAdjustment')
+  if (c === 'deposit') return t('dash.txType.deposit')
+  if (c === 'adjustment') return t('dash.txType.adjustment')
   // Tarafab's own service fees are always named as such, never as a network fee.
   if (tx.type === 'fee' && tx.method === 'service_fee') return t('dash.txType.serviceFee')
   return t(`dash.txType.${tx.type}` as TKey) || tx.type.replace(/_/g, ' ')
@@ -92,13 +100,27 @@ export function methodLabel(method: string, t: T) {
   return words ? words.charAt(0).toUpperCase() + words.slice(1) : method
 }
 
-export function TxIcon({ type }: { type: string }) {
-  const I = type === 'deposit' ? IconArrowDown : type === 'withdrawal' ? IconArrowUp : IconSwap
+// One icon per meaning (never the same icon for money in and money out), with
+// a quiet tint; the label and the signed amount carry the meaning too.
+export function TxIcon({ type, tx }: { type: string; tx?: Tx }) {
+  const c = tx ? txCategory(tx) : txCategory({ type })
+  const [I, tone] = c === 'deposit' ? [IconArrowDown, 'text-emerald-300 border-emerald-500/25 bg-emerald-500/[.07]']
+    : c === 'profit' ? [IconTrend, 'text-emerald-300 border-emerald-500/25 bg-emerald-500/[.07]']
+    : c === 'withdrawal' ? [IconArrowUp, 'text-fg-muted border-ink-700 bg-ink-800']
+    : c === 'fee' ? [IconFile, 'text-amber-300 border-amber-500/25 bg-amber-500/[.06]']
+    : c === 'investment' ? [IconPie, 'text-sky-300 border-sky-500/25 bg-sky-500/[.06]']
+    : [IconSwap, 'text-fg-muted border-ink-700 bg-ink-800']
   return (
-    <span className="w-8 h-8 rounded-md bg-ink-800 border border-ink-700 flex items-center justify-center text-fg-muted shrink-0">
+    <span className={`w-8 h-8 rounded-md border flex items-center justify-center shrink-0 ${tone}`} data-tx-category={c} aria-hidden="true">
       <I width={16} height={16} />
     </span>
   )
+}
+
+// Signed amount text: "+$500.00" / "−$120.00" / "$0.00" (no sign when neutral).
+export function signedAmount(tx: Tx) {
+  const s = txSign(tx)
+  return `${s > 0 ? '+' : s < 0 ? '−' : ''}$${fmt(Number(tx.amount))}`
 }
 
 // One page intro for every client page: the same title size and muted

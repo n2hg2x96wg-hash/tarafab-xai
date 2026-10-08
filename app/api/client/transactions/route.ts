@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     const before = request.nextUrl.searchParams.get('before')
     let query = supabase
       .from('transactions')
-      .select('id, type, method, amount, fee, status, reference, address, direction, effective_at, created_at, updated_at')
+      .select('id, type, method, amount, fee, status, reference, address, direction, source, effective_at, created_at, updated_at')
       .eq('user_id', user.id)
       .order('effective_at', { ascending: false }).order('id', { ascending: false })
       .limit(PAGE + 1)
