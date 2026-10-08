@@ -49,6 +49,7 @@ import { MarketActivityTab, PriceHistoryTab } from '@/components/dashboard/Marke
 import { Rise, useScrollDepth } from '@/components/dashboard/Motion'
 import { feedStatus } from '@/lib/marketStatus'
 import { useAssets } from '@/components/markets/assetStore'
+import { effectiveState } from '@/lib/marketStatus'
 
 const BTC_ADDRESS = 'bc1qvpwmdln4nm6xa2k9q26l84pg4ud0uuqzk83053'
 
@@ -1011,8 +1012,8 @@ function OverviewTab({ name, account, txs, go, can, labelOf, whatsNew }: { whats
       {can('markets') && (
         <div className="panel overflow-hidden">
           <div className="flex items-center justify-between px-4 h-11 border-b border-ink-700 text-[13px]">
-            <span className="text-fg">BTC/USD</span>
-            <span className="text-fg-faint">{t('landing.livePrice')}</span>
+            <span className="text-fg">BTC / USD</span>
+            <BtcFeedState />
           </div>
           <ErrorBoundary label={t('dash.theChart')}><TradingViewChart height={360} /></ErrorBoundary>
         </div>
@@ -1024,6 +1025,17 @@ function OverviewTab({ name, account, txs, go, can, labelOf, whatsNew }: { whats
 }
 
 /* Markets */
+// The chart header's status comes from the same freshness rule as every other
+// market label (lib/marketStatus): "Live" only for a current BTC quote.
+function BtcFeedState() {
+  const { assets, error } = useAssets()
+  const btc = assets?.find(a => a.id === 'BTC')
+  const st = btc ? effectiveState(btc, !!error) : assets ? 'unavailable' : null
+  if (!st) return <span className="text-fg-faint">…</span>
+  const [label, dot] = st === 'live' ? ['Live', 'bg-emerald-400 live-dot'] : st === 'delayed' ? ['Delayed', 'bg-amber-400'] : st === 'stale' ? ['Stale', 'bg-amber-400'] : ['Unavailable', 'bg-fg-faint']
+  return <span className="inline-flex items-center gap-1.5 text-fg-faint" data-btc-feed={st}><span className={`w-1.5 h-1.5 rounded-full ${dot}`} aria-hidden="true" />{label}</span>
+}
+
 function MarketsTab() {
   const { t } = useI18n()
   return (
@@ -1031,8 +1043,8 @@ function MarketsTab() {
       <div className="grid xl:grid-cols-[1.7fr_1fr] gap-4 items-start">
         <div className="panel overflow-hidden">
           <div className="flex items-center justify-between px-4 h-11 border-b border-ink-700 text-[13px]">
-            <span className="text-fg">BTC/USD</span>
-            <span className="text-fg-faint">{t('landing.livePrice')}</span>
+            <span className="text-fg">BTC / USD</span>
+            <BtcFeedState />
           </div>
           <ErrorBoundary label={t('dash.theChart')}><TradingViewChart height={480} /></ErrorBoundary>
         </div>

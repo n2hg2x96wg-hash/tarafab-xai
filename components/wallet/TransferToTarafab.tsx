@@ -46,7 +46,7 @@ export function TransferToTarafab({ provider, address, chainId, walletId }: { pr
   const load = useCallback(async () => {
     try {
       const r = await readJson<{ transfers: Transfer[]; destinations: Destination[] }>(await authFetch('/api/client/transfers'))
-      setDest(r.destinations); setList(r.transfers); setLoadErr('')
+      setDest(Array.isArray(r.destinations) ? r.destinations : []); setList(Array.isArray(r.transfers) ? r.transfers : []); setLoadErr('')
     } catch (e) { setLoadErr(errorText(e)) }
   }, [])
   useEffect(() => { void load() }, [load])

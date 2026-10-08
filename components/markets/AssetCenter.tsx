@@ -27,7 +27,7 @@ export function StatusBadge({ a }: { a: AssetQuote }) {
   const [label, cls, live] =
     a.state === 'unavailable' || a.state === 'error' ? [a.reason === 'not_connected' ? t('status.notConnected') : a.reason === 'temporary' ? t('status.temporary') : t('status.unavailable'), 'text-fg-faint border-ink-600', false]
     : a.state === 'stale' ? [t('status.stale'), 'text-amber-300 border-amber-500/30', false]
-    : a.market === '24/7' ? [t('status.247'), 'text-emerald-300 border-emerald-500/30', true]
+    : a.market === '24/7' ? [t('status.247'), 'text-emerald-300 border-emerald-500/30', a.state === 'live']
     : a.market === 'open' ? [a.state === 'delayed' ? t('status.delayed') : t('status.open'), 'text-emerald-300 border-emerald-500/30', a.state === 'live']
     : [t('status.closed'), 'text-fg-muted border-ink-600', false]
   return (
@@ -185,8 +185,12 @@ export function AssetCenter({ onAutomate }: { onAutomate: (assetId: string) => v
         </ul>
       )}
 
-      {/* Required provider attribution, kept quiet at the foot of the page. */}
-      <p className="text-[11px] text-fg-faint" data-market-attribution>{t('center.disclosure')} Crypto data provided by <a href="https://www.coingecko.com/en/api" target="_blank" rel="noopener noreferrer" className="hover:text-fg-muted underline-offset-2 hover:underline">CoinGecko</a>.</p>
+      {/* Disclosure and the provider credit CoinGecko's terms require: one small
+          "Market data" toggle at the foot of the page, closed by default. */}
+      <details className="group text-[11px] text-fg-faint" data-market-attribution>
+        <summary className="cursor-pointer list-none inline-flex items-center gap-1 hover:text-fg-muted">ⓘ Market data</summary>
+        <p className="mt-1.5 max-w-xl leading-relaxed">{t('center.disclosure')} Crypto data provided by <a href="https://www.coingecko.com/en/api" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-fg-muted">CoinGecko</a>.</p>
+      </details>
 
       {selected && <AssetDetail a={selected} watchOff={watchOff} chartsOff={chartsOff} watched={(watch || []).includes(selected.id)} onWatch={() => toggleWatch(selected.id)} onAutomate={() => { setOpen(null); onAutomate(selected.id) }} onClose={() => setOpen(null)} />}
     </section>

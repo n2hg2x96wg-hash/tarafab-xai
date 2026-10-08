@@ -26,6 +26,9 @@ type Linked = {
 // browser), or an SDK that hands off to a mobile wallet app / passkey wallet.
 type Option = Omit<WalletInfo, 'provider'> & { provider?: Eip1193; sdk?: SdkKind; hint?: string }
 type Session = { wallet: Option & { provider: Eip1193 }; address: string; chainId: number }
+type Holding = { symbol: string; amount: string | null; error?: string; token?: boolean }
+type ChainBal = { wallet_id: string; chain_id: number; address: string; native: Holding; tokens: Holding[]; at: string }
+const EXPLORER: Record<number, string> = { 1: 'https://etherscan.io', 8453: 'https://basescan.org', 42161: 'https://arbiscan.io', 10: 'https://optimistic.etherscan.io', 137: 'https://polygonscan.com', 56: 'https://bscscan.com' }
 type Bal = { state: 'idle' | 'loading' | 'ok' | 'error'; amount?: string; symbol?: string; at?: number }
 
 // Wallet Center. External, non-custodial wallets the client links by signing
@@ -55,6 +58,9 @@ export function WalletTab({ account }: { account: Account | null }) {
   const busyFor = useRef('') // the option a connection is waiting on
   const balanceRequest = useRef(0)
   const [connecting, setConnecting] = useState<Option | null>(null)
+  // Read-only on-chain balances of linked wallets, fetched server-side by
+  // address: shown without the wallet app being open and without a signature.
+  const [chainBal, setChainBal] = useState<{ state: 'idle' | 'loading' | 'ok' | 'error'; by: Record<string, ChainBal> }>({ state: 'idle', by: {} })
 
   const load = useCallback(async () => {
     try {
@@ -63,6 +69,17 @@ export function WalletTab({ account }: { account: Account | null }) {
     } catch (e) { setLoadError(errorText(e)) }
   }, [])
   useEffect(() => { load() }, [load])
+
+  const loadChainBal = useCallback(async () => {
+    setChainBal(b => ({ ...b, state: 'loading' }))
+    try {
+      const r = await readJson<{ balances: ChainBal[] }>(await authFetch('/api/client/wallets/balance'))
+      setChainBal({ state: 'ok', by: Object.fromEntries(r.balances.map(b => [b.wallet_id, b])) })
+    } catch { setChainBal(b => ({ ...b, state: 'error' })) }
+  }, [])
+  // On load and whenever the set of linked wallets changes.
+  const linkedKey = (linked || []).filter(w => w.status === 'linked').map(w => w.id).join(',')
+  useEffect(() => { if (linkedKey) void loadChainBal() }, [linkedKey, loadChainBal])
 
   // Silently restore the on-chain balance view after a normal page reload.
   // Only reattaches to a wallet that is both already authorised for this site
@@ -279,55 +296,171 @@ export function WalletTab({ account }: { account: Account | null }) {
   const sessionLinked = session ? live.find(w => w.address === session.address) : undefined
   const currentNet = session ? networkOf(session.chainId) : null
 
-  return (
-    <div className="space-y-5 panel-in">
-      <div>
-        <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-fg">{t('wallet.title')}</h2>
-        <p className="text-sm text-fg-faint mt-0.5">{t('wallet.subtitle')}</p>
-      </div>
+  // The wallet whose balance leads the page: the one connected in this
+  // browser, otherwise the most recently linked one.
+  const primary = sessionLinked || live[0] || null
+  const primaryBal = primary ? chainBal.by[primary.id] : undefined
+  const holdingText = (h: Holding) => (h.amount == null ? null : `${h.amount} ${h.symbol}`)
+  const verified = (w: Linked) => w.verification_status === 'verified'
 
-      {/* The two are never combined: one is Tarafab's ledger, the other is external. */}
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="panel p-4 sm:p-5">
-          <p className="text-[12px] uppercase tracking-[0.12em] text-fg-faint">{t('dash.accountBalance')}</p>
-          <p className="mt-1 text-2xl font-semibold tabular-nums text-fg">{account ? `$${fmt(account.available_balance)}` : '—'}</p>
-          <p className="mt-1 text-[12px] text-fg-faint">{t('wallet.accountNote')}</p>
+  // One wallet's on-chain holdings: native coin plus supported stablecoins
+  // that were actually read. A failed read says so; it is never shown as 0.
+  const Holdings = ({ w }: { w: Linked }) => {
+    const b = chainBal.by[w.id]
+    if (!b) return chainBal.state === 'loading' || chainBal.state === 'idle'
+      ? <p className="text-[13px] text-fg-muted flex items-center gap-2"><Spinner /> {t('wallet.balanceLoading')}</p>
+      : <p className="text-[13px] text-fg-muted">{t('wallet.balanceUnavailable')} <button onClick={loadChainBal} className="underline underline-offset-2 hover:text-fg">{t('common.tryAgain')}</button></p>
+    const tokens = b.tokens.filter(x => x.amount != null && x.amount !== '0')
+    return (
+      <div data-onchain-balance={w.id}>
+        {b.native.amount != null
+          ? <p className="text-[20px] font-semibold tabular-nums text-fg break-all" data-native>{b.native.amount} <span className="text-[14px] text-fg-muted font-normal">{b.native.symbol}</span></p>
+          : <p className="text-[13px] text-fg-muted" data-native-error>{t('wallet.balanceUnavailable')} <button onClick={loadChainBal} className="underline underline-offset-2 hover:text-fg">{t('common.tryAgain')}</button></p>}
+        {tokens.length > 0 && <p className="mt-0.5 text-[13px] text-fg-muted tabular-nums" data-tokens>{tokens.map(holdingText).join(' · ')}</p>}
+        <p className="mt-0.5 text-[11.5px] text-fg-faint">{t('wallet.updatedAt', { time: new Date(b.at).toLocaleTimeString(intl, { hour: '2-digit', minute: '2-digit' }) })}</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="dep space-y-6 panel-in max-w-3xl">
+      <header>
+        <h2 className="text-[22px] font-semibold tracking-tight text-fg">{t('wallet.title')}</h2>
+        <p className="text-[14px] text-fg-muted mt-0.5">{t('wallet.subtitle')}</p>
+      </header>
+
+      {/* Two different things, never combined: Tarafab's ledger vs the external chain. */}
+      <div className="panel grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-ink-700/70" data-balance-split>
+        <div className="p-4 min-w-0" data-tarafab-balance>
+          <p className="text-[11.5px] uppercase tracking-[0.1em] text-fg-faint">{t('wallet.tarafabBalance')}</p>
+          <p className="mt-1 text-[22px] font-semibold tabular-nums text-fg">{account ? `$${fmt(account.available_balance)}` : '—'}</p>
+          <p className="mt-0.5 text-[12px] text-fg-faint">{t('wallet.accountNote')}</p>
         </div>
-        <div className="panel p-4 sm:p-5">
-          <p className="text-[12px] uppercase tracking-[0.12em] text-fg-faint">{t('wallet.externalTitle')}</p>
-          {!session ? (
-            <p className="mt-2 text-sm text-fg-muted">{t('wallet.externalConnect')}</p>
-          ) : bal.state === 'loading' ? (
-            <p className="mt-2 text-sm text-fg-muted flex items-center gap-2"><Spinner /> {t('wallet.balanceLoading')}</p>
-          ) : bal.state === 'ok' ? (
-            <>
-              <p className="mt-1 text-2xl font-semibold tabular-nums text-fg break-all">{bal.amount} <span className="text-base text-fg-muted">{bal.symbol}</span></p>
-              <p className="mt-1 text-[12px] text-fg-faint">
-                {t('wallet.onChainOn', { network: currentNet?.name || '' })} (chain {session.chainId}) · {shortAddress(session.address)} · {t('wallet.updatedAt', { time: new Date(bal.at!).toLocaleTimeString(intl, { hour: '2-digit', minute: '2-digit' }) })}
-                {' · '}<button onClick={() => readBalance(session)} className="underline underline-offset-2 hover:text-fg">{t('common.refresh')}</button>
-              </p>
-              <p className="mt-1 text-[12px] text-fg-faint">{t('wallet.noFiat')}</p>
-            </>
-          ) : (
-            <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-fg-muted">
-              <span>{currentNet ? t('wallet.balanceUnavailable') : t('wallet.unsupportedNetwork')}</span>
-              {currentNet && <button onClick={() => readBalance(session)} className="underline underline-offset-2 hover:text-fg">{t('common.tryAgain')}</button>}
+        <div className="p-4 min-w-0" data-external-balance>
+          <p className="text-[11.5px] uppercase tracking-[0.1em] text-fg-faint">{t('wallet.externalTitle')}</p>
+          {session && !sessionLinked ? (
+            bal.state === 'loading' ? <p className="mt-2 text-sm text-fg-muted flex items-center gap-2"><Spinner /> {t('wallet.balanceLoading')}</p>
+            : bal.state === 'ok' ? <>
+                <p className="mt-1 text-[22px] font-semibold tabular-nums text-fg break-all">{bal.amount} <span className="text-[14px] text-fg-muted font-normal">{bal.symbol}</span></p>
+                <p className="mt-0.5 text-[12px] text-fg-faint">{currentNet?.name} · {shortAddress(session.address)} · <button onClick={() => readBalance(session)} className="underline underline-offset-2 hover:text-fg">{t('common.refresh')}</button></p>
+              </>
+            : <p className="mt-2 text-sm text-fg-muted">{currentNet ? t('wallet.balanceUnavailable') : t('wallet.unsupportedNetwork')} {currentNet && <button onClick={() => readBalance(session)} className="underline underline-offset-2 hover:text-fg">{t('common.tryAgain')}</button>}</p>
+          ) : primary ? (
+            <div className="mt-1">
+              <Holdings w={primary} />
+              <p className="mt-0.5 text-[12px] text-fg-faint">{primary.network} · {shortAddress(primary.address)}</p>
             </div>
+          ) : (
+            <p className="mt-2 text-sm text-fg-muted">{t('wallet.externalConnect')}</p>
           )}
         </div>
       </div>
 
-      {/* Connect and verify */}
-      <div className="panel p-4 sm:p-5">
-        <div className="flex items-start gap-3">
-          <span className="w-9 h-9 rounded-md bg-ink-800 border border-ink-700 flex items-center justify-center text-fg-muted shrink-0"><IconWallet width={18} height={18} /></span>
-          <div className="min-w-0 flex-1">
-            <h3 className="text-[15px] font-semibold text-fg">{t('wallet.connectTitle')}</h3>
-            <p className="text-sm text-fg-muted mt-0.5">{t('wallet.connectBody')}</p>
+      {/* Connected wallets: linked records, each with its own on-chain balance. */}
+      {live.length > 0 && (
+        <section aria-labelledby="w-connected">
+          <div className="flex items-center justify-between gap-3">
+            <h3 id="w-connected" className="dep-h">{live.length > 1 ? t('wallet.connectedTitleMany') : t('wallet.connectedTitle')}</h3>
+            <button onClick={loadChainBal} disabled={chainBal.state === 'loading'} className="text-[13px] text-fg-muted hover:text-fg disabled:opacity-50" data-refresh-balance>
+              {chainBal.state === 'loading' ? t('wallet.refreshing') : t('wallet.refreshBalance')}
+            </button>
           </div>
-        </div>
+          <ul className="mt-3 space-y-2">
+            {live.map(w => (
+              <li key={w.id} className="dep-surface !p-4" data-linked-wallet={w.id}>
+                <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
+                  <span className="w-9 h-9 rounded-lg bg-ink-800 border border-ink-700 flex items-center justify-center text-fg-muted shrink-0"><IconWallet width={17} height={17} /></span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[14px] font-medium text-fg truncate">{w.label || w.wallet_name || t('wallet.externalWallet')}</p>
+                    <p className="text-[12px] text-fg-faint">{w.wallet_name && w.label ? `${w.wallet_name} · ` : ''}{w.network}</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5" data-wallet-status>
+                    <span className="tag text-emerald-400 border-emerald-500/30">{t('wallet.statusConnected')}</span>
+                    {session && session.address.toLowerCase() === w.address.toLowerCase() && <span className="tag text-emerald-300 border-emerald-500/30">{t('wallet.statusLive')}</span>}
+                    {verified(w) ? <span className="tag text-sky-400 border-sky-500/30">{t('wallet.statusVerified')}</span> : <span className="tag text-fg-faint border-ink-600">{t('wallet.statusNotVerified')}</span>}
+                  </div>
+                </div>
+                <button onClick={() => copy(w.address)} className="mt-2 font-mono text-[12px] text-fg-muted hover:text-fg break-all text-left inline-flex items-center gap-1.5" title={t('common.copy')} aria-label={t('wallet.copyAddress')}>
+                  {w.address} <IconCopy width={12} height={12} />
+                </button>
+                {copied === w.address && <span className="ml-2 text-[11px] text-emerald-400">{t('common.copied')}</span>}
+                {/* The summary above already shows the primary wallet's balance. */}
+                {(w.id !== primary?.id || (session && !sessionLinked)) && (
+                  <div className="mt-3 pt-3 border-t border-ink-700/60">
+                    <p className="text-[11.5px] text-fg-faint mb-0.5">{t('wallet.onChainBalance')}</p>
+                    <Holdings w={w} />
+                  </div>
+                )}
+                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px]">
+                  {EXPLORER[w.chain_id] && <a href={`${EXPLORER[w.chain_id]}/address/${w.address}`} target="_blank" rel="noopener noreferrer" className="text-fg-muted hover:text-fg">{t('wallet.viewOnExplorer')}</a>}
+                  <span className="text-fg-faint">{t('wallet.linkedOn')} {date(w.linked_at)}</span>
+                  <button onClick={() => setUnlinking(w)} className="ml-auto text-red-400 hover:text-red-300">{t('wallet.disconnect')}</button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
-        {!session ? (
+      {/* Connect a wallet (first time), or add another; verification is a separate step. */}
+      <section aria-labelledby="w-connect" className={live.length > 0 && !session ? '' : 'panel p-4 sm:p-5'}>
+        {session ? (
+          <>
+            <h3 id="w-connect" className="dep-h">{sessionLinked ? t('wallet.thisBrowser') : t('wallet.connectedTitle')}</h3>
+          <div className="mt-3 space-y-4">
+            <div className="rounded-lg border border-ink-700 bg-ink-900/40 px-3 py-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-400" aria-hidden="true" />
+              <span className="text-sm font-medium text-fg">{session.wallet.name}</span>
+              <span className="font-mono text-[13px] text-fg-muted break-all">{session.address}</span>
+              <span className="text-[12px] text-fg-faint">{currentNet ? `${currentNet.name} · chain ${session.chainId}` : t('wallet.unknownChain', { id: session.chainId })}</span>
+              <span className="tag text-emerald-400 border-emerald-500/30">{t('wallet.statusLive')}</span>
+              {sessionLinked && verified(sessionLinked) ? <span className="tag text-sky-400 border-sky-500/30">{t('wallet.statusVerified')}</span> : <span className="tag text-fg-faint border-ink-600" data-not-verified>{t('wallet.statusNotVerified')}</span>}
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block">
+                <span className="block text-[13px] text-fg-muted mb-1.5">{t('wallet.network')}</span>
+                <select value={targetChain} onChange={e => setTargetChain(Number(e.target.value))} className="field">
+                  {NETWORKS.map(n => <option key={n.chainId} value={n.chainId}>{n.name}</option>)}
+                </select>
+              </label>
+              <label className="block">
+                <span className="block text-[13px] text-fg-muted mb-1.5">{t('wallet.label')}</span>
+                <input value={label} onChange={e => setLabel(e.target.value)} maxLength={60} placeholder={t('wallet.labelPh')} className="field" />
+              </label>
+            </div>
+
+            {session.chainId !== targetChain && (
+              <div className="alert alert-warning text-sm flex flex-wrap items-center gap-3" role="status">
+                <span className="flex-1 min-w-[12rem]">{t('wallet.switchNeeded', { network: networkOf(targetChain)?.name || '' })}</span>
+                <button onClick={doSwitch} disabled={!!busy} className="btn btn-sm btn-outline">{busy === 'switch' ? <Spinner /> : t('wallet.switch')}</button>
+              </div>
+            )}
+
+            <div className="flex flex-col-reverse sm:flex-row gap-2">
+              <button onClick={leaveSession} disabled={busy === 'verify'} className="btn btn-ghost">{t('wallet.useAnother')}</button>
+              <button onClick={verify} disabled={!!busy || session.chainId !== targetChain} className="btn btn-solid sm:ml-auto">
+                {busy === 'sign' ? <><Spinner /> {t('wallet.waitingSignature')}</> : busy === 'verify' ? <><Spinner /> {t('wallet.verifying')}</> : sessionLinked ? t('wallet.reverify') : t('wallet.verify')}
+              </button>
+            </div>
+            <p className="text-[12px] text-fg-faint">{t('wallet.signNote')}</p>
+          </div>
+          </>
+        ) : live.length > 0 ? (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p id="w-connect" className="text-[13px] text-fg-muted">{t('wallet.addAnother')}</p>
+            {!picking && <button onClick={openPicker} className="btn btn-sm btn-outline">{t('wallet.connect')}</button>}
+          </div>
+        ) : (
+          <div className="flex items-start gap-3">
+            <span className="w-9 h-9 rounded-md bg-ink-800 border border-ink-700 flex items-center justify-center text-fg-muted shrink-0"><IconWallet width={18} height={18} /></span>
+            <div className="min-w-0 flex-1">
+              <h3 id="w-connect" className="text-[15px] font-semibold text-fg">{t('wallet.connectTitle')}</h3>
+              <p className="text-sm text-fg-muted mt-0.5">{t('wallet.connectBody')}</p>
+            </div>
+          </div>
+        )}
+        {!session && (picking || live.length === 0) && (
           <div className="mt-4">
             {!picking ? (
               <button onClick={openPicker} className="btn btn-solid w-full sm:w-auto">{t('wallet.connect')}</button>
@@ -361,49 +494,11 @@ export function WalletTab({ account }: { account: Account | null }) {
               </div>
             ) : picking && <button onClick={() => setPicking(false)} className="mt-3 text-[13px] text-fg-faint hover:text-fg">{t('wallet.cancel')}</button>}
           </div>
-        ) : (
-          <div className="mt-4 space-y-4">
-            <div className="rounded-lg border border-ink-700 bg-ink-900/40 px-3 py-3 flex flex-wrap items-center gap-x-3 gap-y-1">
-              <span className="w-2 h-2 rounded-full bg-emerald-400" aria-hidden="true" />
-              <span className="text-sm font-medium text-fg">{session.wallet.name}</span>
-              <span className="font-mono text-[13px] text-fg-muted break-all">{session.address}</span>
-              <span className="text-[12px] text-fg-faint">{currentNet ? `${currentNet.name} · chain ${session.chainId}` : t('wallet.unknownChain', { id: session.chainId })}</span>
-              {sessionLinked && <span className="tag text-emerald-400 border-emerald-500/30">{t('wallet.statusVerified')}</span>}
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="block">
-                <span className="block text-[13px] text-fg-muted mb-1.5">{t('wallet.network')}</span>
-                <select value={targetChain} onChange={e => setTargetChain(Number(e.target.value))} className="field">
-                  {NETWORKS.map(n => <option key={n.chainId} value={n.chainId}>{n.name}</option>)}
-                </select>
-              </label>
-              <label className="block">
-                <span className="block text-[13px] text-fg-muted mb-1.5">{t('wallet.label')}</span>
-                <input value={label} onChange={e => setLabel(e.target.value)} maxLength={60} placeholder={t('wallet.labelPh')} className="field" />
-              </label>
-            </div>
-
-            {session.chainId !== targetChain && (
-              <div className="alert alert-warning text-sm flex flex-wrap items-center gap-3" role="status">
-                <span className="flex-1 min-w-[12rem]">{t('wallet.switchNeeded', { network: networkOf(targetChain)?.name || '' })}</span>
-                <button onClick={doSwitch} disabled={!!busy} className="btn btn-sm btn-outline">{busy === 'switch' ? <Spinner /> : t('wallet.switch')}</button>
-              </div>
-            )}
-
-            <div className="flex flex-col-reverse sm:flex-row gap-2">
-              <button onClick={leaveSession} disabled={busy === 'verify'} className="btn btn-ghost">{t('wallet.useAnother')}</button>
-              <button onClick={verify} disabled={!!busy || session.chainId !== targetChain} className="btn btn-solid sm:ml-auto">
-                {busy === 'sign' ? <><Spinner /> {t('wallet.waitingSignature')}</> : busy === 'verify' ? <><Spinner /> {t('wallet.verifying')}</> : sessionLinked ? t('wallet.reverify') : t('wallet.verify')}
-              </button>
-            </div>
-            <p className="text-[12px] text-fg-faint">{t('wallet.signNote')}</p>
-          </div>
         )}
 
         {error && <div role="alert" className="alert alert-danger mt-4 text-sm"><IconAlert width={16} height={16} className="shrink-0 mt-px" /><span>{error}</span></div>}
         {done && <div role="status" className="alert alert-success mt-4 text-sm"><IconCheck width={16} height={16} className="shrink-0 mt-px" /><span>{done}</span></div>}
-      </div>
+      </section>
 
       {/* External wallet → Tarafab (only from a connected, verified wallet) */}
       {session && (
@@ -411,47 +506,12 @@ export function WalletTab({ account }: { account: Account | null }) {
           walletId={sessionLinked && sessionLinked.verification_status === 'verified' ? sessionLinked.id : null} />
       )}
 
-      {/* Linked wallets */}
+      {/* Loading / error for the linked-wallet records, and past wallets (history kept). */}
+      {linked === null && !loadError && <div className="py-4 flex justify-center"><Spinner /></div>}
+      {loadError && <div className="panel p-4 text-sm text-fg-muted flex flex-wrap items-center gap-3"><span>{loadError}</span><button onClick={load} className="btn btn-sm btn-outline">{t('common.tryAgain')}</button></div>}
+      {past.length > 0 && (
       <div className="panel overflow-hidden">
-        <div className="px-4 sm:px-5 py-3 border-b border-ink-700/70 flex items-center justify-between">
-          <h3 className="text-[15px] font-semibold text-fg">{t('wallet.linkedTitle')}</h3>
-          <span className="text-[12px] text-fg-faint">{live.length}</span>
-        </div>
-        {linked === null && !loadError ? (
-          <div className="p-6 flex justify-center"><Spinner /></div>
-        ) : loadError ? (
-          <div className="p-5 text-sm text-fg-muted flex flex-wrap items-center gap-3"><span>{loadError}</span><button onClick={load} className="btn btn-sm btn-outline">{t('common.tryAgain')}</button></div>
-        ) : live.length === 0 ? (
-          <div className="px-6 py-10 text-center"><p className="text-sm text-fg">{t('wallet.noneLinked')}</p><p className="text-[13px] text-fg-faint mt-1">{t('wallet.noneLinkedBody')}</p></div>
-        ) : (
-          <ul className="divide-y divide-ink-700/60">
-            {live.map(w => (
-              <li key={w.id} className="px-4 sm:px-5 py-4">
-                <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-fg">{w.label || w.wallet_name || t('wallet.externalWallet')} <span className="text-fg-faint font-normal">· {w.network}</span></p>
-                    <button onClick={() => copy(w.address)} className="mt-0.5 font-mono text-[12px] text-fg-muted hover:text-fg break-all text-left inline-flex items-center gap-1.5" title={t('common.copy')}>
-                      {w.address} <IconCopy width={12} height={12} />
-                    </button>
-                    {copied === w.address && <span className="ml-2 text-[11px] text-emerald-400">{t('common.copied')}</span>}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="tag text-emerald-400 border-emerald-500/30">{t('wallet.statusConnected')}</span>
-                    <span className="tag text-sky-400 border-sky-500/30">{t('wallet.statusVerified')}</span>
-                  </div>
-                </div>
-                <dl className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1 text-[12px]">
-                  <div><dt className="text-fg-faint">{t('wallet.walletApp')}</dt><dd className="text-fg-muted">{w.wallet_name || '—'}</dd></div>
-                  <div><dt className="text-fg-faint">{t('wallet.linkedOn')}</dt><dd className="text-fg-muted">{date(w.linked_at)}</dd></div>
-                  <div><dt className="text-fg-faint">{t('wallet.lastVerified')}</dt><dd className="text-fg-muted">{date(w.last_verified_at)}</dd></div>
-                  <div className="flex items-end sm:justify-end"><button onClick={() => setUnlinking(w)} className="text-[12px] text-red-400 hover:text-red-300">{t('wallet.disconnect')}</button></div>
-                </dl>
-              </li>
-            ))}
-          </ul>
-        )}
-        {past.length > 0 && (
-          <div className="border-t border-ink-700/70">
+          <div>
             <button onClick={() => setShowHistory(s => !s)} className="w-full px-4 sm:px-5 py-3 text-left text-[13px] text-fg-muted hover:text-fg" aria-expanded={showHistory}>
               {t('wallet.history', { n: past.length })}
             </button>
@@ -469,8 +529,8 @@ export function WalletTab({ account }: { account: Account | null }) {
               </ul>
             )}
           </div>
-        )}
       </div>
+      )}
 
       <p className="flex items-start gap-2 text-[12px] text-fg-faint">
         <IconLock width={14} height={14} className="shrink-0 mt-px" />
