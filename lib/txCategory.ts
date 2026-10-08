@@ -7,16 +7,22 @@
 //   client_deposit    → Deposit
 //   investment_profit → Profit (written by the investment-return workflow)
 //   investment_principal → Investment
-//   withdrawal / fee  → Withdrawal / Fee
-//   admin_debit, balance_adjustment → Adjustment
+//   withdrawal / fee  → Withdrawal / Fee (an admin-applied fee is a real fee
+//                       row, written by admin_apply_fee)
+//   admin_debit       → Account debit (an admin took money off the spendable
+//                       balance; not a fee, withdrawal or investment)
+//   reversal          → Reversal (a previous transaction intentionally undone)
 //   profit_adjustment → Profit adjustment (an admin changed the profit balance
 //                       directly; not an investment return)
+//   balance_adjustment → Adjustment (an admin changed the invested / pending
+//                       balance; there is no more precise meaning)
 //
 // Rows without a source (none today; only possible for a future legacy import)
 // fall back to their stored type. A bare 'adjustment' is never assumed to be
-// profit — it is shown neutrally as an Adjustment.
+// profit or a debit — it is shown neutrally as an Adjustment. The sign of the
+// amount never decides the meaning.
 
-export type TxCategory = 'deposit' | 'profit' | 'profit_adjustment' | 'investment' | 'withdrawal' | 'fee' | 'adjustment' | 'transfer' | 'other'
+export type TxCategory = 'deposit' | 'account_debit' | 'profit' | 'profit_adjustment' | 'investment' | 'withdrawal' | 'fee' | 'reversal' | 'adjustment' | 'transfer' | 'other'
 
 export type TxLike = { type: string; method?: string | null; direction?: string | null; source?: string | null }
 
@@ -28,7 +34,9 @@ export function txCategory(tx: TxLike): TxCategory {
     case 'investment_principal': return 'investment'
     case 'withdrawal': return 'withdrawal'
     case 'fee': return 'fee'
-    case 'admin_debit': case 'balance_adjustment': return 'adjustment'
+    case 'admin_debit': return 'account_debit'
+    case 'reversal': return 'reversal'
+    case 'balance_adjustment': return 'adjustment'
     case 'transfer': return 'transfer'
   }
   switch (tx.type) {
@@ -51,7 +59,7 @@ export function txSign(tx: TxLike): 1 | -1 | 0 {
   if (tx.direction === 'debit') return -1
   const c = txCategory(tx)
   if (c === 'deposit' || c === 'profit') return 1
-  if (c === 'withdrawal' || c === 'fee') return -1
+  if (c === 'withdrawal' || c === 'fee' || c === 'account_debit') return -1
   if (c === 'investment') return tx.method === 'invested_balance' ? 0 : -1
   if (tx.type === 'transfer_in') return 1
   if (tx.type === 'transfer_out') return -1
@@ -60,3 +68,21 @@ export function txSign(tx: TxLike): 1 | -1 | 0 {
 
 // An admin credit to the spendable balance: shown as a Deposit with this detail.
 export const isAccountCredit = (tx: TxLike) => tx.source === 'admin_funding'
+
+// Admin wording, more precise than the client's: what the administrator did.
+export function adminTxLabel(tx: TxLike): string {
+  if (isAccountCredit(tx)) return 'Account Credit'
+  switch (txCategory(tx)) {
+    case 'account_debit': return 'Account Debit'
+    case 'deposit': return 'Deposit'
+    case 'profit': return 'Profit'
+    case 'profit_adjustment': return 'Profit adjustment'
+    case 'investment': return 'Investment'
+    case 'withdrawal': return 'Withdrawal'
+    case 'fee': return tx.method === 'service_fee' ? 'Tarafab Service Fee' : 'Fee'
+    case 'reversal': return 'Reversal'
+    case 'transfer': return 'Transfer'
+    case 'adjustment': return 'Adjustment'
+    default: return tx.type.replace(/_/g, ' ')
+  }
+}

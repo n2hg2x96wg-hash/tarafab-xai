@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { isAccountCredit, txCategory } from '@/lib/txCategory'
+import { adminTxLabel, isAccountCredit, txCategory, txSign } from '@/lib/txCategory'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -46,7 +46,29 @@ type Transaction = {
   effective_at?: string
 }
 
+// What the administrator is doing. Each action is recorded by its meaning
+// (see lib/txCategory): Fund = Account Credit (client: Deposit · Account
+// credit), Debit = Account Debit, Fee = a real Fee row (admin_apply_fee),
+// Profit balance = Profit adjustment (never an investment return). "Other"
+// keeps the remaining balance fields and the exact-value operation.
+type BalanceAction = 'fund' | 'debit' | 'fee' | 'profit' | 'other'
+const ACTIONS: { id: BalanceAction; title: string; hint: string; reason: string }[] = [
+  { id: 'fund', title: 'Fund account', hint: 'Add money to the spendable Account Balance.', reason: 'e.g. Manual account funding' },
+  { id: 'debit', title: 'Debit account', hint: 'Take money off the Account Balance, e.g. a balance correction. Not a fee or withdrawal.', reason: 'e.g. Balance correction' },
+  { id: 'fee', title: 'Apply fee', hint: 'Charge the client a fee from the Account Balance. Recorded as a Fee.', reason: 'e.g. Maintenance fee' },
+  { id: 'profit', title: 'Adjust profit balance', hint: 'Change the separate Profit Balance directly. Not an investment return.', reason: 'e.g. Profit balance correction' },
+  { id: 'other', title: 'Other balance', hint: 'Invested or pending balance, or set an exact value.', reason: 'e.g. Pending balance correction' },
+]
+const ACTION_DEFAULTS: Record<BalanceAction, Pick<AdjustForm, 'field' | 'operation'>> = {
+  fund: { field: 'available_balance', operation: 'credit' },
+  debit: { field: 'available_balance', operation: 'debit' },
+  fee: { field: 'available_balance', operation: 'debit' },
+  profit: { field: 'profit_balance', operation: 'credit' },
+  other: { field: 'invested_balance', operation: 'credit' },
+}
+
 type AdjustForm = {
+  action: BalanceAction
   field: 'account_balance' | 'available_balance' | 'invested_balance' | 'pending_balance' | 'profit_balance'
   operation: 'credit' | 'debit' | 'set'
   amount: string
@@ -66,6 +88,19 @@ const FIELD_LABELS = {
   profit_balance: 'Profit Balance',
 }
 const ADJUST_FIELDS: AdjustForm['field'][] = ['available_balance', 'invested_balance', 'pending_balance', 'profit_balance']
+
+// How the resulting entry is named, by the same rule the database uses
+// (lib/txCategory): [what the client sees, what admin history shows].
+function entryNames(f: AdjustForm): [string, string] {
+  if (f.action === 'fee') return ['Fee', 'Fee']
+  if (f.field === 'available_balance' || f.field === 'account_balance') {
+    if (f.operation === 'credit') return ['Deposit · Account credit', 'Account Credit']
+    if (f.operation === 'debit') return ['Account Debit', 'Account Debit']
+    return ['Deposit · Account credit if raised, Account Debit if lowered', 'Account Credit / Account Debit']
+  }
+  if (f.field === 'profit_balance') return ['Profit adjustment (not an investment return)', 'Profit adjustment']
+  return ['Adjustment', 'Adjustment']
+}
 
 export default function ClientDetailPage() {
   const router = useRouter()
@@ -91,6 +126,7 @@ export default function ClientDetailPage() {
   const [tradingSuccess, setTradingSuccess] = useState('')
 
   const [adjustForm, setAdjustForm] = useState<AdjustForm>({
+    action: 'fund',
     field: 'available_balance',
     operation: 'credit',
     amount: '',
@@ -118,7 +154,7 @@ export default function ClientDetailPage() {
 
   // A different adjustment gets a different key; an unchanged form retried
   // after a network error keeps its key and cannot be applied twice.
-  useEffect(() => { adjustKey.current = newRequestKey() }, [adjustForm.field, adjustForm.operation, adjustForm.amount, adjustForm.reason, adjustForm.effective])
+  useEffect(() => { adjustKey.current = newRequestKey() }, [adjustForm.action, adjustForm.field, adjustForm.operation, adjustForm.amount, adjustForm.reason, adjustForm.effective])
 
   useEffect(() => {
     const t = setInterval(() => setTick(n => n + 1), 15_000)
@@ -245,13 +281,13 @@ export default function ClientDetailPage() {
     setAdjustError('')
 
     try {
-      await readJson(await authFetch('/api/admin/adjust-balance', {
+      const isFee = adjustForm.action === 'fee'
+      await readJson(await authFetch(isFee ? '/api/admin/apply-fee' : '/api/admin/adjust-balance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Idempotency-Key': adjustKey.current },
         body: JSON.stringify({
           target_user_id: clientId,
-          field: adjustForm.field,
-          operation: adjustForm.operation,
+          ...(isFee ? {} : { field: adjustForm.field, operation: adjustForm.operation }),
           amount: parseFloat(adjustForm.amount),
           reason: adjustForm.reason.trim(),
           effective_at: parseEffective(adjustForm.effective).iso,
@@ -260,8 +296,8 @@ export default function ClientDetailPage() {
         }),
       }))
 
-      setAdjustSuccess(`${FIELD_LABELS[adjustForm.field]} updated successfully.`)
-      setAdjustForm({ field: 'available_balance', operation: 'credit', amount: '', reason: '', effective: '' })
+      setAdjustSuccess(`${ACTIONS.find(a => a.id === adjustForm.action)?.title}: ${entryNames(adjustForm)[1]} of $${parseFloat(adjustForm.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })} recorded. ${FIELD_LABELS[adjustForm.field]} updated successfully.`)
+      setAdjustForm({ action: 'fund', field: 'available_balance', operation: 'credit', amount: '', reason: '', effective: '' })
       adjustKey.current = newRequestKey()
       await load()
     } catch (err) {
@@ -369,7 +405,7 @@ export default function ClientDetailPage() {
             onClick={() => setTab(t)}
             className={`flex-1 sm:flex-none whitespace-nowrap px-4 py-2.5 rounded-lg text-xs font-semibold transition-all ${tab === t ? 'bg-ink-800 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]' : 'text-slate-500 hover:text-slate-200'}`}
           >
-            {t === 'overview' ? 'Overview' : t === 'adjust' ? 'Adjust Balance' : t === 'edit' ? 'Edit Details' : 'History'}
+            {t === 'overview' ? 'Overview' : t === 'adjust' ? 'Balance Actions' : t === 'edit' ? 'Edit Details' : 'History'}
           </button>
         ))}
       </div>
@@ -401,7 +437,7 @@ export default function ClientDetailPage() {
               onClick={() => setTab('adjust')}
               className="text-sm font-semibold text-accent-ink bg-accent hover:bg-accent-hover px-5 py-3 rounded-xl transition-colors shadow-[0_8px_24px_-10px_rgba(247,147,26,0.6)]"
             >
-              Fund / adjust balance
+              Balance actions
             </button>
             <button
               onClick={() => setTab('edit')}
@@ -430,8 +466,8 @@ export default function ClientDetailPage() {
       {/* Adjust tab */}
       {tab === 'adjust' && (
         <div className="glass rounded-2xl p-5 sm:p-6 border border-white/[0.08] max-w-lg">
-          <h2 className="text-sm font-semibold text-white mb-1">Fund account or adjust a balance</h2>
-          <p className="text-xs text-slate-500 mb-5">All changes are logged to the audit trail with full details. To record an investment&rsquo;s return, use that investment&rsquo;s profit control: only that is shown to the client as Profit.</p>
+          <h2 className="text-sm font-semibold text-white mb-1">Balance actions</h2>
+          <p className="text-xs text-slate-500 mb-5">Choose what you are doing; the entry is recorded and shown by that meaning. Every action is logged to the audit trail. To record an investment&rsquo;s return, use that investment&rsquo;s profit control in the <Link href="/admin/investments" className="text-violet-300 hover:text-violet-200 underline-offset-2 hover:underline">Investment Center</Link>: only that is shown to the client as Profit.</p>
 
           {adjustSuccess && (
             <div className="mb-5 p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm flex items-center gap-2">
@@ -445,54 +481,74 @@ export default function ClientDetailPage() {
           )}
 
           <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1.5">Balance Field</label>
-              <select
-                value={adjustForm.field}
-                onChange={e => setAdjustForm(f => ({ ...f, field: e.target.value as AdjustForm['field'] }))}
-                className="input-field text-sm"
-                disabled={adjusting}
-              >
-                {ADJUST_FIELDS.map(k => (
-                  <option key={k} value={k}>{FIELD_LABELS[k]}</option>
-                ))}
-              </select>
-              <p className="mt-1.5 text-[11px] leading-snug text-slate-500">
-                {adjustForm.field === 'available_balance' && 'The client’s spendable balance: what they see as Account Balance and can withdraw or invest.'}
-                {adjustForm.field === 'invested_balance' && 'Principal currently invested. It is separate from the Account Balance and is not spendable.'}
-                {adjustForm.field === 'pending_balance' && 'Amounts held for pending requests. Separate from the Account Balance.'}
-                {adjustForm.field === 'profit_balance' && 'Recorded profit. Separate from the Account Balance; it is not added to it.'}
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1.5">Operation</label>
-              <div className="flex gap-2">
-                {(['credit', 'debit', 'set'] as const).map(op => (
-                  <button
-                    key={op}
-                    type="button"
-                    onClick={() => setAdjustForm(f => ({ ...f, operation: op }))}
-                    disabled={adjusting}
-                    className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all border ${adjustForm.operation === op
-                      ? op === 'credit' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-                        : op === 'debit' ? 'bg-red-500/15 text-red-400 border-red-500/30'
-                        : 'bg-violet-600/15 text-violet-300 border-violet-500/20'
-                      : 'text-slate-500 border-white/[0.06] hover:text-white hover:border-white/20'}`}
-                  >
-                    {op === 'credit' ? '+ Credit' : op === 'debit' ? '− Debit' : '= Set'}
-                  </button>
-                ))}
+            <fieldset>
+              <legend className="block text-xs font-medium text-slate-400 mb-1.5">Action</legend>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" role="radiogroup" aria-label="Balance action" data-balance-actions>
+                {ACTIONS.map(a => {
+                  const on = adjustForm.action === a.id
+                  return (
+                    <button key={a.id} type="button" role="radio" aria-checked={on} disabled={adjusting}
+                      onClick={() => setAdjustForm(f => ({ ...f, action: a.id, ...ACTION_DEFAULTS[a.id] }))}
+                      className={`text-left px-3.5 py-2.5 rounded-xl border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-400 ${on ? 'border-accent/60 bg-accent/[0.08]' : 'border-white/[0.08] hover:border-white/20'} ${a.id === 'other' ? 'sm:col-span-2' : ''}`}
+                      data-balance-action={a.id}>
+                      <span className={`block text-[13px] font-semibold ${on ? 'text-white' : 'text-slate-300'}`}>{on ? '● ' : ''}{a.title}</span>
+                      <span className="block text-[11px] leading-snug text-slate-500 mt-0.5">{a.hint}</span>
+                    </button>
+                  )
+                })}
               </div>
-              {/* How the client will see the resulting entry (same rule as the database: lib/txCategory). */}
-              <p className="mt-2 text-[11px] text-slate-400" data-client-sees>
-                Client sees: <span className="text-slate-200 font-medium">{
-                  adjustForm.field === 'available_balance'
-                    ? (adjustForm.operation === 'debit' ? 'Adjustment (debit)' : adjustForm.operation === 'credit' ? 'Deposit · Account credit' : 'Deposit · Account credit if raised, Adjustment if lowered')
-                    : adjustForm.field === 'profit_balance' ? 'Profit adjustment (not an investment return)'
-                    : 'Adjustment'
-                }</span>
-              </p>
+            </fieldset>
+
+            {adjustForm.action === 'other' && (
+              <div>
+                <label htmlFor="adj-field" className="block text-xs font-medium text-slate-400 mb-1.5">Balance Field</label>
+                <select
+                  id="adj-field"
+                  value={adjustForm.field}
+                  onChange={e => setAdjustForm(f => ({ ...f, field: e.target.value as AdjustForm['field'] }))}
+                  className="input-field text-sm"
+                  disabled={adjusting}
+                >
+                  {ADJUST_FIELDS.filter(k => k !== 'profit_balance').map(k => (
+                    <option key={k} value={k}>{FIELD_LABELS[k]}</option>
+                  ))}
+                </select>
+                <p className="mt-1.5 text-[11px] leading-snug text-slate-500">
+                  {adjustForm.field === 'available_balance' && 'The client’s spendable balance. Use Fund account, Debit account or Apply fee unless you need to set an exact value.'}
+                  {adjustForm.field === 'invested_balance' && 'Principal currently invested. It is separate from the Account Balance and is not spendable.'}
+                  {adjustForm.field === 'pending_balance' && 'Amounts held for pending requests. Separate from the Account Balance.'}
+                </p>
+              </div>
+            )}
+
+            {(adjustForm.action === 'profit' || adjustForm.action === 'other') && (
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1.5">Operation</label>
+                <div className="flex gap-2">
+                  {(['credit', 'debit', 'set'] as const).map(op => (
+                    <button
+                      key={op}
+                      type="button"
+                      onClick={() => setAdjustForm(f => ({ ...f, operation: op }))}
+                      disabled={adjusting}
+                      aria-pressed={adjustForm.operation === op}
+                      className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all border ${adjustForm.operation === op
+                        ? op === 'credit' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                          : op === 'debit' ? 'bg-red-500/15 text-red-400 border-red-500/30'
+                          : 'bg-violet-600/15 text-violet-300 border-violet-500/20'
+                        : 'text-slate-500 border-white/[0.06] hover:text-white hover:border-white/20'}`}
+                    >
+                      {op === 'credit' ? '+ Credit' : op === 'debit' ? '− Debit' : '= Set'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* How each side will name the resulting entry (same rule as the database: lib/txCategory). */}
+            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-2.5 text-[11px] space-y-1" data-client-sees>
+              <p className="text-slate-400">Client sees: <span className="text-slate-200 font-medium" data-preview-client>{entryNames(adjustForm)[0]}</span></p>
+              <p className="text-slate-400">Admin history: <span className="text-slate-200 font-medium" data-preview-admin>{entryNames(adjustForm)[1]}</span></p>
             </div>
 
             <div>
@@ -522,11 +578,12 @@ export default function ClientDetailPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1.5">Reason / Notes</label>
+              <label htmlFor="adj-reason" className="block text-xs font-medium text-slate-400 mb-1.5">Reason</label>
               <textarea
+                id="adj-reason"
                 value={adjustForm.reason}
                 onChange={e => setAdjustForm(f => ({ ...f, reason: e.target.value }))}
-                placeholder="e.g. Manual deposit correction, investment return, admin adjustment…"
+                placeholder={ACTIONS.find(a => a.id === adjustForm.action)?.reason}
                 rows={3}
                 className="input-field resize-none text-sm"
                 disabled={adjusting}
@@ -663,23 +720,22 @@ export default function ClientDetailPage() {
               {transactions.map(tx => (
                 <div key={tx.id} className="flex items-start gap-3 p-4">
                   <div className={`mt-0.5 w-8 h-8 rounded-lg flex items-center justify-center text-sm font-semibold shrink-0 border ${
-                    tx.type === 'deposit' || tx.direction === 'credit' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                    tx.type === 'adjustment' && !tx.direction ? 'bg-white/[0.04] text-slate-400 border-white/[0.08]' :
+                    txSign(tx) > 0 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                    txSign(tx) === 0 ? 'bg-white/[0.04] text-slate-400 border-white/[0.08]' :
                     'bg-red-500/10 text-red-400 border-red-500/20'
                   }`}>
-                    {tx.type === 'deposit' || tx.direction === 'credit' ? '+' : tx.type === 'adjustment' && !tx.direction ? '·' : '−'}
+                    {txSign(tx) > 0 ? '+' : txSign(tx) === 0 ? '·' : '−'}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      {/* Named by the event that created it (lib/txCategory): an admin top-up of the
-                          spendable balance is a Deposit (account credit), never Profit. */}
-                      <p className="text-sm font-medium text-white capitalize" data-admin-tx-type={txCategory(tx)}>
-                        {txCategory(tx).replace(/_/g, ' ')}
-                        {isAccountCredit(tx) ? <span className="text-slate-500 font-normal normal-case"> · account credit</span>
-                          : tx.type === 'adjustment' && tx.method && <span className="text-slate-500 font-normal"> · {tx.method.replace(/_/g, ' ')}</span>}
+                      {/* Named by the event that created it (lib/txCategory), in admin wording:
+                          Account Credit / Account Debit / Fee / Profit… never by the sign alone. */}
+                      <p className="text-sm font-medium text-white" data-admin-tx-type={isAccountCredit(tx) ? 'account_credit' : txCategory(tx)}>
+                        {adminTxLabel(tx)}
+                        {(txCategory(tx) === 'profit_adjustment' || txCategory(tx) === 'adjustment') && tx.method && <span className="text-slate-500 font-normal"> · {tx.method.replace(/_/g, ' ')}</span>}
                       </p>
-                      <p className="text-sm font-semibold text-white shrink-0">
-                        ${(tx.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      <p className="text-sm font-semibold text-white shrink-0 tabular-nums" data-admin-signed-amount>
+                        {txSign(tx) > 0 ? '+' : txSign(tx) < 0 ? '−' : ''}${(tx.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                       </p>
                     </div>
                     <div className="flex items-center justify-between gap-2 mt-0.5">
@@ -708,16 +764,20 @@ export default function ClientDetailPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowConfirm(false)} />
           <div className="relative z-10 glass rounded-2xl p-6 border border-white/[0.1] max-w-sm w-full">
-            <h3 className="text-base font-bold text-white mb-1">Confirm Change</h3>
-            <p className="text-xs text-slate-500 mb-4">This action will be recorded in the audit log.</p>
-            <div className="bg-white/[0.03] rounded-xl p-4 mb-4 space-y-2 text-sm">
-              <div className="flex justify-between"><span className="text-slate-400">Client</span><span className="text-white font-medium">{profile.full_name || 'Unnamed'}</span></div>
-              <div className="flex justify-between"><span className="text-slate-400">Field</span><span className="text-white">{FIELD_LABELS[adjustForm.field]}</span></div>
-              <div className="flex justify-between"><span className="text-slate-400">Operation</span><span className="text-white capitalize">{adjustForm.operation}</span></div>
-              <div className="flex justify-between"><span className="text-slate-400">Amount</span><span className="text-white">${parseFloat(adjustForm.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span></div>
-              <div className="flex justify-between"><span className="text-slate-400">New Value</span><span className="text-emerald-400 font-semibold">${(newVal ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span></div>
-              <div className="flex justify-between"><span className="text-slate-400">Effective date</span><span className="text-white">{adjustForm.effective ? new Date(adjustForm.effective).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : 'Now'}</span></div>
+            <h3 className="text-base font-bold text-white mb-1" data-confirm-title>{ACTIONS.find(a => a.id === adjustForm.action)?.title}</h3>
+            <p className="text-xs text-slate-500 mb-4">Check the details. This action will be recorded in the audit log.</p>
+            <div className="bg-white/[0.03] rounded-xl p-4 mb-4 space-y-2 text-sm" data-confirm-details>
+              <div className="flex justify-between gap-3"><span className="text-slate-400">Client</span><span className="text-white font-medium text-right">{profile.full_name || 'Unnamed'}</span></div>
+              <div className="flex justify-between gap-3"><span className="text-slate-400">Balance</span><span className="text-white text-right">{FIELD_LABELS[adjustForm.field]}</span></div>
+              {(adjustForm.action === 'profit' || adjustForm.action === 'other') && <div className="flex justify-between gap-3"><span className="text-slate-400">Operation</span><span className="text-white capitalize">{adjustForm.operation}</span></div>}
+              <div className="flex justify-between gap-3"><span className="text-slate-400">Amount</span><span className="text-white tabular-nums">{adjustForm.operation === 'set' ? '= ' : adjustForm.operation === 'credit' ? '+' : '−'}${parseFloat(adjustForm.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span></div>
+              <div className="flex justify-between gap-3"><span className="text-slate-400">New balance</span><span className="text-emerald-400 font-semibold tabular-nums">${(newVal ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span></div>
               <div className="flex justify-between gap-3"><span className="text-slate-400 shrink-0">Reason</span><span className="text-white text-right text-xs">{adjustForm.reason}</span></div>
+              <div className="flex justify-between gap-3"><span className="text-slate-400">Effective date</span><span className="text-white">{adjustForm.effective ? new Date(adjustForm.effective).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : 'Now'}</span></div>
+              <div className="pt-2 mt-1 border-t border-white/[0.06] space-y-1 text-xs">
+                <div className="flex justify-between gap-3"><span className="text-slate-400 shrink-0">Client sees</span><span className="text-slate-200 text-right">{entryNames(adjustForm)[0]}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-slate-400 shrink-0">Admin history</span><span className="text-slate-200 text-right">{entryNames(adjustForm)[1]}</span></div>
+              </div>
             </div>
             <div className="flex gap-3">
               <button

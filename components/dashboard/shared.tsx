@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react'
 
 // Types and small display helpers shared by the dashboard sections.
-import { IconArrowDown, IconArrowUp, IconFile, IconPie, IconSwap, IconTrend } from '@/components/Icons'
+import { IconArrowDown, IconArrowUp, IconFile, IconHistory, IconPie, IconSwap, IconTrend, IconWallet } from '@/components/Icons'
 import { txCategory, txSign } from '@/lib/txCategory'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
 import { statusLabel } from '@/lib/i18n/format'
@@ -82,6 +82,8 @@ export function txLabel(tx: Tx, t: T) {
   if (c === 'profit') return t('dash.txType.profit')
   if (c === 'profit_adjustment') return t('dash.txType.profitAdjustment')
   if (c === 'deposit') return t('dash.txType.deposit')
+  if (c === 'account_debit') return t('dash.txType.accountDebit')
+  if (c === 'reversal') return t('dash.txType.reversal')
   if (c === 'adjustment') return t('dash.txType.adjustment')
   // Tarafab's own service fees are always named as such, never as a network fee.
   if (tx.type === 'fee' && tx.method === 'service_fee') return t('dash.txType.serviceFee')
@@ -109,6 +111,8 @@ export function TxIcon({ type, tx }: { type: string; tx?: Tx }) {
     : c === 'withdrawal' ? [IconArrowUp, 'text-fg-muted border-ink-700 bg-ink-800']
     : c === 'fee' ? [IconFile, 'text-amber-300 border-amber-500/25 bg-amber-500/[.06]']
     : c === 'investment' ? [IconPie, 'text-sky-300 border-sky-500/25 bg-sky-500/[.06]']
+    : c === 'account_debit' ? [IconWallet, 'text-rose-300 border-rose-500/25 bg-rose-500/[.06]']
+    : c === 'reversal' ? [IconHistory, 'text-fg-muted border-ink-700 bg-ink-800']
     : [IconSwap, 'text-fg-muted border-ink-700 bg-ink-800']
   return (
     <span className={`w-8 h-8 rounded-md border flex items-center justify-center shrink-0 ${tone}`} data-tx-category={c} aria-hidden="true">

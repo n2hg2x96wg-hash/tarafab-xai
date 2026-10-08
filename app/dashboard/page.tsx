@@ -1077,14 +1077,16 @@ const STATUS_GROUPS: Record<string, string[]> = {
 
 // The six primary type filters. A group lists the categories it covers
 // (lib/txCategory, decided by the stored source): Deposits includes account
-// credits, Fees includes the Tarafab Service Fee. Profit is investment returns
-// only — an admin profit-balance adjustment, a balance adjustment or a transfer
-// is not guessed into a group and appears under All, with its own row label.
+// credits, Withdrawals includes account debits (money taken off the account;
+// the row still reads Account Debit), Fees includes the Tarafab Service Fee and
+// admin-applied fees. Profit is investment returns only — an admin
+// profit-balance adjustment, a reversal, a balance adjustment or a transfer is
+// not guessed into a group and appears under All, with its own row label.
 const TX_GROUPS: { id: string; label: TKey; cats: TxCategory[] }[] = [
   { id: 'all', label: 'common.all', cats: [] },
   { id: 'deposits', label: 'txc.gDeposits', cats: ['deposit'] },
   { id: 'investments', label: 'txc.gInvestments', cats: ['investment'] },
-  { id: 'withdrawals', label: 'txc.gWithdrawals', cats: ['withdrawal'] },
+  { id: 'withdrawals', label: 'txc.gWithdrawals', cats: ['withdrawal', 'account_debit'] },
   { id: 'profit', label: 'txc.gProfit', cats: ['profit'] },
   { id: 'fees', label: 'txc.gFees', cats: ['fee'] },
 ]

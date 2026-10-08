@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { isAccountCredit, txCategory, type TxCategory } from '@/lib/txCategory'
+import { adminTxLabel, isAccountCredit, txCategory, type TxCategory } from '@/lib/txCategory'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import AdminLayout from '@/components/AdminLayout'
@@ -39,17 +39,23 @@ const STATUS_STYLE: Record<string, string> = {
 
 const PAGE = 50
 // Shown and filtered by what each transaction means (lib/txCategory, from the
-// database-set `source`): an admin top-up of the spendable balance is a
-// Deposit (account credit); only investment returns are Profit. Stored types
-// and amounts are never rewritten.
-const KNOWN_TYPES: TxCategory[] = ['deposit', 'withdrawal', 'profit', 'investment', 'fee', 'adjustment', 'profit_adjustment']
-const CATEGORY_SOURCES: Partial<Record<TxCategory, string[]>> = {
-  deposit: ['client_deposit', 'admin_funding'], profit: ['investment_profit'], profit_adjustment: ['profit_adjustment'],
-  investment: ['investment_principal'], withdrawal: ['withdrawal'], fee: ['fee'], adjustment: ['admin_debit', 'balance_adjustment'], transfer: ['transfer'],
+// database-set `source`), in admin wording: what the administrator or the
+// client actually did. An admin top-up is an Account Credit (the client sees
+// Deposit · Account credit), an admin debit is an Account Debit, only
+// investment returns are Profit. Stored types and amounts are never rewritten.
+type AdminKey = TxCategory | 'account_credit'
+const KNOWN_TYPES: AdminKey[] = ['account_credit', 'account_debit', 'deposit', 'withdrawal', 'fee', 'investment', 'profit', 'profit_adjustment', 'reversal', 'adjustment']
+const CATEGORY_SOURCES: Partial<Record<AdminKey, string[]>> = {
+  account_credit: ['admin_funding'], account_debit: ['admin_debit'], deposit: ['client_deposit'],
+  profit: ['investment_profit'], profit_adjustment: ['profit_adjustment'], investment: ['investment_principal'],
+  withdrawal: ['withdrawal'], fee: ['fee'], reversal: ['reversal'], adjustment: ['balance_adjustment'], transfer: ['transfer'],
 }
-const typeKey = (tx: Pick<Tx, 'type' | 'method' | 'direction' | 'source'>) => txCategory(tx)
-const typeText = (tx: Pick<Tx, 'type' | 'method' | 'direction' | 'source'>) =>
-  typeKey(tx).replace(/_/g, ' ') + (isAccountCredit(tx) ? ' · account credit' : '')
+const KEY_LABEL: Record<string, string> = {
+  account_credit: 'Account Credit', account_debit: 'Account Debit', deposit: 'Deposit (client)', withdrawal: 'Withdrawal', fee: 'Fee',
+  investment: 'Investment', profit: 'Profit', profit_adjustment: 'Profit adjustment', reversal: 'Reversal', adjustment: 'Adjustment', transfer: 'Transfer',
+}
+const typeKey = (tx: Pick<Tx, 'type' | 'method' | 'direction' | 'source'>): AdminKey => isAccountCredit(tx) ? 'account_credit' : txCategory(tx)
+const typeText = (tx: Pick<Tx, 'type' | 'method' | 'direction' | 'source'>) => adminTxLabel(tx)
 const KNOWN_STATUSES = ['pending', 'pending_review', 'pending_verification', 'pending_blockchain_confirmation', 'requested', 'under_review', 'approved', 'processing', 'completed', 'rejected', 'failed', 'cancelled']
 
 export default function TransactionsPage() {
@@ -87,7 +93,7 @@ export default function TransactionsPage() {
       .select('id, user_id, type, method, direction, source, amount, fee, status, notes, reference, address, created_at, effective_at, profiles(full_name)')
       .order('effective_at', { ascending: false }).order('id', { ascending: false })
       .limit(PAGE + 1)
-    if (filterType) { const src = CATEGORY_SOURCES[filterType as TxCategory]; q = src ? q.in('source', src) : q.eq('type', filterType) }
+    if (filterType) { const src = CATEGORY_SOURCES[filterType as AdminKey]; q = src ? q.in('source', src) : q.eq('type', filterType) }
     if (filterStatus) q = q.eq('status', filterStatus)
     if (before) q = q.lt('effective_at', before)
     if (term && /^[0-9a-f-]{36}$/i.test(term)) q = q.or(`id.eq.${term},user_id.eq.${term}`)
@@ -161,7 +167,7 @@ export default function TransactionsPage() {
     }
   }
 
-  const sourceLabel = (tx: Tx) => tx.type === 'withdrawal' ? (tx.method === 'profit_balance' ? 'From profit balance' : 'From account balance') : tx.method
+  const sourceLabel = (tx: Tx) => tx.type === 'withdrawal' ? (tx.method === 'profit_balance' ? 'From profit balance' : 'From account balance') : tx.method?.replace(/_/g, ' ')
 
   const filtered = txs.filter(tx => {
     const name = tx.profiles?.full_name?.toLowerCase() || ''
@@ -173,7 +179,7 @@ export default function TransactionsPage() {
   })
 
   const allStatuses = Array.from(new Set([...KNOWN_STATUSES, ...txs.map(t => t.status), ...(filterStatus ? [filterStatus] : [])])).sort()
-  const allTypes = Array.from(new Set([...KNOWN_TYPES, ...txs.map(t => typeKey(t)), ...(filterType ? [filterType] : [])])).sort()
+  const allTypes: string[] = Array.from(new Set<string>([...KNOWN_TYPES, ...txs.map(t => typeKey(t)), ...(filterType ? [filterType] : [])]))
 
   return (
     <AdminLayout title="Transactions" subtitle="All platform transactions">
@@ -243,7 +249,7 @@ export default function TransactionsPage() {
         </select>
         <select value={filterType} onChange={e => setFilterType(e.target.value)} className="input-field text-xs py-2 sm:w-48 capitalize">
           <option value="">All types</option>
-          {allTypes.map(t => <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>)}
+          {allTypes.map(t => <option key={t} value={t}>{KEY_LABEL[t] || t.replace(/_/g, ' ')}</option>)}
         </select>
       </div>
 

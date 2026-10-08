@@ -274,7 +274,9 @@ export function noticesFrom(txs: Tx[]): Notice[] {
       if (tx.status === 'completed' || tx.status === 'approved') out.push({ id: tx.id, tx, kind: 'approved', at: tx.updated_at || tx.created_at })
       else if (tx.status === 'rejected') out.push({ id: tx.id, tx, kind: 'rejected', at: tx.updated_at || tx.created_at })
       else if (OPEN_STATUSES.includes(tx.status)) out.push({ id: tx.id, tx, kind: 'pending', at: tx.created_at })
-    } else if ((tx.type === 'adjustment' || txCategory(tx) === 'profit') && tx.status === 'completed') {
+    } else if ((tx.type === 'adjustment' || txCategory(tx) === 'profit'
+      // a fee an admin charged (admin_apply_fee writes it against the spendable balance)
+      || (txCategory(tx) === 'fee' && tx.method === 'available_balance')) && tx.status === 'completed') {
       out.push({ id: tx.id, tx, kind: 'credited', at: tx.created_at })
     }
   }

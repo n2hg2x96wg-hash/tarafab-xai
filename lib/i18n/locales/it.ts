@@ -404,6 +404,8 @@ const it: DeepPartial<typeof en> = {
       adjustment: 'Rettifica',
       profitAdjustment: 'Rettifica del profitto',
       accountCredit: 'Accredito sul conto',
+      accountDebit: 'Addebito sul conto',
+      reversal: 'Storno',
       profit: 'Profitto',
       return: 'Rendimento',
       transfer: 'Trasferimento',
