@@ -816,3 +816,13 @@ body.dialog-open #chat-application { visibility: hidden !important; }
 
 .no-scrollbar { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Payment-method sheet: slide/fade out on close (same feel as sheet-in). */
+.sheet-out { animation: sheet-out .18s cubic-bezier(.4,0,1,1) both !important; }
+@keyframes sheet-out { to { transform: translateY(100%); opacity: .6; } }
+@media (min-width: 640px) { @keyframes sheet-out { to { transform: translateY(12px); opacity: 0; } } }
+.sheet-fade-out { animation: sheet-fade-out .18s ease both; }
+@keyframes sheet-fade-out { to { opacity: 0; } }
+@keyframes sheet-in-up { from { transform: translateY(100%); } to { transform: none; } }
+@media (max-width: 639px) { .dep-sheet { animation-name: sheet-in-up; animation-duration: .26s; } }
+@media (prefers-reduced-motion: reduce) { .sheet-out, .sheet-fade-out { animation: none !important; } }

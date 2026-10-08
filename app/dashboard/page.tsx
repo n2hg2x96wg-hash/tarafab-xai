@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState, useRef, useCallback, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import type { ComponentType, SVGProps } from 'react'
+import type { ComponentType, SVGProps, KeyboardEvent as RKeyboardEvent, PointerEvent as RPointerEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { createClient } from '@/lib/supabase/client'
 import { BitcoinMarketCard } from '@/components/BitcoinMarket'
 import { FormError, Spinner } from '@/components/AuthShell'
@@ -1365,38 +1366,10 @@ function DepositTab({ onSuccess, go, can }: { onSuccess: () => void; go: (id: st
         <p className="mt-0.5 text-[14px] text-fg-muted">Fund your account securely.</p>
       </header>
 
-      {/* Choose asset / payment method — light section, compact rows */}
-      <section aria-labelledby="dep-choose">
-        <h3 id="dep-choose" className="dep-h">Choose asset / payment method</h3>
-        <p className="mt-0.5 text-[12.5px] text-fg-faint">Only enabled methods are shown. Each crypto option is one asset on one network.</p>
-        {opts === undefined && <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2" aria-label={t('common.loading')}>{[0, 1, 2].map(i => <div key={i} className="skeleton h-[54px] rounded-xl" />)}</div>}
-        {(['crypto', 'other'] as const).map(g => (
-          <div key={g} role="radiogroup" aria-label={g === 'crypto' ? 'Crypto' : 'Other methods'} className="mt-4">
-            <p className="dep-group">{g === 'crypto' ? 'Crypto' : 'Other methods'}</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {choices.filter(c => c.group === g && (g === 'other' || opts !== undefined || c.value === 'bitcoin')).map(c => {
-                const on = method === c.value
-                return (
-                  <label key={c.value} data-method={c.value} className={`dep-choice ${on ? 'dep-choice-on' : ''}`}>
-                    <input type="radio" name="method" value={c.value} checked={on} onChange={() => setMethod(c.value)} disabled={submitting} className="sr-only" />
-                    <span className={`w-8 h-8 shrink-0 rounded-lg grid place-items-center text-[14px] font-semibold ${c.tone}`} aria-hidden="true">{c.glyph}</span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[14px] font-medium text-fg truncate">{c.title}</span>
-                      <span className="block text-[12px] text-fg-faint truncate">{c.sub}</span>
-                    </span>
-                    <span className={`dep-radio ${on ? 'dep-radio-on' : ''}`} aria-hidden="true" />
-                  </label>
-                )
-              })}
-            </div>
-          </div>
-        ))}
-        {ethNotice && <p className="mt-3 text-[12px] text-amber-300" role="status">{ethNotice}</p>}
-      </section>
 
       {/* Receiving details — only for crypto methods; one compact surface */}
       {isCrypto && (
-        <section aria-labelledby="dep-recv" className="mt-8">
+        <section aria-labelledby="dep-recv">
           <h3 id="dep-recv" className="dep-h">Receiving details</h3>
           <div className="dep-surface mt-3" data-deposit-asset={isEth ? eth!.asset : 'BTC'} data-chain-id={isEth ? eth!.chain_id : undefined}>
             <div className="flex flex-wrap items-center gap-2">
@@ -1451,17 +1424,16 @@ function DepositTab({ onSuccess, go, can }: { onSuccess: () => void; go: (id: st
             <input id="amount" type="number" inputMode="decimal" step="0.01" min="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" required className="field tabular-nums" disabled={submitting} />
           </div>
 
-          {/* Payment method: Tarafab selector (bottom sheet on phones). Same
-              value as the choice list above — one state, two ways to set it. */}
+          {/* Payment method: the only selector on the page. Opens the bottom sheet. */}
           <div>
-            <span className="field-label">{t('deposit.method')}</span>
-            <button type="button" onClick={() => setSheet(true)} disabled={submitting} className="field text-left flex items-center gap-3" aria-haspopup="dialog" data-method-trigger>
+            <span id="dep-method-label" className="field-label">{t('deposit.method')}</span>
+            <button type="button" onClick={() => setSheet(true)} disabled={submitting} className="field text-left flex items-center gap-3" aria-haspopup="dialog" aria-expanded={sheet} aria-labelledby="dep-method-label dep-method-value" data-method-trigger>
               <span className={`w-7 h-7 shrink-0 rounded-lg grid place-items-center text-[13px] font-semibold ${current.tone}`} aria-hidden="true">{current.glyph}</span>
-              <span className="min-w-0 flex-1 truncate">{current.title} <span className="text-fg-faint">· {current.sub}</span></span>
+              <span id="dep-method-value" className="min-w-0 flex-1 truncate">{current.title} <span className="text-fg-faint">· {current.sub}</span></span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-fg-faint shrink-0" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
             </button>
+            {ethNotice && <p className="mt-2 text-[12px] text-amber-300" role="status">{ethNotice}</p>}
           </div>
-
 
           {isEth && (
             <div className="space-y-4" data-eth-fields>
@@ -1496,42 +1468,107 @@ function DepositTab({ onSuccess, go, can }: { onSuccess: () => void; go: (id: st
         </form>
       </section>
 
-      {sheet && <MethodSheet choices={choices} value={method} onPick={v => { setMethod(v); setSheet(false) }} onClose={() => setSheet(false)} />}
+      {sheet && <MethodSheet choices={choices.filter(c => c.group === 'other' || opts !== undefined || c.value === 'bitcoin')} loading={opts === undefined} value={method} onPick={setMethod} onClose={() => setSheet(false)} />}
     </div>
   )
 }
 
 // Tarafab payment-method sheet: bottom sheet on phones, centred dialog on
 // larger screens. Escape / backdrop close it; picking applies the method.
-function MethodSheet({ choices, value, onPick, onClose }: { choices: { value: string; glyph: string; tone: string; title: string; sub: string; group: 'crypto' | 'other' }[]; value: string; onPick: (v: string) => void; onClose: () => void }) {
+// Payment-method picker: a true bottom sheet on phones (compact centred
+// dialog on larger screens). It is portalled to <body> above everything; the
+// rest of the app is made inert while it is open (no taps, focus or screen
+// reader on the page underneath), page scroll is locked, Smartsupp is hidden
+// behind it, and focus is trapped inside. Closes on pick, backdrop tap,
+// drag-down, or Escape; dismissing keeps the current selection.
+function MethodSheet({ choices, value, loading, onPick, onClose }: { choices: { value: string; glyph: string; tone: string; title: string; sub: string; group: 'crypto' | 'other' }[]; value: string; loading?: boolean; onPick: (v: string) => void; onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null)
+  const [closing, setClosing] = useState(false)
+  const [dragY, setDragY] = useState(0)
+  const drag = useRef<{ y: number; t: number; dy: number } | null>(null)
+  // Animate out, then hand control back (pick first so the page updates under the closing sheet).
+  const close = useCallback((pick?: string) => {
+    if (closing) return
+    if (pick !== undefined) onPick(pick)
+    const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    if (reduce) { onClose(); return }
+    setClosing(true); setTimeout(onClose, 180)
+  }, [closing, onPick, onClose])
+
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    ref.current?.querySelector<HTMLButtonElement>('[aria-checked="true"]')?.focus()
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
-      <div className="absolute inset-0 bg-black/55 backdrop-blur-[3px] backdrop-in" onClick={onClose} aria-hidden="true" />
-      <div ref={ref} className="dep-sheet relative w-full sm:max-w-md max-h-[80dvh] overflow-y-auto overscroll-contain rounded-t-2xl sm:rounded-2xl p-4 pb-[calc(16px+env(safe-area-inset-bottom))]" data-method-sheet>
-        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[rgb(var(--contrast)/.18)] sm:hidden" aria-hidden="true" />
-        <p id="sheet-title" className="px-1 text-[15px] font-semibold text-fg">Choose payment method</p>
-        <div role="radiogroup" aria-labelledby="sheet-title" className="mt-3 space-y-1">
+    const opener = document.activeElement as HTMLElement | null
+    const html = document.documentElement, prevOverflow = html.style.overflow
+    html.style.overflow = 'hidden'
+    document.body.classList.add('dialog-open')
+    // Everything else on the page becomes inert while the sheet is open.
+    const others = Array.from(document.body.children).filter(el => el !== ref.current?.closest('[data-sheet-root]')) as HTMLElement[]
+    const was = others.map(el => [el.inert, el.getAttribute('aria-hidden')] as const)
+    others.forEach(el => { el.inert = true; el.setAttribute('aria-hidden', 'true') })
+    ref.current?.querySelector<HTMLButtonElement>('[aria-checked="true"]')?.focus() ?? ref.current?.querySelector<HTMLButtonElement>('button')?.focus()
+    return () => {
+      html.style.overflow = prevOverflow
+      document.body.classList.remove('dialog-open')
+      others.forEach((el, i) => { el.inert = was[i][0]; if (was[i][1] === null) el.removeAttribute('aria-hidden'); else el.setAttribute('aria-hidden', was[i][1]!) })
+      opener?.focus?.()
+    }
+  }, [])
+
+  const onKey = (e: RKeyboardEvent) => {
+    if (e.key === 'Escape') { e.stopPropagation(); close(); return }
+    const btns = Array.from(ref.current?.querySelectorAll<HTMLButtonElement>('button[data-sheet-option]') || [])
+    const i = btns.indexOf(document.activeElement as HTMLButtonElement)
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); btns[(i + (e.key === 'ArrowDown' ? 1 : -1) + btns.length) % btns.length]?.focus() }
+    if (e.key === 'Tab') { // focus trap
+      const all = Array.from(ref.current?.querySelectorAll<HTMLElement>('button') || [])
+      if (!all.length) return
+      const first = all[0], last = all[all.length - 1]
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
+    }
+  }
+  // Drag down to dismiss: from the handle/title always, from the list only when it is scrolled to the top.
+  const onDown = (e: RPointerEvent) => {
+    if (e.pointerType === 'mouse') return
+    const fromList = (e.target as HTMLElement).closest('[data-sheet-list]')
+    if (fromList && (ref.current?.scrollTop || 0) > 0) return
+    drag.current = { y: e.clientY, t: Date.now(), dy: 0 }
+  }
+  const onMove = (e: RPointerEvent) => { if (!drag.current) return; drag.current.dy = Math.max(0, e.clientY - drag.current.y); setDragY(drag.current.dy) }
+  const onUp = () => {
+    const d = drag.current
+    if (!d) return
+    drag.current = null
+    // A long pull or a quick flick closes; anything else springs back.
+    if (d.dy > 90 || d.dy / Math.max(1, Date.now() - d.t) > 0.6) close(); else setDragY(0)
+  }
+
+  if (typeof document === 'undefined') return null
+  return createPortal(
+    <div data-sheet-root className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="sheet-title" onKeyDown={onKey}>
+      <div className={`absolute inset-0 bg-black/60 backdrop-blur-[6px] ${closing ? 'sheet-fade-out' : 'backdrop-in'}`} onClick={() => close()} aria-hidden="true" data-sheet-backdrop />
+      <div ref={ref}
+        className={`dep-sheet relative w-full sm:max-w-md max-h-[78dvh] overflow-y-auto overscroll-contain rounded-t-[22px] sm:rounded-2xl px-3 pt-2.5 pb-[calc(14px+env(safe-area-inset-bottom))] sm:p-4 ${closing ? 'sheet-out' : ''}`}
+        style={dragY ? { transform: `translateY(${dragY}px)`, transition: 'none' } : undefined}
+        onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} data-method-sheet>
+        <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-[rgb(var(--contrast)/.22)] sm:hidden touch-none" aria-hidden="true" data-sheet-handle />
+        <p id="sheet-title" className="px-2 text-[16px] font-semibold text-fg touch-none">Choose payment method</p>
+        <div role="radiogroup" aria-labelledby="sheet-title" className="mt-2.5 space-y-0.5" data-sheet-list>
           {choices.map(c => {
             const on = c.value === value
             return (
-              <button key={c.value} type="button" role="radio" aria-checked={on} onClick={() => onPick(c.value)} data-sheet-option={c.value}
-                className={`w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${on ? 'bg-accent/10' : 'hover:bg-[rgb(var(--contrast)/.04)]'}`}>
-                <span className={`w-8 h-8 shrink-0 rounded-lg grid place-items-center text-[13px] font-semibold ${c.tone}`} aria-hidden="true">{c.glyph}</span>
-                <span className="min-w-0 flex-1"><span className="block text-[14px] text-fg truncate">{c.title}</span><span className="block text-[12px] text-fg-faint truncate">{c.sub}</span></span>
-                {on && <IconCheck width={16} height={16} className="text-accent shrink-0" aria-hidden="true" />}
+              <button key={c.value} type="button" role="radio" aria-checked={on} aria-label={`${c.title}, ${c.sub}`} onClick={() => close(c.value)} data-sheet-option={c.value}
+                className={`w-full flex items-center gap-3 rounded-xl px-2.5 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${on ? 'bg-accent/10 ring-1 ring-inset ring-accent/40' : 'hover:bg-[rgb(var(--contrast)/.04)]'}`}>
+                <span className={`w-9 h-9 shrink-0 rounded-lg grid place-items-center text-[14px] font-semibold ${c.tone}`} aria-hidden="true">{c.glyph}</span>
+                <span className="min-w-0 flex-1"><span className="block text-[15px] text-fg truncate">{c.title}</span><span className="block text-[12.5px] text-fg-faint truncate">{c.sub}</span></span>
+                {on && <IconCheck width={18} height={18} className="text-accent shrink-0" aria-hidden="true" />}
               </button>
             )
           })}
+          {loading && <p className="px-2.5 py-3 text-[13px] text-fg-faint flex items-center gap-2"><Spinner /> Loading more methods…</p>}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
