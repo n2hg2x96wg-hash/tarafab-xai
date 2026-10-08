@@ -163,6 +163,13 @@ export function VerificationTab({ onStatusChange }: { onStatusChange?: (status: 
             {state?.submitted_at && hasSubmission && (
               <p className="text-xs mt-2 text-fg-faint">{t('kyc.submittedOn', { date: when(state.submitted_at) })}</p>
             )}
+            {/* The next step, when one is needed: jump to the form below. */}
+            {canSubmit && (
+              <button type="button" onClick={() => document.getElementById('kyc-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                className="btn btn-sm btn-solid mt-3" data-kyc-next>
+                {status === 'rejected' ? t('kyc.resubmit') : t('kyc.formTitle')}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -170,7 +177,7 @@ export function VerificationTab({ onStatusChange }: { onStatusChange?: (status: 
       {loadError && <FormError message={loadError} />}
 
       {canSubmit && (
-        <form onSubmit={submit} className="space-y-4 pt-2" noValidate>
+        <form id="kyc-form" onSubmit={submit} className="space-y-4 pt-2 scroll-mt-20" noValidate>
           <div>
             <h3 className="dep-h">{status === 'rejected' ? t('kyc.resubmit') : t('kyc.formTitle')}</h3>
             <p className="text-[13px] text-fg-muted mt-1">{t('kyc.why')}</p>

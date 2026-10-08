@@ -835,3 +835,17 @@ body.dialog-open #chat-application { visibility: hidden !important; }
 .cc-drawer .cc-navgroup + .cc-navgroup { border-top: 1px solid rgb(var(--contrast) / .045); padding-top: 4px; }
 .cc-tabbar { box-shadow: none; background: rgb(var(--ink-950) / .86); border-top-color: rgb(var(--contrast) / .08); }
 .cc-tab:focus-visible { outline: none; box-shadow: inset 0 0 0 2px rgb(var(--accent) / .45); border-radius: 12px; }
+
+/* Phones: the automation flow reads as a compact vertical timeline (rail +
+   dot per stage) instead of six stacked boxes. Same stages, same states. */
+@media (max-width: 767px) {
+  .flow-track { position: relative; padding-left: 14px; }
+  .flow-track::before { content: ''; position: absolute; left: 3px; top: 10px; bottom: 10px; width: 1.5px; background: rgb(var(--contrast) / .09); }
+  .flow-step .flow-node { border: 0 !important; background: none !important; box-shadow: none !important; padding: 7px 0 7px 6px; border-radius: 0; transform: none !important; }
+  .flow-step .flow-node > div:first-child > span:first-child { position: absolute; left: 0; margin-top: 1px; width: 8px; height: 8px; box-shadow: 0 0 0 3px rgb(var(--ink-900)); }
+  .flow-step { position: static; }
+  .flow-step .flow-node { position: relative; }
+  .flow-step .flow-node > div:first-child > span:first-child { left: -14px; }
+  .flow-link { display: none; }
+  .flow-step + .flow-step .flow-node { border-top: 1px solid rgb(var(--contrast) / .05) !important; }
+}

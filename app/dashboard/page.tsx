@@ -1515,7 +1515,7 @@ function DepositTab({ onSuccess, go, can }: { onSuccess: () => void; go: (id: st
 // reader on the page underneath), page scroll is locked, Smartsupp is hidden
 // behind it, and focus is trapped inside. Closes on pick, backdrop tap,
 // drag-down, or Escape; dismissing keeps the current selection.
-function MethodSheet({ choices, value, loading, onPick, onClose }: { choices: { value: string; glyph: string; tone: string; title: string; sub: string; group: 'crypto' | 'other' }[]; value: string; loading?: boolean; onPick: (v: string) => void; onClose: () => void }) {
+function MethodSheet({ choices, value, loading, onPick, onClose, title = 'Choose payment method' }: { choices: { value: string; glyph: string; tone: string; title: string; sub: string; group: 'crypto' | 'other' }[]; value: string; loading?: boolean; onPick: (v: string) => void; onClose: () => void; title?: string }) {
   const ref = useRef<HTMLDivElement>(null)
   const [closing, setClosing] = useState(false)
   const [dragY, setDragY] = useState(0)
@@ -1585,7 +1585,7 @@ function MethodSheet({ choices, value, loading, onPick, onClose }: { choices: { 
         style={dragY ? { transform: `translateY(${dragY}px)`, transition: 'none' } : undefined}
         onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} data-method-sheet>
         <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-[rgb(var(--contrast)/.22)] sm:hidden touch-none" aria-hidden="true" data-sheet-handle />
-        <p id="sheet-title" className="px-2 text-[16px] font-semibold text-fg touch-none">Choose payment method</p>
+        <p id="sheet-title" className="px-2 text-[16px] font-semibold text-fg touch-none">{title}</p>
         <div role="radiogroup" aria-labelledby="sheet-title" className="mt-2.5 space-y-0.5" data-sheet-list>
           {choices.map(c => {
             const on = c.value === value
@@ -1621,6 +1621,7 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
   const [wallets, setWallets] = useState<WithdrawalWallet[]>([])
   const [walletLoadError, setWalletLoadError] = useState('')
   const [destinationWalletId, setDestinationWalletId] = useState('')
+  const [destSheet, setDestSheet] = useState(false)
   const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -1654,6 +1655,12 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
   const withdrawable = (src: Source) => Math.max(0, Math.round((balanceOf(src) - reserved(src)) * 100) / 100)
   const max = withdrawable(source)
   const selectedWallet = wallets.find(wallet => wallet.id === destinationWalletId)
+  // Destination options for the bottom sheet: a typed Bitcoin address, or a verified wallet.
+  const destChoices: { value: string; glyph: string; tone: string; title: string; sub: string; group: 'crypto' | 'other' }[] = [
+    { value: '', glyph: '₿', tone: 'bg-amber-500/15 text-amber-300', title: 'Enter a Bitcoin address', sub: 'Paste it in the field below', group: 'other' },
+    ...wallets.map(w => ({ value: w.id, glyph: '◈', tone: 'bg-sky-500/15 text-sky-300', title: w.wallet_name || w.label || 'Verified wallet', sub: `${w.network} · ${w.address.length > 12 ? `${w.address.slice(0, 6)}…${w.address.slice(-4)}` : w.address}`, group: 'crypto' as const })),
+  ]
+  const destChoice = destChoices.find(c => c.value === destinationWalletId) || destChoices[0]
   const destinationAddress = selectedWallet?.address || address.trim()
 
   // Submitting validates and opens a review of exactly what will be sent;
@@ -1774,21 +1781,14 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
         </div>
 
         <div>
-          <label htmlFor="w-destination" className="field-label">Withdrawal destination</label>
-          <select
-            id="w-destination"
-            value={destinationWalletId}
-            onChange={e => { setDestinationWalletId(e.target.value); setAddress(''); setError('') }}
-            className="field"
-            disabled={submitting}
-          >
-            <option value="">Enter a Bitcoin address</option>
-            {wallets.map(wallet => (
-              <option key={wallet.id} value={wallet.id}>
-                {wallet.wallet_name || wallet.label || 'Verified wallet'} · {wallet.network}
-              </option>
-            ))}
-          </select>
+          <span id="w-destination-label" className="field-label">Withdrawal destination</span>
+          {/* Same Tarafab bottom sheet as Deposit: a Bitcoin address, or one of the verified wallets. */}
+          <button type="button" id="w-destination" onClick={() => setDestSheet(true)} disabled={submitting} className="field text-left flex items-center gap-3" aria-haspopup="dialog" aria-expanded={destSheet} aria-labelledby="w-destination-label w-destination-value" data-destination={destinationWalletId}>
+            <span className={`w-7 h-7 shrink-0 rounded-lg grid place-items-center text-[13px] font-semibold ${destChoice.tone}`} aria-hidden="true">{destChoice.glyph}</span>
+            <span id="w-destination-value" className="min-w-0 flex-1 truncate">{destChoice.title} <span className="text-fg-faint">· {destChoice.sub}</span></span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-fg-faint shrink-0" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+          </button>
+          {destSheet && <MethodSheet title="Withdrawal destination" choices={destChoices} value={destinationWalletId} onPick={v => { setDestinationWalletId(v); setAddress(''); setError('') }} onClose={() => setDestSheet(false)} />}
           {selectedWallet ? (
             <p className="mt-2 break-all font-mono text-xs text-fg-muted">{selectedWallet.address}</p>
           ) : (
