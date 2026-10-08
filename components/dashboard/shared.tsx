@@ -1,5 +1,7 @@
 'use client'
 
+import type { ReactNode } from 'react'
+
 // Types and small display helpers shared by the dashboard sections.
 import { IconArrowDown, IconArrowUp, IconSwap } from '@/components/Icons'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
@@ -107,6 +109,30 @@ export function PageIntro({ title, sub }: { title: string; sub?: string }) {
       <h2 className="text-[22px] font-semibold tracking-tight text-fg [text-wrap:balance] break-normal hyphens-none">{title}</h2>
       {sub && <p className="mt-0.5 text-[14px] text-fg-muted max-w-2xl">{sub}</p>}
     </header>
+  )
+}
+
+// Settings-style grouping: a small section title over one quiet surface of
+// divided rows (instead of one card per item). `danger` tints the surface for
+// destructive actions.
+export function SettingsSection({ title, children, danger, id }: { title: string; children: ReactNode; danger?: boolean; id?: string }) {
+  return (
+    <section aria-labelledby={id} data-settings-section>
+      <h3 id={id} className="dep-h mb-2.5">{title}</h3>
+      <div className={`dep-surface !p-0 overflow-hidden divide-y ${danger ? 'divide-red-500/15 !border-red-500/25 bg-red-500/[.035]' : 'divide-[rgb(var(--contrast)/.07)]'}`}>{children}</div>
+    </section>
+  )
+}
+export function SettingsRow({ label, value, sub, action }: { label: string; value?: ReactNode; sub?: string; action?: ReactNode }) {
+  return (
+    <div className="flex items-center gap-4 px-4 py-3.5 min-h-[52px]">
+      <div className="min-w-0 flex-1">
+        <p className="text-[14px] text-fg-muted">{label}</p>
+        {sub && <p className="mt-0.5 text-[12.5px] text-fg-faint">{sub}</p>}
+      </div>
+      {value !== undefined && <div className="text-[14px] text-fg text-right min-w-0 break-words max-w-[60%]">{value}</div>}
+      {action && <div className="shrink-0">{action}</div>}
+    </div>
   )
 }
 

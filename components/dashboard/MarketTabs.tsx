@@ -11,9 +11,12 @@ import { useI18n } from '@/lib/i18n/I18nProvider'
 export function MarketActivityTab() {
   const { t } = useI18n()
   return (
-    <div className="space-y-4 panel-in">
+    <div className="space-y-6 panel-in">
       <ErrorBoundary label={t('market.blocksTitle')}><LatestBlocks /></ErrorBoundary>
-      <ErrorBoundary label={t('network.title')}><NetworkFacts /></ErrorBoundary>
+      <section aria-labelledby="ma-network">
+        <h3 id="ma-network" className="dep-h mb-3">{t('network.title')}</h3>
+        <ErrorBoundary label={t('network.title')}><NetworkFacts variant="rows" /></ErrorBoundary>
+      </section>
     </div>
   )
 }

@@ -338,6 +338,17 @@ function Bar({ value }: { value: number }) {
 
 // Supporting data: a lighter card than the primary price panels. The data
 // source lives in the page's single "Data sources" note, not under each card.
+// In the client dashboard the facts sit as divided rows of one section
+// instead of four separate cards (variant="rows").
+function FactRow({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="h-full p-4 sm:p-5 flex flex-col bg-[rgb(var(--ink-900))] [&_.fact-big]:text-[22px] [&_.fact-big]:sm:text-2xl" data-fact-row>
+      <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-faint mb-2">{title}</h3>
+      <div className="flex-1">{children}</div>
+    </div>
+  )
+}
+
 function FactCard({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="h-full rounded-[10px] border border-ink-700 bg-ink-900/50 p-5 flex flex-col transition-colors hover:border-ink-600">
@@ -353,8 +364,9 @@ function Unavailable() {
 }
 const Loading = () => <div className="space-y-2"><div className="skeleton h-8 w-40" /><div className="skeleton h-4 w-full" /></div>
 
-export function NetworkFacts() {
+export function NetworkFacts({ variant = 'cards' }: { variant?: 'cards' | 'rows' } = {}) {
   const { f, loaded } = useFacts()
+  const Card = variant === 'rows' ? FactRow : FactCard
   const { t, intl } = useI18n()
   const HALVING = 210_000
   const h = f.height
@@ -365,12 +377,12 @@ export function NetworkFacts() {
   const eta = blocksLeft ? new Date(Date.now() + blocksLeft * 10 * 60_000) : undefined
 
   return (
-    <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
+    <div className={variant === 'rows' ? 'grid sm:grid-cols-2 gap-px bg-[rgb(var(--contrast)/.07)] rounded-2xl overflow-hidden border border-[rgb(var(--contrast)/.07)]' : 'grid md:grid-cols-2 xl:grid-cols-4 gap-4'} data-network-facts={variant}>
       <Reveal className="h-full">
-        <FactCard title={t('network.halving')}>
+        <Card title={t('network.halving')}>
           {!loaded.chain ? <Loading /> : blocksLeft === undefined ? <Unavailable /> : (
             <>
-              <div className="text-3xl font-semibold text-fg tabular-nums">{blocksLeft.toLocaleString()}</div>
+              <div className="fact-big text-3xl font-semibold text-fg tabular-nums">{blocksLeft.toLocaleString()}</div>
               <div className="text-[13px] text-fg-muted mb-4">{t('network.blocksToGo', { date: eta!.toLocaleDateString(intl, { month: 'long', year: 'numeric' }) })}</div>
               <Bar value={epochProgress} />
               <div className="flex justify-between text-xs text-fg-faint mt-2 tabular-nums">
@@ -379,27 +391,27 @@ export function NetworkFacts() {
               <p className="text-[13px] text-fg-muted mt-4">{t('network.reward', { reward: String(reward), next: String(reward! / 2) })}</p>
             </>
           )}
-        </FactCard>
+        </Card>
       </Reveal>
 
       <Reveal delay={80} className="h-full">
-        <FactCard title={t('network.supply')}>
+        <Card title={t('network.supply')}>
           {!loaded.supply ? <Loading /> : !f.circulating ? <Unavailable /> : (
             <>
-              <div className="text-3xl font-semibold text-fg tabular-nums">{(f.circulating / 1e6).toFixed(2)}M</div>
+              <div className="fact-big text-3xl font-semibold text-fg tabular-nums">{(f.circulating / 1e6).toFixed(2)}M</div>
               <div className="text-[13px] text-fg-muted mb-4">{t('network.mined', { pct: ((f.circulating / 21e6) * 100).toFixed(2) })}</div>
               <Bar value={(f.circulating / 21e6) * 100} />
               <p className="text-[13px] text-fg-muted mt-4">{t('network.left', { n: ((21e6 - f.circulating) / 1e6).toFixed(2) })}</p>
             </>
           )}
-        </FactCard>
+        </Card>
       </Reveal>
 
       <Reveal delay={160} className="h-full">
-        <FactCard title={t('network.ath')}>
+        <Card title={t('network.ath')}>
           {!loaded.supply ? <Loading /> : !f.ath ? <Unavailable /> : (
             <>
-              <div className="text-3xl font-semibold text-fg tabular-nums">{usd(f.ath, 0)}</div>
+              <div className="fact-big text-3xl font-semibold text-fg tabular-nums">{usd(f.ath, 0)}</div>
               <div className="text-[13px] text-fg-muted mb-4">{f.athDate ? t('network.reached', { date: new Date(f.athDate).toLocaleDateString(intl, { month: 'long', day: 'numeric', year: 'numeric' }) }) : t('network.reachedUnknown')}</div>
               {f.athChange !== undefined && (
                 <p className="text-[13px] text-fg-muted">
@@ -408,11 +420,11 @@ export function NetworkFacts() {
               )}
             </>
           )}
-        </FactCard>
+        </Card>
       </Reveal>
 
       <Reveal delay={240} className="h-full">
-        <FactCard title={t('network.activity')}>
+        <Card title={t('network.activity')}>
           {!loaded.chain ? <Loading /> : f.mempoolCount === undefined && f.diffProgress === undefined ? <Unavailable /> : (
             <dl className="space-y-4">
               {f.mempoolCount !== undefined && (
@@ -434,7 +446,7 @@ export function NetworkFacts() {
               )}
             </dl>
           )}
-        </FactCard>
+        </Card>
       </Reveal>
     </div>
   )

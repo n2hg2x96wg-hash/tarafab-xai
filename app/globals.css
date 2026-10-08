@@ -826,3 +826,12 @@ body.dialog-open #chat-application { visibility: hidden !important; }
 @keyframes sheet-in-up { from { transform: translateY(100%); } to { transform: none; } }
 @media (max-width: 639px) { .dep-sheet { animation-name: sheet-in-up; animation-duration: .26s; } }
 @media (prefers-reduced-motion: reduce) { .sheet-out, .sheet-fade-out { animation: none !important; } }
+
+/* Drawer + tab bar refinement: active row is a quiet tint with a thin accent
+   bar (no glow); tab bar is a hairline-topped surface with no shadow halo. */
+.cc-drawer .nav-item-on { background: rgb(var(--accent) / .09); box-shadow: inset 0 0 0 1px rgb(var(--accent) / .12); }
+.cc-drawer .nav-item-on::before { top: 10px; bottom: 10px; width: 2.5px; box-shadow: none; }
+.cc-drawer .nav-item-on svg { filter: none; }
+.cc-drawer .cc-navgroup + .cc-navgroup { border-top: 1px solid rgb(var(--contrast) / .045); padding-top: 4px; }
+.cc-tabbar { box-shadow: none; background: rgb(var(--ink-950) / .86); border-top-color: rgb(var(--contrast) / .08); }
+.cc-tab:focus-visible { outline: none; box-shadow: inset 0 0 0 2px rgb(var(--accent) / .45); border-radius: 12px; }

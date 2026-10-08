@@ -15,7 +15,7 @@ import { authFetch, errorText, newRequestKey, readJson, RequestError, SESSION_EX
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
 import {
   EmptyState, OPEN_STATUSES, StatusTag, SUPPORT_EMAIL, TxIcon, fmt, methodLabel, txLabel,
-  type Account, type Tx, type UserInfo, PageIntro,
+  type Account, type Tx, type UserInfo, PageIntro, SettingsRow, SettingsSection,
 } from '@/components/dashboard/shared'
 import { LanguageSelector } from '@/components/LanguageSelector'
 import { ThemeSelector } from '@/components/ThemeSelector'
@@ -91,17 +91,15 @@ const NAV_GROUPS: { label: TKey; items: (NavItem & { core?: boolean })[] }[] = [
   { label: 'nav4.groupMain', items: [
     { icon: IconGrid, label: 'dash.nav.overview', id: 'overview', core: true },
     { icon: IconChart, label: 'dash.nav.markets', id: 'markets' },
-    { icon: IconSliders, label: 'automations.nav', id: 'automations' },
-  ] },
-  { label: 'nav4.groupInvestments', items: [
     { icon: IconPie, label: 'nav2.portfolio', id: 'portfolio' },
     { icon: IconTrend, label: 'nav3.performance', id: 'performance' },
-    { icon: IconList, label: 'dash.nav.transactions', id: 'transactions' },
+    { icon: IconSliders, label: 'automations.nav', id: 'automations' },
   ] },
   { label: 'nav3.groupFunds', items: [
     { icon: IconArrowDown, label: 'dash.nav.deposit', id: 'deposit' },
     { icon: IconArrowUp, label: 'dash.nav.withdraw', id: 'withdraw' },
     { icon: IconWallet, label: 'wallet.nav', id: 'wallet' },
+    { icon: IconList, label: 'dash.nav.transactions', id: 'transactions' },
     { icon: IconHistory, label: 'nav2.depositHistory', id: 'depositHistory' },
     { icon: IconHistory, label: 'nav2.withdrawalHistory', id: 'withdrawalHistory' },
   ] },
@@ -488,22 +486,23 @@ export default function DashboardPage() {
             const items = group.items.filter(i => i.core || !hiddenNav.includes(i.id)).map((it, i) => ({ it, r: rank(it.id, i) })).sort((a, b) => a.r - b.r).map(x => x.it)
             if (!items.length) return null
             return (
-              <div key={group.label} className="mb-3 last:mb-0">
-                <p className={`px-3 pt-2 pb-1 text-[11px] font-medium uppercase tracking-[0.12em] text-fg-faint ${collapsed ? 'lg:sr-only' : ''}`}>{t(group.label)}</p>
+              <div key={group.label} className="mb-2.5 last:mb-0 cc-navgroup">
+                <p className={`px-3 pt-2.5 pb-1 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-fg-faint/80 ${collapsed ? 'lg:sr-only' : ''}`}>{t(group.label)}</p>
                 <div className="space-y-0.5">
                   {items.map(({ icon: I, label, id }) => (
                     <button
                       key={id}
                       onClick={() => go(id)}
                       title={collapsed ? labelOf({ id, label }) : undefined}
-                      className={`relative w-full flex items-center gap-3 px-3 min-h-11 lg:min-h-10 py-2 rounded-md text-sm transition-colors text-left ${collapsed ? 'lg:justify-center lg:px-0' : ''} ${
+                      className={`relative w-full flex items-center gap-3 px-3 min-h-11 lg:min-h-10 py-2 rounded-lg text-[14px] transition-colors text-left ${collapsed ? 'lg:justify-center lg:px-0' : ''} ${
                         activeNav === id ? 'nav-item-on font-medium' : 'nav-item'
                       }`}
                       aria-current={activeNav === id ? 'page' : undefined}
                       data-nav-id={id}
                     >
                       <I width={17} height={17} className="shrink-0 transition-colors" aria-hidden="true" />
-                      <span className={`flex-1 min-w-0 ${collapsed ? 'lg:sr-only' : ''}`}>{labelOf({ id, label })}</span>
+                      <span className={`flex-1 min-w-0 truncate ${collapsed ? 'lg:sr-only' : ''}`}>{labelOf({ id, label })}</span>
+                      {id === 'automations' && <AutomationBadge collapsed={collapsed} />}
                       {id === 'notifications' && unread > 0 && (
                         <span className={`shrink-0 min-w-5 h-5 px-1.5 rounded-full ${collapsed ? 'lg:absolute lg:top-0.5 lg:right-2 lg:min-w-4 lg:h-4 lg:px-1 lg:text-[10px]' : ''} bg-brand-500/15 text-brand-300 text-[11px] font-semibold tabular-nums inline-flex items-center justify-center`}>
                           {unread}<span className="sr-only"> {t('notices.newCount', { n: unread })}</span>
@@ -521,23 +520,26 @@ export default function DashboardPage() {
         {/* Fixed account footer (glass): automation status, the signed-in
             account, then language / theme and sign out. Compact so the
             navigation above keeps its room on short phones. */}
-        <div className={`shrink-0 px-3 pt-2.5 pb-2.5 border-t cc-sep safe-bottom space-y-2 ${collapsed ? 'lg:px-2' : ''}`}>
-          {!hiddenNav.includes('automations') && <AutomationStatus collapsed={collapsed} onOpen={() => go('automations')} />}
-          <div className={`cc-glass rounded-xl flex items-center gap-2.5 px-2.5 py-2 ${collapsed ? 'lg:justify-center lg:px-0 lg:bg-none lg:border-0 lg:shadow-none' : ''}`} data-account-card>
-            <span className="w-9 h-9 rounded-full bg-accent/15 border border-accent/30 flex items-center justify-center text-[13px] font-semibold text-accent shrink-0" title={collapsed ? displayName : undefined}>{initials}</span>
+        <div className={`shrink-0 px-3 pt-3 pb-3 border-t cc-sep safe-bottom space-y-2.5 ${collapsed ? 'lg:px-2' : ''}`}>
+          <div className={`flex items-center gap-2.5 px-1 ${collapsed ? 'lg:justify-center lg:px-0' : ''}`} data-account-card>
+            <span className="relative w-9 h-9 rounded-full bg-accent/15 border border-accent/30 flex items-center justify-center text-[13px] font-semibold text-accent shrink-0" title={collapsed ? displayName : undefined}>
+              {initials}
+              {/* Connection to the account service, as a dot on the avatar (detail in the tooltip). */}
+              <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[rgb(var(--ink-950))] ${!loadError ? 'bg-success-400' : 'bg-warning-400'}`} data-connection={!loadError ? 'ok' : 'issue'} title={t(!loadError ? 'shell.statusOkHint' : 'shell.statusIssueHint')} aria-hidden="true" />
+            </span>
             <div className={`min-w-0 flex-1 leading-tight ${collapsed ? 'lg:hidden' : ''}`}>
               <p className="text-[13.5px] font-medium text-fg truncate">{displayName}</p>
               <p className="text-[11.5px] text-fg-faint truncate">{user?.email}</p>
-              <SystemStatus collapsed={collapsed} ok={!loadError} />
+              <span className="sr-only">{t('shell.status')}: {t(!loadError ? 'shell.statusOk' : 'shell.statusIssue')}</span>
             </div>
+            <button onClick={handleSignOut} disabled={signingOut} aria-busy={signingOut} aria-label={t('common.signOut')} title={t('common.signOut')}
+              className={`shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-fg-faint hover:text-red-300 hover:bg-red-500/[.08] active:scale-[.96] transition disabled:opacity-60 ${collapsed ? 'lg:hidden' : ''}`} data-signout>
+              {signingOut ? <Spinner /> : <IconLogOut width={17} height={17} aria-hidden="true" />}
+            </button>
           </div>
           <div className={`cc-ctl flex items-center gap-2 ${collapsed ? 'lg:hidden' : ''}`}>
             <LanguageSelector align="left" direction="up" />
             <ThemeSelector align="left" direction="up" />
-            <button onClick={handleSignOut} disabled={signingOut} aria-busy={signingOut}
-              className="ml-auto inline-flex items-center gap-2 h-9 px-3 whitespace-nowrap rounded-[.7rem] text-[13px] text-fg-muted hover:text-fg border border-transparent hover:border-red-400/30 hover:bg-red-500/[.06] active:scale-[.97] transition disabled:opacity-60">
-              {signingOut ? <Spinner /> : <IconLogOut width={16} height={16} aria-hidden="true" />}{t('common.signOut')}
-            </button>
           </div>
           {/* Collapsed desktop rail: sign out stays reachable as an icon. */}
           {collapsed && (
@@ -548,7 +550,7 @@ export default function DashboardPage() {
         </div>
       </aside>
 
-      {sidebarOpen && <div className="fixed inset-0 z-30 bg-black/55 backdrop-blur-[3px] lg:hidden backdrop-in" onClick={closeDrawer} aria-hidden="true" />}
+      {sidebarOpen && <div className="fixed inset-0 z-30 bg-black/60 backdrop-blur-[4px] lg:hidden backdrop-in" onClick={closeDrawer} aria-hidden="true" />}
 
       <div className="flex-1 min-w-0">
         <header className="sticky top-0 z-20 h-16 flex items-center justify-between gap-4 px-4 sm:px-6 border-b border-ink-700/80 glass-bar">
@@ -640,20 +642,19 @@ function BottomNav({ active, can, go, onMenu, unread, t }: {
           return (
             <li key={id} className="flex-1">
               <button onClick={() => go(id)} aria-current={on ? 'page' : undefined}
-                className={`relative w-full h-16 flex flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors active:scale-[.97] ${on ? 'text-fg' : 'text-fg-faint'}`}>
-                {on && <span className="cc-tab-ind" aria-hidden="true" />}
-                <span className={`flex items-center justify-center w-11 h-7 rounded-full transition-colors duration-200 ${on ? 'bg-accent/15 text-accent shadow-[0_0_14px_-4px_rgb(var(--accent)/.6)]' : ''}`}><I width={19} height={19} aria-hidden="true" /></span>
-                {t(label)}
+                className={`cc-tab relative w-full h-[60px] flex flex-col items-center justify-center gap-[3px] text-[10.5px] tracking-[0.01em] transition-colors active:scale-[.96] ${on ? 'text-fg font-semibold' : 'text-fg-faint font-medium hover:text-fg-muted'}`} data-tab={id}>
+                <span className={`flex items-center justify-center w-12 h-7 rounded-full transition-[background-color,color] duration-200 ${on ? 'bg-accent/[.13] text-accent' : ''}`}><I width={20} height={20} aria-hidden="true" /></span>
+                <span className="leading-none">{t(label)}</span>
               </button>
             </li>
           )
         })}
         <li className="flex-1">
-          <button onClick={onMenu} className="relative w-full h-16 flex flex-col items-center justify-center gap-1 text-[11px] font-medium text-fg-faint active:scale-[.97]" aria-label={t('common.openMenu')}>
-            <span className="relative flex items-center justify-center w-10 h-7"><IconMenu width={19} height={19} aria-hidden="true" />
-              {unread > 0 && <span className="absolute top-0.5 right-1.5 w-2 h-2 rounded-full bg-brand-400" aria-hidden="true" />}
+          <button onClick={onMenu} className="cc-tab relative w-full h-[60px] flex flex-col items-center justify-center gap-[3px] text-[10.5px] tracking-[0.01em] font-medium text-fg-faint hover:text-fg-muted active:scale-[.96]" aria-label={t('common.openMenu')} data-tab="more">
+            <span className="relative flex items-center justify-center w-12 h-7"><IconMenu width={20} height={20} aria-hidden="true" />
+              {unread > 0 && <span className="absolute top-0.5 right-2.5 w-2 h-2 rounded-full bg-accent ring-2 ring-[rgb(var(--ink-950))]" aria-hidden="true" />}
             </span>
-            {t('shell.more')}
+            <span className="leading-none">{t('shell.more')}</span>
           </button>
         </li>
       </ul>
@@ -661,43 +662,21 @@ function BottomNav({ active, can, go, onMenu, unread, t }: {
   )
 }
 
-/* Reports only what the dashboard itself observed: whether its last request
-   to the account service succeeded. There is no separate monitoring, so it
-   never claims every service is operational. */
-// Sidebar automation indicator. Wording follows the engine's verified state
-// (lib/engineStatus): the engine monitors and evaluates rules; it is never
-// described as trading.
-// Sidebar automation indicator. Wording follows the engine's verified state
-// (lib/engineStatus): the engine monitors and evaluates rules; it is never
-// described as trading.
-function AutomationStatus({ collapsed, onOpen }: { collapsed: boolean; onOpen: () => void }) {
-  const { t } = useI18n()
+// Inline engine state on the Automation menu row (dot + short label).
+function AutomationBadge({ collapsed }: { collapsed: boolean }) {
   const { state, loading, refreshFailed } = useEngineStatus()
-  const label = loading ? 'Connecting…'
-    : state === 'unavailable' && refreshFailed ? 'Error'
+  const label = loading ? '…' : state === 'unavailable' && refreshFailed ? 'Error'
     : ({ running: 'Monitoring active', paused: 'Paused', maintenance: 'Maintenance', degraded: 'Delayed', offline: 'Offline', unavailable: 'Unavailable' } as const)[state]
-  const dot = loading ? 'bg-fg-faint animate-pulse' : state === 'running' ? 'bg-emerald-400 cc-pulse' : state === 'degraded' || state === 'paused' ? 'bg-amber-400' : state === 'maintenance' ? 'bg-sky-400' : refreshFailed ? 'bg-red-400' : 'bg-fg-faint'
+  const dot = loading ? 'bg-fg-faint' : state === 'running' ? 'bg-emerald-400' : state === 'degraded' || state === 'paused' ? 'bg-amber-400' : state === 'maintenance' ? 'bg-sky-400' : refreshFailed ? 'bg-red-400' : 'bg-fg-faint'
   return (
-    <button onClick={onOpen} data-sidebar-automation={loading ? 'connecting' : state} title={`${t('nav4.automation')}: ${label}`}
-      className={`cc-glass w-full flex items-center gap-2.5 rounded-xl hover:border-accent/30 active:scale-[.99] transition px-3 min-h-11 text-left ${collapsed ? 'lg:justify-center lg:px-0' : ''}`}>
-      <span className={`relative w-2 h-2 shrink-0 rounded-full transition-colors ${dot}`} aria-hidden="true" />
-      <span className={`flex-1 min-w-0 flex items-baseline justify-between gap-2 ${collapsed ? 'lg:sr-only' : ''}`}>
-        <span className="text-[11.5px] text-fg-faint whitespace-nowrap">{t('nav4.automation')}</span>
-        <span className="text-[12.5px] font-medium text-fg truncate">{label}</span>
-      </span>
-    </button>
+    <span className={`shrink-0 inline-flex items-center gap-1.5 text-[11.5px] text-fg-faint ${collapsed ? 'lg:absolute lg:top-1.5 lg:right-3' : ''}`} data-sidebar-automation={loading ? 'connecting' : state} title={label}>
+      <span className={`w-1.5 h-1.5 rounded-full ${dot}`} aria-hidden="true" />
+      <span className={collapsed ? 'lg:sr-only' : ''}>{label}</span>
+    </span>
   )
 }
 
-function SystemStatus({ collapsed, ok }: { collapsed: boolean; ok: boolean }) {
-  const { t } = useI18n()
-  return (
-    <div className={`mt-1 flex items-center gap-1.5 text-[11px] whitespace-nowrap ${collapsed ? 'lg:justify-center' : ''}`} title={t(ok ? 'shell.statusOkHint' : 'shell.statusIssueHint')} data-connection={ok ? 'ok' : 'issue'}>
-      <span className={`w-1.5 h-1.5 shrink-0 rounded-full ${ok ? 'bg-success-400' : 'bg-warning-400'}`} aria-hidden="true" />
-      <span className={`text-fg-faint ${collapsed ? 'lg:sr-only' : ''}`}>{t('shell.status')}: <span className={ok ? 'text-success-400' : 'text-warning-400'}>{t(ok ? 'shell.statusOk' : 'shell.statusIssue')}</span></span>
-    </div>
-  )
-}
+
 
 /* Loading skeleton: the same frame as the dashboard, so nothing shifts when
    the real figures replace it. Purely visual; it holds no data. */
@@ -950,18 +929,19 @@ function OverviewTab({ name, account, txs, go, can, labelOf, whatsNew }: { whats
           {quick.length > 0 && (
             <div className="relative mt-5">
               <p className="sr-only">{t('overview.quickActions')}</p>
-              {/* Four actions sit in a 2x2 grid on phones so each label has room
-                  and each target stays large; one row from tablet width up. */}
-              <div className={`grid gap-2 ${quick.length >= 4 ? 'grid-cols-2 sm:grid-cols-4' : quick.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+              {/* One row of actions from 360px up (2x2 only on the narrowest phones),
+                  so the balance stays the anchor instead of a block of tiles. */}
+              <div className={`grid gap-1.5 sm:gap-2 ${quick.length >= 4 ? 'grid-cols-2 min-[360px]:grid-cols-4' : quick.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
                 {quick.map(([id, label, I]) => (
                   <button
                     key={id}
                     onClick={() => go(id)}
                     data-tile={id}
-                    className={`ov-tile ov-tile-${id} group flex flex-col items-center justify-center gap-2 min-h-[76px] rounded-2xl px-2 text-[12.5px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50`}
+                    className={`ov-tile ov-tile-${id} group flex flex-col items-center justify-center gap-1.5 min-h-[66px] rounded-xl px-1 text-[11.5px] sm:text-[12.5px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50`}
                   >
-                    <span className="ov-tile-icon w-8 h-8 rounded-xl grid place-items-center"><I width={17} height={17} aria-hidden="true" /></span>
-                    <span className="text-center leading-tight">{labelOf({ id, label })}</span>
+                    <span className="ov-tile-icon w-7 h-7 rounded-lg grid place-items-center"><I width={16} height={16} aria-hidden="true" /></span>
+                    {/* Transactions reads "Activity" here, as on the bottom bar, so it fits one row. */}
+                    <span className="text-center leading-tight max-w-full truncate">{id === 'transactions' ? t('shell.activity') : labelOf({ id, label })}</span>
                   </button>
                 ))}
               </div>
@@ -1192,23 +1172,32 @@ function TransactionsTab({ txs }: { txs: Tx[] }) {
                 </tbody>
               </table>
             </div>
-            <ul className="md:hidden divide-y divide-ink-700">
-              {filtered.map(tx => (
-                <li key={tx.id} className="p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm text-fg">{txLabel(tx, t)}</p>
-                      <p className="text-xs text-fg-faint">{new Date(tx.created_at).toLocaleString(intl, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</p>
-                      {tx.reference && <p className="text-xs text-fg-faint font-mono mt-1">{tx.reference}</p>}
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-sm font-medium text-fg tabular-nums mb-1">${fmt(tx.amount)}</p>
-                      <StatusTag status={tx.status} />
-                    </div>
-                  </div>
-                </li>
+            {/* Phones: a timeline grouped by day, compact rows. */}
+            <div className="md:hidden" data-tx-timeline>
+              {dayGroups(filtered, intl).map(([day, list]) => (
+                <section key={day} aria-label={day}>
+                  <h3 className="px-4 pt-3 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-faint">{day}</h3>
+                  <ul className="divide-y divide-[rgb(var(--contrast)/.06)]">
+                    {list.map(tx => (
+                      <li key={tx.id} className="flex items-center gap-3 px-4 py-3" data-tx-row={tx.status}>
+                        <TxIcon type={tx.type} />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[14px] text-fg truncate">{txLabel(tx, t)}</p>
+                          <p className="text-[12px] text-fg-faint truncate">
+                            {new Date(tx.created_at).toLocaleTimeString(intl, { hour: 'numeric', minute: '2-digit' })}
+                            {tx.reference ? <> · <span className="font-mono">{tx.reference}</span></> : null}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-[14px] font-semibold text-fg tabular-nums">${fmt(tx.amount)}</p>
+                          <StatusTag status={tx.status} />
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
               ))}
-            </ul>
+            </div>
             <div className="px-5 py-3 border-t border-ink-700 text-xs text-fg-faint">
               {filtered.length === 1 ? t('dash.txCountOne') : t('dash.txCountMany', { n: filtered.length })}
             </div>
@@ -1217,6 +1206,24 @@ function TransactionsTab({ txs }: { txs: Tx[] }) {
       </div>
     </div>
   )
+}
+
+// Groups transactions (newest first) by calendar day: "Today",
+// "Yesterday" (localised by Intl), otherwise the date.
+function dayGroups(list: Tx[], intl: string): [string, Tx[]][] {
+  const rtf = new Intl.RelativeTimeFormat(intl, { numeric: 'auto' })
+  const startOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+  const today = startOf(new Date())
+  const out: [string, Tx[]][] = []
+  for (const tx of [...list].sort((a, b) => b.created_at.localeCompare(a.created_at))) {
+    const d = new Date(tx.created_at)
+    const diff = Math.round((startOf(d) - today) / 86_400_000)
+    const raw = diff === 0 || diff === -1 ? rtf.format(diff, 'day') : d.toLocaleDateString(intl, { weekday: 'short', month: 'short', day: 'numeric', year: d.getFullYear() === new Date().getFullYear() ? undefined : 'numeric' })
+    const label = raw.charAt(0).toUpperCase() + raw.slice(1)
+    const last = out[out.length - 1]
+    if (last && last[0] === label) last[1].push(tx); else out.push([label, [tx]])
+  }
+  return out
 }
 
 /* Deposit */
@@ -1867,24 +1874,12 @@ function ProfileTab({ user, account }: { user: UserInfo | null; account: Account
     ['withdraw.profitBalance', `$${fmt(account?.profit_balance ?? 0)}`],
   ]
   return (
-    <div className="max-w-lg space-y-4">
-      <div className="panel p-5 sm:p-6">
-        <h3 className="text-[15px] font-semibold text-fg mb-4">{t('profile.details')}</h3>
-        <dl className="divide-y divide-ink-700">
-          {rows.map(([label, value]) => (
-            <div key={label} className="flex items-center justify-between gap-4 py-3">
-              <dt className="text-sm text-fg-muted">{t(label)}</dt>
-              <dd className="text-sm text-fg text-right truncate">{value}</dd>
-            </div>
-          ))}
-        </dl>
-      </div>
-
-      <div className="panel p-5 sm:p-6">
-        <h3 className="text-[15px] font-semibold text-fg mb-2">{t('common.password')}</h3>
-        <p className="text-sm text-fg-muted mb-5">{t('profile.passwordBody')}</p>
-        <Link href="/forgot-password" className="btn btn-outline">{t('profile.changePassword')}</Link>
-      </div>
+    <div className="max-w-lg space-y-6">
+      <SettingsSection title={t('profile.details')} id="pf-details">
+        {rows.map(([label, value]) => <SettingsRow key={label} label={t(label)} value={<span className="break-words tabular-nums">{value}</span>} />)}
+        <SettingsRow label={t('common.password')} sub={t('profile.passwordBody')}
+          action={<Link href="/forgot-password" className="btn btn-sm btn-outline whitespace-nowrap">{t('profile.changePassword')}</Link>} />
+      </SettingsSection>
     </div>
   )
 }

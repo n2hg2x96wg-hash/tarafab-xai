@@ -10,9 +10,9 @@ import { useI18n } from '@/lib/i18n/I18nProvider'
 import { LanguageSelector } from '@/components/LanguageSelector'
 import { ThemeSelector } from '@/components/ThemeSelector'
 import { FormError, Spinner } from '@/components/AuthShell'
-import { IconChart, IconCheck, IconHelp, IconMail } from '@/components/Icons'
+import { IconChart, IconCheck, IconHelp, IconInfo, IconMail } from '@/components/Icons'
 import {
-  EmptyState, OPEN_STATUSES, StatusTag, SUPPORT_EMAIL, TxIcon, fmt, methodLabel, txLabel,
+  EmptyState, OPEN_STATUSES, SettingsRow, SettingsSection, StatusTag, SUPPORT_EMAIL, TxIcon, fmt, methodLabel, txLabel,
   type Account, type Tx, type UserInfo,
 } from './shared'
 
@@ -170,30 +170,21 @@ export function SecurityTab({ user }: { user: UserInfo | null }) {
     [t('security.lastSignIn'), date(user?.last_sign_in_at)],
   ]
   return (
-    <div className="max-w-lg space-y-4">
-      <div className="panel p-5 sm:p-6">
-        <dl className="divide-y divide-ink-700">
-          {rows.map(([label, value]) => (
-            <div key={label} className="flex items-center justify-between gap-4 py-3">
-              <dt className="text-sm text-fg-muted">{label}</dt>
-              <dd className="text-sm text-fg text-right break-all">{value}</dd>
-            </div>
-          ))}
-        </dl>
-      </div>
-      <div className="panel p-5 sm:p-6">
-        <h3 className="text-[15px] font-semibold text-fg mb-2">{t('common.password')}</h3>
-        <p className="text-sm text-fg-muted mb-5">{t('profile.passwordBody')}</p>
-        <Link href="/forgot-password" className="btn btn-outline">{t('profile.changePassword')}</Link>
-      </div>
-      <div className="panel p-5 sm:p-6">
-        <h3 className="text-[15px] font-semibold text-fg mb-2">{t('security.signOutAll')}</h3>
-        <p className="text-sm text-fg-muted mb-5">{t('security.signOutAllBody')}</p>
-        {error && <div className="mb-4"><FormError message={error} /></div>}
-        <button onClick={signOutEverywhere} disabled={busy} className="btn btn-danger">
-          {busy ? <><Spinner />{t('security.signingOut')}</> : t('security.signOutAll')}
-        </button>
-      </div>
+    <div className="max-w-lg space-y-6">
+      <SettingsSection title={t('nav2.groupAccount')} id="sec-signin">
+        {rows.map(([label, value]) => <SettingsRow key={label} label={label} value={<span className="break-all">{value}</span>} />)}
+        <SettingsRow label={t('common.password')} sub={t('profile.passwordBody')}
+          action={<Link href="/forgot-password" className="btn btn-sm btn-outline whitespace-nowrap">{t('profile.changePassword')}</Link>} />
+      </SettingsSection>
+      <SettingsSection title={t('security.signOutAll')} id="sec-sessions" danger>
+        <div className="px-4 py-3.5 space-y-3">
+          <p className="text-[13.5px] text-fg-muted">{t('security.signOutAllBody')}</p>
+          {error && <FormError message={error} />}
+          <button onClick={signOutEverywhere} disabled={busy} className="btn btn-sm btn-danger" data-signout-all>
+            {busy ? <><Spinner />{t('security.signingOut')}</> : t('security.signOutAll')}
+          </button>
+        </div>
+      </SettingsSection>
     </div>
   )
 }
@@ -202,12 +193,15 @@ export function SecurityTab({ user }: { user: UserInfo | null }) {
 export function PreferencesTab() {
   const { t } = useI18n()
   return (
-    <div className="max-w-lg space-y-4">
-      <div className="panel p-5 sm:p-6"><ThemeSelector variant="list" /></div>
-      <div className="panel p-5 sm:p-6"><LanguageSelector variant="list" /></div>
-      <div className="panel p-5 sm:p-6">
-        <h3 className="text-[15px] font-semibold text-fg mb-2">{t('prefs.notifications')}</h3>
-        <p className="text-sm text-fg-muted">{t('prefs.notificationsBody')}</p>
+    <div className="max-w-lg space-y-5">
+      {/* One surface: appearance and language (both saved on this device). */}
+      <div className="dep-surface !p-0 overflow-hidden divide-y divide-[rgb(var(--contrast)/.07)]" data-prefs>
+        <div className="p-4"><ThemeSelector variant="list" /></div>
+        <div className="p-4"><LanguageSelector variant="list" /></div>
+      </div>
+      <div className="flex gap-3 px-1">
+        <IconInfo width={16} height={16} className="shrink-0 mt-0.5 text-fg-faint" aria-hidden="true" />
+        <p className="text-[13px] text-fg-muted"><span className="text-fg font-medium">{t('prefs.notifications')}.</span> {t('prefs.notificationsBody')}</p>
       </div>
     </div>
   )
@@ -224,21 +218,42 @@ export function SupportTab() {
     if (typeof window.smartsupp === 'function') { window.smartsupp('chat:open'); setChatMissing(false) }
     else setChatMissing(true)
   }
+  // One list of support routes (rows, not cards). Email is the primary route
+  // because it always works; live chat opens the existing single Smartsupp widget.
+  const row = 'w-full flex items-center gap-3.5 px-4 py-3.5 text-left transition-colors hover:bg-[rgb(var(--contrast)/.035)] focus-visible:outline-none focus-visible:bg-[rgb(var(--contrast)/.05)]'
+  const tile = 'w-10 h-10 shrink-0 rounded-xl grid place-items-center'
+  const chev = <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="shrink-0 text-fg-faint" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
   return (
-    <div className="max-w-lg space-y-4">
-      <div className="panel p-5 sm:p-6 space-y-3">
-        <a href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Account support')}`} className="btn btn-solid w-full">
-          <IconMail width={17} height={17} aria-hidden="true" />{t('support.email')}
-        </a>
-        <p className="text-xs text-fg-faint text-center break-all">{SUPPORT_EMAIL}</p>
-      </div>
-      <div className="panel p-5 sm:p-6">
-        <button onClick={openChat} className="btn btn-outline w-full">{t('support.chat')}</button>
-        <p className="text-xs text-fg-faint mt-2">{chatMissing ? t('support.chatUnavailable') : t('support.chatBody')}</p>
-      </div>
-      <div className="panel p-5 sm:p-6">
-        <Link href="/#faq" className="btn btn-ghost w-full">{t('support.faq')}</Link>
-      </div>
+    <div className="max-w-lg">
+      <ul className="dep-surface !p-0 overflow-hidden divide-y divide-[rgb(var(--contrast)/.07)]" data-support-list>
+        <li>
+          <a href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Account support')}`} className={row} data-support="email">
+            <span className={`${tile} bg-accent/15 text-accent`}><IconMail width={18} height={18} aria-hidden="true" /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px] font-medium text-fg">{t('support.email')}</span>
+              <span className="block text-[12.5px] text-fg-faint break-all">{SUPPORT_EMAIL}</span>
+            </span>
+            {chev}
+          </a>
+        </li>
+        <li>
+          <button type="button" onClick={openChat} className={row} data-support="chat">
+            <span className={`${tile} bg-[rgb(var(--contrast)/.06)] text-fg-muted`}><IconHelp width={18} height={18} aria-hidden="true" /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px] font-medium text-fg">{t('support.chat')}</span>
+              <span className={`block text-[12.5px] ${chatMissing ? 'text-amber-300' : 'text-fg-faint'}`} role={chatMissing ? 'status' : undefined}>{chatMissing ? t('support.chatUnavailable') : t('support.chatBody')}</span>
+            </span>
+            {chev}
+          </button>
+        </li>
+        <li>
+          <Link href="/#faq" className={row} data-support="faq">
+            <span className={`${tile} bg-[rgb(var(--contrast)/.06)] text-fg-muted`}><IconInfo width={18} height={18} aria-hidden="true" /></span>
+            <span className="min-w-0 flex-1"><span className="block text-[15px] font-medium text-fg">{t('support.faq')}</span></span>
+            {chev}
+          </Link>
+        </li>
+      </ul>
     </div>
   )
 }
@@ -283,28 +298,28 @@ export function NotificationsTab({ notices, seenAt, team, onRead, go }: {
   const unreadIds = team.filter(n => !n.read).map(n => n.id)
   const when = (d: string) => new Date(d).toLocaleString(intl, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
   return (
-    <div className="max-w-2xl space-y-5 panel-in">
+    <div className="max-w-2xl space-y-6 panel-in">
 
       {team.length > 0 && (
-        <section className="panel overflow-hidden" aria-labelledby="nt-team">
-          <div className="flex items-center justify-between gap-3 px-4 sm:px-5 h-12 border-b border-ink-700">
-            <h3 id="nt-team" className="text-[14px] font-semibold text-fg">{t('notif.fromTeam')}</h3>
-            {unreadIds.length > 0 && <button onClick={() => onRead(unreadIds)} className="text-[13px] text-fg-muted hover:text-fg min-h-8 px-1">{t('notif.markAllRead')}</button>}
+        <section aria-labelledby="nt-team">
+          <div className="flex items-center justify-between gap-3 mb-2.5">
+            <h3 id="nt-team" className="dep-h">{t('notif.fromTeam')}{unreadIds.length > 0 && <span className="ml-2 align-middle inline-flex min-w-5 h-5 px-1.5 rounded-full bg-accent/15 text-accent text-[11px] font-semibold items-center justify-center tabular-nums">{unreadIds.length}</span>}</h3>
+            {unreadIds.length > 0 && <button onClick={() => onRead(unreadIds)} className="text-[13px] text-fg-muted hover:text-fg min-h-9 px-1">{t('notif.markAllRead')}</button>}
           </div>
-          <ul className="divide-y divide-ink-700">
+          <ul className="dep-surface !p-0 overflow-hidden divide-y divide-[rgb(var(--contrast)/.07)]">
             {team.map(n => (
-              <li key={n.id} className={`px-4 sm:px-5 py-4 transition-colors ${n.read ? '' : 'bg-brand-500/[0.04]'}`}>
+              <li key={n.id} className={`px-4 py-3.5 transition-colors ${n.read ? '' : 'bg-accent/[0.035]'}`} data-notice={n.read ? 'read' : 'unread'}>
                 <div className="flex items-start gap-3">
-                  <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.read ? 'bg-transparent' : 'bg-brand-400'}`} aria-hidden="true" />
+                  <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.read ? 'bg-transparent' : 'bg-accent'}`} aria-hidden="true" />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2 mb-1">
                       <span className={`tag ${NOTICE_TONE[n.type]}`}>{t(`notif.types.${n.type}`)}</span>
                       {!n.read && <span className="sr-only">{t('notif.unread')}</span>}
                       <span className="text-xs text-fg-faint">{when(n.created_at)}</span>
                     </div>
-                    <p className="text-sm font-medium text-fg">{n.title}</p>
-                    {n.body && <p className="text-sm text-fg-muted mt-1 whitespace-pre-line break-words">{n.body}</p>}
-                    <div className="flex flex-wrap gap-2 mt-3">
+                    <p className={`text-[14px] ${n.read ? 'text-fg-muted' : 'font-semibold text-fg'}`}>{n.title}</p>
+                    {n.body && <p className="text-[13.5px] text-fg-muted mt-0.5 whitespace-pre-line break-words">{n.body}</p>}
+                    <div className="flex flex-wrap gap-2 mt-2.5 empty:hidden">
                       {n.cta_label && n.cta_target && (
                         <button onClick={() => { onRead([n.id]); go(n.cta_target!.slice(1), n.investment_id) }} className="btn btn-brand btn-sm">{n.cta_label}</button>
                       )}
@@ -318,18 +333,18 @@ export function NotificationsTab({ notices, seenAt, team, onRead, go }: {
         </section>
       )}
 
-      <section className="panel overflow-hidden" aria-labelledby="nt-act">
-        <h3 id="nt-act" className="px-4 sm:px-5 h-12 flex items-center border-b border-ink-700 text-[14px] font-semibold text-fg">{t('notif.activity')}</h3>
-        {notices.length === 0 ? <EmptyState title={t('notices.empty')} /> : (
-          <ul className="divide-y divide-ink-700">
+      <section aria-labelledby="nt-act">
+        <h3 id="nt-act" className="dep-h mb-2.5">{t('notif.activity')}</h3>
+        {notices.length === 0 ? <div className="dep-surface !p-0"><EmptyState title={t('notices.empty')} /></div> : (
+          <ul className="dep-surface !p-0 overflow-hidden divide-y divide-[rgb(var(--contrast)/.07)]">
             {notices.map(n => {
               const isNew = !seenAt || n.at > seenAt
               const text = t(`notices.${n.kind}`, { type: txLabel(n.tx, t), amount: money(Number(n.tx.amount)) })
               return (
-                <li key={n.id + n.kind} className="flex items-start gap-3 px-4 sm:px-5 py-3.5">
-                  <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${isNew && n.kind !== 'pending' ? 'bg-brand-400' : 'bg-transparent'}`} aria-hidden="true" />
+                <li key={n.id + n.kind} className="flex items-start gap-3 px-4 py-3">
+                  <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${isNew && n.kind !== 'pending' ? 'bg-accent' : 'bg-transparent'}`} aria-hidden="true" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-fg">{text}</p>
+                    <p className={`text-[14px] ${isNew && n.kind !== 'pending' ? 'text-fg font-medium' : 'text-fg-muted'}`}>{text}</p>
                     <p className="text-xs text-fg-faint">{when(n.at)}{n.tx.reference ? ` · ${n.tx.reference}` : ''}</p>
                   </div>
                   <StatusTag status={n.tx.status} />

@@ -140,10 +140,12 @@ function PerformancePanel({ activeCount, activeAmount, recorded, txs, intl, basi
           {chart}
         </div>
       ) : (
-        <div className="mt-4 rounded-xl border border-dashed border-ink-600 flex flex-col items-center justify-center text-center px-6 py-8">
-          <IconTrend width={20} height={20} className="text-fg-faint mb-2" aria-hidden="true" />
-          <p className="text-sm text-fg-muted max-w-sm">{isActive ? t('inv.f.perfNoHistory') : t('inv.performanceEmpty')}</p>
-          {isActive && <p className="text-[12px] text-fg-faint mt-1 max-w-sm">{t('inv.f.perfNoHistoryBody')}</p>}
+        <div className="mt-3 flex items-start gap-3" data-perf-empty>
+          <span className="w-9 h-9 shrink-0 rounded-lg border border-ink-700 flex items-center justify-center text-fg-faint"><IconTrend width={17} height={17} aria-hidden="true" /></span>
+          <div className="min-w-0 pt-1.5">
+            <p className="text-[14px] text-fg-muted">{isActive ? t('inv.f.perfNoHistory') : t('inv.performanceEmpty')}</p>
+            {isActive && <p className="text-[12px] text-fg-faint mt-0.5">{t('inv.f.perfNoHistoryBody')}</p>}
+          </div>
         </div>
       )}
     </section>
@@ -267,7 +269,7 @@ export function InvestmentCenter({ go, focusId, onFocusDone, onAccountChanged }:
 
       {/* Available plans */}
       <section id="inv-products" className="scroll-mt-20" aria-labelledby="inv-products-title">
-        <h3 id="inv-products-title" className="text-[15px] font-semibold text-fg mb-3">{t('inv.f.plans')}</h3>
+        <h3 id="inv-products-title" className="dep-h mb-3">{t('inv.f.plans')}</h3>
         {offers.length === 0 ? (
           <div className="panel px-4 py-4 flex items-center gap-3">
             <span className="shrink-0 w-9 h-9 rounded-lg border border-ink-700 flex items-center justify-center text-fg-faint"><IconChart width={17} height={17} /></span>
@@ -297,7 +299,7 @@ export function InvestmentCenter({ go, focusId, onFocusDone, onAccountChanged }:
       {/* My investments: every status, nothing hidden or deleted */}
       <section className="panel overflow-hidden" aria-labelledby="inv-mine">
         <div className="px-5 py-4 border-b border-ink-700 flex items-center justify-between gap-3">
-          <h3 id="inv-mine" className="text-[15px] font-semibold text-fg">{t('inv.f.myInvestments')}</h3>
+          <h3 id="inv-mine" className="dep-h">{t('inv.f.myInvestments')}</h3>
           {hasInvestments && active.length === 0 && <span className="text-xs text-fg-faint">{t('inv.f.noActive')}</span>}
         </div>
         {hasInvestments && (
@@ -320,8 +322,8 @@ export function InvestmentCenter({ go, focusId, onFocusDone, onAccountChanged }:
               const v = versionById.get(i.product_version_id)
               return (
                 <li key={i.id}>
-                  <button onClick={() => setOpenInv(i)} data-inv-status={i.status} className="inv-row w-full text-left px-4 sm:px-5 py-4 flex items-center justify-between gap-3 sm:gap-4 hover:bg-ink-850 transition-colors">
-                    <div className="min-w-0">
+                  <button onClick={() => setOpenInv(i)} data-inv-status={i.status} className="inv-row w-full text-left px-4 sm:px-5 py-3.5 flex items-center justify-between gap-3 sm:gap-4 hover:bg-ink-850 transition-colors">
+                    <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-fg truncate flex items-center gap-2">{i.status === 'active' && <span className="inv-live-dot" aria-hidden="true" />}<span className="truncate">{v?.name || t('inv.product')}</span></p>
                       <p className="text-xs text-fg-faint truncate">
                         {i.reference ? `${i.reference} · ` : ''}
@@ -335,6 +337,8 @@ export function InvestmentCenter({ go, focusId, onFocusDone, onAccountChanged }:
                       {['active', 'completed', 'matured'].includes(i.status) && <p className={`text-[11px] tabular-nums ${profitOf(i) > 0 ? 'price-up' : profitOf(i) < 0 ? 'price-down' : 'text-fg-faint'}`}>{signed(profitOf(i))} · {pctOf(profitOf(i), Number(i.principal))}</p>}
                       <StatusBadge status={i.status} />
                     </div>
+                    {/* Opens the investment's details. */}
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="shrink-0 -mr-1 text-fg-faint" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
                   </button>
                 </li>
               )
@@ -706,10 +710,10 @@ export function ActiveInvestmentsCard({ go }: { go: (id: string) => void }) {
       {state === null ? (
         <div className="p-5 space-y-2" role="status" aria-label={t('common.loading')}><div className="skeleton h-4 w-40" /><div className="skeleton h-16" /></div>
       ) : state.invs.length === 0 ? (
-        <div className="px-5 py-8 text-center">
-          <span className="mx-auto mb-3 w-10 h-10 rounded-xl border border-ink-700 flex items-center justify-center text-fg-faint"><IconPie width={18} height={18} /></span>
-          <p className="text-sm text-fg-muted">{t('inv.f.noActiveHome')}</p>
-          <button onClick={() => go('portfolio')} className="btn btn-outline btn-sm mt-3">{t('inv.f.browsePlans')}</button>
+        <div className="px-5 py-4 flex flex-wrap items-center gap-3">
+          <span className="w-9 h-9 shrink-0 rounded-lg border border-ink-700 flex items-center justify-center text-fg-faint"><IconPie width={17} height={17} /></span>
+          <p className="text-[14px] text-fg-muted flex-1 min-w-0">{t('inv.f.noActiveHome')}</p>
+          <button onClick={() => go('portfolio')} className="btn btn-outline btn-sm">{t('inv.f.browsePlans')}</button>
         </div>
       ) : (
         <ul className="divide-y divide-ink-700">
@@ -718,17 +722,17 @@ export function ActiveInvestmentsCard({ go }: { go: (id: string) => void }) {
             const p = profitOf(i), principal = Number(i.principal)
             const tone = p > 0 ? 'price-up' : p < 0 ? 'price-down' : 'text-fg'
             return (
-              <li key={i.id} className="px-5 py-4">
+              <li key={i.id} className="px-5 py-3.5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-fg truncate">{v?.name || t('inv.product')}</p>
+                    <p className="text-[14px] font-semibold text-fg truncate">{v?.name || t('inv.product')}</p>
                     <p className="text-xs text-fg-faint">{v ? durationText(v, t) : ''} · {date(i.start_date)} → {date(i.maturity_date)}</p>
                   </div>
                   <StatusBadge status={i.status} />
                 </div>
-                <dl className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+                <dl className="mt-2.5 grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2 text-sm">
                   {([['inv.f.invested', money(principal), 'text-fg'], ['inv.f.returnTerms', returnTermsText(i, v, t), 'text-fg'], ['inv.f.expectedReturn', Number(i.expected_return || 0) > 0 ? money(Number(i.expected_return)) : '—', 'text-fg'], ['inv.f.expectedTotal', Number(i.expected_return || 0) > 0 ? money(Number(i.expected_total || 0)) : '—', 'text-fg']] as [TKey, string, string][]).map(([k, val, cls]) => (
-                    <div key={k} className="rounded-lg bg-ink-950/40 border border-ink-700/70 px-2.5 py-2 min-w-0">
+                    <div key={k} className="min-w-0">
                       <dt className="text-[11px] text-fg-faint truncate">{t(k)}</dt>
                       <dd className={`font-semibold tabular-nums truncate ${cls}`}>{val}</dd>
                     </div>

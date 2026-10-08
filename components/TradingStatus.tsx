@@ -61,18 +61,18 @@ export function TradingStatusCard({ status, strategyName, updatedAt }: Props) {
         type="button"
         onClick={() => setOpen(o => !o)}
         aria-expanded={open}
-        className="w-full flex items-center justify-between gap-4 text-left p-5 sm:p-6"
+        className="w-full flex items-center justify-between gap-3 text-left px-4 py-3.5 sm:px-5 sm:py-4"
       >
-        <div className="flex items-center gap-4 min-w-0">
-          <span className={`relative flex items-center justify-center w-10 h-10 rounded-full shrink-0 border ${key === 'active' ? 'border-emerald-500/30 bg-emerald-500/10' : key === 'unavailable' ? 'border-amber-500/30 bg-amber-500/10' : 'border-ink-600 bg-ink-850'}`}>
+        <div className="flex items-center gap-3 min-w-0">
+          <span className={`relative flex items-center justify-center w-8 h-8 rounded-full shrink-0 border ${key === 'active' ? 'border-emerald-500/30 bg-emerald-500/10' : key === 'unavailable' ? 'border-amber-500/30 bg-amber-500/10' : 'border-ink-600 bg-ink-850'}`}>
             <span className={`relative flex h-2.5 w-2.5 rounded-full ${c.dot} ${c.animate ? 'status-glow' : ''}`}>
               {c.animate && <span className={`absolute inline-flex h-full w-full rounded-full ${c.dot} animate-ping opacity-60`} />}
             </span>
           </span>
           <div className="min-w-0">
-            <div className="text-[11px] uppercase tracking-[0.12em] text-fg-faint mb-0.5">{t('trading.accountStatus')}</div>
-            <div className={`text-[16px] font-semibold ${c.text}`}>{t(c.label)}</div>
-            <div className="text-[13px] text-fg-muted line-clamp-2 mt-0.5">
+            <div className="text-[10.5px] uppercase tracking-[0.12em] text-fg-faint">{t('trading.accountStatus')}</div>
+            <div className={`text-[15px] font-semibold ${c.text} truncate`}>{t(c.label)}</div>
+            <div className="text-[12.5px] text-fg-muted truncate">
               {key === 'active' && strategyName ? <>{t('trading.strategy')}: <span className="text-fg">{strategyName}</span></> : t(c.summary)}
             </div>
           </div>
@@ -82,7 +82,7 @@ export function TradingStatusCard({ status, strategyName, updatedAt }: Props) {
 
       <div className={`grid transition-[grid-template-rows] duration-300 ease-out ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
         <div className="overflow-hidden">
-          <div className="px-5 sm:px-6 pb-5 sm:pb-6 pt-4 border-t border-ink-700 space-y-4">
+          <div className="px-4 sm:px-5 pb-4 sm:pb-5 pt-3.5 border-t border-ink-700 space-y-3.5">
             <p className="text-[13px] text-fg-muted leading-relaxed">{t(c.detail)}</p>
             <dl className="grid grid-cols-2 gap-px bg-ink-700 border border-ink-700 rounded-md overflow-hidden text-[13px]">
               <div className="bg-ink-900 p-3">
