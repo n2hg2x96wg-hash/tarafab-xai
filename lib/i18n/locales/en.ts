@@ -840,7 +840,7 @@ const en = {
     gWithdrawals: 'Withdrawals',
     gProfit: 'Profit',
     gFees: 'Fees',
-    profitOnlyNote: 'Profit shows investment returns only. Rewards and profit balance corrections are listed under All.',
+    profitOnlyNote: 'Profit balance corrections and reconciliations are listed under All.',
     search: 'Search reference, type or amount',
     anyStatus: 'Any status',
     from: 'From date',

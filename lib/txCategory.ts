@@ -14,10 +14,12 @@
 //   reversal          → Reversal (a previous transaction intentionally undone)
 //   profit-balance adjustments, by the reason the admin chose (never by the
 //   free-text note; none of these is an investment return):
-//     loyalty_reward → Loyalty Reward      promotional_credit → Promotional Credit
+//     loyalty_reward → Profit · Loyalty Reward
+//     promotional_credit → Profit · Promotional Credit
 //     profit_correction → Profit Balance Correction
 //     reconciliation → Account Reconciliation
-//     profit_adjustment → Profit Balance Adjustment (reason not stated)
+//     profit_adjustment → Profit (no category stated)
+//   each shown with the reason the admin entered for that transaction
 //   balance_adjustment → Adjustment (an admin changed the invested / pending
 //                       balance; there is no more precise meaning)
 //
@@ -88,9 +90,11 @@ export function adminTxLabel(tx: TxLike): string {
     case 'account_debit': return 'Account Debit'
     case 'deposit': return 'Deposit'
     case 'profit': return 'Profit'
-    case 'profit_adjustment': return 'Profit Balance Adjustment'
-    case 'loyalty_reward': return 'Loyalty Reward'
-    case 'promotional_credit': return 'Promotional Credit'
+    // Profit-balance entries: "Profit" plus why it was granted; the admin's own
+    // reason is shown beneath. "Manual" marks them apart from investment returns.
+    case 'profit_adjustment': return tx.direction === 'debit' ? 'Profit · Manual debit' : 'Profit · Manual credit'
+    case 'loyalty_reward': return 'Profit · Loyalty Reward'
+    case 'promotional_credit': return 'Profit · Promotional Credit'
     case 'profit_correction': return 'Profit Balance Correction'
     case 'reconciliation': return 'Account Reconciliation'
     case 'investment': return 'Investment'

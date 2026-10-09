@@ -829,7 +829,7 @@ const pt: DeepPartial<typeof en> = {
     gWithdrawals: 'Levantamentos',
     gProfit: 'Lucro',
     gFees: 'Taxas',
-    profitOnlyNote: 'Lucro mostra apenas rendimentos de investimento. Recompensas e correções do saldo de lucros estão em Todos.',
+    profitOnlyNote: 'Correções e reconciliações do saldo de lucros estão em Todos.',
     search: 'Pesquisar referência, tipo ou montante',
     anyStatus: 'Qualquer estado',
     from: 'De',

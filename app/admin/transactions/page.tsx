@@ -53,8 +53,8 @@ const CATEGORY_SOURCES: Partial<Record<AdminKey, string[]>> = {
 }
 const KEY_LABEL: Record<string, string> = {
   account_credit: 'Account Credit', account_debit: 'Account Debit', deposit: 'Deposit (client)', withdrawal: 'Withdrawal', fee: 'Fee',
-  investment: 'Investment', profit: 'Profit (investment return)', profit_adjustment: 'Profit balance adjustment (no reason set)', reversal: 'Reversal', adjustment: 'Adjustment', transfer: 'Transfer',
-  loyalty_reward: 'Loyalty Reward', promotional_credit: 'Promotional Credit', profit_correction: 'Profit Balance Correction', reconciliation: 'Account Reconciliation',
+  investment: 'Investment', profit: 'Profit (investment return)', profit_adjustment: 'Profit · Manual (no category)', reversal: 'Reversal', adjustment: 'Adjustment', transfer: 'Transfer',
+  loyalty_reward: 'Profit · Loyalty Reward', promotional_credit: 'Profit · Promotional Credit', profit_correction: 'Profit Balance Correction', reconciliation: 'Account Reconciliation',
 }
 const typeKey = (tx: Pick<Tx, 'type' | 'method' | 'direction' | 'source'>): AdminKey => isAccountCredit(tx) ? 'account_credit' : txCategory(tx)
 const typeText = (tx: Pick<Tx, 'type' | 'method' | 'direction' | 'source'>) => adminTxLabel(tx)

@@ -86,8 +86,8 @@ export function txLabel(tx: Tx, t: T) {
   // A profit-balance credit or debit with no category: a Profit entry whose
   // description is the admin's reason (see txDescription), never "Adjustment".
   if (c === 'profit_adjustment') return t('dash.txType.profit')
-  if (c === 'loyalty_reward') return t('dash.txType.loyaltyReward')
-  if (c === 'promotional_credit') return t('dash.txType.promotionalCredit')
+  if (c === 'loyalty_reward') return `${t('dash.txType.profit')} · ${t('dash.txType.loyaltyReward')}`
+  if (c === 'promotional_credit') return `${t('dash.txType.profit')} · ${t('dash.txType.promotionalCredit')}`
   if (c === 'profit_correction') return t('dash.txType.profitCorrection')
   if (c === 'reconciliation') return t('dash.txType.reconciliation')
   if (c === 'deposit') return t('dash.txType.deposit')

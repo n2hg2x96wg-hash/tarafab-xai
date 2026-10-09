@@ -51,7 +51,7 @@ import { Rise, useScrollDepth } from '@/components/dashboard/Motion'
 import { feedStatus } from '@/lib/marketStatus'
 import { useAssets } from '@/components/markets/assetStore'
 import { effectiveState } from '@/lib/marketStatus'
-import { isAccountCredit, PROFIT_BALANCE_CATEGORIES, txCategory, txSign, type TxCategory } from '@/lib/txCategory'
+import { isAccountCredit, txCategory, txSign, type TxCategory } from '@/lib/txCategory'
 
 const BTC_ADDRESS = 'bc1qvpwmdln4nm6xa2k9q26l84pg4ud0uuqzk83053'
 
@@ -1079,17 +1079,17 @@ const STATUS_GROUPS: Record<string, string[]> = {
 // (lib/txCategory, decided by the stored source): Deposits includes account
 // credits, Withdrawals includes account debits (money taken off the account;
 // the row still reads Account Debit), Fees includes the Tarafab Service Fee and
-// admin-applied fees. Profit holds investment returns and the profit-balance
-// entries shown as Profit (each with its own admin reason as description); a
-// loyalty reward, promotional credit, profit balance correction or
-// reconciliation, a reversal, a balance adjustment or a transfer appears under
-// All with its own label, and the Profit chip says so when the client has any.
+// admin-applied fees. Profit holds investment returns and every entry shown as
+// Profit (Profit, Profit · Loyalty Reward, Profit · Promotional Credit), each
+// with its own reason beneath; a profit balance correction or reconciliation,
+// a reversal, a balance adjustment or a transfer appears under All with its own
+// label, and the Profit chip says so when the client has any.
 const TX_GROUPS: { id: string; label: TKey; cats: TxCategory[] }[] = [
   { id: 'all', label: 'common.all', cats: [] },
   { id: 'deposits', label: 'txc.gDeposits', cats: ['deposit'] },
   { id: 'investments', label: 'txc.gInvestments', cats: ['investment'] },
   { id: 'withdrawals', label: 'txc.gWithdrawals', cats: ['withdrawal', 'account_debit'] },
-  { id: 'profit', label: 'txc.gProfit', cats: ['profit', 'profit_adjustment'] },
+  { id: 'profit', label: 'txc.gProfit', cats: ['profit', 'profit_adjustment', 'loyalty_reward', 'promotional_credit'] },
   { id: 'fees', label: 'txc.gFees', cats: ['fee'] },
 ]
 
@@ -1129,7 +1129,7 @@ function TransactionsTab({ txs }: { txs: Tx[] }) {
           )
         })}
       </div>
-      {filter === 'profit' && txs.some(x => PROFIT_BALANCE_CATEGORIES.includes(txCategory(x)) && txCategory(x) !== 'profit_adjustment') && (
+      {filter === 'profit' && txs.some(x => txCategory(x) === 'profit_correction' || txCategory(x) === 'reconciliation') && (
         <p className="-mt-1 text-[12px] text-fg-faint" data-profit-note>{t('txc.profitOnlyNote')}</p>
       )}
       <div className="grid gap-2.5 sm:gap-3 sm:grid-cols-[1fr_auto] lg:grid-cols-[1fr_auto_auto_auto]" data-tx-filters>

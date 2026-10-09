@@ -829,7 +829,7 @@ const de: DeepPartial<typeof en> = {
     gWithdrawals: 'Auszahlungen',
     gProfit: 'Gewinn',
     gFees: 'Gebühren',
-    profitOnlyNote: 'Gewinn zeigt nur Anlageerträge. Prämien und Korrekturen des Gewinnguthabens finden Sie unter Alle.',
+    profitOnlyNote: 'Korrekturen und Abgleiche des Gewinnguthabens finden Sie unter Alle.',
     search: 'Referenz, Art oder Betrag suchen',
     anyStatus: 'Jeder Status',
     from: 'Von',

@@ -65,8 +65,8 @@ const ACTIONS: { id: BalanceAction; title: string; hint: string; reason: string 
 // decides how the entry is named; none of these is an investment return.
 type ProfitCategory = 'loyalty_reward' | 'promotional_credit' | 'profit_correction' | 'reconciliation' | 'other'
 const PROFIT_REASONS: { id: ProfitCategory; title: string; client: string; creditOnly?: boolean }[] = [
-  { id: 'loyalty_reward', title: 'Loyalty reward', client: 'Loyalty Reward', creditOnly: true },
-  { id: 'promotional_credit', title: 'Promotional credit', client: 'Promotional Credit', creditOnly: true },
+  { id: 'loyalty_reward', title: 'Loyalty reward', client: 'Profit · Loyalty Reward', creditOnly: true },
+  { id: 'promotional_credit', title: 'Promotional credit', client: 'Profit · Promotional Credit', creditOnly: true },
   { id: 'profit_correction', title: 'Profit balance correction', client: 'Profit Balance Correction' },
   { id: 'reconciliation', title: 'Account reconciliation', client: 'Account Reconciliation' },
   { id: 'other', title: 'Other documented correction', client: 'Profit' },
@@ -119,7 +119,7 @@ function entryNames(f: AdjustForm): [string, string] {
   if (f.field === 'profit_balance') {
     // The client sees the category's name with the admin's reason beneath it.
     const r = PROFIT_REASONS.find(x => x.id === f.category)
-    return r ? [`${r.client} · ${f.reason.trim() || 'your reason'}`, r.id === 'other' ? 'Profit Balance Adjustment' : r.client] : ['Choose a reason', 'Choose a reason']
+    return r ? [`${r.client} — ${f.reason.trim() || 'your reason'}`, r.id === 'other' ? (f.operation === 'debit' ? 'Profit · Manual debit' : 'Profit · Manual credit') : r.client] : ['Choose a reason', 'Choose a reason']
   }
   return ['Adjustment', 'Adjustment']
 }
@@ -336,6 +336,9 @@ export default function ClientDetailPage() {
       setAdjusting(false)
     }
   }
+
+  // The reason editor is only open while the admin is using it.
+  useEffect(() => { setCatEdit(null); setCatError('') }, [tab, clientId])
 
   const saveCategory = async () => {
     if (!catEdit) return
@@ -803,14 +806,18 @@ export default function ClientDetailPage() {
                           Account Credit / Account Debit / Fee / Profit… never by the sign alone. */}
                       <p className="text-sm font-medium text-white" data-admin-tx-type={isAccountCredit(tx) ? 'account_credit' : txCategory(tx)}>
                         {adminTxLabel(tx)}
-                        {(PROFIT_BALANCE_CATEGORIES.includes(txCategory(tx)) || txCategory(tx) === 'adjustment') && tx.method && <span className="text-slate-500 font-normal"> · {tx.method.replace(/_/g, ' ')}</span>}
+                        {txCategory(tx) === 'adjustment' && tx.method && <span className="text-slate-500 font-normal"> · {tx.method.replace(/_/g, ' ')}</span>}
                       </p>
                       <p className="text-sm font-semibold text-white shrink-0 tabular-nums" data-admin-signed-amount>
                         {txSign(tx) > 0 ? '+' : txSign(tx) < 0 ? '−' : ''}${(tx.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                       </p>
                     </div>
-                    <div className="flex items-center justify-between gap-2 mt-0.5">
-                      <p className="text-xs text-slate-500 truncate">{tx.notes || '—'}</p>
+                    <div className="flex items-start justify-between gap-2 mt-0.5">
+                      {/* The reason the admin entered, saved on this transaction. Shown in
+                          full for profit-balance entries (it is also what the client sees). */}
+                      <p className={`text-xs break-words min-w-0 ${PROFIT_BALANCE_CATEGORIES.includes(txCategory(tx)) ? 'text-slate-300' : 'text-slate-500 line-clamp-2'}`} data-admin-reason>
+                        {tx.notes?.trim() || (PROFIT_BALANCE_CATEGORIES.includes(txCategory(tx)) ? 'Reason not recorded' : '—')}
+                      </p>
                       <span className={`text-[10px] px-2 py-0.5 rounded-full border shrink-0 ${
                         tx.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
                         tx.status === 'rejected' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
@@ -823,11 +830,14 @@ export default function ClientDetailPage() {
                       {new Date(tx.effective_at || tx.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}{tx.effective_at && tx.effective_at !== tx.created_at ? ` · recorded ${new Date(tx.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}
                       {tx.reference && <> · <span className="font-mono">{tx.reference}</span></>}
                     </p>
-                    {/* A profit-balance adjustment can be given its documented reason;
-                        only its meaning changes (audited), never the amount or balance. */}
+                    {/* "Edit reason": an explicit admin action to correct the reason
+                        category of a profit-balance entry; only its meaning changes
+                        (audited), never the amount, dates or balance. */}
                     {tx.type === 'adjustment' && tx.method === 'profit_balance' && tx.source && tx.source in PROFIT_SOURCE_CATEGORY && (
                       catEdit?.id === tx.id ? (
-                        <div className="mt-2 rounded-lg border border-white/[0.08] bg-white/[0.02] p-3 space-y-2" data-cat-editor>
+                        <div className="mt-2 rounded-lg border border-white/[0.08] bg-white/[0.02] p-3 space-y-2" data-cat-editor
+                          onKeyDown={e => { if (e.key === 'Escape' && !catSaving) { setCatEdit(null); setCatError('') } }}>
+                          <p className="text-[11px] font-semibold text-slate-200">Edit reason · {tx.reference}</p>
                           <label className="block text-[11px] text-slate-400" htmlFor={`cat-${tx.id}`}>Reason category</label>
                           <select id={`cat-${tx.id}`} value={catEdit.category} disabled={catSaving}
                             onChange={e => setCatEdit(c => c && ({ ...c, category: e.target.value as ProfitCategory }))} className="input-field text-xs py-2">
@@ -835,8 +845,8 @@ export default function ClientDetailPage() {
                             {PROFIT_REASONS.filter(r => !r.creditOnly || tx.direction === 'credit').map(r => <option key={r.id} value={r.id}>{r.title}</option>)}
                           </select>
                           <input value={catEdit.reason} disabled={catSaving} onChange={e => setCatEdit(c => c && ({ ...c, reason: e.target.value }))}
-                            placeholder="Why (kept in the audit log), e.g. Documented in the original reason" aria-label="Why you are setting this reason" className="input-field text-xs py-2" />
-                          <p className="text-[10px] text-slate-500">Changes only how this entry is named. Amount, dates, reference and balances stay exactly as recorded.</p>
+                            placeholder="Note for the audit log, e.g. Matches the reason entered" aria-label="Note for the audit log" className="input-field text-xs py-2" />
+                          <p className="text-[10px] text-slate-500">Changes only the category shown above the reason. The reason text, amount, dates, reference and balances stay exactly as recorded.</p>
                           {catError && <p className="text-[11px] text-red-400" role="alert">{catError}</p>}
                           <div className="flex gap-2">
                             <button type="button" onClick={saveCategory} disabled={catSaving} className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-violet-600/80 text-white hover:bg-violet-600 disabled:opacity-50">{catSaving ? 'Saving…' : 'Save reason'}</button>
@@ -845,8 +855,8 @@ export default function ClientDetailPage() {
                         </div>
                       ) : (
                         <button type="button" onClick={() => { setCatError(''); setCatEdit({ id: tx.id, category: tx.source === 'profit_adjustment' ? '' : PROFIT_SOURCE_CATEGORY[tx.source!], reason: '' }) }}
-                          className="mt-1.5 text-[11px] text-violet-300 hover:text-violet-200 underline-offset-2 hover:underline" data-set-reason>
-                          {tx.source === 'profit_adjustment' ? 'Set reason' : 'Change reason'}
+                          className="mt-1.5 text-[11px] text-slate-400 hover:text-violet-200 underline-offset-2 hover:underline" data-set-reason>
+                          Edit reason
                         </button>
                       )
                     )}

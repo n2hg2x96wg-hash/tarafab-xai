@@ -829,7 +829,7 @@ const es: DeepPartial<typeof en> = {
     gWithdrawals: 'Retiros',
     gProfit: 'Beneficio',
     gFees: 'Comisiones',
-    profitOnlyNote: 'Beneficio muestra solo rendimientos de inversión. Las recompensas y correcciones del saldo de beneficios están en Todo.',
+    profitOnlyNote: 'Las correcciones y conciliaciones del saldo de beneficios están en Todo.',
     search: 'Buscar referencia, tipo o importe',
     anyStatus: 'Cualquier estado',
     from: 'Desde',

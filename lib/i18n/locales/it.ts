@@ -829,7 +829,7 @@ const it: DeepPartial<typeof en> = {
     gWithdrawals: 'Prelievi',
     gProfit: 'Profitto',
     gFees: 'Commissioni',
-    profitOnlyNote: 'Profitto mostra solo i rendimenti degli investimenti. Premi e correzioni del saldo profitti sono in Tutti.',
+    profitOnlyNote: 'Correzioni e riconciliazioni del saldo profitti sono in Tutti.',
     search: 'Cerca riferimento, tipo o importo',
     anyStatus: 'Qualsiasi stato',
     from: 'Dal',

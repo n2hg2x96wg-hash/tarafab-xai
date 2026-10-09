@@ -832,7 +832,7 @@ const ko: DeepPartial<typeof en> = {
     gWithdrawals: '출금',
     gProfit: '수익',
     gFees: '수수료',
-    profitOnlyNote: '수익에는 투자 수익만 표시됩니다. 리워드와 수익 잔액 정정은 전체에 있습니다.',
+    profitOnlyNote: '수익 잔액 정정 및 대사는 전체에 있습니다.',
     search: '참조 번호, 유형 또는 금액 검색',
     anyStatus: '모든 상태',
     from: '시작일',

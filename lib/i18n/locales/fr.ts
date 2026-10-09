@@ -829,7 +829,7 @@ const fr: DeepPartial<typeof en> = {
     gWithdrawals: 'Retraits',
     gProfit: 'Profit',
     gFees: 'Frais',
-    profitOnlyNote: 'Profit n\'affiche que les rendements d\'investissement. Les récompenses et corrections du solde de profits figurent sous Tout.',
+    profitOnlyNote: 'Les corrections et rapprochements du solde de profits figurent sous Tout.',
     search: 'Rechercher une référence, un type ou un montant',
     anyStatus: 'Tous les statuts',
     from: 'Date de début',
