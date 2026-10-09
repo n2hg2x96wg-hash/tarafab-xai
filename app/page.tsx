@@ -123,14 +123,12 @@ export default function LandingPage() {
             <h2 className="ex-h2">{t('landing.platformTitle')}</h2>
             <p className="mt-4 text-fg-muted leading-relaxed max-w-lg">{t('landing.platformBody')}</p>
           </div></Reveal>
-          <ul className="border-t border-ink-700">
+          <ul className="grid sm:grid-cols-2 gap-3">
             {capabilities.filter(c => PUBLIC_CAPS.includes(c.title)).map(({ icon: Icon, title, body }) => (
-              <li key={title} className="ex-feature">
-                <span className="ex-icon shrink-0" aria-hidden="true"><Icon width={18} height={18} /></span>
-                <div className="min-w-0">
-                  <h3 className="text-[16px] font-semibold text-fg">{t(title)}</h3>
-                  <p className="mt-1 text-[14.5px] text-fg-muted leading-relaxed">{t(body)}</p>
-                </div>
+              <li key={title} className="ex-card">
+                <span className="ex-icon mb-4" aria-hidden="true"><Icon width={18} height={18} /></span>
+                <h3 className="text-[16px] font-semibold text-fg">{t(title)}</h3>
+                <p className="mt-1.5 text-[14px] text-fg-muted leading-relaxed">{t(body)}</p>
               </li>
             ))}
           </ul>
@@ -186,23 +184,21 @@ export default function LandingPage() {
           <div className="ex-secure">
             <img src="/landing/hero-bitcoin-wide-1600.webp" alt="" aria-hidden="true" className="ex-secure-img" loading="lazy" decoding="async" />
             <div className="ex-secure-shade" aria-hidden="true" />
-            <div className="relative grid gap-8 p-6 pt-40 sm:p-10 md:pt-10 lg:grid-cols-[1fr_1fr] lg:gap-12 lg:p-12">
-              <div className="max-w-md">
-                <span className="ex-hero-icon mb-5" aria-hidden="true"><IconLock width={20} height={20} /></span>
-                <h2 className="text-[28px] sm:text-[34px] font-bold tracking-tight leading-tight">{t('landing.ex.secureTitle')}</h2>
-                <p className="mt-3 text-[#d6d1c7]">{t('landing.securityTitle')} — {t('landing.securityBody')}</p>
-                <p className="mt-6 text-[13px] leading-relaxed text-[#a39e94]">{t('landing.footerRisk')}</p>
-              </div>
-              <ul className="divide-y divide-[#ffffff14] self-center">
-                {safeguards.map(item => (
-                  <li key={item} className="flex gap-3 py-3.5 first:pt-0 last:pb-0">
-                    <IconCheck className="shrink-0 mt-0.5 text-[#f2bd55]" />
-                    <span className="text-[15px] text-[#e4dfd5] leading-relaxed">{t(item)}</span>
-                  </li>
-                ))}
-              </ul>
+            <div className="relative p-6 pt-44 sm:p-10 md:pt-12 md:pb-14 lg:p-14 max-w-xl">
+              <span className="ex-hero-icon mb-5" aria-hidden="true"><IconLock width={20} height={20} /></span>
+              <h2 className="text-[28px] sm:text-[36px] font-bold tracking-tight leading-tight">{t('landing.ex.secureTitle')}</h2>
+              <p className="mt-3 text-[16px] text-[#d6d1c7]">{t('landing.securityTitle')} — {t('landing.securityBody')}</p>
+              <p className="mt-5 text-[13px] leading-relaxed text-[#a39e94]">{t('landing.footerRisk')}</p>
             </div>
           </div>
+          <ul className="mt-4 grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {safeguards.map(item => (
+              <li key={item} className="ex-card flex gap-3">
+                <span className="ex-icon !w-8 !h-8 !rounded-lg shrink-0" aria-hidden="true"><IconCheck width={16} height={16} /></span>
+                <span className="text-[14.5px] text-fg-muted leading-relaxed">{t(item)}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
 

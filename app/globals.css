@@ -907,8 +907,8 @@ body.dialog-open #chat-application { visibility: hidden !important; }
 
 /* security banner: dark, with the coin photograph at the right */
 .ex-secure { position: relative; overflow: hidden; border-radius: 22px; border: 1px solid rgba(238,180,66,.22); background: #08090b; color: #fff; }
-.ex-secure-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 85% 55%; opacity: .9; }
-.ex-secure-shade { position: absolute; inset: 0; background: linear-gradient(90deg, #08090b 0%, rgba(8,9,11,.96) 40%, rgba(8,9,11,.55) 70%, rgba(8,9,11,.15) 100%); }
+.ex-secure-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 80% 55%; }
+.ex-secure-shade { position: absolute; inset: 0; background: linear-gradient(90deg, #08090b 0%, rgba(8,9,11,.95) 38%, rgba(8,9,11,.4) 62%, rgba(8,9,11,0) 85%); }
 @media (max-width: 767px) { .ex-secure-shade { background: linear-gradient(180deg, rgba(8,9,11,.6) 0%, #08090b 55%); } .ex-secure-img { height: 55%; object-position: 70% 50%; } }
 .ex-band { border-radius: 20px; border: 1px solid rgb(var(--accent) / .2);
   background: radial-gradient(120% 140% at 100% 0%, rgb(var(--accent) / .1), transparent 55%), rgb(var(--ink-900)); }

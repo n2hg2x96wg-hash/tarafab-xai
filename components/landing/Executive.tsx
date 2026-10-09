@@ -133,27 +133,25 @@ function AssetCard({ a, failed }: { a: AssetQuote; failed: boolean }) {
   const [color, glyph] = COIN[a.id] || ['#3b3f47', a.id.slice(0, 1)]
   return (
     <li className="ex-asset" data-asset={a.id} data-state={st}>
-      <div className="flex items-start gap-3">
+      <div className="flex items-center gap-3 min-w-0">
         <span className="ex-coin" style={{ background: color }} aria-hidden="true">{glyph}</span>
         <div className="min-w-0 flex-1">
-          <div className="flex items-baseline gap-2 min-w-0">
-            <span className="text-[15px] font-semibold text-fg truncate">{a.name}</span>
-            <span className="text-[12px] text-fg-faint shrink-0">{a.id}</span>
-          </div>
-          {usable ? (
-            <>
-              <p className="mt-1 text-[19px] font-semibold tabular-nums tracking-tight text-fg">{formatPrice(a.price)}</p>
-              <p className="flex items-center gap-2 text-[12.5px]">
-                {a.changePct != null && <span className={`tabular-nums font-medium ${up ? 'price-up' : 'price-down'}`}>{up ? '+' : '−'}{Math.abs(a.changePct).toFixed(2)}%</span>}
-                <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide text-fg-faint"><span className={`h-1.5 w-1.5 rounded-full ${STATE_DOT[st]}`} aria-hidden="true" />{t(STATE_KEY[st])}</span>
-              </p>
-            </>
-          ) : (
-            <p className="mt-1.5 text-[13px] text-fg-faint">{t('landing.scene.noQuote')} · <span className="uppercase text-[10px] tracking-wide">{t(STATE_KEY[st])}</span></p>
-          )}
+          <span className="block text-[15px] font-semibold text-fg truncate">{a.name}</span>
+          <span className="flex items-center gap-1.5 text-[11.5px] text-fg-faint">
+            {a.id}<span aria-hidden="true">·</span>
+            <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide"><span className={`h-1.5 w-1.5 rounded-full ${STATE_DOT[st]}`} aria-hidden="true" />{t(STATE_KEY[st])}</span>
+          </span>
         </div>
-        {usable && pts && <Spark pts={pts} />}
       </div>
+      {usable ? (
+        <div className="mt-3 flex items-end justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[20px] font-semibold tabular-nums tracking-tight text-fg leading-tight">{formatPrice(a.price)}</p>
+            {a.changePct != null && <p className={`text-[12.5px] tabular-nums font-medium ${up ? 'price-up' : 'price-down'}`}>{up ? '+' : '−'}{Math.abs(a.changePct).toFixed(2)}% <span className="text-fg-faint font-normal">24h</span></p>}
+          </div>
+          {pts && <Spark pts={pts} />}
+        </div>
+      ) : <p className="mt-3 text-[13px] text-fg-faint">{t('landing.scene.noQuote')}</p>}
     </li>
   )
 }
