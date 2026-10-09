@@ -710,6 +710,8 @@ const de: DeepPartial<typeof en> = {
     profitSub: "Gewinn verbucht",
     profitNone: "Noch kein Gewinn verbucht",
     investedNone: "Keine aktive Anlage",
+    investedCompleted: "{n} abgeschlossen",
+    investedPending: "{n} wartet auf Aktivierung",
     pendingSub: "Wird geprüft",
     pendingClear: "Nichts ausstehend",
     invest: "Anlegen",

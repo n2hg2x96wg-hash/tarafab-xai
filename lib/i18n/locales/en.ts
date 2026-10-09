@@ -720,6 +720,8 @@ const en = {
     profitSub: "Profit recorded",
     profitNone: "No profit recorded yet",
     investedNone: "No active investment",
+    investedCompleted: "{n} completed",
+    investedPending: "{n} awaiting activation",
     pendingSub: "Awaiting review",
     pendingClear: "Nothing pending",
     invest: "Invest",

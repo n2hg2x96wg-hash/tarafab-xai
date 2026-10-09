@@ -891,7 +891,7 @@ body.dialog-open #chat-application { visibility: hidden !important; }
 }
 @media (max-width: 639px) {
   .ovx-hero { min-height: 0; padding: 20px 18px; border-radius: 18px; }
-  .ovx-hero-art { max-width: 80%; opacity: .45; }
+  .ovx-hero-art { max-width: 72%; opacity: .32; -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 60%); mask-image: linear-gradient(90deg, transparent 0, #000 60%); }
 }
 
 /* Account figures */
@@ -956,3 +956,24 @@ button.ovx-row:focus-visible { outline: none; box-shadow: inset 0 0 0 2px rgb(va
 .cc-avatar-btn { border-radius: 14px; transition: background-color .15s ease; }
 .cc-avatar-btn:hover { background: rgb(var(--contrast) / .04); }
 @media (prefers-reduced-motion: reduce) { .ovx-act, .ovx-act:hover, .ovx-act:active { transform: none; } }
+
+/* Menu rows: an icon chip per section, the current page in orange. On
+   phones each group is an inset card of comfortable rows with a chevron. */
+.cc-navicon { width: 30px; height: 30px; flex-shrink: 0; border-radius: 9px; display: grid; place-items: center; color: rgb(var(--fg-muted)); background: rgb(var(--contrast) / .05); box-shadow: inset 0 0 0 1px rgb(var(--contrast) / .06); transition: color .15s ease, background-color .15s ease, box-shadow .15s ease; }
+.cc-navbtn:hover .cc-navicon { color: rgb(var(--fg)); background: rgb(var(--contrast) / .08); }
+.cc-drawer .nav-item-on .cc-navicon { color: rgb(var(--accent)); background: rgb(var(--accent) / .16); box-shadow: inset 0 0 0 1px rgb(var(--accent) / .3); }
+.cc-drawer .nav-item-on svg { filter: none; }
+.cc-navchev { color: rgb(var(--fg-faint) / .7); }
+.cc-drawer .nav-item-on .cc-navchev { color: rgb(var(--accent)); }
+@media (min-width: 1024px) {
+  .cc-navicon { width: 28px; height: 28px; border-radius: 8px; }
+}
+@media (max-width: 1023px) {
+  .cc-navlist { padding: 4px; border-radius: 16px; background: linear-gradient(180deg, rgb(var(--contrast) / .04), rgb(var(--contrast) / .015)); border: 1px solid rgb(var(--contrast) / .07); }
+  .cc-navlist > .cc-navbtn { min-height: 52px; padding: 8px 10px; border-radius: 12px; font-size: 15px; gap: 12px; }
+  .cc-navlist > .cc-navbtn + .cc-navbtn { position: relative; }
+  .cc-navlist > .cc-navbtn + .cc-navbtn::after { content: ''; position: absolute; top: -1px; left: 52px; right: 10px; height: 1px; background: rgb(var(--contrast) / .06); }
+  .cc-navlist > .nav-item-on::after, .cc-navlist > .nav-item-on + .cc-navbtn::after { display: none; }
+  .cc-navgroup { margin-bottom: 10px; }
+  .cc-drawer .cc-navgroup + .cc-navgroup { border-top: 0; padding-top: 0; }
+}

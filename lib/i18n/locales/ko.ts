@@ -713,6 +713,8 @@ const ko: DeepPartial<typeof en> = {
     profitSub: "수익 기록됨",
     profitNone: "기록된 수익 없음",
     investedNone: "활성 투자 없음",
+    investedCompleted: "{n}건 완료",
+    investedPending: "{n}건 활성화 대기",
     pendingSub: "검토 대기 중",
     pendingClear: "대기 중인 항목 없음",
     invest: "투자",

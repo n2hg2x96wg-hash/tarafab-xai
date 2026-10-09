@@ -23,7 +23,7 @@ import { useTheme } from '@/lib/theme/ThemeProvider'
 import {
   IconAlert, IconArrowDown, IconArrowUp, IconChart, IconCheck, IconClose, IconCopy, IconGrid,
   IconInfo, IconList, IconLogOut, IconMail, IconMenu, IconUser, Logo,
-  IconBell, IconHelp, IconHistory, IconLock, IconPie, IconShield, IconSliders, IconSwap, IconTrend, IconWallet,
+  IconBell, IconHelp, IconHistory, IconIdCard, IconInbox, IconLock, IconOutbox, IconRadar, IconPie, IconShield, IconSliders, IconSwap, IconTrend, IconWallet,
 } from '@/components/Icons'
 import { WalletTab } from '@/components/dashboard/WalletTab'
 import { AssetCenter } from '@/components/markets/AssetCenter'
@@ -93,15 +93,15 @@ const NAV_GROUPS: { label: TKey; items: (NavItem & { core?: boolean })[] }[] = [
     { icon: IconChart, label: 'dash.nav.markets', id: 'markets' },
     { icon: IconPie, label: 'nav2.portfolio', id: 'portfolio' },
     { icon: IconTrend, label: 'nav3.performance', id: 'performance' },
-    { icon: IconSliders, label: 'automations.nav', id: 'automations' },
+    { icon: IconRadar, label: 'automations.nav', id: 'automations' },
   ] },
   { label: 'nav3.groupFunds', items: [
     { icon: IconArrowDown, label: 'dash.nav.deposit', id: 'deposit' },
     { icon: IconArrowUp, label: 'dash.nav.withdraw', id: 'withdraw' },
     { icon: IconWallet, label: 'wallet.nav', id: 'wallet' },
     { icon: IconList, label: 'dash.nav.transactions', id: 'transactions' },
-    { icon: IconHistory, label: 'nav2.depositHistory', id: 'depositHistory' },
-    { icon: IconHistory, label: 'nav2.withdrawalHistory', id: 'withdrawalHistory' },
+    { icon: IconInbox, label: 'nav2.depositHistory', id: 'depositHistory' },
+    { icon: IconOutbox, label: 'nav2.withdrawalHistory', id: 'withdrawalHistory' },
   ] },
   { label: 'nav4.groupTools', items: [
     { icon: IconHistory, label: 'nav3.priceHistory', id: 'priceHistory' },
@@ -111,7 +111,7 @@ const NAV_GROUPS: { label: TKey; items: (NavItem & { core?: boolean })[] }[] = [
   { label: 'nav2.groupAccount', items: [
     { icon: IconUser, label: 'dash.nav.profile', id: 'profile', core: true },
     { icon: IconShield, label: 'nav2.security', id: 'security', core: true },
-    { icon: IconCheck, label: 'kyc.nav', id: 'verification' },
+    { icon: IconIdCard, label: 'kyc.nav', id: 'verification' },
     { icon: IconBell, label: 'nav2.notifications', id: 'notifications' },
     { icon: IconSliders, label: 'nav2.preferences', id: 'preferences', core: true },
   ] },
@@ -468,7 +468,7 @@ export default function DashboardPage() {
 
   return (
     <div className="site cc-app min-h-screen bg-ink-950 text-fg lg:flex">
-      <aside className={`fixed inset-y-0 left-0 z-40 w-[min(18rem,85vw)] ${collapsed ? 'lg:w-[72px]' : 'lg:w-64'} h-[100dvh] safe-top cc-drawer flex flex-col transition-[transform,width] duration-300 ease-[cubic-bezier(.2,.7,.2,1)] lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:shadow-none ${sidebarOpen ? 'translate-x-0 drawer-shadow' : '-translate-x-full'}`}>
+      <aside className={`fixed inset-y-0 left-0 z-40 w-[min(23rem,90vw)] ${collapsed ? 'lg:w-[72px]' : 'lg:w-64'} h-[100dvh] safe-top cc-drawer flex flex-col transition-[transform,width] duration-300 ease-[cubic-bezier(.2,.7,.2,1)] lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:shadow-none ${sidebarOpen ? 'translate-x-0 drawer-shadow' : '-translate-x-full'}`}>
         <div className={`h-16 shrink-0 flex items-center justify-between border-b cc-sep ${collapsed ? 'lg:px-0 lg:justify-center px-5' : 'px-5'}`}>
           <Link href="/" aria-label={t('common.home')} className={`min-w-0 ${collapsed ? 'lg:hidden' : ''}`}>
             <Logo />
@@ -488,26 +488,28 @@ export default function DashboardPage() {
             return (
               <div key={group.label} className="mb-2.5 last:mb-0 cc-navgroup">
                 <p className={`px-3 pt-2.5 pb-1 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-fg-faint/80 ${collapsed ? 'lg:sr-only' : ''}`}>{t(group.label)}</p>
-                <div className="space-y-0.5">
+                {/* Each group is one inset card of rows on phones; a plain list on desktop. */}
+                <div className="cc-navlist space-y-0.5">
                   {items.map(({ icon: I, label, id }) => (
                     <button
                       key={id}
                       onClick={() => go(id)}
                       title={collapsed ? labelOf({ id, label }) : undefined}
-                      className={`relative w-full flex items-center gap-3 px-3 min-h-11 lg:min-h-10 py-2 rounded-lg text-[14px] transition-colors text-left ${collapsed ? 'lg:justify-center lg:px-0' : ''} ${
+                      className={`cc-navbtn relative w-full flex items-center gap-3 px-3 min-h-11 lg:min-h-10 py-2 rounded-lg text-[14px] transition-colors text-left ${collapsed ? 'lg:justify-center lg:px-0' : ''} ${
                         activeNav === id ? 'nav-item-on font-medium' : 'nav-item'
                       }`}
                       aria-current={activeNav === id ? 'page' : undefined}
                       data-nav-id={id}
                     >
-                      <I width={17} height={17} className="shrink-0 transition-colors" aria-hidden="true" />
+                      <span className="cc-navicon" aria-hidden="true"><I width={17} height={17} className="shrink-0 transition-colors" /></span>
                       <span className={`flex-1 min-w-0 truncate ${collapsed ? 'lg:sr-only' : ''}`}>{labelOf({ id, label })}</span>
                       {id === 'automations' && <AutomationBadge collapsed={collapsed} />}
                       {id === 'notifications' && unread > 0 && (
-                        <span className={`shrink-0 min-w-5 h-5 px-1.5 rounded-full ${collapsed ? 'lg:absolute lg:top-0.5 lg:right-2 lg:min-w-4 lg:h-4 lg:px-1 lg:text-[10px]' : ''} bg-brand-500/15 text-brand-300 text-[11px] font-semibold tabular-nums inline-flex items-center justify-center`}>
+                        <span className={`cc-navcount shrink-0 min-w-5 h-5 px-1.5 rounded-full ${collapsed ? 'lg:absolute lg:top-0.5 lg:right-2 lg:min-w-4 lg:h-4 lg:px-1 lg:text-[10px]' : ''} bg-brand-500/15 text-brand-300 text-[11px] font-semibold tabular-nums inline-flex items-center justify-center`}>
                           {unread}<span className="sr-only"> {t('notices.newCount', { n: unread })}</span>
                         </span>
                       )}
+                      <svg className="cc-navchev lg:hidden shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
                     </button>
                   ))}
                 </div>
@@ -686,7 +688,7 @@ function AutomationBadge({ collapsed }: { collapsed: boolean }) {
     : ({ running: 'Monitoring active', paused: 'Paused', maintenance: 'Maintenance', degraded: 'Delayed', offline: 'Offline', unavailable: 'Unavailable' } as const)[state]
   const dot = loading ? 'bg-fg-faint' : state === 'running' ? 'bg-emerald-400' : state === 'degraded' || state === 'paused' ? 'bg-amber-400' : state === 'maintenance' ? 'bg-sky-400' : refreshFailed ? 'bg-red-400' : 'bg-fg-faint'
   return (
-    <span className={`shrink-0 inline-flex items-center gap-1.5 text-[11.5px] text-fg-faint ${collapsed ? 'lg:absolute lg:top-1.5 lg:right-3' : ''}`} data-sidebar-automation={loading ? 'connecting' : state} title={label}>
+    <span className={`cc-navauto shrink-0 inline-flex items-center gap-1.5 text-[11.5px] text-fg-faint ${collapsed ? 'lg:absolute lg:top-1.5 lg:right-3' : ''}`} data-sidebar-automation={loading ? 'connecting' : state} title={label}>
       <span className={`w-1.5 h-1.5 rounded-full ${dot}`} aria-hidden="true" />
       <span className={collapsed ? 'lg:sr-only' : ''}>{label}</span>
     </span>
@@ -880,7 +882,7 @@ function OverviewTab({ name, account, txs, go, can, labelOf, whatsNew }: { whats
     { key: 'profit', label: 'dash.profitReturn', value: account ? Number(account.profit_balance ?? 0) : null, icon: IconTrend,
       sub: account && Number(account.profit_balance ?? 0) > 0 ? t('ov2.profitSub') : t('ov2.profitNone'), state: account && Number(account.profit_balance ?? 0) > 0 ? 'positive' : 'none' },
     { key: 'invested', label: 'dash.invested', value: inv ? Number(inv.total_invested) : null, icon: IconPie,
-      sub: inv ? (inv.active_count > 0 ? t('dash.countActive', { n: inv.active_count }) : t('ov2.investedNone')) : '' },
+      sub: inv ? (inv.active_count > 0 ? t('dash.countActive', { n: inv.active_count }) : inv.pending_count > 0 ? t('ov2.investedPending', { n: inv.pending_count }) : inv.completed_count > 0 ? t('ov2.investedCompleted', { n: inv.completed_count }) : t('ov2.investedNone')) : '' },
     { key: 'pending', label: 'dash.pending', value: account ? Number(account.pending_balance ?? 0) : null, icon: IconHistory,
       sub: account && Number(account.pending_balance ?? 0) > 0 ? t('ov2.pendingSub') : t('ov2.pendingClear'), state: account && Number(account.pending_balance ?? 0) > 0 ? 'review' : 'clear' },
   ]
