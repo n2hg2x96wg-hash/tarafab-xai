@@ -523,9 +523,9 @@ export function FaqSection() {
   const { t } = useI18n()
   return (
     <section id="faq" className="scroll-mt-16 border-b border-ink-700">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16 lg:py-20 grid lg:grid-cols-[1fr_1.6fr] gap-8 lg:gap-16">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 lg:py-20 grid lg:grid-cols-[1fr_1.6fr] gap-10">
         <Reveal>
-          <h2 className="ex-h2">{t('faq.title')}</h2>
+          <h2 className="text-3xl font-semibold tracking-tight text-fg">{t('faq.title')}</h2>
           <p className="mt-3 text-fg-muted">{t('faq.body')}</p>
         </Reveal>
         <Reveal delay={100}><FaqList /></Reveal>
