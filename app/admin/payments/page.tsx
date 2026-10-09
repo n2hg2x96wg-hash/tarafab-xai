@@ -134,7 +134,7 @@ export default function AdminPaymentsPage() {
       <section className="glass rounded-2xl border border-white/[0.08] p-4 mb-5">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
           <h2 className="text-sm font-semibold text-white">Payment links</h2>
-          <button onClick={() => { setFormErr(''); setEdit({ id: '', title: '', url: 'https://pay.seerbitapi.com/', amount: '', currency: 'NGN', frequency: 'one_time', usage: 'single_use', country: 'NG', enabled: false, plan: '', reason: '' }) }} className="text-xs rounded-lg bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5">Add link</button>
+          <button onClick={() => { setFormErr(''); setEdit({ id: '', title: '', url: 'https://pay.seerbitapi.com/', amount: '', currency: 'NGN', frequency: 'one_time', usage: 'single_use', country: 'NG', enabled: false, plan: '', reason: '' }) }} className="text-xs rounded-lg bg-accent hover:bg-accent-hover text-accent-ink px-3 py-1.5">Add link</button>
         </div>
         {!links ? <p className="text-xs text-slate-500">Loading…</p> : !links.length ? <p className="text-xs text-slate-400">No payment links.</p> : (
           <ul className="grid gap-3 lg:grid-cols-2">
@@ -163,7 +163,7 @@ export default function AdminPaymentsPage() {
                     <CopyButton url={l.url} />
                     <a href={l.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-lg border border-white/[0.12] px-3 py-1.5 text-xs text-slate-200 hover:bg-white/[0.06] min-h-[36px]">Open Payment Link ↗</a>
                     <button onClick={() => setToggle({ link: l, reason: '' })} className={`rounded-lg border px-3 py-1.5 text-xs min-h-[36px] ${l.enabled ? 'border-red-500/30 text-red-300' : 'border-emerald-500/30 text-emerald-300'}`}>{l.enabled ? 'Disable' : 'Enable'}</button>
-                    <button onClick={() => { setFormErr(''); setEdit({ id: l.id, title: l.title, url: l.url, amount: String(l.amount), currency: l.currency, frequency: l.frequency, usage: l.usage, country: l.allowed_country, enabled: l.enabled, plan: l.plan_id || '', reason: '' }) }} className="text-xs text-violet-300 px-2">Edit</button>
+                    <button onClick={() => { setFormErr(''); setEdit({ id: l.id, title: l.title, url: l.url, amount: String(l.amount), currency: l.currency, frequency: l.frequency, usage: l.usage, country: l.allowed_country, enabled: l.enabled, plan: l.plan_id || '', reason: '' }) }} className="text-xs text-accent px-2">Edit</button>
                   </div>
                 </li>
               )
@@ -180,7 +180,7 @@ export default function AdminPaymentsPage() {
           <div className="mt-3 space-y-2">
             <p className="text-amber-300">Copy this key now: it is not stored in readable form. Add it to Vercel as the environment variable <span className="font-mono">PAYMENT_GATEWAY_KEY</span> (not NEXT_PUBLIC), redeploy, then save it here.</p>
             <p className="font-mono break-all text-slate-200 select-all">{newKey}</p>
-            <div className="flex gap-2"><CopyButton url={newKey} /><button disabled={busy} onClick={() => run('admin_set_payment_gateway_key', { p_key: newKey }, () => { setNewKey(''); setMsg('Gateway key saved.') })} className="rounded-lg bg-violet-600 px-3 py-1.5 text-white">Save key</button><button onClick={() => setNewKey('')} className="px-3 py-1.5 text-slate-400">Cancel</button></div>
+            <div className="flex gap-2"><CopyButton url={newKey} /><button disabled={busy} onClick={() => run('admin_set_payment_gateway_key', { p_key: newKey }, () => { setNewKey(''); setMsg('Gateway key saved.') })} className="rounded-lg bg-accent px-3 py-1.5 text-accent-ink">Save key</button><button onClick={() => setNewKey('')} className="px-3 py-1.5 text-slate-400">Cancel</button></div>
             {formErr && <p className="text-red-400">{formErr}</p>}
           </div>
         )}

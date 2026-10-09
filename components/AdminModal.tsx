@@ -17,7 +17,7 @@ export function AdminModal({ title, children, onClose, onSave, busy, err, saveLa
         {err && <p role="alert" className="text-sm text-red-400">{err}</p>}
         <div className="flex gap-2 pt-1">
           <button onClick={onClose} disabled={busy} className="flex-1 rounded-lg border border-white/[0.1] px-3 py-2 text-sm text-slate-300">Cancel</button>
-          <button onClick={onSave} disabled={busy} className="flex-1 rounded-lg bg-violet-600 hover:bg-violet-500 px-3 py-2 text-sm text-white disabled:opacity-50">{busy ? 'Saving…' : saveLabel}</button>
+          <button onClick={onSave} disabled={busy} className="flex-1 rounded-lg bg-accent hover:bg-accent-hover px-3 py-2 text-sm text-accent-ink disabled:opacity-50">{busy ? 'Saving…' : saveLabel}</button>
         </div>
       </div>
     </div>

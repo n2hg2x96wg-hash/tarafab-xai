@@ -52,14 +52,14 @@ export default function AdminLoginPage() {
   return (
     <div className="min-h-screen bg-ink-950 flex items-center justify-center px-4">
       <div aria-hidden className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-violet-600/[0.08] rounded-full blur-3xl" />
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-accent/[0.08] rounded-full blur-3xl" />
       </div>
 
       <div className="relative z-10 w-full max-w-sm">
         <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-600 to-blue-500 flex items-center justify-center text-sm font-bold text-[#fff]">₿</div>
-          <span className="font-bold text-white">Tarafab<span className="text-violet-400">.XAi</span></span>
-          <span className="text-[10px] bg-violet-600/20 text-violet-400 border border-violet-500/30 px-1.5 py-0.5 rounded font-medium">ADMIN</span>
+          <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center text-sm font-bold text-[#fff]">₿</div>
+          <span className="font-bold text-white">Tarafab<span className="text-accent">.XAi</span></span>
+          <span className="text-[10px] bg-accent/15 text-accent border border-accent/30 px-1.5 py-0.5 rounded font-medium">ADMIN</span>
         </div>
 
         <div className="glass rounded-2xl p-8 border border-white/[0.08]">
@@ -115,7 +115,7 @@ export default function AdminLoginPage() {
             <button
               type="submit"
               disabled={loading || !email || !password}
-              className="w-full py-3 text-sm font-semibold text-[#fff] bg-gradient-to-r from-violet-600 to-blue-500 rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_0_20px_rgba(124,58,237,0.3)] flex items-center justify-center gap-2 mt-2"
+              className="w-full py-3 text-sm font-semibold text-accent-ink bg-accent rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_0_20px_rgba(247,147,26,0.3)] flex items-center justify-center gap-2 mt-2"
             >
               {loading ? (
                 <>

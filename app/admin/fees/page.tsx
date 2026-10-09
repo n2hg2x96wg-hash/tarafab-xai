@@ -88,7 +88,7 @@ export default function AdminFeesPage() {
       <section className="glass rounded-2xl border border-white/[0.08] p-4 mb-5">
         <div className="flex items-center justify-between gap-3 mb-3">
           <h2 className="text-sm font-semibold text-white">Service fee rules</h2>
-          <button onClick={() => { setFormErr(''); setRf({ ...emptyRule }) }} className="text-xs rounded-lg bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5">Add rule</button>
+          <button onClick={() => { setFormErr(''); setRf({ ...emptyRule }) }} className="text-xs rounded-lg bg-accent hover:bg-accent-hover text-accent-ink px-3 py-1.5">Add rule</button>
         </div>
         {!rules ? <p className="text-xs text-slate-500">Loading…</p> : !rules.length ? <p className="text-xs text-slate-400">No fee rules. No service fee is charged.</p> : (
           <div className="overflow-x-auto"><table className="w-full text-xs"><thead><tr className="text-left text-slate-500"><th className="py-1.5 pr-3">Service</th><th className="pr-3">Scope</th><th className="pr-3">Fee</th><th className="pr-3">Min / Max</th><th className="pr-3">From</th><th className="pr-3">Status</th><th /></tr></thead>
@@ -100,7 +100,7 @@ export default function AdminFeesPage() {
                 <td className="pr-3 tabular-nums">{usd(r.min_fee)} / {r.max_fee == null ? 'none' : usd(r.max_fee)}</td>
                 <td className="pr-3">{new Date(r.effective_from).toLocaleString()}</td>
                 <td className="pr-3">{r.enabled ? <span className="text-emerald-400">Enabled</span> : <span className="text-slate-500">Disabled</span>}</td>
-                <td><button onClick={() => { setFormErr(''); setRf({ id: r.id, service: r.service, label: r.label, asset: r.asset || '', chain_id: r.chain_id == null ? '' : String(r.chain_id), fixed_fee: String(r.fixed_fee), pct_fee: String(r.pct_fee), min_fee: String(r.min_fee), max_fee: r.max_fee == null ? '' : String(r.max_fee), enabled: r.enabled, effective_from: '', reason: '' }) }} className="text-violet-300 hover:text-violet-200">Edit</button></td>
+                <td><button onClick={() => { setFormErr(''); setRf({ id: r.id, service: r.service, label: r.label, asset: r.asset || '', chain_id: r.chain_id == null ? '' : String(r.chain_id), fixed_fee: String(r.fixed_fee), pct_fee: String(r.pct_fee), min_fee: String(r.min_fee), max_fee: r.max_fee == null ? '' : String(r.max_fee), enabled: r.enabled, effective_from: '', reason: '' }) }} className="text-accent hover:text-accent-hover">Edit</button></td>
               </tr>))}</tbody></table></div>
         )}
         {rules && !rules.some(r => r.enabled && r.service === 'withdrawal') && (
@@ -123,7 +123,7 @@ export default function AdminFeesPage() {
         <div className="flex items-center justify-between gap-3 mb-3">
           <div><h2 className="text-sm font-semibold text-white">Tarafab receiving addresses</h2>
             <p className="text-[11px] text-slate-500">The enabled ETH · Ethereum (chain 1) address is also the Ethereum option on the client Deposit page; disable it to hide that option.</p></div>
-          <button onClick={() => { setFormErr(''); setAf({ ...emptyAddr }) }} className="text-xs rounded-lg bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5">Add address</button>
+          <button onClick={() => { setFormErr(''); setAf({ ...emptyAddr }) }} className="text-xs rounded-lg bg-accent hover:bg-accent-hover text-accent-ink px-3 py-1.5">Add address</button>
         </div>
         {!addrs ? <p className="text-xs text-slate-500">Loading…</p> : !addrs.length ? <p className="text-xs text-slate-400">None configured. “Transfer to Tarafab” and Ethereum deposits are shown to clients as not available.</p> : (
           <div className="overflow-x-auto"><table className="w-full text-xs"><thead><tr className="text-left text-slate-500"><th className="py-1.5 pr-3">Network</th><th className="pr-3">Asset</th><th className="pr-3">Receiving address</th><th className="pr-3">Confirmations</th><th className="pr-3">Status</th><th /></tr></thead>
@@ -138,10 +138,10 @@ export default function AdminFeesPage() {
                 <td className="pr-3 font-mono break-all">{a.address}</td>
                 <td className="pr-3">{a.min_confirmations}</td>
                 <td className="pr-3">{a.enabled ? <span className="text-emerald-400">Enabled</span> : <span className="text-slate-500">Disabled</span>}</td>
-                <td><button onClick={() => { setFormErr(''); setAf({ id: a.id, chain_id: String(a.chain_id), network: a.network, asset: a.asset, token_contract: a.token_contract || KNOWN[`${a.chain_id}:${a.asset}`]?.contract || '', decimals: String(a.token_contract ? a.decimals : KNOWN[`${a.chain_id}:${a.asset}`]?.decimals ?? a.decimals), address: a.address, min_confirmations: String(a.min_confirmations), enabled: a.enabled, reason: '' }) }} className="text-violet-300 hover:text-violet-200">Edit</button></td>
+                <td><button onClick={() => { setFormErr(''); setAf({ id: a.id, chain_id: String(a.chain_id), network: a.network, asset: a.asset, token_contract: a.token_contract || KNOWN[`${a.chain_id}:${a.asset}`]?.contract || '', decimals: String(a.token_contract ? a.decimals : KNOWN[`${a.chain_id}:${a.asset}`]?.decimals ?? a.decimals), address: a.address, min_confirmations: String(a.min_confirmations), enabled: a.enabled, reason: '' }) }} className="text-accent hover:text-accent-hover">Edit</button></td>
               </tr>))}</tbody></table></div>
         )}
-        <p className="mt-2 text-[11px] text-slate-500">Use addresses Tarafab controls. Transfers are credited only after the transaction is verified on-chain (destination, token, amount, sender = the client’s verified wallet, confirmations). Reconcile in <Link href="/admin/transfers" className="text-violet-300">Wallet transfers →</Link></p>
+        <p className="mt-2 text-[11px] text-slate-500">Use addresses Tarafab controls. Transfers are credited only after the transaction is verified on-chain (destination, token, amount, sender = the client’s verified wallet, confirmations). Reconcile in <Link href="/admin/transfers" className="text-accent">Wallet transfers →</Link></p>
       </section>
 
       <section className="glass rounded-2xl border border-white/[0.08] p-4">

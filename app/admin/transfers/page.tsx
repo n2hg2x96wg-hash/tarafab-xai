@@ -65,8 +65,8 @@ export default function AdminTransfersPage() {
         <select value={status} onChange={e => setStatus(e.target.value)} className="rounded-lg bg-white/[0.04] border border-white/[0.1] px-2 py-1 text-xs text-white">
           <option value="">All statuses</option>{['awaiting_signature', 'submitted', 'confirming', 'credited', 'needs_review', 'failed', 'cancelled'].map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
         </select>
-        <Link href="/admin/fees" className="text-xs text-violet-300">Fees & receiving addresses →</Link>
-        <Link href="/admin/reconciliation" className="text-xs text-violet-300">Balance reconciliation →</Link>
+        <Link href="/admin/fees" className="text-xs text-accent">Fees & receiving addresses →</Link>
+        <Link href="/admin/reconciliation" className="text-xs text-accent">Balance reconciliation →</Link>
       </div>
       <div className="glass rounded-2xl border border-white/[0.08] p-4 overflow-x-auto">
         {!rows ? <p className="text-xs text-slate-500">Loading…</p> : !rows.length ? <p className="text-xs text-slate-400">No wallet transfers yet.</p> : (
@@ -76,7 +76,7 @@ export default function AdminTransfersPage() {
                 <td className="py-2 pr-3"><span className="font-mono">{r.reference}</span><div className="text-slate-500">{new Date(r.created_at).toLocaleString()}</div></td>
                 <td className="pr-3">{r.full_name || '—'}<div className="text-slate-500">{r.email}</div></td>
                 <td className="pr-3">
-                  {r.tx_hash ? (EXPLORER[r.chain_id] ? <a href={EXPLORER[r.chain_id] + r.tx_hash} target="_blank" rel="noopener noreferrer" className="font-mono text-violet-300">{r.tx_hash.slice(0, 12)}…</a> : <span className="font-mono">{r.tx_hash.slice(0, 12)}…</span>) : '—'}
+                  {r.tx_hash ? (EXPLORER[r.chain_id] ? <a href={EXPLORER[r.chain_id] + r.tx_hash} target="_blank" rel="noopener noreferrer" className="font-mono text-accent">{r.tx_hash.slice(0, 12)}…</a> : <span className="font-mono">{r.tx_hash.slice(0, 12)}…</span>) : '—'}
                   <div className="text-slate-500">{r.network} · from <span className="font-mono">{r.from_address.slice(0, 8)}…</span> · {r.confirmations}/{r.required_confirmations} conf.</div>
                 </td>
                 <td className="pr-3 tabular-nums">{r.received_amount != null ? `${Number(r.received_amount)} ${r.asset}` : <span className="text-slate-500">quoted {Number(r.quoted_amount)} {r.asset}</span>}{r.credit_rate != null && <div className="text-slate-500">@ {usd(r.credit_rate)}</div>}</td>

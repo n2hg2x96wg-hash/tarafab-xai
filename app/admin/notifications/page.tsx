@@ -117,7 +117,7 @@ export default function AdminNotificationsPage() {
             <legend className="text-xs text-slate-400 mb-1.5">{t('adminNotif.audience')}</legend>
             <div className="grid grid-cols-2 gap-2">
               {(['all', 'one'] as const).map(a => (
-                <label key={a} className={`flex items-center justify-center min-h-10 rounded-lg border text-sm cursor-pointer ${audience === a ? 'border-violet-500/50 bg-violet-500/10 text-white' : 'border-white/[0.1] text-slate-400'}`}>
+                <label key={a} className={`flex items-center justify-center min-h-10 rounded-lg border text-sm cursor-pointer ${audience === a ? 'border-accent/50 bg-accent/10 text-white' : 'border-white/[0.1] text-slate-400'}`}>
                   <input type="radio" name="aud" className="sr-only" checked={audience === a} onChange={() => setAudience(a)} />
                   {t(a === 'all' ? 'adminNotif.allClients' : 'adminNotif.oneClient')}
                 </label>

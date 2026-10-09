@@ -49,7 +49,7 @@ export function EnginePresentationForm() {
             {/* The engine panel is private to signed-in clients; the public site never shows it. */}
           </div>
           <div className="sm:col-span-2 flex items-center gap-3">
-            <button onClick={save} disabled={busy} className="px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-500 text-sm font-medium text-white disabled:opacity-50">{busy ? 'Saving…' : 'Save'}</button>
+            <button onClick={save} disabled={busy} className="px-4 py-2 rounded-lg bg-accent hover:bg-accent-hover text-sm font-medium text-accent-ink disabled:opacity-50">{busy ? 'Saving…' : 'Save'}</button>
             {msg && <span className="text-xs text-slate-400" role="status">{msg}</span>}
           </div>
         </div>

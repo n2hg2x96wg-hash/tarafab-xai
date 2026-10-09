@@ -101,7 +101,7 @@ const SNAP_TF: Timeframe[] = ['1D', '1W', '1M']
 /* Market snapshot: the shared market feed (the same one Markets uses), its
    freshness state per asset, and the real candle history. Desktop shows one
    asset's chart with asset tabs; phones show a short list with 24h lines. */
-export function MarketSnapshot({ onOpenMarkets }: { onOpenMarkets: () => void }) {
+export function MarketSnapshot({ onOpenMarkets, onOpenAsset }: { onOpenMarkets: () => void; onOpenAsset?: (id: string) => void }) {
   const { t } = useI18n()
   const { assets, error, reload } = useAssets()
   const wide = useWide()
@@ -135,7 +135,7 @@ export function MarketSnapshot({ onOpenMarkets }: { onOpenMarkets: () => void })
       {head}
       {wide === false ? (
         <ul className="mt-2 pb-2" data-market-list>
-          {list.map(a => <MarketRow key={a.id} a={a} refreshFailed={error} />)}
+          {list.map(a => <MarketRow key={a.id} a={a} refreshFailed={error} onOpen={onOpenAsset ? () => onOpenAsset(a.id) : undefined} />)}
         </ul>
       ) : cur && (
         <div className="px-5 pb-4">
@@ -157,7 +157,10 @@ export function MarketSnapshot({ onOpenMarkets }: { onOpenMarkets: () => void })
             </div>
           </div>
           <div className="mt-3 flex items-center justify-between gap-3">
-            <FeedBadge state={effectiveState(cur, error)} />
+            <span className="flex items-center gap-3 min-w-0">
+              <FeedBadge state={effectiveState(cur, error)} />
+              {onOpenAsset && <button onClick={() => onOpenAsset(cur.id)} className="text-[12.5px] font-medium text-accent hover:brightness-110 whitespace-nowrap" data-asset-details={cur.id}>{t('ov2.details')} →</button>}
+            </span>
             <div className="flex gap-1" role="group" aria-label="Timeframe">
               {SNAP_TF.map(x => <button key={x} onClick={() => setTf(x)} aria-pressed={tf === x} className={`ovx-seg ovx-seg-sm ${tf === x ? 'is-on' : ''}`}>{x}</button>)}
             </div>
@@ -173,11 +176,12 @@ export function MarketSnapshot({ onOpenMarkets }: { onOpenMarkets: () => void })
   )
 }
 
-function MarketRow({ a, refreshFailed }: { a: AssetQuote; refreshFailed: boolean }) {
+function MarketRow({ a, refreshFailed, onOpen }: { a: AssetQuote; refreshFailed: boolean; onOpen?: () => void }) {
   const chart = useChart(a.id, '1D')
   const st = effectiveState(a, refreshFailed)
   return (
-    <li className="flex items-center gap-3 px-5 py-2.5" data-market-row={a.id}>
+    <li data-market-row={a.id}>
+      <button type="button" onClick={onOpen} disabled={!onOpen} aria-label={`${a.name} (${a.id})`} className="ovx-row w-full text-left flex items-center gap-3 px-5 py-2.5 disabled:cursor-default">
       <AssetMark id={a.id} size={32} />
       <div className="min-w-0 flex-1">
         <p className="text-[14px] font-medium text-fg truncate">{a.name}</p>
@@ -188,6 +192,8 @@ function MarketRow({ a, refreshFailed }: { a: AssetQuote; refreshFailed: boolean
         <p className="text-[13.5px] font-semibold tabular-nums text-fg whitespace-nowrap">{a.price != null ? formatPrice(a.price) : '—'}</p>
         <p className={`text-[12px] tabular-nums whitespace-nowrap ${pctTone(a.changePct)}`}>{pctText(a.changePct)}</p>
       </div>
+      {onOpen && <svg className="shrink-0 text-fg-faint" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>}
+      </button>
     </li>
   )
 }

@@ -159,7 +159,7 @@ export default function AdminSettingsPage() {
                                   disabled={s.core || saving}
                                   aria-label={`${t('navAdmin.visible')}: ${name}`}
                                   onChange={e => { setSaved(false); setHidden(h => e.target.checked ? h.filter(x => x !== s.id) : [...h, s.id]) }}
-                                  className="w-4 h-4 accent-violet-500 shrink-0"
+                                  className="w-4 h-4 accent-accent shrink-0"
                                 />
                                 <span className={`text-sm truncate ${on ? 'text-white' : 'text-slate-500 line-through'}`}>{name}</span>
                               </label>

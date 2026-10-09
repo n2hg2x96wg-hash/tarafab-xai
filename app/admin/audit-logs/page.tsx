@@ -65,7 +65,7 @@ export default function AuditLogsPage() {
   })
 
   const getActionColor = (action: string) => {
-    if (action.includes('balance') || action.includes('adjust')) return 'bg-violet-600/20 text-violet-400 border-violet-500/30'
+    if (action.includes('balance') || action.includes('adjust')) return 'bg-accent/15 text-accent border-accent/30'
     if (action.includes('sign') || action.includes('auth')) return 'bg-blue-500/10 text-blue-400 border-blue-500/20'
     if (action.includes('delete') || action.includes('remove')) return 'bg-red-500/10 text-red-400 border-red-500/20'
     return 'bg-slate-800 text-slate-400 border-white/[0.06]'
@@ -88,7 +88,7 @@ export default function AuditLogsPage() {
       <div className="glass rounded-2xl border border-white/[0.08] overflow-hidden">
         {loading ? (
           <div className="p-10 text-center">
-            <div className="w-6 h-6 border-2 border-white/20 border-t-violet-500 rounded-full animate-spin mx-auto" />
+            <div className="w-6 h-6 border-2 border-white/20 border-t-accent rounded-full animate-spin mx-auto" />
           </div>
         ) : filtered.length === 0 ? (
           <div className="p-10 text-center text-slate-500 text-sm">No audit logs found</div>

@@ -128,7 +128,7 @@ export default function ClientsPage() {
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${filter === f ? 'bg-violet-600/20 text-violet-300 border border-violet-500/30' : 'text-slate-500 border border-white/[0.06] hover:text-white hover:border-white/20'}`}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${filter === f ? 'bg-accent/15 text-accent border border-accent/30' : 'text-slate-500 border border-white/[0.06] hover:text-white hover:border-white/20'}`}
               >
                 {f.charAt(0).toUpperCase() + f.slice(1)}
               </button>
@@ -138,7 +138,7 @@ export default function ClientsPage() {
 
         {loading ? (
           <div className="p-10 text-center">
-            <div className="w-6 h-6 border-2 border-white/20 border-t-violet-500 rounded-full animate-spin mx-auto" />
+            <div className="w-6 h-6 border-2 border-white/20 border-t-accent rounded-full animate-spin mx-auto" />
           </div>
         ) : filtered.length === 0 ? (
           <div className="p-10 text-center text-slate-500 text-sm">{clients.length === 0 ? 'No clients yet.' : 'No clients found'}</div>
@@ -166,7 +166,7 @@ export default function ClientsPage() {
                               type="button"
                               onClick={() => copyEmail(client.email as string)}
                               title="Copy email address"
-                              className="text-[10px] text-violet-400 hover:text-violet-300 border border-violet-500/30 rounded px-1.5 py-0.5 shrink-0"
+                              className="text-[10px] text-accent hover:text-accent-hover border border-accent/30 rounded px-1.5 py-0.5 shrink-0"
                             >
                               {copied === client.email ? 'Copied' : 'Copy'}
                             </button>
@@ -176,7 +176,7 @@ export default function ClientsPage() {
                         )}
                       </td>
                       <td className="px-5 py-4">
-                        <span className={`text-[10px] px-2 py-1 rounded-full font-medium border ${client.role === 'admin' ? 'bg-violet-600/20 text-violet-400 border-violet-500/30' : 'bg-slate-800 text-slate-400 border-white/[0.06]'}`}>
+                        <span className={`text-[10px] px-2 py-1 rounded-full font-medium border ${client.role === 'admin' ? 'bg-accent/15 text-accent border-accent/30' : 'bg-slate-800 text-slate-400 border-white/[0.06]'}`}>
                           {client.role}
                         </span>
                       </td>
@@ -199,7 +199,7 @@ export default function ClientsPage() {
                       <td className="px-5 py-4">
                         <Link
                           href={`/admin/clients/${client.id}`}
-                          className="text-xs text-violet-400 hover:text-violet-300 font-medium transition-colors border border-violet-500/30 px-3 py-1.5 rounded-lg hover:bg-violet-600/10 whitespace-nowrap"
+                          className="text-xs text-accent hover:text-accent-hover font-medium transition-colors border border-accent/30 px-3 py-1.5 rounded-lg hover:bg-accent/10 whitespace-nowrap"
                         >
                           Manage
                         </Link>
@@ -215,7 +215,7 @@ export default function ClientsPage() {
               {filtered.map(client => (
                 <div key={client.id} className="p-4">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-600/40 to-blue-500/40 flex items-center justify-center text-sm font-bold shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-accent/15 border border-accent/30 text-accent flex items-center justify-center text-sm font-bold shrink-0">
                       {(client.full_name || '?').charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -226,7 +226,7 @@ export default function ClientsPage() {
                         <p className="text-[10px] text-slate-600 font-mono truncate">{client.id.slice(0, 20)}…</p>
                       )}
                     </div>
-                    <span className={`text-[10px] px-2 py-1 rounded-full font-medium border shrink-0 ${client.role === 'admin' ? 'bg-violet-600/20 text-violet-400 border-violet-500/30' : 'bg-slate-800 text-slate-400 border-white/[0.06]'}`}>
+                    <span className={`text-[10px] px-2 py-1 rounded-full font-medium border shrink-0 ${client.role === 'admin' ? 'bg-accent/15 text-accent border-accent/30' : 'bg-slate-800 text-slate-400 border-white/[0.06]'}`}>
                       {client.role}
                     </span>
                   </div>
@@ -256,7 +256,7 @@ export default function ClientsPage() {
                   )}
                   <Link
                     href={`/admin/clients/${client.id}`}
-                    className="w-full text-center text-xs text-violet-400 border border-violet-500/30 px-3 py-2 rounded-lg hover:bg-violet-600/10 transition-colors block"
+                    className="w-full text-center text-xs text-accent border border-accent/30 px-3 py-2 rounded-lg hover:bg-accent/10 transition-colors block"
                   >
                     Manage Client →
                   </Link>

@@ -46,6 +46,7 @@ import { InvestmentCenter, InvestmentsMini } from '@/components/dashboard/Invest
 import { HeroChips, MarketSnapshot, NextSteps, OverviewHero } from '@/components/dashboard/OverviewParts'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { CommandSearch, type CommandItem } from '@/components/dashboard/CommandSearch'
+import { TxReceipt } from '@/components/dashboard/TxReceipt'
 import { MarketActivityTab, PriceHistoryTab } from '@/components/dashboard/MarketTabs'
 import { feedStatus } from '@/lib/marketStatus'
 import { useAssets } from '@/components/markets/assetStore'
@@ -171,6 +172,8 @@ export default function DashboardPage() {
   const soon = (id: string) => id in NAV_FEATURE && feature(NAV_FEATURE[id as keyof typeof NAV_FEATURE]) === 'coming_soon'
   const [navOrder, setNavOrder] = useState<string[]>([])
   const [autoAsset, setAutoAsset] = useState<string | null>(null)
+  // Asset to open in Markets (tapped on Overview or linked as #markets/BTC).
+  const [marketAsset, setMarketAsset] = useState<string | null>(null)
   const [navLabels, setNavLabels] = useState<Record<string, string>>({})
   const [teamNotices, setTeamNotices] = useState<TeamNotice[]>([])
   const [seenAt, setSeenAt] = useState<string | null>(null)
@@ -320,7 +323,9 @@ export default function DashboardPage() {
       // scoped by row level security), so another client's id shows nothing.
       const deep = /^investments\/([0-9a-f-]{36})$/i.exec(raw)
       if (deep) setFocusInv(deep[1])
-      const id = deep || raw === 'investments' ? 'portfolio' : raw
+      const mk = /^markets\/([A-Z0-9.]{1,12})$/i.exec(raw)
+      if (mk) setMarketAsset(mk[1].toUpperCase())
+      const id = deep || raw === 'investments' ? 'portfolio' : mk ? 'markets' : raw
       if (NAV_IDS.has(id)) setActiveNav(id)
     }
     apply()
@@ -604,8 +609,8 @@ export default function DashboardPage() {
           {/* Pages without their own title get the shared intro (menu label + one line). */}
           {current && INTRO_SUB[activeNav] !== undefined && <PageIntro title={labelOf(current)} sub={INTRO_SUB[activeNav] ? t(INTRO_SUB[activeNav] as TKey) : undefined} icon={<current.icon width={20} height={20} />} />}
           <ErrorBoundary key={activeNav} label={current ? labelOf(current) : undefined}>
-            {activeNav === 'overview' && <OverviewTab whatsNew={whatsNewNode} name={displayName} account={account} txs={txs} go={go} can={id => !hiddenNav.includes(id)} labelOf={labelOf} />}
-            {activeNav === 'markets' && <div className="space-y-6"><AssetCenter onAutomate={id => { setAutoAsset(id); go('automations') }} /><MarketsTab /></div>}
+            {activeNav === 'overview' && <OverviewTab onOpenAsset={id => { setMarketAsset(id); go('markets') }} whatsNew={whatsNewNode} name={displayName} account={account} txs={txs} go={go} can={id => !hiddenNav.includes(id)} labelOf={labelOf} />}
+            {activeNav === 'markets' && <div className="space-y-6"><AssetCenter openAsset={marketAsset} onOpened={() => setMarketAsset(null)} onAutomate={id => { setAutoAsset(id); go('automations') }} /><MarketsTab /></div>}
             {soon(activeNav) && <StateView state="unavailable" title={pt('ft.soon')} body={pt('ft.comingSoon')} />}
             {activeNav === 'automations' && !soon('automations') && !hiddenNav.includes('automations') && <AutomationCenter presetAsset={autoAsset} onPresetUsed={() => setAutoAsset(null)} />}
             {activeNav === 'premium' && !soon('premium') && !hiddenNav.includes('premium') && <PremiumCenter account={account} txs={txs} />}
@@ -858,7 +863,7 @@ function KycChip({ go }: { go: (id: string) => void }) {
 /* Overview: welcome, the spendable balance, the account's other recorded
    figures, quick actions, recent activity, a market snapshot and the
    automation service's own status. Every figure is the server's value. */
-function OverviewTab({ name, account, txs, go, can, labelOf, whatsNew }: { whatsNew?: ReactNode; name: string; account: Account | null; txs: Tx[]; go: (id: string) => void; can: (id: string) => boolean; labelOf: (item: { id: string; label: TKey }) => string }) {
+function OverviewTab({ name, account, txs, go, can, labelOf, whatsNew, onOpenAsset }: { onOpenAsset?: (id: string) => void; whatsNew?: ReactNode; name: string; account: Account | null; txs: Tx[]; go: (id: string) => void; can: (id: string) => boolean; labelOf: (item: { id: string; label: TKey }) => string }) {
   const feature = useFeatures()
   const recentTxs = txs.slice(0, 5)
   const pendingCount = account?.pending_transaction_count ?? txs.filter(x => x.status.startsWith('pending')).length
@@ -867,6 +872,7 @@ function OverviewTab({ name, account, txs, go, can, labelOf, whatsNew }: { whats
   const inv = account?.investments ?? null
   const firstName = name.trim().split(/\s+/)[0] || name
   const showInv = can('portfolio') && !hiddenState(feature('investments'))
+  const [receipt, setReceipt] = useState<Tx | null>(null)
   const showAuto = can('automations')
   const quick = ([
     ['deposit', 'dash.nav.deposit', IconArrowDown],
@@ -897,7 +903,7 @@ function OverviewTab({ name, account, txs, go, can, labelOf, whatsNew }: { whats
       ) : (
         <ul className="px-2 pb-2">
           {recentTxs.map(tx => (
-            <li key={tx.id} className="ovx-row flex items-center justify-between gap-3 rounded-xl px-3 py-2.5">
+            <li key={tx.id} className="ovx-row flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 cursor-pointer" onClick={() => setReceipt(tx)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setReceipt(tx) } }} tabIndex={0} aria-label={`${txLabel(tx, t)} ${signedAmount(tx)} — ${t('rcpt.open')}`} data-tx-open={tx.id}>
               <div className="flex items-center gap-3 min-w-0">
                 <TxIcon type={tx.type} tx={tx} />
                 <div className="min-w-0">
@@ -969,7 +975,7 @@ function OverviewTab({ name, account, txs, go, can, labelOf, whatsNew }: { whats
         <div className="space-y-4 min-w-0">
           <div className="grid xl:grid-cols-2 gap-4 items-start">
             {recent}
-            {can('markets') && <ErrorBoundary label={t('market.bitcoinMarket')}><MarketSnapshot onOpenMarkets={() => go('markets')} /></ErrorBoundary>}
+            {can('markets') && <ErrorBoundary label={t('market.bitcoinMarket')}><MarketSnapshot onOpenMarkets={() => go('markets')} onOpenAsset={onOpenAsset} /></ErrorBoundary>}
           </div>
         </div>
         {(showAuto || showInv) && (
@@ -987,6 +993,7 @@ function OverviewTab({ name, account, txs, go, can, labelOf, whatsNew }: { whats
       />}
 
       <DashTrustBar />
+      {receipt && <TxReceipt tx={receipt} onClose={() => setReceipt(null)} />}
     </div>
   )
 }
@@ -1052,6 +1059,8 @@ const TX_GROUPS: { id: string; label: TKey; cats: TxCategory[] }[] = [
 ]
 
 function TransactionsTab({ txs }: { txs: Tx[] }) {
+  // The transaction whose receipt is open (tap any row).
+  const [receipt, setReceipt] = useState<Tx | null>(null)
   const [filter, setFilter] = useState('all')
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('')
@@ -1132,7 +1141,7 @@ function TransactionsTab({ txs }: { txs: Tx[] }) {
                 </thead>
                 <tbody className="divide-y divide-ink-700">
                   {filtered.map(tx => (
-                    <tr key={tx.id} className="hover:bg-ink-850 transition-colors">
+                    <tr key={tx.id} className="hover:bg-ink-850 transition-colors cursor-pointer" onClick={() => setReceipt(tx)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setReceipt(tx) } }} tabIndex={0} title={t('rcpt.open')} aria-label={`${txLabel(tx, t)} ${signedAmount(tx)} — ${t('rcpt.open')}`} data-tx-open={tx.id}>
                       <td className="px-5 py-3.5">
                         <span className="inline-flex items-center gap-2.5"><TxIcon type={tx.type} tx={tx} /><span className="text-fg">{txLabel(tx, t)}</span></span>
                         {isAccountCredit(tx) ? <p className="text-xs text-fg-faint pl-[42px]">{t('dash.txType.accountCredit')}</p>
@@ -1158,7 +1167,7 @@ function TransactionsTab({ txs }: { txs: Tx[] }) {
                   <h3 className="px-4 pt-3 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-faint">{day}</h3>
                   <ul className="divide-y divide-[rgb(var(--contrast)/.06)]">
                     {list.map(tx => (
-                      <li key={tx.id} className="flex items-center gap-3 px-4 py-3" data-tx-row={tx.status}>
+                      <li key={tx.id} className="flex items-center gap-3 px-4 py-3 cursor-pointer active:bg-[rgb(var(--contrast)/.03)]" data-tx-row={tx.status} data-tx-open={tx.id} onClick={() => setReceipt(tx)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setReceipt(tx) } }} tabIndex={0} aria-label={`${txLabel(tx, t)} ${signedAmount(tx)} — ${t('rcpt.open')}`}>
                         <TxIcon type={tx.type} tx={tx} />
                         <div className="min-w-0 flex-1">
                           <p className="text-[14px] text-fg truncate">{txLabel(tx, t)}{isAccountCredit(tx) && <span className="text-fg-faint"> · {t('dash.txType.accountCredit')}</span>}</p>
@@ -1184,6 +1193,7 @@ function TransactionsTab({ txs }: { txs: Tx[] }) {
           </>
         )}
       </div>
+      {receipt && <TxReceipt tx={receipt} onClose={() => setReceipt(null)} />}
     </div>
   )
 }

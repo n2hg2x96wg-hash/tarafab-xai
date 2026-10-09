@@ -78,7 +78,7 @@ export default function AdminPremiumPage() {
 
       <section className="glass rounded-2xl border border-white/[0.08] p-4 mb-5">
         <div className="flex items-center justify-between mb-2"><h2 className="text-sm font-semibold text-white">Limits & Premium features</h2>
-          {st && <button onClick={() => { setFormErr(''); setSf({ fa: String(st.free_automation_limit), pa: String(st.premium_automation_limit), fw: String(st.free_watchlist_limit), pw: String(st.premium_watchlist_limit), tfs: st.premium_timeframes, reason: '' }) }} className="text-xs text-violet-300 hover:text-violet-200">Edit</button>}
+          {st && <button onClick={() => { setFormErr(''); setSf({ fa: String(st.free_automation_limit), pa: String(st.premium_automation_limit), fw: String(st.free_watchlist_limit), pw: String(st.premium_watchlist_limit), tfs: st.premium_timeframes, reason: '' }) }} className="text-xs text-accent hover:text-accent-hover">Edit</button>}
         </div>
         {st ? (
           <dl className="grid sm:grid-cols-3 gap-3 text-xs">
@@ -92,7 +92,7 @@ export default function AdminPremiumPage() {
 
       <section className="glass rounded-2xl border border-white/[0.08] p-4 mb-5">
         <div className="flex items-center justify-between mb-2"><h2 className="text-sm font-semibold text-white">Plans</h2>
-          <button onClick={() => { setFormErr(''); setPf({ isNew: true, id: '', name: '', interval: 'month', price: '', currency: 'USD', promo: '', promoLabel: '', priceId: '', enabled: false, sort: '0', reason: '', tier: 'premium', period: 'month', description: '', features: '', highlighted: false }) }} className="text-xs rounded-lg bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5">Add plan</button>
+          <button onClick={() => { setFormErr(''); setPf({ isNew: true, id: '', name: '', interval: 'month', price: '', currency: 'USD', promo: '', promoLabel: '', priceId: '', enabled: false, sort: '0', reason: '', tier: 'premium', period: 'month', description: '', features: '', highlighted: false }) }} className="text-xs rounded-lg bg-accent hover:bg-accent-hover text-accent-ink px-3 py-1.5">Add plan</button>
         </div>
         {!plans ? <p className="text-xs text-slate-500">Loading…</p> : !plans.length ? <p className="text-xs text-slate-400">No plans yet. Clients see “Premium plans are not available yet.”</p> : (
           <div className="overflow-x-auto"><table className="w-full text-xs"><thead><tr className="text-left text-slate-500"><th className="py-1.5 pr-3">Plan</th><th className="pr-3">Price</th><th className="pr-3">Promotion</th><th className="pr-3">Payment provider price</th><th className="pr-3">Status</th><th /></tr></thead>
@@ -113,7 +113,7 @@ export default function AdminPremiumPage() {
                   return p.provider_price_id || <span className="text-amber-300 font-sans">Not linked — cannot be purchased</span>
                 })()}</td>
                 <td className="pr-3">{p.enabled ? <span className="text-emerald-400">Enabled</span> : <span className="text-slate-500">Hidden</span>}</td>
-                <td><button onClick={() => { setFormErr(''); setPf({ isNew: false, id: p.id, name: p.name, interval: p.billing_interval, price: String(p.price), currency: p.currency, promo: p.promo_price == null ? '' : String(p.promo_price), promoLabel: p.promo_label || '', priceId: p.provider_price_id || '', enabled: p.enabled, sort: String(p.sort_order), reason: '', tier: p.tier || 'premium', period: p.billing_period || p.billing_interval, description: p.description || '', features: (p.features || []).join('\n'), highlighted: !!p.highlighted }) }} className="text-violet-300 hover:text-violet-200">Edit</button></td>
+                <td><button onClick={() => { setFormErr(''); setPf({ isNew: false, id: p.id, name: p.name, interval: p.billing_interval, price: String(p.price), currency: p.currency, promo: p.promo_price == null ? '' : String(p.promo_price), promoLabel: p.promo_label || '', priceId: p.provider_price_id || '', enabled: p.enabled, sort: String(p.sort_order), reason: '', tier: p.tier || 'premium', period: p.billing_period || p.billing_interval, description: p.description || '', features: (p.features || []).join('\n'), highlighted: !!p.highlighted }) }} className="text-accent hover:text-accent-hover">Edit</button></td>
               </tr>))}</tbody></table></div>
         )}
         <p className="mt-2 text-[11px] text-slate-500">The amount actually charged is the price configured at the payment provider (Stripe) for the linked price ID; keep both the same. Payments need the STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET secrets on the “billing” Edge Function.</p>
@@ -139,7 +139,7 @@ export default function AdminPremiumPage() {
                 <td className="pr-3">{d(s.current_period_start)}</td>
                 <td className="pr-3">{d(s.current_period_end)}</td>
                 <td className="pr-3">{s.source === 'payment' ? `Payment (${s.provider || 'provider'})` : <span className="text-amber-300">Admin override</span>}</td>
-                <td><button onClick={() => { setFormErr(''); setOf({ userId: s.user_id, email: s.email || '', plan: s.plan_id || '', status: s.status === 'past_due' ? 'active' : s.status, end: '', reason: '' }) }} className="text-violet-300 hover:text-violet-200">Override</button></td>
+                <td><button onClick={() => { setFormErr(''); setOf({ userId: s.user_id, email: s.email || '', plan: s.plan_id || '', status: s.status === 'past_due' ? 'active' : s.status, end: '', reason: '' }) }} className="text-accent hover:text-accent-hover">Override</button></td>
               </tr>))}</tbody></table></div>
         )}
       </section>

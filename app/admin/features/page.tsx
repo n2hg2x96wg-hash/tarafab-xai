@@ -14,7 +14,7 @@ const STATES: [string, string][] = [
   ['coming_soon', 'Coming soon — shown as coming soon, not usable'], ['unavailable', 'Unavailable — hidden (provider or data source down)'],
   ['disabled', 'Disabled — hidden'], ['admin_only', 'Admin only — hidden from clients'],
 ]
-const TONE: Record<string, string> = { enabled: 'text-emerald-400', premium: 'text-amber-300', coming_soon: 'text-sky-300', unavailable: 'text-slate-400', disabled: 'text-slate-500', admin_only: 'text-violet-300' }
+const TONE: Record<string, string> = { enabled: 'text-emerald-400', premium: 'text-amber-300', coming_soon: 'text-sky-300', unavailable: 'text-slate-400', disabled: 'text-slate-500', admin_only: 'text-accent' }
 
 // Client Dashboard Feature Controls: simple ON/OFF for each client module.
 // ON = 'enabled' (visible), OFF = 'disabled' (hidden; its API refuses use).
@@ -148,7 +148,7 @@ export default function AdminFeaturesPage() {
                 <td className={`pr-3 font-semibold ${TONE[f.state] || ''}`}>{f.state.replace('_', ' ')}</td>
                 <td className="pr-3">{f.note || '—'}</td>
                 <td className="pr-3">{new Date(f.updated_at).toLocaleString()}</td>
-                <td><button onClick={() => { setFormErr(''); setEdit({ key: f.key, label: f.label, state: f.state, note: f.note, reason: '' }) }} className="text-violet-300 hover:text-violet-200">Change</button></td>
+                <td><button onClick={() => { setFormErr(''); setEdit({ key: f.key, label: f.label, state: f.state, note: f.note, reason: '' }) }} className="text-accent hover:text-accent-hover">Change</button></td>
               </tr>))}</tbody></table>
         )}
         <p className="mt-3 text-[11px] text-slate-500">Hiding a feature never deletes its code or data. A transfer that a client already sent can always be recorded and credited, whatever the state.</p>

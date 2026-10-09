@@ -46,7 +46,7 @@ function Change({ a, className = '' }: { a: AssetQuote; className?: string }) {
 
 export const isUsable = (a: AssetQuote) => a.price != null && a.price > 0 && (a.state === 'live' || a.state === 'delayed' || a.state === 'stale')
 
-export function AssetCenter({ onAutomate }: { onAutomate: (assetId: string) => void }) {
+export function AssetCenter({ onAutomate, openAsset, onOpened }: { onAutomate: (assetId: string) => void; openAsset?: string | null; onOpened?: () => void }) {
   const { t } = useMk()
   const { assets: raw, error, reload } = useAssets()
   // Shared status rule (lib/marketStatus): an old quote, or one shown after a
@@ -65,6 +65,8 @@ export function AssetCenter({ onAutomate }: { onAutomate: (assetId: string) => v
   const [watchErr, setWatchErr] = useState('')
   const [popped, setPopped] = useState('')
   const [open, setOpen] = useState<string | null>(null)
+  // Opened from elsewhere (e.g. tapping an asset on Overview): show its detail once.
+  useEffect(() => { if (openAsset) { setOpen(openAsset); onOpened?.() } }, [openAsset]) // eslint-disable-line react-hooks/exhaustive-deps
   const [sparks, setSparks] = useState<Record<string, [number, number][]>>({})
 
   useEffect(() => {

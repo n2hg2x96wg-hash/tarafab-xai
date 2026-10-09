@@ -62,7 +62,7 @@ export default function AdminAssetsPage() {
 
   const toggle = (k: 'enabled' | 'visible' | 'chart_enabled' | 'automation_enabled', label: string) => (
     <label className="flex items-center justify-between gap-3 text-sm text-slate-300 py-1.5">
-      <span>{label}</span><input type="checkbox" checked={edit![k]} onChange={e => setEdit(a => (a ? { ...a, [k]: e.target.checked } : a))} className="w-4 h-4 accent-violet-500" />
+      <span>{label}</span><input type="checkbox" checked={edit![k]} onChange={e => setEdit(a => (a ? { ...a, [k]: e.target.checked } : a))} className="w-4 h-4 accent-accent" />
     </label>
   )
 
@@ -71,14 +71,14 @@ export default function AdminAssetsPage() {
       {error && <AdminLoadError message={error} onRetry={() => setReload(n => n + 1)} />}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5">
         {counts.map(([s, n]) => (
-          <button key={s} onClick={() => { setTab('health'); setState(st => (st === s ? '' : s)) }} className={`glass rounded-xl border p-3 text-left ${state === s ? 'border-violet-500/40' : 'border-white/[0.08]'}`}>
+          <button key={s} onClick={() => { setTab('health'); setState(st => (st === s ? '' : s)) }} className={`glass rounded-xl border p-3 text-left ${state === s ? 'border-accent/40' : 'border-white/[0.08]'}`}>
             <p className="text-[11px] text-slate-500 capitalize">{s}</p><p className="text-xl font-semibold text-white tabular-nums">{n}</p>
           </button>
         ))}
       </div>
 
       <div className="flex gap-2 mb-4">
-        {(['health', 'manage'] as const).map(t => <button key={t} onClick={() => setTab(t)} className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${tab === t ? 'bg-violet-600/20 text-violet-300 border-violet-500/30' : 'text-slate-500 border-white/[0.06] hover:text-white'}`}>{t === 'health' ? 'Market data health' : 'Asset management'}</button>)}
+        {(['health', 'manage'] as const).map(t => <button key={t} onClick={() => setTab(t)} className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${tab === t ? 'bg-accent/15 text-accent border-accent/30' : 'text-slate-500 border-white/[0.06] hover:text-white'}`}>{t === 'health' ? 'Market data health' : 'Asset management'}</button>)}
       </div>
 
       <div className="glass rounded-2xl border border-white/[0.08] overflow-hidden">
@@ -87,7 +87,7 @@ export default function AdminAssetsPage() {
           <select value={cat} onChange={e => setCat(e.target.value)} className="input-field text-xs py-2" aria-label="Category"><option value="">All categories</option>{['crypto', 'stock', 'index', 'etf'].map(c => <option key={c} value={c}>{c}</option>)}</select>
           <select value={state} onChange={e => setState(e.target.value)} className="input-field text-xs py-2" aria-label="Data state"><option value="">All data states</option>{['live', 'delayed', 'stale', 'unavailable', 'error'].map(c => <option key={c} value={c}>{c}</option>)}</select>
         </div>
-        {loading ? <div className="p-10 text-center"><div className="w-6 h-6 border-2 border-white/20 border-t-violet-500 rounded-full animate-spin mx-auto" /></div>
+        {loading ? <div className="p-10 text-center"><div className="w-6 h-6 border-2 border-white/20 border-t-accent rounded-full animate-spin mx-auto" /></div>
           : rows.length === 0 ? <div className="p-10 text-center text-sm text-slate-500">No assets match these filters.</div>
           : (
             <ul className="divide-y divide-white/[0.05]">
@@ -100,7 +100,7 @@ export default function AdminAssetsPage() {
                     <span className="text-xs text-slate-300 tabular-nums">{q?.price != null ? `$${Number(q.price).toLocaleString('en-US', { maximumFractionDigits: 6 })}` : '—'}</span>
                     <span className="text-xs text-slate-500">updated {ago(q?.fetched_at || null)}</span>
                     <span className="text-[11px] text-slate-500 truncate" title={q?.error || ''}>{q?.error || (tab === 'manage' ? `order ${a.sort_order}` : 'ok')}</span>
-                    <button onClick={() => { setEdit({ ...a }); setFormError('') }} className="text-xs text-violet-300 hover:text-violet-200 justify-self-start sm:justify-self-end">Edit</button>
+                    <button onClick={() => { setEdit({ ...a }); setFormError('') }} className="text-xs text-accent hover:text-accent-hover justify-self-start sm:justify-self-end">Edit</button>
                   </li>
                 )
               })}

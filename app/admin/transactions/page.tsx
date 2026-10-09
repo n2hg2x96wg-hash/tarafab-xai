@@ -258,7 +258,7 @@ export default function TransactionsPage() {
       <div className="glass rounded-2xl border border-white/[0.08] overflow-hidden">
         {loading ? (
           <div className="p-10 text-center">
-            <div className="w-6 h-6 border-2 border-white/20 border-t-violet-500 rounded-full animate-spin mx-auto" />
+            <div className="w-6 h-6 border-2 border-white/20 border-t-accent rounded-full animate-spin mx-auto" />
           </div>
         ) : filtered.length === 0 ? (
           <div className="p-10 text-center text-slate-500 text-sm">No transactions found</div>
@@ -307,7 +307,7 @@ export default function TransactionsPage() {
                       <td className="px-5 py-4 text-xs text-slate-500 whitespace-nowrap">
                         <span className="block text-slate-300">{new Date(tx.effective_at || tx.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                         {tx.effective_at && tx.effective_at !== tx.created_at && <span className="block text-[10px] text-slate-600" title="Internal recording time">recorded {new Date(tx.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
-                        <button onClick={() => setDating({ ...tx, effective_at: tx.effective_at || tx.created_at })} className="text-[10px] text-violet-300 hover:text-violet-200">Change date</button>
+                        <button onClick={() => setDating({ ...tx, effective_at: tx.effective_at || tx.created_at })} className="text-[10px] text-accent hover:text-accent-hover">Change date</button>
                       </td>
                       <td className="px-5 py-4">
                         {canReview(tx) ? (
@@ -357,7 +357,7 @@ export default function TransactionsPage() {
                   <p className="text-[10px] text-slate-500 mt-1">
                     {new Date(tx.effective_at || tx.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
                     {tx.effective_at && tx.effective_at !== tx.created_at && <span className="text-slate-600"> · recorded {new Date(tx.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
-                    {' · '}<button onClick={() => setDating({ ...tx, effective_at: tx.effective_at || tx.created_at })} className="text-violet-300 hover:text-violet-200">Change date</button>
+                    {' · '}<button onClick={() => setDating({ ...tx, effective_at: tx.effective_at || tx.created_at })} className="text-accent hover:text-accent-hover">Change date</button>
                   </p>
                   {canReview(tx) && (
                     <div className="flex gap-2 mt-3">

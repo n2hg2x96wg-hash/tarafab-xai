@@ -109,7 +109,7 @@ export default function AdminWalletsPage() {
         </div>
 
         {loading ? (
-          <div className="p-10 text-center"><div className="w-6 h-6 border-2 border-white/20 border-t-violet-500 rounded-full animate-spin mx-auto" /></div>
+          <div className="p-10 text-center"><div className="w-6 h-6 border-2 border-white/20 border-t-accent rounded-full animate-spin mx-auto" /></div>
         ) : rows.length === 0 ? (
           <div className="p-10 text-center text-slate-500 text-sm">{term || status || chain ? 'No wallet links match these filters.' : 'No client has linked a wallet yet.'}</div>
         ) : (
@@ -134,7 +134,7 @@ export default function AdminWalletsPage() {
         )}
         {hasMore && (
           <div className="p-4 text-center border-t border-white/[0.06]">
-            <button disabled={loadingMore} onClick={async () => { setLoadingMore(true); try { await fetchPage(rows[rows.length - 1]?.created_at) } finally { setLoadingMore(false) } }} className="text-xs text-violet-300 hover:text-violet-200 disabled:opacity-50">
+            <button disabled={loadingMore} onClick={async () => { setLoadingMore(true); try { await fetchPage(rows[rows.length - 1]?.created_at) } finally { setLoadingMore(false) } }} className="text-xs text-accent hover:text-accent-hover disabled:opacity-50">
               {loadingMore ? 'Loading…' : 'Load more'}
             </button>
           </div>
@@ -149,7 +149,7 @@ export default function AdminWalletsPage() {
             <div className="mt-2 rounded-xl border border-white/[0.08] bg-black/10 p-3">
               <p className="text-[10px] font-semibold tracking-[0.12em] text-slate-500">WALLET ADDRESS</p>
               <p className="mt-1 font-mono text-[12px] text-slate-200 break-all">{open.address}</p>
-              <button onClick={copyAddress} className="mt-2 text-xs text-violet-300 hover:text-violet-200 underline underline-offset-2">
+              <button onClick={copyAddress} className="mt-2 text-xs text-accent hover:text-accent-hover underline underline-offset-2">
                 {copiedAddress ? 'Address copied' : 'Copy address'}
               </button>
             </div>

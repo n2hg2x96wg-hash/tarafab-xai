@@ -57,7 +57,7 @@ export default function AdminAutomationsPage() {
         <div><p className="text-slate-500">Last run: evaluated / triggered</p><p className="text-white tabular-nums">{ov?.engine ? `${ov.engine.last_evaluated ?? 0} / ${ov.engine.last_triggered ?? 0}` : '—'}</p></div>
         <div><p className="text-slate-500">Last 24 h: triggered / failed</p><p className="text-white tabular-nums">{ov ? `${ov.triggered_24h} / ${ov.failed_24h}` : '—'}</p></div>
         {ov?.engine?.last_error && <p className="sm:col-span-4 text-red-400 break-words">System error: {ov.engine.last_error}</p>}
-        <p className="sm:col-span-4 text-slate-500">Market-data health per asset: <Link href="/admin/assets" className="text-violet-300 hover:text-violet-200">Assets &amp; Market Data →</Link></p>
+        <p className="sm:col-span-4 text-slate-500">Market-data health per asset: <Link href="/admin/assets" className="text-accent hover:text-accent-hover">Assets &amp; Market Data →</Link></p>
       </div>
 
       <div className="glass rounded-2xl border border-white/[0.08] overflow-hidden">
@@ -65,7 +65,7 @@ export default function AdminAutomationsPage() {
           <input value={asset} onChange={e => setAsset(e.target.value)} placeholder="Filter by asset symbol (e.g. BTC)…" className="input-field text-xs py-2" aria-label="Asset symbol" />
           <select value={status} onChange={e => setStatus(e.target.value)} className="input-field text-xs py-2" aria-label="Status"><option value="">All statuses</option>{['active', 'paused', 'triggered', 'failed'].map(s => <option key={s} value={s}>{s}</option>)}</select>
         </div>
-        {loading ? <div className="p-10 text-center"><div className="w-6 h-6 border-2 border-white/20 border-t-violet-500 rounded-full animate-spin mx-auto" /></div>
+        {loading ? <div className="p-10 text-center"><div className="w-6 h-6 border-2 border-white/20 border-t-accent rounded-full animate-spin mx-auto" /></div>
           : rows.length === 0 ? <div className="p-10 text-center text-sm text-slate-500">No automations match these filters.</div>
           : <ul className="divide-y divide-white/[0.05]">{rows.map(r => (
             <li key={r.id} className="px-4 py-3 grid gap-1 sm:grid-cols-[1.2fr_1.4fr_.8fr_1.4fr] sm:items-center sm:gap-4 text-sm">
@@ -74,7 +74,7 @@ export default function AdminAutomationsPage() {
               <span><span className={`text-[10px] px-2 py-0.5 rounded-full border capitalize ${TONE[r.status]}`}>{r.status}</span></span>
               <span className="text-[11px] text-slate-500 truncate" title={r.last_error || ''}>{r.status === 'triggered' ? `triggered ${ago(r.triggered_at)} at $${r.trigger_price}` : r.last_error ? r.last_error : `checked ${ago(r.last_evaluated_at)}${r.last_data_state ? ` · data ${r.last_data_state}` : ''}`}</span>
             </li>))}</ul>}
-        {hasMore && <div className="p-4 text-center border-t border-white/[0.06]"><button onClick={() => load(rows[rows.length - 1]?.created_at)} className="text-xs text-violet-300 hover:text-violet-200">Load more</button></div>}
+        {hasMore && <div className="p-4 text-center border-t border-white/[0.06]"><button onClick={() => load(rows[rows.length - 1]?.created_at)} className="text-xs text-accent hover:text-accent-hover">Load more</button></div>}
       </div>
     </AdminLayout>
   )

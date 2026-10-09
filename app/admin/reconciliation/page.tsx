@@ -51,7 +51,7 @@ export default function ReconciliationPage() {
           <ul className="divide-y divide-white/[0.05]">
             {items.map((item, index) => (
               <li key={`${item.user_id}-${item.check_name}-${index}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-4 text-sm">
-                <Link href={`/admin/clients/${item.user_id}`} className="text-violet-300 hover:underline">
+                <Link href={`/admin/clients/${item.user_id}`} className="text-accent hover:underline">
                   {item.full_name || item.user_id.slice(0, 8)}
                 </Link>
                 <span className="text-slate-300">{RECON_LABEL[item.check_name] || item.check_name}</span>

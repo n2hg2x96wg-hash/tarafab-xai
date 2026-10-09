@@ -55,7 +55,7 @@ function Kpi({ label, value, sub, href }: { label: string; value: string | null;
     </>
   )
   const cls = 'glass rounded-2xl p-4 sm:p-5 border border-white/[0.08] block min-w-0'
-  return href ? <Link href={href} className={`${cls} hover:border-violet-500/30 transition-colors`}>{body}</Link> : <div className={cls}>{body}</div>
+  return href ? <Link href={href} className={`${cls} hover:border-accent/30 transition-colors`}>{body}</Link> : <div className={cls}>{body}</div>
 }
 
 function Panel({ title, action, children, className = '' }: { title: string; action?: React.ReactNode; children: React.ReactNode; className?: string }) {
@@ -185,7 +185,7 @@ export default function AdminPage() {
 
       <div className="grid lg:grid-cols-3 gap-4 mb-4">
         {/* Investments are their own block, never mixed into deposits. */}
-        <Panel title="Investments" action={<Link href="/admin/investments" className="text-xs text-violet-400 hover:text-violet-300">Manage →</Link>}>
+        <Panel title="Investments" action={<Link href="/admin/investments" className="text-xs text-accent hover:text-accent-hover">Manage →</Link>}>
           {ov ? (
             <dl className="grid grid-cols-2 gap-3 text-sm">
               <div><dt className="text-[11px] text-slate-500">Active</dt><dd className="text-white font-semibold tabular-nums">{ov.investments.active_count} · {usd(ov.investments.active_principal)}</dd></div>
@@ -235,7 +235,7 @@ export default function AdminPage() {
         <Panel title="Activity" className="lg:col-span-3">
           {ov ? <OpsChart days={ov.daily} /> : <div className="h-[210px] rounded-lg skeleton-sheen" />}
         </Panel>
-        <Panel title="Recent admin activity" className="lg:col-span-2" action={<Link href="/admin/audit-logs" className="text-xs text-violet-400 hover:text-violet-300">Audit logs →</Link>}>
+        <Panel title="Recent admin activity" className="lg:col-span-2" action={<Link href="/admin/audit-logs" className="text-xs text-accent hover:text-accent-hover">Audit logs →</Link>}>
           {ov ? ov.recent.length ? (
             <ul className="space-y-2.5">
               {ov.recent.slice(0, 7).map((r, i) => (
@@ -274,7 +274,7 @@ export default function AdminPage() {
               onChange={e => setSearch(e.target.value)}
               className="input-field text-xs py-2 w-full sm:w-48"
             />
-            <Link href="/admin/clients" className="text-xs text-violet-400 hover:text-violet-300 whitespace-nowrap transition-colors">
+            <Link href="/admin/clients" className="text-xs text-accent hover:text-accent-hover whitespace-nowrap transition-colors">
               View all →
             </Link>
           </div>
@@ -282,7 +282,7 @@ export default function AdminPage() {
 
         {loading ? (
           <div className="p-8 text-center">
-            <div className="w-6 h-6 border-2 border-white/20 border-t-violet-500 rounded-full animate-spin mx-auto" />
+            <div className="w-6 h-6 border-2 border-white/20 border-t-accent rounded-full animate-spin mx-auto" />
           </div>
         ) : (search ? filtered : recentClients).length === 0 ? (
           <div className="p-8 text-center text-slate-500 text-sm">No clients found</div>
@@ -318,7 +318,7 @@ export default function AdminPage() {
                       <td className="px-5 py-4">
                         <Link
                           href={`/admin/clients/${client.id}`}
-                          className="text-xs text-violet-400 hover:text-violet-300 font-medium transition-colors border border-violet-500/30 px-3 py-1.5 rounded-lg hover:bg-violet-600/10"
+                          className="text-xs text-accent hover:text-accent-hover font-medium transition-colors border border-accent/30 px-3 py-1.5 rounded-lg hover:bg-accent/10"
                         >
                           Manage
                         </Link>
@@ -333,7 +333,7 @@ export default function AdminPage() {
             <div className="sm:hidden divide-y divide-white/[0.04]">
               {(search ? filtered : recentClients).map(client => (
                 <div key={client.id} className="p-4 flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-600/40 to-blue-500/40 flex items-center justify-center text-sm font-bold shrink-0">
+                  <div className="w-9 h-9 rounded-full bg-accent/15 border border-accent/30 text-accent flex items-center justify-center text-sm font-bold shrink-0">
                     {(client.full_name || '?').charAt(0).toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -344,7 +344,7 @@ export default function AdminPage() {
                   </div>
                   <Link
                     href={`/admin/clients/${client.id}`}
-                    className="text-xs text-violet-400 border border-violet-500/30 px-3 py-1.5 rounded-lg hover:bg-violet-600/10 transition-colors shrink-0"
+                    className="text-xs text-accent border border-accent/30 px-3 py-1.5 rounded-lg hover:bg-accent/10 transition-colors shrink-0"
                   >
                     Manage
                   </Link>

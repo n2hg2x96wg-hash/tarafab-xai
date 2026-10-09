@@ -105,7 +105,7 @@ export default function CreateClientModal({ onClose, onCreated }: { onClose: () 
 
             <div className="flex items-center justify-between mb-1.5">
               <label className="block text-xs text-slate-400" htmlFor="cc-password">Temporary Password</label>
-              <button type="button" onClick={() => { setPassword(generatePassword()); setShowPw(true) }} className="text-[11px] text-violet-300 hover:text-violet-200">Generate</button>
+              <button type="button" onClick={() => { setPassword(generatePassword()); setShowPw(true) }} className="text-[11px] text-accent hover:text-accent-hover">Generate</button>
             </div>
             <div className="relative mb-1.5">
               <input id="cc-password" type={showPw ? 'text' : 'password'} className="input-field w-full pr-16 font-mono" autoComplete="new-password" autoCapitalize="none" spellCheck={false} value={password} onChange={e => setPassword(e.target.value)} maxLength={72} required />

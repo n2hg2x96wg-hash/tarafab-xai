@@ -365,7 +365,7 @@ export default function ClientDetailPage() {
     return (
       <AdminLayout>
         <div className="flex items-center justify-center py-20">
-          <div className="w-6 h-6 border-2 border-white/20 border-t-violet-500 rounded-full animate-spin" />
+          <div className="w-6 h-6 border-2 border-white/20 border-t-accent rounded-full animate-spin" />
         </div>
       </AdminLayout>
     )
@@ -377,7 +377,7 @@ export default function ClientDetailPage() {
         <div className="text-center py-20">
           <p className="text-slate-400 text-sm mb-4">{loadError || 'Client not found'}</p>
           {loadError && <button onClick={() => load({ initial: true })} className="block mx-auto mb-4 text-sm text-white underline underline-offset-4">Try again</button>}
-          <Link href="/admin/clients" className="text-violet-400 text-sm hover:text-violet-300">← Back to clients</Link>
+          <Link href="/admin/clients" className="text-accent text-sm hover:text-accent-hover">← Back to clients</Link>
         </div>
       </AdminLayout>
     )
@@ -405,7 +405,7 @@ export default function ClientDetailPage() {
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-lg sm:text-xl font-semibold text-white tracking-tight">{profile.full_name || 'Unnamed client'}</h1>
-              <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-md border font-semibold ${profile.role === 'admin' ? 'text-violet-300 border-violet-500/30 bg-violet-500/10' : 'text-slate-400 border-white/[0.08] bg-white/[0.03]'}`}>
+              <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-md border font-semibold ${profile.role === 'admin' ? 'text-accent border-accent/30 bg-accent/10' : 'text-slate-400 border-white/[0.08] bg-white/[0.03]'}`}>
                 {profile.role}
               </span>
             </div>
@@ -520,7 +520,7 @@ export default function ClientDetailPage() {
       {tab === 'adjust' && (
         <div className="glass rounded-2xl p-5 sm:p-6 border border-white/[0.08] max-w-lg">
           <h2 className="text-sm font-semibold text-white mb-1">Balance actions</h2>
-          <p className="text-xs text-slate-500 mb-5">Choose what you are doing; the entry is recorded and shown by that meaning. Every action is logged to the audit trail. To record an investment&rsquo;s return, use that investment&rsquo;s profit control in the <Link href="/admin/investments" className="text-violet-300 hover:text-violet-200 underline-offset-2 hover:underline">Investment Center</Link>: only that is shown to the client as Profit.</p>
+          <p className="text-xs text-slate-500 mb-5">Choose what you are doing; the entry is recorded and shown by that meaning. Every action is logged to the audit trail. To record an investment&rsquo;s return, use that investment&rsquo;s profit control in the <Link href="/admin/investments" className="text-accent hover:text-accent-hover underline-offset-2 hover:underline">Investment Center</Link>: only that is shown to the client as Profit.</p>
 
           {adjustSuccess && (
             <div className="mb-5 p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm flex items-center gap-2">
@@ -542,7 +542,7 @@ export default function ClientDetailPage() {
                   return (
                     <button key={a.id} type="button" role="radio" aria-checked={on} disabled={adjusting}
                       onClick={() => setAdjustForm(f => ({ ...f, action: a.id, category: '', ...ACTION_DEFAULTS[a.id] }))}
-                      className={`text-left px-3.5 py-2.5 rounded-xl border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-400 ${on ? 'border-accent/60 bg-accent/[0.08]' : 'border-white/[0.08] hover:border-white/20'} ${a.id === 'other' ? 'sm:col-span-2' : ''}`}
+                      className={`text-left px-3.5 py-2.5 rounded-xl border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${on ? 'border-accent/60 bg-accent/[0.08]' : 'border-white/[0.08] hover:border-white/20'} ${a.id === 'other' ? 'sm:col-span-2' : ''}`}
                       data-balance-action={a.id}>
                       <span className={`block text-[13px] font-semibold ${on ? 'text-white' : 'text-slate-300'}`}>{on ? '● ' : ''}{a.title}</span>
                       <span className="block text-[11px] leading-snug text-slate-500 mt-0.5">{a.hint}</span>
@@ -609,7 +609,7 @@ export default function ClientDetailPage() {
                       className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all border ${adjustForm.operation === op
                         ? op === 'credit' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
                           : op === 'debit' ? 'bg-red-500/15 text-red-400 border-red-500/30'
-                          : 'bg-violet-600/15 text-violet-300 border-violet-500/20'
+                          : 'bg-accent/15 text-accent border-accent/20'
                         : 'text-slate-500 border-white/[0.06] hover:text-white hover:border-white/20'} disabled:opacity-40 disabled:cursor-not-allowed`}
                     >
                       {op === 'credit' ? '+ Credit' : op === 'debit' ? '− Debit' : '= Set'}
@@ -683,7 +683,7 @@ export default function ClientDetailPage() {
           <button
             onClick={handleAdjustSubmit}
             disabled={adjusting || !adjustForm.amount || !adjustForm.reason.trim() || (adjustForm.action === 'profit' && !adjustForm.category)}
-            className="w-full mt-6 py-3.5 text-sm font-semibold text-[#fff] bg-gradient-to-r from-violet-600 to-blue-500 rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_0_20px_rgba(124,58,237,0.3)] flex items-center justify-center gap-2"
+            className="w-full mt-6 py-3.5 text-sm font-semibold text-accent-ink bg-accent rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_0_20px_rgba(247,147,26,0.3)] flex items-center justify-center gap-2"
           >
             {adjusting ? (
               <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Processing…</>
@@ -849,13 +849,13 @@ export default function ClientDetailPage() {
                           <p className="text-[10px] text-slate-500">Changes only the category shown above the reason. The reason text, amount, dates, reference and balances stay exactly as recorded.</p>
                           {catError && <p className="text-[11px] text-red-400" role="alert">{catError}</p>}
                           <div className="flex gap-2">
-                            <button type="button" onClick={saveCategory} disabled={catSaving} className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-violet-600/80 text-white hover:bg-violet-600 disabled:opacity-50">{catSaving ? 'Saving…' : 'Save reason'}</button>
+                            <button type="button" onClick={saveCategory} disabled={catSaving} className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-accent text-accent-ink hover:bg-accent-hover disabled:opacity-50">{catSaving ? 'Saving…' : 'Save reason'}</button>
                             <button type="button" onClick={() => { setCatEdit(null); setCatError('') }} disabled={catSaving} className="px-3 py-1.5 text-xs rounded-lg border border-white/[0.1] text-slate-300 hover:text-white">Cancel</button>
                           </div>
                         </div>
                       ) : (
                         <button type="button" onClick={() => { setCatError(''); setCatEdit({ id: tx.id, category: tx.source === 'profit_adjustment' ? '' : PROFIT_SOURCE_CATEGORY[tx.source!], reason: '' }) }}
-                          className="mt-1.5 text-[11px] text-slate-400 hover:text-violet-200 underline-offset-2 hover:underline" data-set-reason>
+                          className="mt-1.5 text-[11px] text-slate-400 hover:text-accent-hover underline-offset-2 hover:underline" data-set-reason>
                           Edit reason
                         </button>
                       )
@@ -892,7 +892,7 @@ export default function ClientDetailPage() {
             <div className="flex gap-3">
               <button
                 onClick={handleAdjustConfirm}
-                className="flex-1 py-3 text-sm font-semibold text-[#fff] bg-gradient-to-r from-violet-600 to-blue-500 rounded-xl hover:opacity-90 transition-all"
+                className="flex-1 py-3 text-sm font-semibold text-accent-ink bg-accent rounded-xl hover:opacity-90 transition-all"
               >
                 Confirm
               </button>

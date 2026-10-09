@@ -1050,3 +1050,6 @@ button.ovx-row:focus-visible { outline: none; box-shadow: inset 0 0 0 2px rgb(va
   background: linear-gradient(90deg, transparent, rgb(255 255 255 / .75), transparent); opacity: .9; animation: logo-shine 6s ease-in-out 1.2s infinite; }
 @keyframes logo-shine { 0% { left: -70%; } 18%, 100% { left: 130%; } }
 @media (prefers-reduced-motion: reduce) { .logo-coin::after { animation: none; display: none; } }
+
+/* Admin: same shell language as the client app (gold coin, orange accent). */
+.adm-badge { font-size: 10.5px; font-weight: 700; letter-spacing: .08em; padding: 3px 8px; border-radius: 9999px; color: rgb(var(--accent-text)); background: rgb(var(--accent) / .12); box-shadow: inset 0 0 0 1px rgb(var(--accent) / .35); }

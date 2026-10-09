@@ -22,7 +22,7 @@ export function ClientWallets({ clientId }: { clientId: string }) {
     <div className="glass rounded-2xl border border-white/[0.08] p-4 sm:p-5 mt-5">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold text-white">Linked wallets</h3>
-        <Link href={`/admin/wallets?q=${clientId}`} className="text-xs text-violet-300 hover:text-violet-200">Open in Wallets →</Link>
+        <Link href={`/admin/wallets?q=${clientId}`} className="text-xs text-accent hover:text-accent-hover">Open in Wallets →</Link>
       </div>
       {failed ? <p className="text-xs text-slate-500">Wallet links could not be loaded.</p>
         : rows === null ? <p className="text-xs text-slate-500">Loading…</p>
