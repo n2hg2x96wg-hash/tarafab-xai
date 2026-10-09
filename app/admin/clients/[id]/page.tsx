@@ -69,7 +69,7 @@ const PROFIT_REASONS: { id: ProfitCategory; title: string; client: string; credi
   { id: 'promotional_credit', title: 'Promotional credit', client: 'Promotional Credit', creditOnly: true },
   { id: 'profit_correction', title: 'Profit balance correction', client: 'Profit Balance Correction' },
   { id: 'reconciliation', title: 'Account reconciliation', client: 'Account Reconciliation' },
-  { id: 'other', title: 'Other documented correction', client: 'Profit Balance Adjustment' },
+  { id: 'other', title: 'Other documented correction', client: 'Profit' },
 ]
 const PROFIT_SOURCE_CATEGORY: Record<string, ProfitCategory> = {
   loyalty_reward: 'loyalty_reward', promotional_credit: 'promotional_credit', profit_correction: 'profit_correction',
@@ -117,8 +117,9 @@ function entryNames(f: AdjustForm): [string, string] {
     return ['Deposit · Account credit if raised, Account Debit if lowered', 'Account Credit / Account Debit']
   }
   if (f.field === 'profit_balance') {
+    // The client sees the category's name with the admin's reason beneath it.
     const r = PROFIT_REASONS.find(x => x.id === f.category)
-    return r ? [`${r.client} (not an investment return)`, r.client] : ['Choose a reason', 'Choose a reason']
+    return r ? [`${r.client} · ${f.reason.trim() || 'your reason'}`, r.id === 'other' ? 'Profit Balance Adjustment' : r.client] : ['Choose a reason', 'Choose a reason']
   }
   return ['Adjustment', 'Adjustment']
 }
@@ -587,7 +588,7 @@ export default function ClientDetailPage() {
                   <option value="" disabled>Choose a reason…</option>
                   {PROFIT_REASONS.map(r => <option key={r.id} value={r.id}>{r.title}</option>)}
                 </select>
-                <p className="mt-1.5 text-[11px] leading-snug text-slate-500">The category decides how the entry is named for the client and in history; your written reason below is kept for the audit trail. A reward or promotional credit can only be a credit.</p>
+                <p className="mt-1.5 text-[11px] leading-snug text-slate-500">The category decides how the entry is named. The reason you write below is shown to the client under it, exactly as written, and kept in the audit trail. A reward or promotional credit can only be a credit.</p>
               </div>
             )}
 
@@ -648,7 +649,7 @@ export default function ClientDetailPage() {
             </div>
 
             <div>
-              <label htmlFor="adj-reason" className="block text-xs font-medium text-slate-400 mb-1.5">Reason</label>
+              <label htmlFor="adj-reason" className="block text-xs font-medium text-slate-400 mb-1.5">Reason{adjustForm.action === 'profit' && <span className="text-slate-500 font-normal"> · shown to the client</span>}</label>
               <textarea
                 id="adj-reason"
                 value={adjustForm.reason}

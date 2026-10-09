@@ -418,6 +418,7 @@ const ko: DeepPartial<typeof en> = {
       transfer: '이체',
     },
     txDesc: {
+      reasonNotRecorded: '사유 기록 없음',
       profit: '투자 수익',
       accountDebit: '계좌 잔액에서 차감됨',
       adminFee: '계좌 잔액에 청구됨',

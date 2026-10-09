@@ -12,10 +12,10 @@ import { ThemeSelector } from '@/components/ThemeSelector'
 import { FormError, Spinner } from '@/components/AuthShell'
 import { IconChart, IconCheck, IconHelp, IconInfo, IconMail } from '@/components/Icons'
 import {
-  EmptyState, OPEN_STATUSES, SettingsRow, SettingsSection, StatusTag, SUPPORT_EMAIL, TxIcon, fmt, methodLabel, txLabel,
+  EmptyState, OPEN_STATUSES, SettingsRow, SettingsSection, StatusTag, SUPPORT_EMAIL, TxIcon, fmt, methodLabel, txDescription, txLabel,
   type Account, type Tx, type UserInfo,
 } from './shared'
-import { isAccountCredit, txCategory, txSign } from '@/lib/txCategory'
+import { isAccountCredit, PROFIT_BALANCE_CATEGORIES, txCategory, txSign } from '@/lib/txCategory'
 
 const money = (n: number) => `$${fmt(n)}`
 
@@ -353,6 +353,8 @@ export function NotificationsTab({ notices, seenAt, team, onRead, go }: {
                   <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${isNew && n.kind !== 'pending' ? 'bg-accent' : 'bg-transparent'}`} aria-hidden="true" />
                   <div className="min-w-0 flex-1">
                     <p className={`text-[14px] ${isNew && n.kind !== 'pending' ? 'text-fg font-medium' : 'text-fg-muted'}`}>{text}</p>
+                    {/* A profit-balance entry carries the admin's reason, as on Transactions. */}
+                    {PROFIT_BALANCE_CATEGORIES.includes(txCategory(n.tx)) && <p className="text-[13px] text-fg-muted break-words" data-tx-desc>{txDescription(n.tx, t)}</p>}
                     <p className="text-xs text-fg-faint">{when(n.at)}{n.tx.reference ? ` · ${n.tx.reference}` : ''}</p>
                   </div>
                   <StatusTag status={n.tx.status} />

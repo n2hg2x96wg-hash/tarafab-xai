@@ -1004,7 +1004,7 @@ function OverviewTab({ name, account, txs, go, can, labelOf, whatsNew }: { whats
                     <TxIcon type={tx.type} tx={tx} />
                     <div className="min-w-0">
                       <p className="text-sm text-fg truncate">{txLabel(tx, t)}{isAccountCredit(tx) && <span className="text-fg-faint font-normal"> · {t('dash.txType.accountCredit')}</span>}</p>
-                      <p className="text-xs leading-snug text-fg-faint line-clamp-2">{new Date(tx.created_at).toLocaleDateString(intl, { month: 'short', day: 'numeric', year: 'numeric' })}{txDescription(tx, t) && <span data-tx-desc> · {txDescription(tx, t)}</span>}</p>
+                      <p className="text-xs leading-snug text-fg-faint line-clamp-3 break-words" title={txDescription(tx, t) || undefined}>{new Date(tx.created_at).toLocaleDateString(intl, { month: 'short', day: 'numeric', year: 'numeric' })}{txDescription(tx, t) && <span data-tx-desc> · {txDescription(tx, t)}</span>}</p>
                     </div>
                   </div>
                   <div className="text-right shrink-0">
@@ -1079,17 +1079,17 @@ const STATUS_GROUPS: Record<string, string[]> = {
 // (lib/txCategory, decided by the stored source): Deposits includes account
 // credits, Withdrawals includes account debits (money taken off the account;
 // the row still reads Account Debit), Fees includes the Tarafab Service Fee and
-// admin-applied fees. Profit is investment returns only — a loyalty reward, a
-// promotional credit, a profit balance correction or reconciliation, a
-// reversal, a balance adjustment or a transfer is never folded into Profit: it
-// appears under All with its own label and description, and the Profit chip
-// says so when the client has any.
+// admin-applied fees. Profit holds investment returns and the profit-balance
+// entries shown as Profit (each with its own admin reason as description); a
+// loyalty reward, promotional credit, profit balance correction or
+// reconciliation, a reversal, a balance adjustment or a transfer appears under
+// All with its own label, and the Profit chip says so when the client has any.
 const TX_GROUPS: { id: string; label: TKey; cats: TxCategory[] }[] = [
   { id: 'all', label: 'common.all', cats: [] },
   { id: 'deposits', label: 'txc.gDeposits', cats: ['deposit'] },
   { id: 'investments', label: 'txc.gInvestments', cats: ['investment'] },
   { id: 'withdrawals', label: 'txc.gWithdrawals', cats: ['withdrawal', 'account_debit'] },
-  { id: 'profit', label: 'txc.gProfit', cats: ['profit'] },
+  { id: 'profit', label: 'txc.gProfit', cats: ['profit', 'profit_adjustment'] },
   { id: 'fees', label: 'txc.gFees', cats: ['fee'] },
 ]
 
@@ -1129,7 +1129,7 @@ function TransactionsTab({ txs }: { txs: Tx[] }) {
           )
         })}
       </div>
-      {filter === 'profit' && txs.some(x => PROFIT_BALANCE_CATEGORIES.includes(txCategory(x))) && (
+      {filter === 'profit' && txs.some(x => PROFIT_BALANCE_CATEGORIES.includes(txCategory(x)) && txCategory(x) !== 'profit_adjustment') && (
         <p className="-mt-1 text-[12px] text-fg-faint" data-profit-note>{t('txc.profitOnlyNote')}</p>
       )}
       <div className="grid gap-2.5 sm:gap-3 sm:grid-cols-[1fr_auto] lg:grid-cols-[1fr_auto_auto_auto]" data-tx-filters>
@@ -1178,7 +1178,7 @@ function TransactionsTab({ txs }: { txs: Tx[] }) {
                       <td className="px-5 py-3.5">
                         <span className="inline-flex items-center gap-2.5"><TxIcon type={tx.type} tx={tx} /><span className="text-fg">{txLabel(tx, t)}</span></span>
                         {isAccountCredit(tx) ? <p className="text-xs text-fg-faint pl-[42px]">{t('dash.txType.accountCredit')}</p>
-                          : txDescription(tx, t) ? <p className="text-xs text-fg-faint pl-[42px]" data-tx-desc>{txDescription(tx, t)}</p>
+                          : txDescription(tx, t) ? <p className="text-xs text-fg-faint pl-[42px] max-w-[28rem] whitespace-normal break-words" data-tx-desc>{txDescription(tx, t)}</p>
                           : tx.method && tx.type !== 'adjustment' && methodLabel(tx.method, t) !== txLabel(tx, t) && <p className="text-xs text-fg-faint pl-[42px]">{tx.type === 'withdrawal' ? t(tx.method === 'profit_balance' ? 'withdraw.fromProfit' : 'withdraw.fromAvailable') : methodLabel(tx.method, t)}</p>}
                       </td>
                       <td className={`px-5 py-3.5 text-right tabular-nums ${txSign(tx) > 0 ? 'price-up' : 'text-fg'}`} data-signed-amount>{signedAmount(tx)}</td>
@@ -1204,7 +1204,7 @@ function TransactionsTab({ txs }: { txs: Tx[] }) {
                         <TxIcon type={tx.type} tx={tx} />
                         <div className="min-w-0 flex-1">
                           <p className="text-[14px] text-fg truncate">{txLabel(tx, t)}{isAccountCredit(tx) && <span className="text-fg-faint"> · {t('dash.txType.accountCredit')}</span>}</p>
-                          {txDescription(tx, t) && <p className="text-[12px] leading-snug text-fg-muted line-clamp-2" data-tx-desc>{txDescription(tx, t)}</p>}
+                          {txDescription(tx, t) && <p className="text-[12px] leading-snug text-fg-muted whitespace-normal break-words" data-tx-desc>{txDescription(tx, t)}</p>}
                           <p className="text-[12px] text-fg-faint truncate">
                             {new Date(tx.created_at).toLocaleTimeString(intl, { hour: 'numeric', minute: '2-digit' })}
                             {tx.reference ? <> · <span className="font-mono">{tx.reference}</span></> : null}

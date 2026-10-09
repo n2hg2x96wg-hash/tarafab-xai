@@ -418,6 +418,7 @@ const en = {
       transfer: 'Transfer',
     },
     txDesc: {
+      reasonNotRecorded: 'Reason not recorded',
       profit: 'Investment return',
       accountDebit: 'Deducted from your account balance',
       adminFee: 'Charged to your account balance',

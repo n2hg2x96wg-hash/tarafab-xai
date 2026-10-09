@@ -4,7 +4,7 @@ import type { ReactNode } from 'react'
 
 // Types and small display helpers shared by the dashboard sections.
 import { IconArrowDown, IconArrowUp, IconCheck, IconFile, IconHistory, IconPie, IconSliders, IconSwap, IconTrend, IconWallet } from '@/components/Icons'
-import { txCategory, txSign } from '@/lib/txCategory'
+import { PROFIT_BALANCE_CATEGORIES, txCategory, txSign } from '@/lib/txCategory'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
 import { statusLabel } from '@/lib/i18n/format'
 import type { InvestmentSummary } from '@/lib/investmentSummary'
@@ -44,6 +44,9 @@ export interface Tx {
   notes: string | null
   address?: string | null
   direction?: 'credit' | 'debit' | null
+  // Reason the admin entered for a profit-balance adjustment (that row's own
+  // note; only sent for those rows).
+  reason?: string | null
   // Business event that created the row (set by the database; see lib/txCategory).
   source?: string | null
   created_at: string
@@ -80,7 +83,9 @@ export function txLabel(tx: Tx, t: T) {
   // return is Profit.
   const c = txCategory(tx)
   if (c === 'profit') return t('dash.txType.profit')
-  if (c === 'profit_adjustment') return t('dash.txType.profitAdjustment')
+  // A profit-balance credit or debit with no category: a Profit entry whose
+  // description is the admin's reason (see txDescription), never "Adjustment".
+  if (c === 'profit_adjustment') return t('dash.txType.profit')
   if (c === 'loyalty_reward') return t('dash.txType.loyaltyReward')
   if (c === 'promotional_credit') return t('dash.txType.promotionalCredit')
   if (c === 'profit_correction') return t('dash.txType.profitCorrection')
@@ -109,6 +114,14 @@ const TX_DESC: Partial<Record<ReturnType<typeof txCategory>, TKey>> = {
 }
 export function txDescription(tx: Tx, t: T): string | null {
   const c = txCategory(tx)
+  // Profit-balance adjustments: the exact reason the admin entered for this
+  // transaction; with none recorded, the category's fixed line, or a neutral
+  // "Reason not recorded" — never an invented reason.
+  if (PROFIT_BALANCE_CATEGORIES.includes(c)) {
+    const r = (tx.reason || '').trim()
+    if (r) return r
+    return c === 'profit_adjustment' ? t('dash.txDesc.reasonNotRecorded') : t(TX_DESC[c]!)
+  }
   if (c === 'fee' && tx.method === 'available_balance') return t('dash.txDesc.adminFee')
   const k = TX_DESC[c]
   return k ? t(k) : null

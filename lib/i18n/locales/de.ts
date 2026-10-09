@@ -415,6 +415,7 @@ const de: DeepPartial<typeof en> = {
       transfer: 'Überweisung',
     },
     txDesc: {
+      reasonNotRecorded: 'Grund nicht erfasst',
       profit: 'Anlageertrag',
       accountDebit: 'Von Ihrem Kontoguthaben abgezogen',
       adminFee: 'Ihrem Kontoguthaben belastet',

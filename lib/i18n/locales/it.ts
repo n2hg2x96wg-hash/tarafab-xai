@@ -415,6 +415,7 @@ const it: DeepPartial<typeof en> = {
       transfer: 'Trasferimento',
     },
     txDesc: {
+      reasonNotRecorded: 'Motivo non registrato',
       profit: 'Rendimento dell\'investimento',
       accountDebit: 'Detratto dal saldo del conto',
       adminFee: 'Addebitato sul saldo del conto',

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { getSupabaseEnv } from '@/lib/supabase/env'
+import { toClientTx, type StoredTxRow } from '@/lib/clientTx'
 
 export async function GET(request: NextRequest) {
   const { url, anonKey: key } = getSupabaseEnv()
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
     const before = request.nextUrl.searchParams.get('before')
     let query = supabase
       .from('transactions')
-      .select('id, type, method, amount, fee, status, reference, address, direction, source, effective_at, created_at, updated_at')
+      .select('id, type, method, amount, fee, status, reference, address, direction, source, notes, effective_at, created_at, updated_at')
       .eq('user_id', user.id)
       .order('effective_at', { ascending: false }).order('id', { ascending: false })
       .limit(PAGE + 1)
@@ -35,14 +36,9 @@ export async function GET(request: NextRequest) {
 
     if (txErr) return NextResponse.json({ error: 'Transactions could not be loaded.' }, { status: 500 })
 
-    // created_at becomes the effective date. For a transaction whose date was
-    // set by our team, updated_at is reported as the effective date too, so
-    // no recording or correction time reaches the client.
-    const list = (rows || []).map(({ effective_at, created_at, updated_at, ...t }) => ({
-      ...t,
-      created_at: effective_at,
-      updated_at: effective_at === created_at ? updated_at : effective_at,
-    }))
+    // Effective date as the transaction date; each profit-balance adjustment
+    // carries its own admin reason (see lib/clientTx).
+    const list = (rows || []).map(r => toClientTx(r as StoredTxRow))
     return NextResponse.json({ transactions: list.slice(0, PAGE), hasMore: list.length > PAGE })
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)
