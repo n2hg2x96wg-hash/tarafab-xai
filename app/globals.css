@@ -861,3 +861,98 @@ body.dialog-open #chat-application { visibility: hidden !important; }
   .flow-link { display: none; }
   .flow-step + .flow-step .flow-node { border-top: 1px solid rgb(var(--contrast) / .05) !important; }
 }
+
+/* ------------------------------------------------------------------------
+   Client dashboard, premium pass: near-black surfaces, restrained Bitcoin
+   orange for the primary action and the selected place, quiet borders.
+   Scoped to the signed-in app (.cc-app) and the Overview (.ovx-*).
+   ------------------------------------------------------------------------ */
+
+/* Welcome banner: always dark (a photograph sits behind it), so the dark
+   palette is pinned inside it in both themes. */
+.ovx-hero {
+  --ink-950: 8 10 14; --ink-900: 13 16 22; --ink-850: 17 21 28; --ink-800: 22 27 35; --ink-700: 34 40 51; --ink-600: 46 54 67;
+  --fg: 240 242 246; --fg-muted: 178 186 199; --fg-faint: 138 147 161; --contrast: 255 255 255;
+  --success-300: 126 232 185; --success-400: 61 213 160; --success-500: 31 185 133;
+  --danger-300: 253 164 164; --danger-400: 246 124 124; --warning-300: 252 208 115; --warning-500: 227 158 34;
+  --accent-text: 247 147 26;
+  color-scheme: dark;
+  padding: 30px 34px;
+  background: radial-gradient(70% 120% at 0% 100%, rgb(247 147 26 / .10), transparent 60%), #0a0b0f;
+  border: 1px solid rgb(255 255 255 / .07);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .05), 0 24px 50px -34px rgb(0 0 0 / .9);
+}
+/* The whole artwork height is shown (coins never cropped), anchored right
+   and faded into the banner on its left so the greeting stays clear. */
+.ovx-hero-art {
+  position: absolute; top: 0; right: 0; height: 100%; width: auto; max-width: 62%;
+  object-fit: cover; object-position: 70% 50%; pointer-events: none; user-select: none;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, rgb(0 0 0 / .55) 30%, #000 55%); mask-image: linear-gradient(90deg, transparent 0, rgb(0 0 0 / .55) 30%, #000 55%);
+}
+@media (max-width: 639px) {
+  .ovx-hero { min-height: 0; padding: 20px 18px; border-radius: 18px; }
+  .ovx-hero-art { max-width: 80%; opacity: .45; }
+}
+
+/* Account figures */
+.ovx-stat {
+  position: relative; border-radius: 16px; padding: 13px 14px;
+  background: linear-gradient(180deg, rgb(var(--contrast) / .04), rgb(var(--contrast) / .012)), rgb(var(--ink-900));
+  border: 1px solid rgb(var(--contrast) / .08); box-shadow: inset 0 1px 0 rgb(var(--contrast) / .045);
+}
+@media (min-width: 640px) { .ovx-stat { padding: 18px 20px; } }
+.ovx-stat-available {
+  border-color: rgb(var(--accent) / .3);
+  background: radial-gradient(120% 100% at 0% 0%, rgb(var(--accent) / .13), transparent 62%), linear-gradient(180deg, rgb(var(--contrast) / .04), rgb(var(--contrast) / .012)), rgb(var(--ink-900));
+  box-shadow: inset 0 1px 0 rgb(var(--contrast) / .06), 0 20px 44px -30px rgb(var(--accent) / .5);
+}
+@media (max-width: 639px) { .ovx-stat-available { padding: 18px; } }
+.ovx-stat-icon { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; flex-shrink: 0; background: rgb(var(--contrast) / .06); color: rgb(var(--fg-muted)); }
+.ovx-stat-available .ovx-stat-icon { background: rgb(var(--accent) / .16); color: rgb(var(--accent)); box-shadow: inset 0 0 0 1px rgb(var(--accent) / .32); }
+.ovx-stat-profit .ovx-stat-icon { background: rgb(var(--success-400) / .12); color: rgb(var(--success-400)); }
+.ovx-stat-invested .ovx-stat-icon { background: rgb(var(--info-400) / .12); color: rgb(var(--info-400)); }
+.ovx-stat-pending .ovx-stat-icon { background: rgb(var(--warning-400) / .12); color: rgb(var(--warning-400)); }
+
+/* Quick actions: round buttons on phones, a row of buttons from 640px. */
+.ovx-actions { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; }
+.ovx-act { display: flex; flex-direction: column; align-items: center; gap: 7px; min-height: 76px; padding: 4px 0; font-size: 11.5px; font-weight: 500; color: rgb(var(--fg-muted)); border-radius: 14px; transition: color .15s ease, transform .15s ease; }
+.ovx-act:hover { color: rgb(var(--fg)); }
+.ovx-act:active { transform: scale(.96); }
+.ovx-act:focus-visible { outline: none; box-shadow: 0 0 0 2px rgb(var(--accent) / .5); }
+.ovx-act-label { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ovx-act-icon { width: 50px; height: 50px; border-radius: 9999px; display: grid; place-items: center; color: rgb(var(--fg)); background: linear-gradient(180deg, rgb(var(--contrast) / .07), rgb(var(--contrast) / .025)), rgb(var(--ink-900)); border: 1px solid rgb(var(--contrast) / .1); box-shadow: inset 0 1px 0 rgb(var(--contrast) / .06); transition: border-color .15s ease, background-color .15s ease; }
+.ovx-act:hover .ovx-act-icon { border-color: rgb(var(--contrast) / .2); }
+.ovx-act-primary { color: rgb(var(--fg)); }
+.ovx-act-primary .ovx-act-icon { background: rgb(var(--accent)); color: rgb(var(--accent-ink)); border-color: transparent; box-shadow: 0 10px 22px -10px rgb(var(--accent) / .7), inset 0 1px 0 rgb(255 255 255 / .3); }
+@media (min-width: 640px) {
+  .ovx-actions { gap: 10px; }
+  .ovx-act { flex-direction: row; justify-content: center; gap: 10px; min-height: 0; height: 50px; padding: 0 14px; font-size: 14px; color: rgb(var(--fg)); border: 1px solid rgb(var(--contrast) / .09); background: linear-gradient(180deg, rgb(var(--contrast) / .05), rgb(var(--contrast) / .015)), rgb(var(--ink-900)); box-shadow: inset 0 1px 0 rgb(var(--contrast) / .05); }
+  .ovx-act:hover { border-color: rgb(var(--contrast) / .18); transform: translateY(-1px); }
+  .ovx-act-icon { width: 28px; height: 28px; border: 0; background: none; box-shadow: none; color: rgb(var(--accent)); }
+  .ovx-act-primary { background: rgb(var(--accent)); color: rgb(var(--accent-ink)); border-color: transparent; font-weight: 600; box-shadow: 0 12px 26px -14px rgb(var(--accent) / .75), inset 0 1px 0 rgb(255 255 255 / .28); }
+  .ovx-act-primary:hover { background: rgb(var(--accent-hover)); border-color: transparent; }
+  .ovx-act-primary .ovx-act-icon { background: rgb(0 0 0 / .12); color: rgb(var(--accent-ink)); box-shadow: none; border-radius: 8px; }
+}
+
+/* Overview cards, rows and segmented pills */
+.cc-app .ovx-card { border-radius: 18px; }
+.ovx-row { transition: background-color .15s ease; }
+.ovx-row:hover { background: rgb(var(--contrast) / .03); }
+button.ovx-row:focus-visible { outline: none; box-shadow: inset 0 0 0 2px rgb(var(--accent) / .45); }
+.ovx-seg { height: 32px; padding: 0 12px; border-radius: 9px; font-size: 12.5px; font-weight: 500; color: rgb(var(--fg-muted)); white-space: nowrap; transition: color .15s ease, background-color .15s ease, box-shadow .15s ease; }
+.ovx-seg:hover { color: rgb(var(--fg)); background: rgb(var(--contrast) / .04); }
+.ovx-seg.is-on { color: rgb(var(--accent-text)); background: rgb(var(--accent) / .13); box-shadow: inset 0 0 0 1px rgb(var(--accent) / .35); }
+.ovx-seg-sm { height: 26px; padding: 0 9px; font-size: 11.5px; border-radius: 7px; }
+.ovx-chart svg.w-full { height: 180px; }
+.ovx-auto::before { content: ''; position: absolute; top: -70px; right: -50px; width: 190px; height: 190px; border-radius: 9999px; background: rgb(var(--accent) / .08); filter: blur(40px); pointer-events: none; }
+
+/* Shell: selected place in the sidebar (orange outline), header controls,
+   phone tab bar. */
+.cc-drawer .nav-item-on { background: linear-gradient(90deg, rgb(var(--accent) / .15), rgb(var(--accent) / .04)); box-shadow: inset 0 0 0 1px rgb(var(--accent) / .36); color: rgb(var(--fg)); }
+.cc-drawer .nav-item-on::before { display: none; }
+.cc-iconbtn { position: relative; width: 40px; height: 40px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; color: rgb(var(--fg-muted)); border: 1px solid rgb(var(--contrast) / .08); background: rgb(var(--contrast) / .03); transition: color .15s ease, border-color .15s ease, background-color .15s ease; }
+.cc-iconbtn:hover { color: rgb(var(--fg)); border-color: rgb(var(--contrast) / .16); }
+.cc-iconbtn:focus-visible, .cc-avatar-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px rgb(var(--accent) / .5); }
+.cc-avatar-btn { border-radius: 14px; transition: background-color .15s ease; }
+.cc-avatar-btn:hover { background: rgb(var(--contrast) / .04); }
+@media (prefers-reduced-motion: reduce) { .ovx-act, .ovx-act:hover, .ovx-act:active { transform: none; } }

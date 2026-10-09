@@ -747,3 +747,77 @@ export function ActiveInvestmentsCard({ go }: { go: (id: string) => void }) {
     </section>
   )
 }
+
+// Compact Overview panel: the client's active investments, or (when there
+// are none) the plans currently published, with their stored terms. Same
+// endpoint as the Investment Center; no plan, rate or result is invented.
+export function InvestmentsMini({ go }: { go: (id: string) => void }) {
+  const { t, intl } = useI18n()
+  const [state, setState] = useState<{ invs: Investment[]; offers: Version[]; versions: Map<string, Version> } | 'error' | null>(null)
+  useEffect(() => {
+    let alive = true
+    authFetch('/api/client/investments').then(r => readJson<Partial<Data>>(r)).then(raw => {
+      if (!alive) return
+      if (!Array.isArray(raw.investments) || !Array.isArray(raw.versions)) { setState('error'); return }
+      const versions = new Map(raw.versions.map(v => [v.id, v]))
+      const offers = (raw.products || []).map(p => p.current_version_id ? versions.get(p.current_version_id) : undefined).filter((v): v is Version => !!v)
+      setState({ invs: raw.investments.filter(i => i.status === 'active'), offers, versions })
+    }).catch(() => alive && setState('error'))
+    return () => { alive = false }
+  }, [])
+  if (state === 'error') return null // the Investments section shows the full error state
+  const date = (iso: string | null) => iso ? new Date(iso).toLocaleDateString(intl, { day: 'numeric', month: 'short', year: 'numeric' }) : t('inv.notSet')
+  const showPlans = state !== null && state.invs.length === 0 && state.offers.length > 0
+  return (
+    <section className="panel ovx-card overflow-hidden" aria-labelledby="ovx-inv" data-ov-investments={state === null ? 'loading' : state.invs.length ? 'active' : showPlans ? 'plans' : 'empty'}>
+      <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-2">
+        <h3 id="ovx-inv" className="text-[15px] font-semibold text-fg">{showPlans ? t('ov2.plansTitle') : t('inv.f.activeTitle')}</h3>
+        <button onClick={() => go('portfolio')} className="text-[13px] text-fg-muted hover:text-fg min-h-8 px-1 whitespace-nowrap">{t('common.viewAll')}</button>
+      </div>
+      {state === null ? (
+        <div className="px-5 pb-5 space-y-2" role="status" aria-label={t('common.loading')}><div className="skeleton h-12" /><div className="skeleton h-12" /></div>
+      ) : state.invs.length > 0 ? (
+        <ul className="px-3 pb-3 space-y-1.5">
+          {state.invs.slice(0, 3).map(i => {
+            const v = state.versions.get(i.product_version_id), p = profitOf(i)
+            return (
+              <li key={i.id}>
+                <button onClick={() => go('portfolio')} className="ovx-row w-full text-left rounded-xl px-3 py-2.5 flex items-center gap-3">
+                  <span className="w-9 h-9 shrink-0 rounded-xl grid place-items-center bg-sky-500/10 text-sky-300"><IconPie width={16} height={16} aria-hidden="true" /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[13.5px] font-medium text-fg truncate">{v?.name || t('inv.product')}</span>
+                    <span className="block text-[11.5px] text-fg-faint truncate">{t('inv.f.credited')}: <span className={p > 0 ? 'price-up' : p < 0 ? 'price-down' : ''}>{signed(p)}</span> · {date(i.maturity_date)}</span>
+                  </span>
+                  <span className="text-right shrink-0">
+                    <span className="block text-[13.5px] font-semibold tabular-nums text-fg whitespace-nowrap">{money(Number(i.principal))}</span>
+                    <StatusBadge status={i.status} />
+                  </span>
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      ) : showPlans ? (
+        <ul className="px-3 pb-3 space-y-1.5" data-ov-plans>
+          {state.offers.slice(0, 3).map(v => (
+            <li key={v.id}>
+              <button onClick={() => go('portfolio')} className="ovx-row w-full text-left rounded-xl px-3 py-2.5 flex items-center gap-3">
+                <span className="w-9 h-9 shrink-0 rounded-xl grid place-items-center bg-accent/10 text-accent"><IconTrend width={16} height={16} aria-hidden="true" /></span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[13.5px] font-medium text-fg truncate">{v.name}</span>
+                  <span className="block text-[11.5px] text-fg-faint truncate">{durationText(v, t)} · {t('ov2.minAmount', { amount: money(Number(v.min_amount)) })}</span>
+                </span>
+                <span className="text-right shrink-0 max-w-[9rem] text-[12px] text-fg-muted"><span className="block truncate" data-plan-terms>{returnTermsText({}, v, t)}</span><span className="block text-[11.5px] text-accent font-medium whitespace-nowrap">{t('ov2.view')} →</span></span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div className="px-5 pb-5 pt-1 flex flex-wrap items-center gap-3">
+          <p className="text-[13.5px] text-fg-muted flex-1 min-w-[12rem]">{t('inv.f.noActiveHome')}</p>
+          <button onClick={() => go('portfolio')} className="btn btn-outline btn-sm">{t('inv.f.browsePlans')}</button>
+        </div>
+      )}
+    </section>
+  )
+}

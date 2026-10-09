@@ -36,18 +36,17 @@ import { StateView } from '@/components/ui/State'
 import {
   HistoryTab, LoadMore, NotificationsTab, PerformanceTab, PortfolioTab, PreferencesTab, SecurityTab, SupportTab, noticesFrom,
   type TeamNotice,
-  txTotals,
 } from '@/components/dashboard/ExtraTabs'
 import { AnimatedPrice } from '@/components/MarketBits'
 import { ReceiptField } from '@/components/dashboard/ReceiptField'
 import { isAllowedUpload, MAX_UPLOAD_BYTES, prepareUpload } from '@/lib/uploadFile'
 import { VerificationTab } from '@/components/dashboard/VerificationTab'
 import { useToast } from '@/components/Toast'
-import { ActiveInvestmentsCard, InvestmentCenter } from '@/components/dashboard/InvestmentCenter'
+import { InvestmentCenter, InvestmentsMini } from '@/components/dashboard/InvestmentCenter'
+import { MarketSnapshot, OverviewHero } from '@/components/dashboard/OverviewParts'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { CommandSearch, type CommandItem } from '@/components/dashboard/CommandSearch'
 import { MarketActivityTab, PriceHistoryTab } from '@/components/dashboard/MarketTabs'
-import { Rise, useScrollDepth } from '@/components/dashboard/Motion'
 import { feedStatus } from '@/lib/marketStatus'
 import { useAssets } from '@/components/markets/assetStore'
 import { effectiveState } from '@/lib/marketStatus'
@@ -554,20 +553,36 @@ export default function DashboardPage() {
       {sidebarOpen && <div className="fixed inset-0 z-30 bg-black/60 backdrop-blur-[4px] lg:hidden backdrop-in" onClick={closeDrawer} aria-hidden="true" />}
 
       <div className="flex-1 min-w-0">
-        <header className="sticky top-0 z-20 h-16 flex items-center justify-between gap-4 px-4 sm:px-6 border-b border-ink-700/80 glass-bar">
-          <div className="flex items-center gap-2 min-w-0">
-            <button onClick={() => setSidebarOpen(true)} className="lg:hidden -ml-2 w-10 h-10 rounded-md flex items-center justify-center text-fg-muted hover:text-fg hover:bg-ink-850" aria-label={t('common.openMenu')} aria-expanded={sidebarOpen}><IconMenu width={22} height={22} /></button>
-            <h1 className="text-[15px] font-semibold text-fg truncate">{current ? labelOf(current) : t('dash.dashboard')}</h1>
+        <header className="sticky top-0 z-20 h-16 flex items-center justify-between gap-3 px-4 sm:px-6 border-b border-ink-700/80 glass-bar">
+          <div className="flex items-center gap-3 min-w-0">
+            {/* Phones: the logo leads (back to Overview); the full menu is under More in the tab bar. */}
+            <button onClick={() => go('overview')} className="lg:hidden min-w-0 rounded-lg" aria-label={t('shell.home')}><Logo /></button>
+            <h1 className="sr-only lg:not-sr-only text-[15px] font-semibold text-fg truncate">{current ? labelOf(current) : t('dash.dashboard')}</h1>
           </div>
-          <button onClick={() => setCmdOpen(true)} className="hidden md:flex items-center gap-2 h-9 pl-3 pr-2 rounded-lg border border-ink-700 bg-ink-900/60 text-[13px] text-fg-faint hover:text-fg-muted hover:border-ink-600 transition-colors w-64 lg:w-72 mr-auto ml-6" aria-label={t('cmd.title')}>
+          <button onClick={() => setCmdOpen(true)} className="hidden md:flex items-center gap-2 h-10 pl-3 pr-2 rounded-xl border border-[rgb(var(--contrast)/.08)] bg-[rgb(var(--contrast)/.03)] text-[13px] text-fg-faint hover:text-fg-muted hover:border-[rgb(var(--contrast)/.16)] transition-colors w-64 lg:w-80 mr-auto ml-2 lg:ml-6" aria-label={t('cmd.title')}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
             <span className="flex-1 text-left">{t('cmd.placeholder')}</span>
             <kbd className="text-[11px] border border-ink-600 rounded px-1.5 py-0.5 whitespace-nowrap">{shortcut}</kbd>
           </button>
-          <div className="text-right shrink-0">
-            <div className="text-[11px] text-fg-faint leading-none mb-1 whitespace-nowrap">{t('dash.accountBalance')}</div>
-            {/* One client-facing balance: the account's spendable balance (available_balance), the same figure withdrawals and investments use. */}
-            <div className="text-sm font-semibold text-fg tabular-nums leading-none">${fmt(account?.available_balance ?? 0)}</div>
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <div className={`text-right shrink-0 ${activeNav === 'overview' ? 'max-sm:hidden' : ''}`} data-header-balance>
+              <div className="text-[11px] text-fg-faint leading-none mb-1 whitespace-nowrap">{t('dash.accountBalance')}</div>
+              {/* One client-facing balance: the account's spendable balance (available_balance), the same figure withdrawals and investments use. */}
+              <div className="text-sm font-semibold text-fg tabular-nums leading-none whitespace-nowrap">${fmt(account?.available_balance ?? 0)}</div>
+            </div>
+            {!hiddenNav.includes('notifications') && (
+              <button onClick={() => go('notifications')} className="cc-iconbtn" aria-label={unread > 0 ? `${t('ov2.notifications')} (${t('notices.newCount', { n: unread })})` : t('ov2.notifications')} data-header-bell>
+                <IconBell width={18} height={18} aria-hidden="true" />
+                {unread > 0 && <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-accent ring-2 ring-[rgb(var(--ink-950))]" aria-hidden="true" />}
+              </button>
+            )}
+            <button onClick={() => go('profile')} className="cc-avatar-btn flex items-center gap-2.5 lg:pr-2 min-w-0" aria-label={`${t('ov2.account')}: ${displayName}`} data-header-account>
+              <span className="w-10 h-10 rounded-full bg-accent/15 border border-accent/35 flex items-center justify-center text-[13px] font-semibold text-accent shrink-0">{initials}</span>
+              <span className="hidden xl:block text-left leading-tight min-w-0 max-w-[11rem]">
+                <span className="block text-[13.5px] font-medium text-fg truncate">{displayName}</span>
+                <span className="block text-[11.5px] text-fg-faint truncate">{user?.email}</span>
+              </span>
+            </button>
           </div>
         </header>
 
@@ -618,7 +633,8 @@ export default function DashboardPage() {
   )
 }
 
-/* Phone navigation: the four places people go most, plus the full menu.
+/* Phone navigation: Home, Invest, Wallet and Activity, plus More (the full
+   menu, so every section, Markets included, stays one tap away).
    Hidden sections drop out; the bar is a phone layout, not a shrunken sidebar. */
 // Sections whose content has no title of its own, and the i18n key of their subtitle ('' = title only).
 const INTRO_SUB: Record<string, string> = {
@@ -631,8 +647,8 @@ function BottomNav({ active, can, go, onMenu, unread, t }: {
 }) {
   const items = ([
     ['overview', 'shell.home', IconGrid],
-    ['markets', 'dash.nav.markets', IconChart],
-    ['portfolio', 'nav2.portfolio', IconPie],
+    ['portfolio', 'ov2.invest', IconPie],
+    ['wallet', 'wallet.nav', IconWallet],
     ['transactions', 'shell.activity', IconList],
   ] as [string, TKey, Icon][]).filter(([id]) => id === 'overview' || can(id))
   return (
@@ -717,13 +733,6 @@ function DashboardSkeleton({ label }: { label: string }) {
   )
 }
 
-// Read from the visitor's own clock, after load, so it never mismatches the
-// server render.
-function greetingKey(): TKey {
-  const h = new Date().getHours()
-  return h < 5 ? 'overview.evening' : h < 12 ? 'overview.morning' : h < 18 ? 'overview.afternoon' : 'overview.evening'
-}
-
 /* The client's real KYC state from the server. Nothing is shown until it
    has been read, and "verified" appears only when the server says so. */
 // "What's New" card for a release notice published from Admin → Notifications.
@@ -766,7 +775,9 @@ function OverviewAutomation({ onOpen }: { onOpen: () => void }) {
     return () => { alive = false }
   }, [refreshed])
   if (!presentation.panel_visible) return null
-  const label = loading ? 'Connecting…' : state === 'unavailable' && refreshFailed ? 'Error'
+  // Every label is the engine's own reported state; with no answer from the
+  // service the panel says it is not connected rather than showing activity.
+  const label = loading ? 'Connecting…' : state === 'unavailable' && refreshFailed ? 'Not connected'
     : ({ running: 'Monitoring active', paused: 'Paused', maintenance: 'Maintenance', degraded: 'Delayed', offline: 'Offline', unavailable: 'Unavailable' } as const)[state]
   const on = state === 'running'
   const connected = !!status && !refreshFailed
@@ -776,29 +787,30 @@ function OverviewAutomation({ onOpen }: { onOpen: () => void }) {
   if (status?.market_at) stream.push({ key: 'm', label: `Market monitored${status.monitored.length ? ` · ${status.monitored.slice(0, 2).join(', ')}` : ''}`, at: status.market_at, tone: 'bg-sky-400' })
   for (const e of events || []) stream.push({ key: `e${e.id}`, label: `${AUTO_EVENT[e.event] || e.event}${e.asset ? ` · ${e.asset}` : ''}`, at: e.created_at, tone: e.event === 'triggered' ? 'bg-amber-400' : 'bg-fg-faint' })
   stream.sort((a, b) => Date.parse(b.at) - Date.parse(a.at)); stream.splice(3)
+  const pill = on ? 'border-emerald-500/30 bg-emerald-500/[.08] text-emerald-300'
+    : state === 'paused' || state === 'degraded' ? 'border-amber-500/30 bg-amber-500/[.08] text-amber-300'
+    : 'border-[rgb(var(--contrast)/.12)] bg-[rgb(var(--contrast)/.04)] text-fg-muted'
   return (
-    <section className="ov-glass rounded-2xl p-4 sm:p-5" aria-labelledby="ov-auto" data-ov-automation={loading ? 'connecting' : state}>
-      <div className="flex items-center gap-4">
-        <span className="engine-orb shrink-0 scale-[.8] -m-1" aria-hidden="true" data-engine-state={state}>
-          <span className="eo-ring r1" /><span className="eo-ring r2" /><span className="eo-sweep" />
-          <span className="eo-core"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="8" width="14" height="10" rx="3" /><path d="M12 4v4M9 13h.01M15 13h.01" /></svg></span>
-        </span>
-        <div className="min-w-0 flex-1">
-          <h2 id="ov-auto" className="text-[11px] font-medium uppercase tracking-[0.14em] text-accent">{t('nav4.automation')}</h2>
-          <p className="mt-0.5 flex items-center gap-2 text-[15px] font-semibold text-fg">
-            <span className={`w-2 h-2 rounded-full transition-colors ${on ? 'bg-emerald-400 cc-pulse' : state === 'paused' || state === 'degraded' ? 'bg-amber-400' : 'bg-fg-faint'}`} aria-hidden="true" />{label}
-          </p>
-          <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12px] text-fg-faint">
-            <span className="inline-flex items-center gap-1.5"><span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-success-400' : 'bg-fg-faint'}`} aria-hidden="true" />{connected ? 'Connected' : loading ? 'Connecting' : 'Not connected'}</span>
-            <span className="truncate">{assets}</span>
+    <section className="panel ovx-card ovx-auto relative overflow-hidden p-5" aria-labelledby="ov-auto" data-ov-automation={loading ? 'connecting' : state}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 id="ov-auto" className="text-[15px] font-semibold text-fg">{presentation.display_name || t('nav4.automation')}</h3>
+          <p className={`mt-2 inline-flex items-center gap-2 h-8 px-3 rounded-full border text-[13px] font-semibold ${pill}`} data-ov-auto-state>
+            <span className={`w-2 h-2 rounded-full ${on ? 'bg-emerald-400 cc-pulse' : state === 'paused' || state === 'degraded' ? 'bg-amber-400' : 'bg-fg-faint'}`} aria-hidden="true" />{label}
           </p>
         </div>
+        <span className="engine-orb shrink-0 scale-[.72] -m-2" aria-hidden="true" data-engine-state={state}>
+          <span className="eo-ring r1" /><span className="eo-ring r2" /><span className="eo-sweep" />
+          <span className="eo-core"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 17l5-5 4 4 7-8" /><path d="M15 8h5v5" /></svg></span>
+        </span>
       </div>
-      <dl className="mt-4 grid grid-cols-2 gap-2 text-[12.5px]">
-        <div className="rounded-lg bg-[rgb(var(--contrast)/.035)] border border-[rgb(var(--contrast)/.06)] px-3 py-2"><dt className="text-[11px] text-fg-faint">Last activity</dt><dd className="text-fg tabular-nums">{agoShort(status?.last_ok_at)}</dd></div>
-        <div className="rounded-lg bg-[rgb(var(--contrast)/.035)] border border-[rgb(var(--contrast)/.06)] px-3 py-2"><dt className="text-[11px] text-fg-faint">System state</dt><dd className="text-fg truncate">{label}</dd></div>
+      <p className="mt-3 text-[12.5px] leading-relaxed text-fg-muted">{t('ov2.autoNote')}</p>
+      <dl className="mt-3 space-y-1.5 text-[12.5px]">
+        <div className="flex items-center justify-between gap-3"><dt className="text-fg-faint">{t('ov2.autoService')}</dt><dd className="inline-flex items-center gap-1.5 text-fg"><span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-success-400' : 'bg-fg-faint'}`} aria-hidden="true" />{connected ? 'Connected' : loading ? 'Connecting' : 'Not connected'}</dd></div>
+        <div className="flex items-center justify-between gap-3"><dt className="text-fg-faint">{t('ov2.autoWatching')}</dt><dd className="text-fg truncate">{assets || '—'}</dd></div>
+        <div className="flex items-center justify-between gap-3"><dt className="text-fg-faint">{t('ov2.autoLastCheck')}</dt><dd className="text-fg tabular-nums">{agoShort(status?.last_ok_at)}</dd></div>
       </dl>
-      <div className="mt-4">
+      <div className="mt-4 pt-3 border-t border-[rgb(var(--contrast)/.06)]">
         <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-fg-faint mb-2">XAI activity</p>
         {stream.length ? (
           <ol className="space-y-2" data-ov-activity>
@@ -841,33 +853,72 @@ function KycChip({ go }: { go: (id: string) => void }) {
   )
 }
 
-/* Overview */
+/* Overview: welcome, the spendable balance, the account's other recorded
+   figures, quick actions, recent activity, a market snapshot and the
+   automation service's own status. Every figure is the server's value. */
 function OverviewTab({ name, account, txs, go, can, labelOf, whatsNew }: { whatsNew?: ReactNode; name: string; account: Account | null; txs: Tx[]; go: (id: string) => void; can: (id: string) => boolean; labelOf: (item: { id: string; label: TKey }) => string }) {
   const feature = useFeatures()
   const recentTxs = txs.slice(0, 5)
   const pendingCount = account?.pending_transaction_count ?? txs.filter(x => x.status.startsWith('pending')).length
   const { t, intl } = useI18n()
-  const totals = txTotals(txs)
   const money = (n: number) => `$${fmt(n)}`
   const inv = account?.investments ?? null
-  const balRef = useRef<HTMLElement>(null)
-  useScrollDepth(balRef)
+  const firstName = name.trim().split(/\s+/)[0] || name
+  const showInv = can('portfolio') && !hiddenState(feature('investments'))
+  const showAuto = can('automations')
   const quick = ([
     ['deposit', 'dash.nav.deposit', IconArrowDown],
     ['withdraw', 'dash.nav.withdraw', IconArrowUp],
-    ['transactions', 'dash.nav.transactions', IconList],
+    ['portfolio', 'ov2.invest', IconPie],
     ['markets', 'dash.nav.markets', IconChart],
-  ] as [string, TKey, Icon][]).filter(([id]) => can(id))
+    ['transactions', 'shell.activity', IconList],
+  ] as [string, TKey, Icon][]).filter(([id]) => can(id) && (id !== 'portfolio' || showInv))
+  // The account's recorded figures, each from its own stored field (the
+  // invested total from the investment records, as in Investments).
+  const figures: { key: string; label: TKey; value: number | null; sub: string; state?: string; icon: Icon }[] = [
+    { key: 'available', label: 'ov2.available', value: account ? Number(account.available_balance ?? 0) : null, sub: t('ov2.availableSub'), icon: IconWallet },
+    { key: 'profit', label: 'dash.profitReturn', value: account ? Number(account.profit_balance ?? 0) : null, icon: IconTrend,
+      sub: account && Number(account.profit_balance ?? 0) > 0 ? t('ov2.profitSub') : t('ov2.profitNone'), state: account && Number(account.profit_balance ?? 0) > 0 ? 'positive' : 'none' },
+    { key: 'invested', label: 'dash.invested', value: inv ? Number(inv.total_invested) : null, icon: IconPie,
+      sub: inv ? (inv.active_count > 0 ? t('dash.countActive', { n: inv.active_count }) : t('ov2.investedNone')) : '' },
+    { key: 'pending', label: 'dash.pending', value: account ? Number(account.pending_balance ?? 0) : null, icon: IconHistory,
+      sub: account && Number(account.pending_balance ?? 0) > 0 ? t('ov2.pendingSub') : t('ov2.pendingClear'), state: account && Number(account.pending_balance ?? 0) > 0 ? 'review' : 'clear' },
+  ]
+  const recent = (
+    <section className="panel ovx-card overflow-hidden" aria-labelledby="ov-recent">
+      <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-2">
+        <h3 id="ov-recent" className="text-[15px] font-semibold text-fg">{t('dash.recentTx')}</h3>
+        {txs.length > 0 && can('transactions') && <button onClick={() => go('transactions')} className="text-[13px] text-fg-muted hover:text-fg min-h-8 px-1 whitespace-nowrap">{t('common.viewAll')}</button>}
+      </div>
+      {recentTxs.length === 0 ? (
+        <EmptyState title={t('dash.noTx')} body={t('dash.noTxBody')} />
+      ) : (
+        <ul className="px-2 pb-2">
+          {recentTxs.map(tx => (
+            <li key={tx.id} className="ovx-row flex items-center justify-between gap-3 rounded-xl px-3 py-2.5">
+              <div className="flex items-center gap-3 min-w-0">
+                <TxIcon type={tx.type} tx={tx} />
+                <div className="min-w-0">
+                  <p className="text-[13.5px] text-fg truncate">{txLabel(tx, t)}{isAccountCredit(tx) && <span className="text-fg-faint font-normal"> · {t('dash.txType.accountCredit')}</span>}</p>
+                  <p className="text-[11.5px] leading-snug text-fg-faint line-clamp-2 break-words" title={txDescription(tx, t) || undefined}>{new Date(tx.created_at).toLocaleDateString(intl, { month: 'short', day: 'numeric', year: 'numeric' })}{txDescription(tx, t) && <span data-tx-desc> · {txDescription(tx, t)}</span>}</p>
+                </div>
+              </div>
+              <div className="text-right shrink-0">
+                <p className={`text-[13.5px] font-semibold tabular-nums mb-1 whitespace-nowrap ${txSign(tx) > 0 ? 'price-up' : 'text-fg'}`} data-signed-amount>{signedAmount(tx)}</p>
+                <StatusTag status={tx.status} />
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
 
   return (
-    <div className="space-y-5 panel-in">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div className="min-w-0">
-          <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-fg">{t(greetingKey(), { name })}</h2>
-          <p className="text-sm text-fg-faint mt-0.5">{t('overview.subtitle')}</p>
-        </div>
-        {can('verification') && <KycChip go={go} />}
-      </div>
+    <div className="ovx space-y-4 sm:space-y-5 panel-in">
+      <OverviewHero title={t('overview.welcome', { name: firstName })} body={t('ov2.heroBody')} aside={can('verification') ? <KycChip go={go} /> : undefined} />
+
+      {whatsNew}
 
       {pendingCount > 0 && (
         <div role="status" className="alert alert-warning">
@@ -878,155 +929,60 @@ function OverviewTab({ name, account, txs, go, can, labelOf, whatsNew }: { whats
         </div>
       )}
 
-      <div className="grid lg:grid-cols-[1.6fr_1fr] gap-4">
-        {/* Primary: balance, the other balances and quick actions */}
-        <section ref={balRef} data-flow={inv && inv.active_count > 0 ? "on" : undefined} className="ov-depth ov-hero relative overflow-hidden rounded-2xl border border-ink-700 p-5 sm:p-6 bg-[linear-gradient(135deg,rgb(var(--accent)/.10),rgb(var(--brand-500)/.05)_55%,transparent),rgb(var(--ink-900))] shadow-[inset_0_1px_0_rgb(var(--contrast)/.06),0_24px_48px_-28px_rgb(var(--shadow)/var(--shadow-strength))]" aria-labelledby="ov-bal">
-          {/* Restrained accent light in the corner; decorative only. */}
-          <div className="pointer-events-none absolute -top-24 -right-16 w-64 h-64 rounded-full bg-accent/10 blur-3xl" aria-hidden="true" />
-          {/* Faint depth grid, drifting slightly with scroll (--ov-p). */}
-          <div className="ov-grid pointer-events-none absolute inset-0" aria-hidden="true" />
-          {/* Very slow gold light drifting across the panel (paused off screen
-              and for reduced motion). Decorative only; no numbers move. */}
-          <div className="ov-light pointer-events-none absolute inset-0" aria-hidden="true" />
-          <p id="ov-bal" className="relative text-[12px] font-medium uppercase tracking-[0.12em] text-fg-faint">{t('dash.accountBalance')}</p>
-          <p className="relative mt-2.5 text-[clamp(32px,9.5vw,46px)] leading-none font-semibold tracking-[-0.03em] text-fg tabular-nums break-all">
-            <AnimatedPrice value={Number(account?.available_balance ?? 0)} format={money} />
-          </p>
-          {/* Balance first, then the two figures that change it soonest:
-              profit / return and pending (the account's own recorded figures).
-              Invested totals live in Portfolio → Investment Center and More →
-              Account details, from the same investment records. */}
-          {/* Secondary figures as one structured summary: each row is the
-              backend's own value (account profit/pending; invested from the
-              investment records, the same source as Investments). */}
-          <dl className="ov-figures relative mt-6 border-t border-ink-700/70 divide-y divide-ink-700/50" data-overview-figures>
-            {([
-              ['dash.profitReturn', account ? Number(account.profit_balance ?? 0) : null, 'profit'],
-              ['dash.invested', inv ? Number(inv.total_invested) : null, 'invested'],
-              ['dash.pending', account ? Number(account.pending_balance ?? 0) : null, 'pending'],
-            ] as [TKey, number | null, string][]).map(([label, value, key]) => (
-              <div key={key} data-figure={key} className="flex items-center justify-between gap-4 py-3 min-w-0">
-                <div className="min-w-0">
-                  <dt className="text-[11px] font-medium uppercase tracking-[0.1em] text-fg-faint truncate">{t(label)}</dt>
-                  {value != null && key === 'profit' && (
-                    <dd className={`mt-0.5 inline-flex items-center gap-1 text-[11px] ${value > 0 ? 'text-success-400' : 'text-fg-faint'}`} data-profit-state={value > 0 ? 'positive' : 'none'}>
-                      {value > 0 ? <><span aria-hidden="true">↗</span> Return recorded</> : 'No return recorded yet'}
-                    </dd>
-                  )}
-                  {value != null && key === 'pending' && (
-                    <dd className="mt-0.5 inline-flex items-center gap-1.5 text-[11px] text-fg-faint" data-pending-state={value > 0 ? 'review' : 'clear'}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${value > 0 ? 'bg-amber-400' : 'bg-success-400'}`} aria-hidden="true" />{value > 0 ? 'Awaiting review' : 'Clear'}
-                    </dd>
-                  )}
-                </div>
-                <dd data-value className={`text-[17px] sm:text-[19px] font-semibold tabular-nums text-right whitespace-nowrap ${key === 'profit' && value != null && value > 0 ? 'text-success-300' : 'text-fg/90'}`}>
-                  {value != null ? <AnimatedPrice value={value} format={money} />
-                    : !account ? <span className="inline-block h-5 w-24 rounded skeleton align-middle" aria-hidden="true" />
-                    : <span className="text-[12px] font-normal text-fg-faint">{t('dash.unavailable')}</span>}
-                </dd>
+      {/* Available balance leads; the other three recorded figures sit
+          beside it (a compact row of three on phones). */}
+      <dl className="ovx-stats grid grid-cols-6 xl:grid-cols-[1.3fr_1fr_1fr_1fr] gap-2.5 sm:gap-3" data-overview-figures aria-label={t('dash.accountBalance')}>
+        {figures.map(f => {
+          const text = f.value != null ? money(f.value) : ''
+          const main = f.key === 'available'
+          return (
+            <div key={f.key} data-figure={f.key} className={`ovx-stat ovx-stat-${f.key} min-w-0 ${main ? 'col-span-6 xl:col-span-1' : 'col-span-2 xl:col-span-1'}`}>
+              <div className="flex items-center gap-3 min-w-0">
+                <span className={`ovx-stat-icon ${main ? '' : 'max-sm:hidden'}`} aria-hidden="true"><f.icon width={main ? 19 : 17} height={main ? 19 : 17} /></span>
+                <dt className="min-w-0 text-[11.5px] sm:text-[12.5px] font-medium text-fg-muted truncate">{t(f.label)}</dt>
               </div>
-            ))}
-          </dl>
-          {quick.length > 0 && (
-            <div className="relative mt-5">
-              <p className="sr-only">{t('overview.quickActions')}</p>
-              {/* One row of actions from 360px up (2x2 only on the narrowest phones),
-                  so the balance stays the anchor instead of a block of tiles. */}
-              <div className={`grid gap-1.5 sm:gap-2 ${quick.length >= 4 ? 'grid-cols-2 min-[360px]:grid-cols-4' : quick.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
-                {quick.map(([id, label, I]) => (
-                  <button
-                    key={id}
-                    onClick={() => go(id)}
-                    data-tile={id}
-                    className={`ov-tile ov-tile-${id} group flex flex-col items-center justify-center gap-1.5 min-h-[66px] rounded-xl px-1 text-[11.5px] sm:text-[12.5px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50`}
-                  >
-                    <span className="ov-tile-icon w-7 h-7 rounded-lg grid place-items-center"><I width={16} height={16} aria-hidden="true" /></span>
-                    {/* Transactions reads "Activity" here, as on the bottom bar, so it fits one row. */}
-                    <span className="text-center leading-tight max-w-full truncate">{id === 'transactions' ? t('shell.activity') : labelOf({ id, label })}</span>
-                  </button>
-                ))}
-              </div>
+              <dd data-value className={`tabular-nums font-semibold tracking-[-0.02em] whitespace-nowrap ${main ? 'mt-3 text-[clamp(30px,8.6vw,40px)] xl:text-[30px] 2xl:text-[34px] leading-none text-fg' : `mt-2 sm:mt-3 leading-tight ${text.length > 12 ? 'text-[12.5px] sm:text-[17px] xl:text-[17px] 2xl:text-[20px]' : 'text-[14px] sm:text-[19px] xl:text-[19px] 2xl:text-[22px]'} ${f.key === 'profit' && (f.value ?? 0) > 0 ? 'text-success-300' : 'text-fg'}`}`}>
+                {f.value != null ? <AnimatedPrice value={f.value} format={money} />
+                  : !account ? <span className="inline-block h-5 w-20 rounded skeleton align-middle" aria-hidden="true" />
+                  : <span className="text-[12px] font-normal text-fg-faint">{t('dash.unavailable')}</span>}
+              </dd>
+              {f.sub && <dd className="mt-1.5 text-[11px] sm:text-[12px] leading-snug text-fg-faint line-clamp-2 [overflow-wrap:normal]" data-profit-state={f.key === 'profit' ? f.state : undefined} data-pending-state={f.key === 'pending' ? f.state : undefined}>{f.sub}</dd>}
             </div>
-          )}
-        </section>
+          )
+        })}
+      </dl>
 
-        {/* Secondary: market */}
-        {can('markets') ? (
-          <ErrorBoundary label={t('market.bitcoinMarket')}><BitcoinMarketCard /></ErrorBoundary>
-        ) : (
-          <div className="hidden lg:block" />
+      {quick.length > 0 && (
+        <nav aria-label={t('overview.quickActions')} className="ovx-actions" data-quick-actions>
+          {quick.map(([id, label, I]) => (
+            <button key={id} onClick={() => go(id)} data-tile={id} className={`ovx-act ${id === 'deposit' ? 'ovx-act-primary' : ''}`}>
+              <span className="ovx-act-icon"><I width={18} height={18} aria-hidden="true" /></span>
+              <span className="ovx-act-label">{id === 'transactions' ? t('shell.activity') : id === 'portfolio' ? t('ov2.invest') : labelOf({ id, label })}</span>
+            </button>
+          ))}
+        </nav>
+      )}
+
+      <div className={`grid gap-4 items-start ${showAuto || showInv ? 'lg:grid-cols-[minmax(0,1fr)_minmax(300px,360px)]' : ''}`}>
+        <div className="space-y-4 min-w-0">
+          <div className="grid xl:grid-cols-2 gap-4 items-start">
+            {recent}
+            {can('markets') && <ErrorBoundary label={t('market.bitcoinMarket')}><MarketSnapshot onOpenMarkets={() => go('markets')} /></ErrorBoundary>}
+          </div>
+        </div>
+        {(showAuto || showInv) && (
+          <div className="space-y-4 min-w-0">
+            {showAuto && <OverviewAutomation onOpen={() => go('automations')} />}
+            {showInv && <ErrorBoundary label={t('inv.f.activeTitle')}><InvestmentsMini go={go} /></ErrorBoundary>}
+          </div>
         )}
       </div>
-
-      {whatsNew}
-
-      {/* XAI automation preview: only while Automations is enabled for clients. */}
-      {can('automations') && <Rise><OverviewAutomation onOpen={() => go('automations')} /></Rise>}
-
-      {can('portfolio') && !hiddenState(feature('investments')) && <Rise><ErrorBoundary label={t('inv.f.activeTitle')}><ActiveInvestmentsCard go={go} /></ErrorBoundary></Rise>}
 
       {!hiddenState(feature('trading_status')) && <TradingStatusCard
         status={account?.trading_status}
         strategyName={account?.trading_strategy_name}
         updatedAt={account?.trading_status_updated_at}
       />}
-
-      <Rise className="grid lg:grid-cols-[1fr_1.6fr] gap-4">
-        <section className="panel p-5 sm:p-6" aria-labelledby="ov-perf">
-          <div className="flex items-center justify-between gap-3 mb-3">
-            <h3 id="ov-perf" className="text-[15px] font-semibold text-fg">{t('overview.performance')}</h3>
-            {can('performance') && <button onClick={() => go('performance')} className="text-[13px] text-fg-muted hover:text-fg min-h-8 px-1">{t('common.viewAll')}</button>}
-          </div>
-          <dl className="divide-y divide-ink-700">
-            <div className="flex items-center justify-between gap-4 py-3">
-              <dt className="text-sm text-fg-muted">{t('overview.creditedReturns')}</dt>
-              <dd className={`text-sm font-semibold tabular-nums ${totals.returns > 0 ? 'price-up' : 'text-fg'}`}>{money(totals.returns)}</dd>
-            </div>
-            <div className="flex items-center justify-between gap-4 py-3">
-              <dt className="text-sm text-fg-muted">{t('overview.netDeposits')}</dt>
-              <dd className="text-sm font-semibold text-fg tabular-nums">{money(totals.deposited - totals.withdrawn)}</dd>
-            </div>
-          </dl>
-        </section>
-
-        <section className="panel" aria-labelledby="ov-recent">
-          <div className="flex items-center justify-between px-5 h-14 border-b border-ink-700">
-            <h3 id="ov-recent" className="text-[15px] font-semibold text-fg">{t('dash.recentTx')}</h3>
-            {txs.length > 0 && can('transactions') && <button onClick={() => go('transactions')} className="text-[13px] text-fg-muted hover:text-fg min-h-8 px-1">{t('common.viewAll')}</button>}
-          </div>
-          {recentTxs.length === 0 ? (
-            <EmptyState title={t('dash.noTx')} body={t('dash.noTxBody')} />
-          ) : (
-            <ul className="divide-y divide-ink-700">
-              {recentTxs.map(tx => (
-                <li key={tx.id} className="flex items-center justify-between gap-4 px-5 py-3.5 transition-colors hover:bg-ink-850/60">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <TxIcon type={tx.type} tx={tx} />
-                    <div className="min-w-0">
-                      <p className="text-sm text-fg truncate">{txLabel(tx, t)}{isAccountCredit(tx) && <span className="text-fg-faint font-normal"> · {t('dash.txType.accountCredit')}</span>}</p>
-                      <p className="text-xs leading-snug text-fg-faint line-clamp-3 break-words" title={txDescription(tx, t) || undefined}>{new Date(tx.created_at).toLocaleDateString(intl, { month: 'short', day: 'numeric', year: 'numeric' })}{txDescription(tx, t) && <span data-tx-desc> · {txDescription(tx, t)}</span>}</p>
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className={`text-sm font-medium tabular-nums mb-1 ${txSign(tx) > 0 ? 'price-up' : 'text-fg'}`} data-signed-amount>{signedAmount(tx)}</p>
-                    <StatusTag status={tx.status} />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      </Rise>
-
-      {can('markets') && (
-        <div className="panel overflow-hidden">
-          <div className="flex items-center justify-between px-4 h-11 border-b border-ink-700 text-[13px]">
-            <span className="text-fg">BTC / USD</span>
-            <BtcFeedState />
-          </div>
-          <ErrorBoundary label={t('dash.theChart')}><TradingViewChart height={360} /></ErrorBoundary>
-        </div>
-      )}
 
       <DashTrustBar />
     </div>
