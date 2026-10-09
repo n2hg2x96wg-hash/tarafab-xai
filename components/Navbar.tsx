@@ -18,7 +18,29 @@ const navLinks: { label: TKey; href: string }[] = [
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  const [active, setActive] = useState('')
   const { t } = useI18n()
+
+  // Marks the section in view (aria-current) so the visitor sees where they
+  // are. Sections that mount later (lazy) are picked up on the next check.
+  useEffect(() => {
+    const ids = navLinks.map(l => l.href.slice(1))
+    let raf = 0
+    const check = () => {
+      raf = 0
+      const line = 96
+      let cur = ''
+      for (const id of ids) {
+        const el = document.getElementById(id)
+        if (el && el.getBoundingClientRect().top <= line && el.getBoundingClientRect().bottom > line) cur = id
+      }
+      setActive(cur)
+    }
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(check) }
+    check()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => { window.removeEventListener('scroll', onScroll); if (raf) cancelAnimationFrame(raf) }
+  }, [])
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8)
@@ -49,7 +71,7 @@ export default function Navbar() {
 
           <div className="hidden lg:flex items-center gap-7 min-w-0">
             {navLinks.map(link => (
-              <a key={link.href} href={link.href} className="text-sm text-fg-muted hover:text-fg transition-colors whitespace-nowrap">
+              <a key={link.href} href={link.href} aria-current={active === link.href.slice(1) ? 'true' : undefined} className="ex-nav-link text-sm text-fg-muted hover:text-fg transition-colors whitespace-nowrap">
                 {t(link.label)}
               </a>
             ))}
@@ -63,7 +85,7 @@ export default function Navbar() {
           </div>
 
           <button
-            className="md:hidden p-2 -mr-2 text-fg-muted hover:text-fg"
+            className="md:hidden p-2.5 -mr-2.5 text-fg-muted hover:text-fg"
             onClick={() => setMobileOpen(o => !o)}
             aria-label={mobileOpen ? t('common.closeMenu') : t('common.openMenu')}
             aria-expanded={mobileOpen}
@@ -77,7 +99,7 @@ export default function Navbar() {
         <div className="md:hidden rise-in border-t border-ink-700 bg-ink-950 px-4 pb-5 pt-2 max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain safe-bottom">
           <div className="flex flex-col">
             {navLinks.map(link => (
-              <a key={link.href} href={link.href} onClick={() => setMobileOpen(false)} className="py-3 text-[15px] text-fg-muted hover:text-fg border-b border-ink-800">
+              <a key={link.href} href={link.href} onClick={() => setMobileOpen(false)} aria-current={active === link.href.slice(1) ? 'true' : undefined} className="py-3 min-h-11 text-[15px] text-fg-muted hover:text-fg aria-[current=true]:text-fg border-b border-ink-800">
                 {t(link.label)}
               </a>
             ))}

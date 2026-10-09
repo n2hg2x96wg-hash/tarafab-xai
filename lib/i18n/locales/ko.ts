@@ -102,6 +102,23 @@ const ko: DeepPartial<typeof en> = {
     resetPassword: '비밀번호 재설정',
   },
   landing: {
+    ex: {
+      b1Sub: '자체 타임스탬프가 있는 시세',
+      assetsTitle: '시장 한눈에 보기',
+      assetsAll: '전체 시장',
+      assetsDown: '현재 시장 데이터를 사용할 수 없습니다. 데이터 피드가 복구되는 즉시 시세가 표시되며, 추정값은 표시하지 않습니다.',
+      autoEyebrow: '자동화',
+      autoTitle: '지켜보는 규칙.',
+      autoBody: '로그인 후 지원되는 시장에 대한 규칙을 설정하세요. 엔진이 매분 현재 시장 데이터를 규칙과 비교하고, 모든 확인을 기록하며, 조건이 충족되면 알려 드립니다.',
+      a1Title: '나의 규칙',
+      a1Body: '자동화를 지원하는 시장에서의 가격 수준 또는 24시간 변동.',
+      a2Title: '매분 확인',
+      a2Body: '추정값이 아닌 시장 피드의 현재 시세로 확인합니다.',
+      a3Title: '기록 및 알림',
+      a3Body: '모든 확인은 검토할 수 있도록 기록되며, 조건이 충족되면 알림을 받습니다.',
+      autoNote: '자동화는 모니터링과 알림 기능입니다. 수익을 보장하지 않습니다.',
+      visualAlt: '어두운 표면 위의 금색 비트코인 코인',
+    },
     scene: {
       intelligence: '입금',
       automation: '투자',

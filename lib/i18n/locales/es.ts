@@ -99,6 +99,23 @@ const es: DeepPartial<typeof en> = {
     resetPassword: 'Restablecer contraseña',
   },
   landing: {
+    ex: {
+      b1Sub: 'Precios con su propia marca de tiempo',
+      assetsTitle: 'Mercados de un vistazo',
+      assetsAll: 'Todos los mercados',
+      assetsDown: 'Los datos de mercado no están disponibles ahora. Los precios aparecerán aquí en cuanto vuelva la fuente; no se estima nada.',
+      autoEyebrow: 'Automatización',
+      autoTitle: 'Reglas que vigilan por usted.',
+      autoBody: 'Una vez iniciada la sesión, defina reglas para los mercados compatibles. El motor compara cada minuto los datos de mercado actuales con ellas, registra cada comprobación y le avisa cuando se cumple una condición.',
+      a1Title: 'Sus reglas',
+      a1Body: 'Un nivel de precio o un movimiento de 24 horas, en los mercados que admiten automatización.',
+      a2Title: 'Comprobadas cada minuto',
+      a2Body: 'Con cotizaciones actuales de la fuente de mercado, nunca con estimaciones.',
+      a3Title: 'Registradas y notificadas',
+      a3Body: 'Cada comprobación queda registrada para su revisión y se le avisa cuando se cumple una condición.',
+      autoNote: 'La automatización supervisa y avisa. No garantiza rendimientos.',
+      visualAlt: 'Moneda de Bitcoin dorada sobre una superficie oscura',
+    },
     scene: {
       intelligence: 'Fondear',
       automation: 'Invertir',

@@ -1,36 +1,17 @@
 'use client'
 
-import dynamic from 'next/dynamic'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
-import { LiveTickerBar, useLiveMarket } from '@/components/LiveCrypto'
+import { useLiveMarket } from '@/components/LiveCrypto'
 import { IconArrowDown, IconChart, IconCheck, IconGrid, IconList, IconLock, IconSwap, IconUser, Logo } from '@/components/Icons'
-import { FaqSection, HeroFloatPanels, Reveal, TrustBar } from '@/components/LandingExtras'
+import { FaqSection, Reveal } from '@/components/LandingExtras'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import LazyOnView from '@/components/markets/LazyOnView'
 import HashSettle from '@/components/landing/HashSettle'
-import HeroScene from '@/components/landing/HeroScene'
-
-// Decorative canvas: its code is fetched only once the browser is idle, so it
-// never competes with the page becoming interactive.
-const AmbientField = dynamic(() => import('@/components/AmbientField').then(m => m.AmbientField), { ssr: false })
-
-
-// Decorative line behind the hero. It is an abstract wave, not price data:
-// no axis, no values, and it never changes with the market. Two identical
-// periods are drawn so the slow horizontal drift loops without a seam.
-const HERO_WAVE = (() => {
-  const period = 1600, h = 180, pts: string[] = []
-  for (let x = 0; x <= period * 2; x += 20) {
-    const u = (x % period) / period * Math.PI * 2
-    const y = h * 0.55 - Math.sin(u) * 26 - Math.sin(u * 3 + 1.2) * 12 - Math.sin(u * 7 + .4) * 5
-    pts.push(`${x},${y.toFixed(1)}`)
-  }
-  return `M${pts.join(' L')}`
-})()
+import { AssetStrip, AutomationSection, BenefitRow, HeroVisual } from '@/components/landing/Executive'
 
 // The overall account and investment workflow, shown under "How it works".
 // The deposit-specific steps below stay separate, under "How deposits work".
@@ -72,18 +53,11 @@ const safeguards: TKey[] = [
 
 const loadIntelligence = () => import('@/components/markets/LandingMarkets')
 const loadPricing = () => import('@/components/premium/LandingPricing')
-const loadStory = () => import('@/components/landing/ScrollStory')
 
 export default function LandingPage() {
   const router = useRouter()
   const market = useLiveMarket()
-  const [ambient, setAmbient] = useState(false)
   const [adminSession, setAdminSession] = useState(false)
-  useEffect(() => {
-    const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (h: number) => void }
-    if (w.requestIdleCallback) { const h = w.requestIdleCallback(() => setAmbient(true), { timeout: 2500 }); return () => w.cancelIdleCallback?.(h) }
-    const t = setTimeout(() => setAmbient(true), 1200); return () => clearTimeout(t)
-  }, [])
   const { t } = useI18n()
 
   // A signed-in CLIENT is sent to their dashboard. A signed-in ADMIN is not
@@ -134,193 +108,158 @@ export default function LandingPage() {
         </div>
       )}
 
-      <div className="pt-16">
-        <ErrorBoundary label={t('trust.marketData')}><LiveTickerBar /></ErrorBoundary>
-      </div>
-
-      {/* Hero */}
-      <section className="relative border-b border-ink-700 overflow-hidden">
-        {/* Decorative layer, capped to the hero banner's own height. On
-            phones the two grid columns below stack vertically, which makes
-            this section much taller than the banner it is meant to sit
-            behind; without a cap the node network and price wave spread
-            across that extra height and strand isolated marks over
-            unrelated content (e.g. just under the sign-in button).
-            760px approximates the stacked badge+title+body+CTAs+risk text
-            column on a phone; it only needs to roughly bound the banner, not
-            match it exactly, since the network/wave are a diffuse texture
-            rather than content that must align to a pixel. Reverts to the
-            full section (`lg:inset-0 lg:h-auto`) once the grid is
-            side-by-side and the section height already matches the banner. */}
-        <div className="absolute inset-x-0 top-0 h-[760px] lg:inset-0 lg:h-auto overflow-hidden" aria-hidden="true">
-          <div className="hero-light" aria-hidden="true" />
-          <div className="hero-grid" aria-hidden="true" />
-          {ambient && <AmbientField className="opacity-90" />}
-          <HeroFloatPanels
-            live={market.status === 'live' || market.status === 'polling'}
-            price={market.quotes['BTC-USD']?.price}
-            change={market.quotes['BTC-USD']?.open24h ? ((market.quotes['BTC-USD']!.price / market.quotes['BTC-USD']!.open24h) - 1) * 100 : undefined}
-          />
-          <div className="market-line hidden lg:block" aria-hidden="true">
-            <svg viewBox="0 0 3200 180" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="heroWave" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0" stopColor="rgb(var(--accent))" stopOpacity=".22" />
-                  <stop offset="1" stopColor="rgb(var(--accent))" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path d={`${HERO_WAVE} L3200,180 L0,180 Z`} fill="url(#heroWave)" />
-              <path d={HERO_WAVE} fill="none" stroke="rgb(var(--accent))" strokeOpacity=".45" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
-            </svg>
-          </div>
-        </div>
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-8 pb-12 sm:pt-12 lg:pt-20 lg:pb-20 grid lg:grid-cols-[1.08fr_1fr] gap-12 lg:gap-12 items-center">
-          <div>
-            <div className="rise-in inline-flex items-center gap-2 rounded-full border border-ink-600 bg-ink-900/70 px-3 py-1 text-[12px] text-fg-muted mb-5 backdrop-blur-sm" style={{ ['--i' as string]: 0 }}>
-              <span className="relative flex w-1.5 h-1.5">
-                {market.status === 'live' && <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-70 animate-ping" />}
-                <span className={`relative inline-flex rounded-full w-1.5 h-1.5 ${market.status === 'live' ? 'bg-emerald-400' : 'bg-fg-faint'}`} />
-              </span>
-              {t('landing.badge')}
+      {/* Hero: headline, actions and disclosure first; the Bitcoin visual
+          follows on phones. Only the image and real quote are decorative. */}
+      <section className="relative pt-16 border-b border-ink-700 ex-hero-bg" aria-labelledby="hero-title">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-8 sm:pt-14 lg:pt-16 pb-10 lg:pb-14">
+          <div className="grid gap-8 lg:gap-12 lg:grid-cols-[1fr_1.02fr] items-center">
+            <div className="min-w-0">
+              <ul className="rise-in flex flex-wrap gap-2 mb-5" style={{ ['--i' as string]: 0 }} aria-label={t('landing.badge')}>
+                {(['trust.review', 'trust.audit', 'trust.access'] as TKey[]).map(k => <li key={k} className="ex-pill"><span className="ex-pill-dot" aria-hidden="true" />{t(k)}</li>)}
+              </ul>
+              {/* Lines break only between words (no hyphenation); the fluid size
+                  keeps "intelligence." whole down to 320px. */}
+              <h1 id="hero-title" className="hero-h1 rise-in text-[clamp(32px,9.6vw,50px)] sm:text-[52px] xl:text-[58px] leading-[1.06] font-semibold tracking-[-0.035em] text-fg" style={{ ['--i' as string]: 1 }}>
+                {t('landing.heroTitle1')}
+                <span className="block text-accent-sheen">{t('landing.heroTitle2')}</span>
+              </h1>
+              <p className="rise-in mt-4 sm:mt-5 text-[16px] sm:text-[17px] text-fg-muted leading-relaxed max-w-xl" style={{ ['--i' as string]: 2 }}>
+                {t('landing.heroBody')}
+              </p>
+              <div data-hero-cta className="rise-in mt-6 sm:mt-7 flex flex-col sm:flex-row gap-3" style={{ ['--i' as string]: 3 }}>
+                <Link href="/sign-up" className="btn btn-solid min-h-12 px-6">{t('common.openAccount')}</Link>
+                <Link href="/sign-in" className="btn btn-outline min-h-12 px-6">{t('common.signIn')}</Link>
+              </div>
+              {/* Phones: clear of the right-hand strip where the support bubble floats. */}
+              <p className="rise-in mt-4 text-[13px] text-fg-faint max-w-md leading-relaxed pr-14 sm:pr-0" style={{ ['--i' as string]: 4 }} data-hero-risk>
+                {t('landing.risk')}
+              </p>
             </div>
-            {/* Words never break: no hyphenation, normal wrapping, balanced lines.
-                The fluid size keeps the longest word ("intelligence.") whole
-                down to 320px; lines break only between words. */}
-            <h1 className="hero-h1 rise-in text-[clamp(30px,10.6vw,54px)] sm:text-[56px] lg:text-[54px] xl:text-[60px] leading-[1.05] font-semibold tracking-[-0.035em] text-fg" style={{ ['--i' as string]: 1 }}>
-              {t('landing.heroTitle1')}
-              <span className="block text-accent-sheen">{t('landing.heroTitle2')}</span>
-            </h1>
-            <p className="rise-in mt-4 sm:mt-6 text-[16px] sm:text-lg text-fg-muted leading-relaxed max-w-xl" style={{ ['--i' as string]: 2 }}>
-              {t('landing.heroBody')}
-            </p>
-            <div data-hero-cta className="rise-in mt-6 sm:mt-8 flex flex-col sm:flex-row gap-3" style={{ ['--i' as string]: 3 }}>
-              <Link href="/sign-up" className="btn btn-solid min-h-12 px-6">{t('common.openAccount')}</Link>
-              <Link href="/sign-in" className="btn btn-outline min-h-12 px-6">{t('common.signIn')}</Link>
-            </div>
-            <p className="rise-in mt-4 sm:mt-5 text-[13px] text-fg-faint max-w-md leading-relaxed pr-14 sm:pr-0" style={{ ['--i' as string]: 4 }}>
-              {t('landing.risk')}
-            </p>
- {/* Phones: the disclosure and assurances keep clear of the right-hand
-                strip where the support bubble floats (pr-14). */}
-            {/* Three plain assurances; no backend status or technical metadata. */}
-            <div className="rise-in mt-5 sm:mt-8 pr-14 sm:pr-0" style={{ ['--i' as string]: 5 }}>
-              <TrustBar minimal />
+            <div className="rise-in min-w-0" style={{ ['--i' as string]: 2 }}>
+              <ErrorBoundary label={t('market.bitcoinMarket')}><HeroVisual market={market} /></ErrorBoundary>
             </div>
           </div>
-
-          <div className="relative rise-in" style={{ ['--i' as string]: 3 }}>
-            <div className="absolute -inset-4 rounded-2xl bg-gradient-to-b from-accent/10 via-transparent to-transparent blur-2xl" aria-hidden="true" />
-            <div className="relative">
-              <ErrorBoundary label={t('market.bitcoinMarket')}><HeroScene market={market} /></ErrorBoundary>
-            </div>
+          <div className="mt-10 lg:mt-12 pt-7 border-t border-ink-700">
+            <BenefitRow />
           </div>
         </div>
       </section>
 
-      {/* The product story, told in 3D as the visitor scrolls (code fetched when idle, mounted near the viewport). */}
-      <LazyOnView load={loadStory} minHeight={640} />
+      {/* Markets at a glance: real quotes and their state. */}
+      <ErrorBoundary label={t('trust.marketData')}><AssetStrip /></ErrorBoundary>
 
       {/* Markets: the real market board and a clean price-history chart. */}
       <LazyOnView load={loadIntelligence} id="markets" />
 
-      {/* Intelligent automation: the engine's real status and activity. */}
-
+      {/* The platform: what an account gives you, as plain rows. */}
       <section id="platform" className="scroll-mt-16 border-b border-ink-700">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 lg:py-24">
-          <Reveal><div className="mb-10 max-w-2xl">
-            <p className="text-[12px] font-medium uppercase tracking-[0.14em] text-accent mb-3">{t('landing.platformEyebrow')}</p>
-            <h2 className="text-3xl sm:text-[34px] font-semibold tracking-tight text-fg">{t('landing.platformTitle')}</h2>
-            <p className="mt-3 text-fg-muted leading-relaxed">{t('landing.platformBody')}</p>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16 lg:py-20 grid gap-8 lg:grid-cols-[1fr_1.25fr] lg:gap-16">
+          <Reveal><div>
+            <p className="ex-eyebrow">{t('landing.platformEyebrow')}</p>
+            <h2 className="ex-h2">{t('landing.platformTitle')}</h2>
+            <p className="mt-4 text-fg-muted leading-relaxed max-w-lg">{t('landing.platformBody')}</p>
           </div></Reveal>
-          <div className="grid sm:grid-cols-2 gap-3 max-w-4xl">
-            {capabilities.filter(c => PUBLIC_CAPS.includes(c.title)).map(({ icon: Icon, title, body }, i) => (
-              <Reveal key={title} delay={(i % 4) * 70} className="h-full">
-                <div className="panel panel-lift p-5 h-full">
-                  <span className="icon-tile mb-4"><Icon width={19} height={19} /></span>
-                  <h3 className="text-[16px] font-semibold text-fg mb-1.5">{t(title)}</h3>
-                  <p className="text-[14px] text-fg-muted leading-relaxed">{t(body)}</p>
+          <ul className="border-t border-ink-700">
+            {capabilities.filter(c => PUBLIC_CAPS.includes(c.title)).map(({ icon: Icon, title, body }) => (
+              <li key={title} className="ex-feature">
+                <span className="ex-icon shrink-0" aria-hidden="true"><Icon width={18} height={18} /></span>
+                <div className="min-w-0">
+                  <h3 className="text-[16px] font-semibold text-fg">{t(title)}</h3>
+                  <p className="mt-1 text-[14.5px] text-fg-muted leading-relaxed">{t(body)}</p>
                 </div>
-              </Reveal>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
       </section>
 
+      <AutomationSection />
+
       {/* How it works: the overall account and investment workflow */}
       <section id="how-it-works" className="scroll-mt-16 border-b border-ink-700">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 lg:py-20">
-          <Reveal><div className="mb-10 max-w-2xl">
-            <h2 className="text-3xl font-semibold tracking-tight text-fg">{t('landing.workflowTitle')}</h2>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16 lg:py-20">
+          <Reveal><div className="mb-8 max-w-2xl">
+            <h2 className="ex-h2">{t('landing.workflowTitle')}</h2>
             <p className="mt-3 text-fg-muted">{t('landing.workflowBody')}</p>
           </div></Reveal>
-          <Reveal><ol className="grid sm:grid-cols-2 lg:grid-cols-4 gap-px bg-ink-700 border border-ink-700 rounded-lg overflow-hidden">
+          <ol className="grid md:grid-cols-2 md:gap-x-12 border-t border-ink-700 md:border-t-0">
             {workflow.map((s, i) => (
-              <li key={s.title} className="bg-ink-950 p-6">
-                <div className="text-[13px] text-accent font-medium tabular-nums mb-3">{t('landing.step', { n: i + 1 })}</div>
-                <h3 className="text-[17px] font-semibold text-fg mb-2">{t(s.title)}</h3>
-                <p className="text-[15px] text-fg-muted leading-relaxed">{t(s.body)}</p>
+              <li key={s.title} className={`ex-row ${i < 2 ? 'md:border-t md:border-ink-700' : ''}`}>
+                <span className="ex-num" aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>
+                <div className="min-w-0">
+                  <h3 className="text-[16px] font-semibold text-fg"><span className="sr-only">{t('landing.step', { n: i + 1 })}: </span>{t(s.title)}</h3>
+                  <p className="mt-1 text-[14.5px] text-fg-muted leading-relaxed">{t(s.body)}</p>
+                </div>
               </li>
             ))}
-          </ol></Reveal>
-          <Reveal><p className="mt-6 text-[13px] text-fg-faint max-w-3xl">{t('landing.workflowNote')}</p></Reveal>
+          </ol>
+          <p className="mt-6 text-[13px] text-fg-faint max-w-3xl">{t('landing.workflowNote')}</p>
         </div>
       </section>
 
       {/* How deposits work: funding specifically */}
       <section id="how-deposits-work" className="scroll-mt-16 border-b border-ink-700">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 lg:py-20">
-          <Reveal><div className="mb-10 max-w-2xl">
-            <h2 className="text-3xl font-semibold tracking-tight text-fg">{t('landing.howTitle')}</h2>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16 lg:py-20">
+          <Reveal><div className="mb-8 max-w-2xl">
+            <h2 className="ex-h2">{t('landing.howTitle')}</h2>
             <p className="mt-3 text-fg-muted">{t('landing.howBody')}</p>
           </div></Reveal>
-          <Reveal><ol className="grid sm:grid-cols-2 lg:grid-cols-4 gap-px bg-ink-700 border border-ink-700 rounded-lg overflow-hidden">
+          <ol className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {steps.map((s, i) => (
-              <li key={s.title} className="bg-ink-950 p-6">
-                <div className="text-[13px] text-accent font-medium tabular-nums mb-3">{t('landing.step', { n: i + 1 })}</div>
-                <h3 className="text-[17px] font-semibold text-fg mb-2">{t(s.title)}</h3>
-                <p className="text-[15px] text-fg-muted leading-relaxed">{t(s.body)}</p>
+              <li key={s.title} className="ex-asset !p-5">
+                <div className="ex-num mb-2">{t('landing.step', { n: i + 1 })}</div>
+                <h3 className="text-[16px] font-semibold text-fg mb-1.5">{t(s.title)}</h3>
+                <p className="text-[14px] text-fg-muted leading-relaxed">{t(s.body)}</p>
               </li>
             ))}
-          </ol></Reveal>
+          </ol>
         </div>
       </section>
 
-      {/* Security */}
+      {/* Security and limits, stated plainly. */}
       <section id="security" className="scroll-mt-16 border-b border-ink-700">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 lg:py-20 grid lg:grid-cols-[1fr_1.4fr] gap-10">
-          <Reveal>
-            <h2 className="text-3xl font-semibold tracking-tight text-fg">{t('landing.securityTitle')}</h2>
-            <p className="mt-3 text-fg-muted">{t('landing.securityBody')}</p>
-          </Reveal>
-          <Reveal delay={100}><ul className="divide-y divide-ink-700 border-y border-ink-700">
-            {safeguards.map(item => (
-              <li key={item} className="flex gap-3 py-4">
-                <IconCheck className="shrink-0 mt-0.5 text-accent" />
-                <span className="text-[15px] text-fg-muted leading-relaxed">{t(item)}</span>
-              </li>
-            ))}
-          </ul></Reveal>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16 lg:py-20">
+          <div className="ex-band p-6 sm:p-10 grid gap-8 lg:grid-cols-[1fr_1.35fr] lg:gap-14">
+            <div>
+              <span className="ex-icon mb-4" aria-hidden="true"><IconLock width={18} height={18} /></span>
+              <h2 className="ex-h2">{t('landing.securityTitle')}</h2>
+              <p className="mt-3 text-fg-muted">{t('landing.securityBody')}</p>
+              <p className="mt-6 text-[13px] text-fg-faint leading-relaxed">{t('landing.footerRisk')}</p>
+            </div>
+            <ul className="divide-y divide-ink-700">
+              {safeguards.map(item => (
+                <li key={item} className="flex gap-3 py-3.5 first:pt-0 last:pb-0">
+                  <IconCheck className="shrink-0 mt-0.5 text-accent" />
+                  <span className="text-[15px] text-fg-muted leading-relaxed">{t(item)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </section>
+
+      {/* Plans: the configured plans from /api/plans, only when there are any. */}
+      <LazyOnView load={loadPricing} minHeight={0} />
 
       <FaqSection />
 
       {/* Closing */}
       <section className="border-b border-ink-700">
-        <Reveal><div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div>
-            <h2 className="text-2xl font-semibold tracking-tight text-fg">{t('common.openAccount')}</h2>
-            <p className="mt-2 text-fg-muted">{t('landing.closingBody')}</p>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Link href="/sign-up" className="btn btn-solid">{t('common.openAccount')}</Link>
-            <Link href="/sign-in" className="btn btn-outline">{t('common.signIn')}</Link>
-          </div>
-        </div></Reveal>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-16">
+          <Reveal><div className="ex-band px-6 py-8 sm:px-10 sm:py-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div>
+              <h2 className="text-[26px] sm:text-[30px] font-semibold tracking-tight text-fg">{t('common.openAccount')}</h2>
+              <p className="mt-2 text-fg-muted">{t('landing.closingBody')}</p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 shrink-0">
+              <Link href="/sign-up" className="btn btn-solid min-h-12 px-6">{t('common.openAccount')}</Link>
+              <Link href="/sign-in" className="btn btn-outline min-h-12 px-6">{t('common.signIn')}</Link>
+            </div>
+          </div></Reveal>
+        </div>
       </section>
 
-      <LazyOnView load={loadPricing} minHeight={0} />
-      <footer className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-12 chat-clearance">
+      <footer className="max-w-6xl mx-auto px-4 sm:px-6 pt-12 pb-10 sm:pt-14 chat-clearance">
         <div className="grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-3 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
           <div className="col-span-2 sm:col-span-3 lg:col-span-1">
             <Logo />
@@ -337,15 +276,16 @@ export default function LandingPage() {
               <ul className="space-y-2 text-sm">
                 {links.map(([href, label]) => (
                   <li key={href}>{href.startsWith('#')
-                    ? <a href={href} className="text-fg-muted hover:text-fg transition-colors">{t(label)}</a>
-                    : <Link href={href} className="text-fg-muted hover:text-fg transition-colors">{t(label)}</Link>}</li>
+                    ? <a href={href} className="inline-block py-0.5 text-fg-muted hover:text-fg transition-colors">{t(label)}</a>
+                    : <Link href={href} className="inline-block py-0.5 text-fg-muted hover:text-fg transition-colors">{t(label)}</Link>}</li>
                 ))}
               </ul>
             </nav>
           ))}
         </div>
-        <div className="mt-10 pt-6 border-t border-ink-700 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-xs text-fg-faint">
-          <p>&copy; {new Date().getFullYear()} Tarafab.XAi</p>
+        <div className="mt-10 pt-6 border-t border-ink-700 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-8 text-xs text-fg-faint">
+          <p className="shrink-0">&copy; {new Date().getFullYear()} Tarafab.XAi</p>
+          <p className="max-w-xl sm:text-right leading-relaxed">{t('landing.footer.attr')}</p>
         </div>
       </footer>
     </div>

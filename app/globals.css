@@ -861,3 +861,31 @@ body.dialog-open #chat-application { visibility: hidden !important; }
   .flow-link { display: none; }
   .flow-step + .flow-step .flow-node { border-top: 1px solid rgb(var(--contrast) / .05) !important; }
 }
+
+/* ---- Public landing: Executive Bitcoin + Minimal Modern (ex-*) ---------- */
+/* Scoped to the landing page; restrained gold on charcoal, no glow fields. */
+.ex-eyebrow { font-size: 12px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: rgb(var(--accent-text)); margin-bottom: .75rem; }
+.ex-h2 { font-size: clamp(28px, 4.2vw, 38px); line-height: 1.1; font-weight: 600; letter-spacing: -0.025em; color: rgb(var(--fg)); text-wrap: balance; }
+.ex-icon { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 10px;
+  color: rgb(var(--accent-text)); background: rgb(var(--accent) / .08); border: 1px solid rgb(var(--accent) / .22); }
+.ex-pill { display: inline-flex; align-items: center; gap: .5rem; border-radius: 999px; padding: .3rem .75rem; font-size: 12px;
+  color: rgb(var(--fg-muted)); border: 1px solid rgb(var(--accent) / .25); background: rgb(var(--accent) / .05); }
+@media (max-width: 420px) { .ex-pill { padding: .25rem .55rem; font-size: 11.5px; gap: .4rem; } }
+.ex-pill-dot { width: 4px; height: 4px; border-radius: 999px; background: rgb(var(--accent) / .8); }
+.ex-asset { padding: .9rem 1rem; border-radius: 14px; background: rgb(var(--ink-900) / .7); border: 1px solid rgb(var(--contrast) / .07);
+  transition: border-color .2s ease; }
+.ex-asset:hover { border-color: rgb(var(--accent) / .3); }
+.ex-coin { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 999px; flex: none;
+  font-size: 13px; font-weight: 700; color: rgb(var(--fg)); background: rgb(var(--ink-800)); border: 1px solid rgb(var(--contrast) / .1); }
+.ex-coin-btc { color: #1a1206; background: linear-gradient(180deg, #ffd27a, #e8a33a); border-color: #f2c060; }
+.ex-rows { border-top: 1px solid rgb(var(--ink-700)); }
+.ex-row { display: grid; grid-template-columns: 2.5rem 1fr; gap: 1rem; padding: 1.25rem 0; border-bottom: 1px solid rgb(var(--ink-700)); }
+.ex-num { font-size: 13px; font-weight: 600; color: rgb(var(--accent-text)); font-variant-numeric: tabular-nums; padding-top: .15rem; }
+.ex-feature { display: flex; gap: .9rem; padding: 1.25rem 0; border-bottom: 1px solid rgb(var(--ink-700)); }
+.ex-band { border-radius: 20px; border: 1px solid rgb(var(--accent) / .18);
+  background: radial-gradient(120% 140% at 100% 0%, rgb(var(--accent) / .09), transparent 55%), rgb(var(--ink-900)); }
+.ex-hero-bg { background: radial-gradient(70% 90% at 85% 10%, rgb(var(--accent) / .07), transparent 60%); }
+.ex-nav-link { position: relative; padding: .4rem 0; }
+.ex-nav-link[aria-current="true"] { color: rgb(var(--fg)); }
+.ex-nav-link[aria-current="true"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -2px; height: 2px; border-radius: 2px; background: rgb(var(--accent)); }
+@media (prefers-reduced-motion: reduce) { .ex-asset { transition: none; } }
