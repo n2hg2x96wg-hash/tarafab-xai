@@ -977,3 +977,16 @@ button.ovx-row:focus-visible { outline: none; box-shadow: inset 0 0 0 2px rgb(va
   .cc-navgroup { margin-bottom: 10px; }
   .cc-drawer .cc-navgroup + .cc-navgroup { border-top: 0; padding-top: 0; }
 }
+
+/* Live 3D Bitcoin (components/three): a layer behind its section. */
+.btc3d, .btc3d-host { position: absolute; inset: 0; pointer-events: none; }
+.btc3d-host canvas { opacity: 0; transition: opacity .9s ease; }
+.btc3d[data-btc3d="ready"] .btc3d-host canvas { opacity: 1; }
+/* Landing: on phones the coin sits behind the headline, so it is quieter there. */
+@media (max-width: 1023px) { .hero-btc3d .btc3d-host { opacity: .6; } }
+/* Dashboard banner: faded on its left so the greeting stays clear. */
+.ovx-hero-3d .btc3d-host { -webkit-mask-image: linear-gradient(90deg, transparent 0, rgb(0 0 0 / .6) 32%, #000 55%); mask-image: linear-gradient(90deg, transparent 0, rgb(0 0 0 / .6) 32%, #000 55%); }
+@media (max-width: 639px) { .ovx-hero-3d .btc3d-host { opacity: .5; } }
+/* Landing hero: compact live price card under the 3D coin. */
+.hs-card { border-radius: 18px; border: 1px solid rgb(var(--ink-600) / .9); background: linear-gradient(160deg, rgb(var(--ink-800) / .9), rgb(var(--ink-900) / .86));
+  padding: 16px 18px; box-shadow: 0 40px 70px -35px rgba(0,0,0,.7), inset 0 1px 0 rgb(var(--contrast) / .06); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }

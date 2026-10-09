@@ -22,7 +22,7 @@ const NODES = [
   { key: 'landing.scene.investments', cls: 'hs-n3' },
 ] as const
 
-export default function HeroScene({ market }: { market: Market }) {
+export default function HeroScene({ market, compact = false }: { market: Market; compact?: boolean }) {
   const { t } = useI18n()
   const ref = useRef<HTMLDivElement>(null)
 
@@ -65,6 +65,26 @@ export default function HeroScene({ market }: { market: Market }) {
     : market.status === 'connecting' ? t('status.connecting') : t('common.unavailable')
   const tone = market.status === 'live' || market.status === 'polling' ? 'bg-emerald-400' : market.status === 'connecting' ? 'bg-fg-faint' : 'bg-amber-400'
 
+  const card = (
+    <div className={compact ? 'hs-card' : 'hs-main'} role="group" aria-label={t('landing.scene.aria')}>
+      <div className="flex items-center justify-between gap-3 text-[12px] text-fg-muted">
+        <span>Bitcoin <span className="text-fg-faint">BTC/USD</span></span>
+        <span className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-wide">
+          <span className={`w-1.5 h-1.5 rounded-full ${tone} ${market.status === 'live' ? 'board-pulse' : ''}`} aria-hidden="true" />{label}
+        </span>
+      </div>
+      <p className="mt-2 text-[30px] sm:text-[34px] leading-none font-semibold tracking-tight tabular-nums text-fg" data-hero-price>
+        {hasPrice ? `$${btc!.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}
+      </p>
+      <p className="mt-2 h-4 text-[12px] tabular-nums">
+        {change != null ? <span className={change >= 0 ? 'price-up' : 'price-down'}>{change >= 0 ? '▲' : '▼'} {Math.abs(change).toFixed(2)}% <span className="text-fg-faint">24h</span></span>
+          : !hasPrice && market.status === 'error' ? <span className="text-fg-faint">{t('landing.scene.noQuote')}</span> : null}
+      </p>
+    </div>
+  )
+  // Compact: only the live price card (the hero's 3D coin stands above it).
+  if (compact) return <div className="hero-scene-compact" data-scene-status={market.status}>{card}</div>
+
   return (
     <div ref={ref} className="hero-scene" data-scene-status={market.status}>
       <div className="hs-floor" aria-hidden="true" />
@@ -74,21 +94,7 @@ export default function HeroScene({ market }: { market: Market }) {
           <path d="M200 120 C 200 180, 200 210, 200 270" pathLength={100} />
           <path d="M200 120 C 260 170, 310 190, 330 250" pathLength={100} />
         </svg>
-        <div className="hs-main" role="group" aria-label={t('landing.scene.aria')}>
-          <div className="flex items-center justify-between gap-3 text-[12px] text-fg-muted">
-            <span>Bitcoin <span className="text-fg-faint">BTC/USD</span></span>
-            <span className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-wide">
-              <span className={`w-1.5 h-1.5 rounded-full ${tone} ${market.status === 'live' ? 'board-pulse' : ''}`} aria-hidden="true" />{label}
-            </span>
-          </div>
-          <p className="mt-2 text-[30px] sm:text-[34px] leading-none font-semibold tracking-tight tabular-nums text-fg" data-hero-price>
-            {hasPrice ? `$${btc!.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}
-          </p>
-          <p className="mt-2 h-4 text-[12px] tabular-nums">
-            {change != null ? <span className={change >= 0 ? 'price-up' : 'price-down'}>{change >= 0 ? '▲' : '▼'} {Math.abs(change).toFixed(2)}% <span className="text-fg-faint">24h</span></span>
-              : !hasPrice && market.status === 'error' ? <span className="text-fg-faint">{t('landing.scene.noQuote')}</span> : null}
-          </p>
-        </div>
+        {card}
         {NODES.map(n => (
           <div key={n.key} className={`hs-node ${n.cls}`} aria-hidden="true"><span className="hs-dot" />{t(n.key)}</div>
         ))}

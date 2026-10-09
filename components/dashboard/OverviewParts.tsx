@@ -6,6 +6,18 @@ import { formatPrice, type AssetQuote, type Timeframe } from '@/lib/assets'
 import { effectiveState, type MarketState } from '@/lib/marketStatus'
 import { loadChart, useAssets } from '@/components/markets/useAssets'
 import { AreaChart, Sparkline } from '@/components/markets/Charts'
+import dynamic from 'next/dynamic'
+
+const BitcoinGrowth3D = dynamic(() => import('@/components/three/BitcoinGrowth3D'), { ssr: false })
+// Coin on the banner's right; on phones smaller and further right, behind the text.
+const placeBannerCoin = (w: number, h: number) => {
+  if (w >= 640) {
+    const size = h * 0.72, x = w - h * 0.72, y = h * 0.5
+    return { x, y, size, lineFrom: { x: w * 0.5, y: h * 1.02 }, lineTo: { x: x - size * 0.56, y: y + size * 0.08 } }
+  }
+  const size = h * 0.54, x = w - size * 0.2, y = h * 0.28
+  return { x, y, size, lineFrom: { x: w * 0.58, y: h * 1.02 }, lineTo: { x: x - size * 0.5, y: y + size * 0.3 } }
+}
 
 /* Building blocks of the client Overview. Each one shows only what the
    server returned: no balances, prices, returns or automation states are
@@ -17,8 +29,11 @@ import { AreaChart, Sparkline } from '@/components/markets/Charts'
 export function OverviewHero({ title, body, aside }: { title: string; body: string; aside?: ReactNode }) {
   return (
     <section className="ovx-hero relative overflow-hidden rounded-[20px]" aria-labelledby="ovx-hello" data-ov-hero>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/dashboard/hero-bitcoin.webp" alt="" aria-hidden="true" width={1200} height={672} decoding="async" fetchPriority="low" className="ovx-hero-art" />
+      {/* Live 3D coin and growth line; the still artwork shows until the
+          first frame is drawn, and stays if WebGL is unavailable. */}
+      <BitcoinGrowth3D variant="banner" place={placeBannerCoin} className="ovx-hero-3d"
+        // eslint-disable-next-line @next/next/no-img-element
+        fallback={<img src="/dashboard/hero-bitcoin.webp" alt="" aria-hidden="true" width={1200} height={672} decoding="async" fetchPriority="low" className="ovx-hero-art" />} />
       <div className="relative min-w-0 max-w-[30rem]">
         <h2 id="ovx-hello" className="text-[22px] sm:text-[28px] leading-tight font-semibold tracking-[-0.02em] text-fg [overflow-wrap:normal] [word-break:normal]">{title}</h2>
         <p className="mt-1.5 text-[13.5px] sm:text-[14.5px] leading-relaxed text-fg-muted">{body}</p>

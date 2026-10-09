@@ -1,7 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
@@ -16,21 +16,9 @@ import HeroScene from '@/components/landing/HeroScene'
 
 // Decorative canvas: its code is fetched only once the browser is idle, so it
 // never competes with the page becoming interactive.
+const BitcoinGrowth3D = dynamic(() => import('@/components/three/BitcoinGrowth3D'), { ssr: false })
 const AmbientField = dynamic(() => import('@/components/AmbientField').then(m => m.AmbientField), { ssr: false })
 
-
-// Decorative line behind the hero. It is an abstract wave, not price data:
-// no axis, no values, and it never changes with the market. Two identical
-// periods are drawn so the slow horizontal drift loops without a seam.
-const HERO_WAVE = (() => {
-  const period = 1600, h = 180, pts: string[] = []
-  for (let x = 0; x <= period * 2; x += 20) {
-    const u = (x % period) / period * Math.PI * 2
-    const y = h * 0.55 - Math.sin(u) * 26 - Math.sin(u * 3 + 1.2) * 12 - Math.sin(u * 7 + .4) * 5
-    pts.push(`${x},${y.toFixed(1)}`)
-  }
-  return `M${pts.join(' L')}`
-})()
 
 // The overall account and investment workflow, shown under "How it works".
 // The deposit-specific steps below stay separate, under "How deposits work".
@@ -85,6 +73,25 @@ export default function LandingPage() {
     const t = setTimeout(() => setAmbient(true), 1200); return () => clearTimeout(t)
   }, [])
   const { t } = useI18n()
+  // Live 3D Bitcoin behind the hero: above the price card in the right-hand
+  // column on desktop; on phones, top right behind the headline.
+  const heroRef = useRef<HTMLElement>(null)
+  const decorRef = useRef<HTMLDivElement>(null)
+  const coinSlot = useRef<HTMLDivElement>(null)
+  const placeCoin = useCallback((w: number, h: number) => {
+    const d = decorRef.current?.getBoundingClientRect(), c = coinSlot.current?.getBoundingClientRect()
+    if (w >= 1024 && d && c && c.width > 0) {
+      const size = Math.min(c.width * 0.62, c.height * 0.8, 360)
+      // the growth line rises within the right-hand column only
+      const x = c.left - d.left + c.width / 2, y = c.top - d.top + size * 0.55 + 8
+      // the growth line rises across the right-hand column only, behind the
+      // price card and the coin, ending just above the coin's right shoulder
+      return { x, y, size, lineFrom: { x: c.left - d.left - 40, y: h * 0.985 }, lineTo: { x: x + size * 0.62, y: y - size * 0.42 } }
+    }
+    // phones: the coin peeks in from the right edge beside the headline
+    const size = Math.min(w * 0.62, 260)
+    return { x: w - size * 0.2, y: Math.min(h * 0.2, 160), size, noLine: true }
+  }, [])
 
   // A signed-in CLIENT is sent to their dashboard. A signed-in ADMIN is not
   // redirected: the public site is a legitimate place for an admin to be, and
@@ -139,7 +146,7 @@ export default function LandingPage() {
       </div>
 
       {/* Hero */}
-      <section className="relative border-b border-ink-700 overflow-hidden">
+      <section ref={heroRef} className="relative border-b border-ink-700 overflow-hidden">
         {/* Decorative layer, capped to the hero banner's own height. On
             phones the two grid columns below stack vertically, which makes
             this section much taller than the banner it is meant to sit
@@ -152,27 +159,15 @@ export default function LandingPage() {
             rather than content that must align to a pixel. Reverts to the
             full section (`lg:inset-0 lg:h-auto`) once the grid is
             side-by-side and the section height already matches the banner. */}
-        <div className="absolute inset-x-0 top-0 h-[760px] lg:inset-0 lg:h-auto overflow-hidden" aria-hidden="true">
+        <div ref={decorRef} className="absolute inset-x-0 top-0 h-[760px] lg:inset-0 lg:h-auto overflow-hidden" aria-hidden="true">
           <div className="hero-light" aria-hidden="true" />
           <div className="hero-grid" aria-hidden="true" />
-          {ambient && <AmbientField className="opacity-90" />}
+          {ambient && <BitcoinGrowth3D variant="hero" place={placeCoin} scrollRef={heroRef} className="hero-btc3d" fallback={<AmbientField className="opacity-90" />} />}
           <HeroFloatPanels
             live={market.status === 'live' || market.status === 'polling'}
             price={market.quotes['BTC-USD']?.price}
             change={market.quotes['BTC-USD']?.open24h ? ((market.quotes['BTC-USD']!.price / market.quotes['BTC-USD']!.open24h) - 1) * 100 : undefined}
           />
-          <div className="market-line hidden lg:block" aria-hidden="true">
-            <svg viewBox="0 0 3200 180" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="heroWave" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0" stopColor="rgb(var(--accent))" stopOpacity=".22" />
-                  <stop offset="1" stopColor="rgb(var(--accent))" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path d={`${HERO_WAVE} L3200,180 L0,180 Z`} fill="url(#heroWave)" />
-              <path d={HERO_WAVE} fill="none" stroke="rgb(var(--accent))" strokeOpacity=".45" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
-            </svg>
-          </div>
         </div>
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-8 pb-12 sm:pt-12 lg:pt-20 lg:pb-20 grid lg:grid-cols-[1.08fr_1fr] gap-12 lg:gap-12 items-center">
           <div>
@@ -186,12 +181,12 @@ export default function LandingPage() {
             {/* Words never break: no hyphenation, normal wrapping, balanced lines.
                 The fluid size keeps the longest word ("intelligence.") whole
                 down to 320px; lines break only between words. */}
-            <h1 className="hero-h1 rise-in text-[clamp(30px,10.6vw,54px)] sm:text-[56px] lg:text-[54px] xl:text-[60px] leading-[1.05] font-semibold tracking-[-0.035em] text-fg" style={{ ['--i' as string]: 1 }}>
-              {t('landing.heroTitle1')}
-              <span className="block text-accent-sheen">{t('landing.heroTitle2')}</span>
+            <h1 className="hero-h1 rise-in text-[clamp(30px,10.6vw,54px)] sm:text-[56px] lg:text-[46px] xl:text-[54px] leading-[1.05] font-semibold tracking-[-0.035em] text-fg" style={{ ['--i' as string]: 1 }}>
+              {t('landing.growTitle1')}
+              <span className="block text-accent-sheen">{t('landing.growTitle2')}</span>
             </h1>
             <p className="rise-in mt-4 sm:mt-6 text-[16px] sm:text-lg text-fg-muted leading-relaxed max-w-xl" style={{ ['--i' as string]: 2 }}>
-              {t('landing.heroBody')}
+              {t('landing.growBody')}
             </p>
             <div data-hero-cta className="rise-in mt-6 sm:mt-8 flex flex-col sm:flex-row gap-3" style={{ ['--i' as string]: 3 }}>
               <Link href="/sign-up" className="btn btn-solid min-h-12 px-6">{t('common.openAccount')}</Link>
@@ -208,12 +203,24 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <div className="relative rise-in" style={{ ['--i' as string]: 3 }}>
-            <div className="absolute -inset-4 rounded-2xl bg-gradient-to-b from-accent/10 via-transparent to-transparent blur-2xl" aria-hidden="true" />
-            <div className="relative">
-              <ErrorBoundary label={t('market.bitcoinMarket')}><HeroScene market={market} /></ErrorBoundary>
+          {/* Right column: room for the 3D coin (drawn by the layer behind),
+              with the live BTC price card beneath it. */}
+          <div className="relative rise-in lg:min-h-[500px] flex flex-col justify-end" style={{ ['--i' as string]: 3 }}>
+            <div ref={coinSlot} className="hidden lg:block flex-1 min-h-[320px]" aria-hidden="true" />
+            <div className="relative mx-auto w-full max-w-[320px]">
+              <ErrorBoundary label={t('market.bitcoinMarket')}><HeroScene market={market} compact /></ErrorBoundary>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* What the platform does day to day, right under the hero. */}
+      <section className="border-b border-ink-700" aria-labelledby="intro-title" data-landing-intro>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-20 grid lg:grid-cols-[1.1fr_1fr] gap-5 lg:gap-12 items-end">
+          <h2 id="intro-title" className="text-[clamp(28px,8.4vw,46px)] leading-[1.08] font-semibold tracking-[-0.03em] text-fg [overflow-wrap:normal] [word-break:normal]">
+            {t('landing.heroTitle1')} <span className="text-accent-sheen">{t('landing.heroTitle2')}</span>
+          </h2>
+          <p className="text-[16px] sm:text-lg text-fg-muted leading-relaxed max-w-xl">{t('landing.heroBody')}</p>
         </div>
       </section>
 
