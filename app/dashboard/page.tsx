@@ -1376,7 +1376,7 @@ function DepositTab({ onSuccess, go, can }: { onSuccess: () => void; go: (id: st
   return (
     <div className="dep">
       <OverviewHero kind="deposit" id="dep-title" icon={<IconArrowDown width={20} height={20} />} title={t('dash.nav.deposit')} body={t('fund.depBody')}
-        aside={<HeroChips items={[t('fund.chipReviewed'), t('fund.chipEncrypted'), t('fund.chipAudit')]} />} />
+        aside={<HeroChips items={[t('fund.chipQuickDep'), t('fund.chipSecureDep'), t('fund.chipTrack')]} />} />
       <div className="mt-5 grid lg:grid-cols-[minmax(0,1fr)_300px] gap-5 items-start">
       <div className="min-w-0 space-y-5">
 
@@ -1725,7 +1725,7 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
         </ConfirmModal>
       )}
       <OverviewHero kind="withdraw" id="wd-title" icon={<IconArrowUp width={20} height={20} />} title={t('withdraw.title')} body={t('withdraw.body')}
-        aside={<HeroChips items={[t('fund.chipReviewed'), t('fund.chipAddress'), t('fund.chipAudit')]} />} />
+        aside={<HeroChips items={[t('fund.chipQuickWd'), t('fund.chipSecureWd'), t('fund.chipTrack')]} />} />
       <div className="mt-5 grid lg:grid-cols-[minmax(0,1fr)_300px] gap-5 items-start">
       <div className="min-w-0">
       <section aria-labelledby="wd-form-title">

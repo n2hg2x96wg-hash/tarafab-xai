@@ -51,10 +51,21 @@ export const IconIdCard = (p: P) => <Base {...p}><rect x="2" y="5" width="20" he
 // Radar (market monitoring / automation rules).
 export const IconRadar = (p: P) => <Base {...p}><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><path d="M12 12 18.5 5.5" /><circle cx="12" cy="12" r="1" /></Base>
 
+const BTC_MARK = 'M-92,-196 h36 v-46 h40 v46 h30 v-46 h40 v50 c78,10 122,48 122,104 c0,44 -26,74 -66,86 c56,12 90,50 90,104 c0,78 -60,124 -160,128 v48 h-40 v-48 h-30 v48 h-40 v-48 h-36 z M-24,-130 v96 h76 c40,0 64,-18 64,-48 c0,-30 -24,-48 -64,-48 z M-24,30 v104 h88 c46,0 72,-20 72,-52 c0,-32 -26,-52 -72,-52 z'
+
 export function Logo({ className = '' }: { className?: string }) {
   return (
     <span className={`inline-flex items-center gap-2 ${className}`}>
-      <span className="w-7 h-7 rounded-md bg-accent text-ink-950 flex items-center justify-center text-[15px] font-bold leading-none">₿</span>
+      {/* Gold Bitcoin coin: CSS gold (rim, depth, a slow light sweep) with the
+          ₿ as a vector, so it renders the same on every device. */}
+      <span className="logo-coin" aria-hidden="true">
+        <svg viewBox="0 0 32 32" width="28" height="28">
+          <g transform="translate(16 16.2) rotate(14) scale(0.034) translate(-47 -18)" fillRule="evenodd">
+            <path transform="translate(26 30)" fill="#8f4a06" fillOpacity=".55" d={BTC_MARK} />
+            <path fill="#fff7e2" d={BTC_MARK} />
+          </g>
+        </svg>
+      </span>
       <span className="text-[17px] font-semibold tracking-tight text-fg">Tarafab<span className="text-fg-muted">.XAi</span></span>
     </span>
   )

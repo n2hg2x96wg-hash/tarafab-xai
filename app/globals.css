@@ -1039,3 +1039,14 @@ button.ovx-row:focus-visible { outline: none; box-shadow: inset 0 0 0 2px rgb(va
   background: radial-gradient(60% 90% at 85% 100%, rgb(var(--accent) / .12), transparent 65%), radial-gradient(40% 70% at 0% 0%, rgb(var(--accent) / .06), transparent 70%); }
 .intro-glow::after { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 1px; pointer-events: none;
   background: linear-gradient(90deg, transparent, rgb(var(--accent) / .45), transparent); }
+
+/* Brand mark: a gold Bitcoin coin with a slow light sweep. */
+.logo-coin { position: relative; width: 28px; height: 28px; flex-shrink: 0; border-radius: 9999px; display: grid; place-items: center; overflow: hidden;
+  background: radial-gradient(circle at 34% 28%, #ffecb0 0%, #fdb94a 34%, #f3951c 58%, #c76c0c 82%, #9a4f07 100%);
+  box-shadow: inset 0 0 0 1.25px rgb(255 238 190 / .6), inset 0 -2px 3px rgb(110 52 0 / .45), inset 0 2px 2px rgb(255 250 230 / .35), 0 3px 10px -3px rgb(247 147 26 / .65); }
+.logo-coin::before { content: ''; position: absolute; inset: 3px; border-radius: 9999px; border: 1px solid rgb(255 242 205 / .45); box-shadow: inset 0 1px 2px rgb(120 60 0 / .35); }
+.logo-coin svg { position: relative; display: block; }
+.logo-coin::after { content: ''; position: absolute; inset: -40% auto -40% -70%; width: 45%; transform: rotate(20deg); pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / .75), transparent); opacity: .9; animation: logo-shine 6s ease-in-out 1.2s infinite; }
+@keyframes logo-shine { 0% { left: -70%; } 18%, 100% { left: 130%; } }
+@media (prefers-reduced-motion: reduce) { .logo-coin::after { animation: none; display: none; } }
