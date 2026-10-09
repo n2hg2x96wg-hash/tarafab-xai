@@ -4,14 +4,13 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
-import { useLiveMarket } from '@/components/LiveCrypto'
 import { IconArrowDown, IconChart, IconCheck, IconGrid, IconList, IconLock, IconSwap, IconUser, Logo } from '@/components/Icons'
 import { FaqSection, Reveal } from '@/components/LandingExtras'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import LazyOnView from '@/components/markets/LazyOnView'
 import HashSettle from '@/components/landing/HashSettle'
-import { AssetStrip, AutomationSection, BenefitRow, HeroVisual } from '@/components/landing/Executive'
+import { AssetStrip, AutomationSection, Hero } from '@/components/landing/Executive'
 
 // The overall account and investment workflow, shown under "How it works".
 // The deposit-specific steps below stay separate, under "How deposits work".
@@ -56,7 +55,6 @@ const loadPricing = () => import('@/components/premium/LandingPricing')
 
 export default function LandingPage() {
   const router = useRouter()
-  const market = useLiveMarket()
   const [adminSession, setAdminSession] = useState(false)
   const { t } = useI18n()
 
@@ -97,7 +95,7 @@ export default function LandingPage() {
   }, [router])
 
   return (
-    <div className="site min-h-screen bg-ink-950 text-fg">
+    <div className="site landing-gold min-h-screen bg-ink-950 text-fg">
       <HashSettle />
       <Navbar />
       {adminSession && (
@@ -108,42 +106,8 @@ export default function LandingPage() {
         </div>
       )}
 
-      {/* Hero: headline, actions and disclosure first; the Bitcoin visual
-          follows on phones. Only the image and real quote are decorative. */}
-      <section className="relative pt-16 border-b border-ink-700 ex-hero-bg" aria-labelledby="hero-title">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-8 sm:pt-14 lg:pt-16 pb-10 lg:pb-14">
-          <div className="grid gap-8 lg:gap-12 lg:grid-cols-[1fr_1.02fr] items-center">
-            <div className="min-w-0">
-              <ul className="rise-in flex flex-wrap gap-2 mb-5" style={{ ['--i' as string]: 0 }} aria-label={t('landing.badge')}>
-                {(['trust.review', 'trust.audit', 'trust.access'] as TKey[]).map(k => <li key={k} className="ex-pill"><span className="ex-pill-dot" aria-hidden="true" />{t(k)}</li>)}
-              </ul>
-              {/* Lines break only between words (no hyphenation); the fluid size
-                  keeps "intelligence." whole down to 320px. */}
-              <h1 id="hero-title" className="hero-h1 rise-in text-[clamp(32px,9.6vw,50px)] sm:text-[52px] xl:text-[58px] leading-[1.06] font-semibold tracking-[-0.035em] text-fg" style={{ ['--i' as string]: 1 }}>
-                {t('landing.heroTitle1')}
-                <span className="block text-accent-sheen">{t('landing.heroTitle2')}</span>
-              </h1>
-              <p className="rise-in mt-4 sm:mt-5 text-[16px] sm:text-[17px] text-fg-muted leading-relaxed max-w-xl" style={{ ['--i' as string]: 2 }}>
-                {t('landing.heroBody')}
-              </p>
-              <div data-hero-cta className="rise-in mt-6 sm:mt-7 flex flex-col sm:flex-row gap-3" style={{ ['--i' as string]: 3 }}>
-                <Link href="/sign-up" className="btn btn-solid min-h-12 px-6">{t('common.openAccount')}</Link>
-                <Link href="/sign-in" className="btn btn-outline min-h-12 px-6">{t('common.signIn')}</Link>
-              </div>
-              {/* Phones: clear of the right-hand strip where the support bubble floats. */}
-              <p className="rise-in mt-4 text-[13px] text-fg-faint max-w-md leading-relaxed pr-14 sm:pr-0" style={{ ['--i' as string]: 4 }} data-hero-risk>
-                {t('landing.risk')}
-              </p>
-            </div>
-            <div className="rise-in min-w-0" style={{ ['--i' as string]: 2 }}>
-              <ErrorBoundary label={t('market.bitcoinMarket')}><HeroVisual market={market} /></ErrorBoundary>
-            </div>
-          </div>
-          <div className="mt-10 lg:mt-12 pt-7 border-t border-ink-700">
-            <BenefitRow />
-          </div>
-        </div>
-      </section>
+      {/* Hero: photograph, headline, actions, disclosure and four features. */}
+      <Hero />
 
       {/* Markets at a glance: real quotes and their state. */}
       <ErrorBoundary label={t('trust.marketData')}><AssetStrip /></ErrorBoundary>
@@ -206,8 +170,8 @@ export default function LandingPage() {
           </div></Reveal>
           <ol className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {steps.map((s, i) => (
-              <li key={s.title} className="ex-asset !p-5">
-                <div className="ex-num mb-2">{t('landing.step', { n: i + 1 })}</div>
+              <li key={s.title} className="ex-card !p-5">
+                <div className="flex items-center gap-3 mb-3"><span className="ex-num-badge" aria-hidden="true">{i + 1}</span><span className="ex-num">{t('landing.step', { n: i + 1 })}</span></div>
                 <h3 className="text-[16px] font-semibold text-fg mb-1.5">{t(s.title)}</h3>
                 <p className="text-[14px] text-fg-muted leading-relaxed">{t(s.body)}</p>
               </li>
@@ -216,24 +180,28 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Security and limits, stated plainly. */}
+      {/* Security and limits, stated plainly, on the coin photograph. */}
       <section id="security" className="scroll-mt-16 border-b border-ink-700">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16 lg:py-20">
-          <div className="ex-band p-6 sm:p-10 grid gap-8 lg:grid-cols-[1fr_1.35fr] lg:gap-14">
-            <div>
-              <span className="ex-icon mb-4" aria-hidden="true"><IconLock width={18} height={18} /></span>
-              <h2 className="ex-h2">{t('landing.securityTitle')}</h2>
-              <p className="mt-3 text-fg-muted">{t('landing.securityBody')}</p>
-              <p className="mt-6 text-[13px] text-fg-faint leading-relaxed">{t('landing.footerRisk')}</p>
+          <div className="ex-secure">
+            <img src="/landing/hero-bitcoin-wide-1600.webp" alt="" aria-hidden="true" className="ex-secure-img" loading="lazy" decoding="async" />
+            <div className="ex-secure-shade" aria-hidden="true" />
+            <div className="relative grid gap-8 p-6 pt-40 sm:p-10 md:pt-10 lg:grid-cols-[1fr_1fr] lg:gap-12 lg:p-12">
+              <div className="max-w-md">
+                <span className="ex-hero-icon mb-5" aria-hidden="true"><IconLock width={20} height={20} /></span>
+                <h2 className="text-[28px] sm:text-[34px] font-bold tracking-tight leading-tight">{t('landing.ex.secureTitle')}</h2>
+                <p className="mt-3 text-[#d6d1c7]">{t('landing.securityTitle')} — {t('landing.securityBody')}</p>
+                <p className="mt-6 text-[13px] leading-relaxed text-[#a39e94]">{t('landing.footerRisk')}</p>
+              </div>
+              <ul className="divide-y divide-[#ffffff14] self-center">
+                {safeguards.map(item => (
+                  <li key={item} className="flex gap-3 py-3.5 first:pt-0 last:pb-0">
+                    <IconCheck className="shrink-0 mt-0.5 text-[#f2bd55]" />
+                    <span className="text-[15px] text-[#e4dfd5] leading-relaxed">{t(item)}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
-            <ul className="divide-y divide-ink-700">
-              {safeguards.map(item => (
-                <li key={item} className="flex gap-3 py-3.5 first:pt-0 last:pb-0">
-                  <IconCheck className="shrink-0 mt-0.5 text-accent" />
-                  <span className="text-[15px] text-fg-muted leading-relaxed">{t(item)}</span>
-                </li>
-              ))}
-            </ul>
           </div>
         </div>
       </section>

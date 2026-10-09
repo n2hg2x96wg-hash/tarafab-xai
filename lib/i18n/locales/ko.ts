@@ -118,6 +118,7 @@ const ko: DeepPartial<typeof en> = {
       a3Body: '모든 확인은 검토할 수 있도록 기록되며, 조건이 충족되면 알림을 받습니다.',
       autoNote: '자동화는 모니터링과 알림 기능입니다. 수익을 보장하지 않습니다.',
       visualAlt: '어두운 표면 위의 금색 비트코인 코인',
+      secureTitle: '안전하고, 투명하며, 책임 있게.',
     },
     scene: {
       intelligence: '입금',

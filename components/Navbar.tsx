@@ -80,7 +80,7 @@ export default function Navbar() {
           <div className="hidden md:flex items-center gap-3">
             <ThemeSelector />
             <LanguageSelector />
-            <Link href="/sign-in" className="btn btn-sm btn-outline">{t('common.signIn')}</Link>
+            <Link href="/sign-in" className="btn btn-sm ex-btn-gold-outline">{t('common.signIn')}</Link>
             <Link href="/sign-up" className="btn btn-sm btn-solid">{t('common.openAccountShort')}</Link>
           </div>
 
@@ -105,7 +105,7 @@ export default function Navbar() {
             ))}
           </div>
           <div className="grid grid-cols-2 gap-3 pt-4">
-            <Link href="/sign-in" onClick={() => setMobileOpen(false)} className="btn btn-outline min-w-0">{t('common.signIn')}</Link>
+            <Link href="/sign-in" onClick={() => setMobileOpen(false)} className="btn ex-btn-gold-outline min-w-0">{t('common.signIn')}</Link>
             <Link href="/sign-up" onClick={() => setMobileOpen(false)} className="btn btn-solid min-w-0">{t('common.openAccountShort')}</Link>
           </div>
           <LanguageSelector variant="list" className="pt-5" />

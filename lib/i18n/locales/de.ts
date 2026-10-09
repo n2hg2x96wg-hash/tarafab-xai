@@ -115,6 +115,7 @@ const de: DeepPartial<typeof en> = {
       a3Body: 'Jede Prüfung wird für Sie protokolliert, und Sie werden benachrichtigt, wenn eine Bedingung erfüllt ist.',
       autoNote: 'Die Automatisierung überwacht und benachrichtigt. Sie garantiert keine Erträge.',
       visualAlt: 'Goldene Bitcoin-Münze auf dunkler Fläche',
+      secureTitle: 'Sicher. Transparent. Nachvollziehbar.',
     },
     scene: {
       intelligence: 'Einzahlen',

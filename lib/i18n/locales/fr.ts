@@ -115,6 +115,7 @@ const fr: DeepPartial<typeof en> = {
       a3Body: 'Chaque vérification est consignée pour votre suivi et vous êtes averti lorsqu\'une condition est remplie.',
       autoNote: 'L\'automatisation surveille et alerte. Elle ne garantit aucun rendement.',
       visualAlt: 'Pièce de Bitcoin dorée sur une surface sombre',
+      secureTitle: 'Sûr. Transparent. Responsable.',
     },
     scene: {
       intelligence: 'Approvisionner',

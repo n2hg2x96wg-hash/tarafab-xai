@@ -115,6 +115,7 @@ const it: DeepPartial<typeof en> = {
       a3Body: 'Ogni controllo viene registrato per la sua revisione e riceve un avviso quando una condizione si verifica.',
       autoNote: 'L\'automazione monitora e avvisa. Non garantisce rendimenti.',
       visualAlt: 'Moneta Bitcoin dorata su una superficie scura',
+      secureTitle: 'Sicuro. Trasparente. Responsabile.',
     },
     scene: {
       intelligence: 'Deposita',

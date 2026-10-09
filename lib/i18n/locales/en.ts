@@ -116,6 +116,7 @@ const en = {
       a3Body: 'Every check is logged for your review, and you are notified when a condition is met.',
       autoNote: 'Automation monitors and alerts. It does not guarantee returns.',
       visualAlt: 'Gold Bitcoin coin on a dark surface',
+      secureTitle: 'Secure. Transparent. Accountable.',
     },
     scene: {
       intelligence: 'Fund',
