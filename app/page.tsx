@@ -162,6 +162,8 @@ export default function LandingPage() {
         <div ref={decorRef} className="absolute inset-x-0 top-0 h-[760px] lg:inset-0 lg:h-auto overflow-hidden" aria-hidden="true">
           <div className="hero-light" aria-hidden="true" />
           <div className="hero-grid" aria-hidden="true" />
+          {/* Warm rock bed and bokeh behind the live coin (dark theme). */}
+          <div className="hero-backdrop" aria-hidden="true" />
           {ambient && <BitcoinGrowth3D variant="hero" place={placeCoin} scrollRef={heroRef} className="hero-btc3d" fallback={<AmbientField className="opacity-90" />} />}
           <HeroFloatPanels
             live={market.status === 'live' || market.status === 'polling'}

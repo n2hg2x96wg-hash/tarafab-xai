@@ -990,3 +990,20 @@ button.ovx-row:focus-visible { outline: none; box-shadow: inset 0 0 0 2px rgb(va
 /* Landing hero: compact live price card under the 3D coin. */
 .hs-card { border-radius: 18px; border: 1px solid rgb(var(--ink-600) / .9); background: linear-gradient(160deg, rgb(var(--ink-800) / .9), rgb(var(--ink-900) / .86));
   padding: 16px 18px; box-shadow: 0 40px 70px -35px rgba(0,0,0,.7), inset 0 1px 0 rgb(var(--contrast) / .06); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+
+/* Backdrop behind the live coin: the earlier studio render without coins
+   (gold rock bed, soft bokeh), faded into the page on its left. */
+.hero-backdrop { position: absolute; top: 0; right: 0; bottom: 0; width: min(74%, 1180px); pointer-events: none;
+  background: url(/landing/hero-backdrop.webp) right center / cover no-repeat;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, rgb(0 0 0 / .55) 26%, #000 52%), linear-gradient(0deg, transparent 0, #000 14%);
+  mask-image: linear-gradient(90deg, transparent 0, rgb(0 0 0 / .55) 26%, #000 52%), linear-gradient(0deg, transparent 0, #000 14%);
+  -webkit-mask-composite: source-in; mask-composite: intersect; }
+:root[data-theme="light"] .hero-backdrop { display: none; }
+@media (max-width: 1023px) {
+  .hero-backdrop { width: 100%; bottom: auto; height: 460px; opacity: .42; background-position: 62% 40%;
+    -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent); mask-image: linear-gradient(180deg, #000 55%, transparent); }
+}
+.ovx-hero-backdrop { position: absolute; top: 0; right: 0; bottom: 0; width: 72%; pointer-events: none;
+  background: url(/dashboard/banner-backdrop.webp) right 70% / cover no-repeat;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, rgb(0 0 0 / .5) 30%, #000 60%); mask-image: linear-gradient(90deg, transparent 0, rgb(0 0 0 / .5) 30%, #000 60%); }
+@media (max-width: 639px) { .ovx-hero-backdrop { width: 100%; opacity: .45; } }

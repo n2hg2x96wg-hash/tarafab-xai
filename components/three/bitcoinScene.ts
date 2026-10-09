@@ -143,8 +143,9 @@ export function mountBitcoinScene(host: HTMLElement, opts: Options): () => void 
   const areaMat = keep(new THREE.ShaderMaterial({
     transparent: true, depthWrite: false,
     uniforms: { uColor: { value: new THREE.Color(0xff9a2e) }, uAlpha: { value: 0.16 } },
-    vertexShader: 'attribute float aT; varying float vT; void main(){ vT = aT; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
-    fragmentShader: 'uniform vec3 uColor; uniform float uAlpha; varying float vT; void main(){ gl_FragColor = vec4(uColor, uAlpha * pow(vT, 1.6)); }',
+    vertexShader: 'attribute float aT; attribute float aU; varying float vT; varying float vU; void main(){ vT = aT; vU = aU; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+    // fades in from the line's start so the fill never shows a hard edge
+    fragmentShader: 'uniform vec3 uColor; uniform float uAlpha; varying float vT; varying float vU; void main(){ gl_FragColor = vec4(uColor, uAlpha * pow(vT, 1.6) * smoothstep(0.0, 0.22, vU)); }',
   }))
   const gridMat = keep(new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.05 }))
   const spriteTex = keep(glowSprite())
@@ -163,13 +164,13 @@ export function mountBitcoinScene(host: HTMLElement, opts: Options): () => void 
     tubeGlow = new THREE.TubeGeometry(curve, SEG, thick * 3.4, 6, false)
     const base = start.y - Math.abs(dy) * 0.18
     areaGeo = new THREE.BufferGeometry()
-    const aPos = new Float32Array((SEG + 1) * 6), aT = new Float32Array((SEG + 1) * 2), idx: number[] = []
+    const aPos = new Float32Array((SEG + 1) * 6), aT = new Float32Array((SEG + 1) * 2), aU = new Float32Array((SEG + 1) * 2), idx: number[] = []
     for (let i = 0; i <= SEG; i++) {
       const p = curve.getPoint(i / SEG)
-      aPos.set([p.x, p.y, -0.62, p.x, base, -0.62], i * 6); aT[i * 2] = 1; aT[i * 2 + 1] = 0
+      aPos.set([p.x, p.y, -0.62, p.x, base, -0.62], i * 6); aT[i * 2] = 1; aT[i * 2 + 1] = 0; aU[i * 2] = aU[i * 2 + 1] = i / SEG
       if (i < SEG) { const k = i * 2; idx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2) }
     }
-    areaGeo.setAttribute('position', new THREE.BufferAttribute(aPos, 3)); areaGeo.setAttribute('aT', new THREE.BufferAttribute(aT, 1)); areaGeo.setIndex(idx)
+    areaGeo.setAttribute('position', new THREE.BufferAttribute(aPos, 3)); areaGeo.setAttribute('aT', new THREE.BufferAttribute(aT, 1)); areaGeo.setAttribute('aU', new THREE.BufferAttribute(aU, 1)); areaGeo.setIndex(idx)
     gridGeo = new THREE.BufferGeometry()
     const gp: number[] = []
     for (let i = 0; i <= 4; i++) { const y = base + (i / 4) * (end.y - base); gp.push(start.x, y, -0.64, end.x + Math.abs(dx) * 0.08, y, -0.64) }

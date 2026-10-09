@@ -29,6 +29,8 @@ const placeBannerCoin = (w: number, h: number) => {
 export function OverviewHero({ title, body, aside }: { title: string; body: string; aside?: ReactNode }) {
   return (
     <section className="ovx-hero relative overflow-hidden rounded-[20px]" aria-labelledby="ovx-hello" data-ov-hero>
+      {/* Warm rock bed and bokeh behind the coin. */}
+      <div className="ovx-hero-backdrop" aria-hidden="true" />
       {/* Live 3D coin and growth line; the still artwork shows until the
           first frame is drawn, and stays if WebGL is unavailable. */}
       <BitcoinGrowth3D variant="banner" place={placeBannerCoin} className="ovx-hero-3d"
