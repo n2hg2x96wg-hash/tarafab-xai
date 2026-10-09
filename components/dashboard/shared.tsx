@@ -168,11 +168,23 @@ export function signedAmount(tx: Tx) {
 
 // One page intro for every client page: the same title size and muted
 // subtitle as Deposit / Withdraw / Wallet, so no page starts differently.
-export function PageIntro({ title, sub }: { title: string; sub?: string }) {
+// Section header used across the signed-in app: a dark banner (gold rock
+// backdrop, kept dark in both themes), the section's icon, its title and one
+// line about it, with optional actions on the right.
+export function PageIntro({ title, sub, icon, id, actions, className = 'mb-5' }: { title: string; sub?: string; icon?: ReactNode; id?: string; actions?: ReactNode; className?: string }) {
   return (
-    <header className="mb-5" data-page-intro>
-      <h2 className="text-[22px] font-semibold tracking-tight text-fg [text-wrap:balance] break-normal hyphens-none">{title}</h2>
-      {sub && <p className="mt-0.5 text-[14px] text-fg-muted max-w-2xl">{sub}</p>}
+    <header className={`ovx-hero sx-hero relative overflow-hidden rounded-[18px] ${className}`} data-page-intro>
+      <div className="sx-hero-backdrop" aria-hidden="true" />
+      <div className="relative flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+        <div className="flex items-center gap-3.5 min-w-0">
+          {icon && <span className="sx-hero-icon" aria-hidden="true">{icon}</span>}
+          <div className="min-w-0">
+            <h2 id={id} className="text-[20px] sm:text-[24px] leading-tight font-semibold tracking-[-0.02em] text-fg [text-wrap:balance] break-normal hyphens-none">{title}</h2>
+            {sub && <p className="mt-1 text-[13.5px] sm:text-[14px] leading-relaxed text-fg-muted max-w-2xl">{sub}</p>}
+          </div>
+        </div>
+        {actions && <div className="relative shrink-0 max-sm:w-full">{actions}</div>}
+      </div>
     </header>
   )
 }

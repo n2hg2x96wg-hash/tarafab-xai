@@ -43,7 +43,7 @@ import { isAllowedUpload, MAX_UPLOAD_BYTES, prepareUpload } from '@/lib/uploadFi
 import { VerificationTab } from '@/components/dashboard/VerificationTab'
 import { useToast } from '@/components/Toast'
 import { InvestmentCenter, InvestmentsMini } from '@/components/dashboard/InvestmentCenter'
-import { MarketSnapshot, OverviewHero } from '@/components/dashboard/OverviewParts'
+import { HeroChips, MarketSnapshot, NextSteps, OverviewHero } from '@/components/dashboard/OverviewParts'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { CommandSearch, type CommandItem } from '@/components/dashboard/CommandSearch'
 import { MarketActivityTab, PriceHistoryTab } from '@/components/dashboard/MarketTabs'
@@ -602,7 +602,7 @@ export default function DashboardPage() {
           )}
           <PremiumGateHost onSeePremium={() => go('premium')} />
           {/* Pages without their own title get the shared intro (menu label + one line). */}
-          {current && INTRO_SUB[activeNav] !== undefined && <PageIntro title={labelOf(current)} sub={INTRO_SUB[activeNav] ? t(INTRO_SUB[activeNav] as TKey) : undefined} />}
+          {current && INTRO_SUB[activeNav] !== undefined && <PageIntro title={labelOf(current)} sub={INTRO_SUB[activeNav] ? t(INTRO_SUB[activeNav] as TKey) : undefined} icon={<current.icon width={20} height={20} />} />}
           <ErrorBoundary key={activeNav} label={current ? labelOf(current) : undefined}>
             {activeNav === 'overview' && <OverviewTab whatsNew={whatsNewNode} name={displayName} account={account} txs={txs} go={go} can={id => !hiddenNav.includes(id)} labelOf={labelOf} />}
             {activeNav === 'markets' && <div className="space-y-6"><AssetCenter onAutomate={id => { setAutoAsset(id); go('automations') }} /><MarketsTab /></div>}
@@ -1374,17 +1374,16 @@ function DepositTab({ onSuccess, go, can }: { onSuccess: () => void; go: (id: st
   const isCrypto = method === 'bitcoin' || !!sel
   const recvAddress = isEth ? eth!.address : BTC_ADDRESS
   return (
-    <div className="dep max-w-2xl mx-auto">
-      <header className="mb-6">
-        <h2 className="text-[22px] font-semibold tracking-tight text-fg">Deposit</h2>
-        <p className="mt-0.5 text-[14px] text-fg-muted">Fund your account securely.</p>
-      </header>
-
+    <div className="dep">
+      <OverviewHero kind="deposit" id="dep-title" icon={<IconArrowDown width={20} height={20} />} title={t('dash.nav.deposit')} body={t('fund.depBody')}
+        aside={<HeroChips items={[t('fund.chipReviewed'), t('fund.chipEncrypted'), t('fund.chipAudit')]} />} />
+      <div className="mt-5 grid lg:grid-cols-[minmax(0,1fr)_300px] gap-5 items-start">
+      <div className="min-w-0 space-y-5">
 
       {/* Receiving details — only for crypto methods; one compact surface */}
       {isCrypto && (
         <section aria-labelledby="dep-recv">
-          <h3 id="dep-recv" className="dep-h">Receiving details</h3>
+          <h3 id="dep-recv" className="dep-h"><span className="dep-num" aria-hidden="true">1</span>{t('fund.stepReceive')}</h3>
           <div className="dep-surface mt-3" data-deposit-asset={isEth ? eth!.asset : 'BTC'} data-chain-id={isEth ? eth!.chain_id : undefined}>
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-[14px] font-semibold text-fg">{isEth ? (eth!.asset === 'ETH' && eth!.chain_id === 1 ? 'Ethereum (ETH)' : eth!.asset) : 'Bitcoin (BTC)'}</span>
@@ -1426,16 +1425,19 @@ function DepositTab({ onSuccess, go, can }: { onSuccess: () => void; go: (id: st
         </section>
       )}
 
-      {/* Tell us about the transfer — plain section, no giant card */}
-      <section aria-labelledby="dep-tell" className="mt-8">
-        <h3 id="dep-tell" className="dep-h">Tell us about the transfer</h3>
-        <p className="mt-0.5 mb-4 text-[12.5px] text-fg-faint">{t('deposit.step2Body')}</p>
-        <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+      {/* Tell us about the transfer */}
+      <section aria-labelledby="dep-tell">
+        <h3 id="dep-tell" className="dep-h"><span className="dep-num" aria-hidden="true">{isCrypto ? 2 : 1}</span>{t('fund.stepDetails')}</h3>
+        <form onSubmit={handleSubmit} className="dep-surface mt-3 space-y-5" noValidate>
+          <p className="-mt-1 text-[12.5px] text-fg-faint">{t('deposit.step2Body')}</p>
           {error && <FormError message={error} />}
 
           <div>
             <label htmlFor="amount" className="field-label">{t('deposit.amount')}</label>
-            <input id="amount" type="number" inputMode="decimal" step="0.01" min="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" required className="field tabular-nums" disabled={submitting} />
+            <div className="dep-amount">
+              <span className="dep-amount-cur" aria-hidden="true">$</span>
+              <input id="amount" type="number" inputMode="decimal" step="0.01" min="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" required className="field tabular-nums" disabled={submitting} />
+            </div>
           </div>
 
           {/* Payment method: the only selector on the page. Opens the bottom sheet. */}
@@ -1476,11 +1478,16 @@ function DepositTab({ onSuccess, go, can }: { onSuccess: () => void; go: (id: st
             <textarea id="notes" value={notes} onChange={e => setNotes(e.target.value)} placeholder={t('deposit.notesPlaceholder')} rows={3} className="field resize-none" disabled={submitting} />
           </div>
 
-          <button type="submit" disabled={submitting} className="btn btn-solid w-full">
+          <button type="submit" disabled={submitting} className="btn btn-solid btn-premium w-full">
             {submitting ? <><Spinner />{stage === 'uploading' ? t('deposit.uploading') : t('common.submitting')}</> : t('deposit.submit')}
           </button>
         </form>
       </section>
+      </div>
+      <aside className="lg:sticky lg:top-20 space-y-4">
+        <NextSteps title={t('fund.next')} steps={[[t('fund.d1t'), t('fund.d1b')], [t('fund.d2t'), t('fund.d2b')], [t('fund.d3t'), t('fund.d3b')]]} />
+      </aside>
+      </div>
 
       {sheet && <MethodSheet choices={choices.filter(c => c.group === 'other' || opts !== undefined || c.value === 'bitcoin')} loading={opts === undefined} value={method} onPick={setMethod} onClose={() => setSheet(false)} />}
     </div>
@@ -1696,7 +1703,7 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
   }
 
   return (
-    <div className="dep max-w-2xl mx-auto">
+    <div className="dep">
       {review && (
         <ConfirmModal
           title={t('withdraw.reviewTitle')}
@@ -1717,12 +1724,12 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
           <p className="mt-4 text-[13px] text-fg-muted leading-relaxed">{t('withdraw.reviewNote')}</p>
         </ConfirmModal>
       )}
-      <header className="mb-6">
-        <h2 className="text-[22px] font-semibold tracking-tight text-fg">{t('withdraw.title')}</h2>
-        <p className="mt-0.5 text-[14px] text-fg-muted">{t('withdraw.body')}</p>
-      </header>
-
-      <section aria-label={t('withdraw.title')}>
+      <OverviewHero kind="withdraw" id="wd-title" icon={<IconArrowUp width={20} height={20} />} title={t('withdraw.title')} body={t('withdraw.body')}
+        aside={<HeroChips items={[t('fund.chipReviewed'), t('fund.chipAddress'), t('fund.chipAudit')]} />} />
+      <div className="mt-5 grid lg:grid-cols-[minmax(0,1fr)_300px] gap-5 items-start">
+      <div className="min-w-0">
+      <section aria-labelledby="wd-form-title">
+      <h3 id="wd-form-title" className="dep-h"><span className="dep-num" aria-hidden="true">1</span>{t('fund.w1t')}</h3>
       {done !== null && (
         <div role="status" className="alert alert-success mb-5">
           <IconCheck className="shrink-0 mt-px" width={16} height={16} aria-hidden="true" />
@@ -1730,7 +1737,7 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+      <form onSubmit={handleSubmit} className="dep-surface mt-3 space-y-5" noValidate>
         {error && <FormError message={error} />}
 
         <fieldset>
@@ -1756,7 +1763,10 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
             <label htmlFor="w-amount" className="field-label !mb-0">{t('withdraw.amount')}</label>
             <button type="button" onClick={() => setAmount(max > 0 ? max.toFixed(2) : '')} className="text-[13px] text-fg-muted hover:text-fg disabled:opacity-40" disabled={max <= 0}>{t('withdraw.max')}</button>
           </div>
-          <input id="w-amount" type="number" inputMode="decimal" step="0.01" min="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className="field tabular-nums" disabled={submitting} />
+          <div className="dep-amount">
+            <span className="dep-amount-cur" aria-hidden="true">$</span>
+            <input id="w-amount" type="number" inputMode="decimal" step="0.01" min="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className="field tabular-nums" disabled={submitting} />
+          </div>
           <div className="mt-2"><FeeRows q={feeQ} amount={amtNum} kind="withdrawal" /></div>
         </div>
 
@@ -1786,7 +1796,7 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
           <textarea id="w-notes" value={notes} onChange={e => setNotes(e.target.value)} rows={2} className="field resize-none" disabled={submitting} />
         </div>
 
-        <button type="submit" disabled={submitting || max <= 0} className="btn btn-solid w-full">
+        <button type="submit" disabled={submitting || max <= 0} className="btn btn-solid btn-premium w-full">
           {submitting ? <><Spinner />{t('common.submitting')}</> : max <= 0 ? t('withdraw.nothing') : t('withdraw.review')}
         </button>
       </form>
@@ -1838,6 +1848,23 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
           </div>
         </details>
       </section>
+      </div>
+      <aside className="lg:sticky lg:top-20 space-y-4">
+        {/* The same withdrawable amounts the form uses (pending requests already held back). */}
+        <section className="panel ovx-card p-5" aria-labelledby="wd-avail" data-withdrawable>
+          <h3 id="wd-avail" className="text-[14px] font-semibold text-fg">{t('fund.availableTitle')}</h3>
+          <dl className="mt-3 space-y-2.5">
+            {SOURCES.map(s => (
+              <div key={s.id} className="flex items-center justify-between gap-3">
+                <dt className="text-[13px] text-fg-muted">{t(s.short)}</dt>
+                <dd className="text-[15px] font-semibold tabular-nums text-fg whitespace-nowrap">${fmt(withdrawable(s.id))}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+        <NextSteps title={t('fund.next')} steps={[[t('fund.w1t'), t('fund.w1b')], [t('fund.w2t'), t('fund.w2b')], [t('fund.w3t'), t('fund.w3b')]]} />
+      </aside>
+      </div>
     </div>
   )
 }

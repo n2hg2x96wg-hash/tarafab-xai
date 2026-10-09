@@ -6,7 +6,8 @@ import { useI18n } from '@/lib/i18n/I18nProvider'
 import { isAllowedUpload, MAX_UPLOAD_BYTES, prepareUpload } from '@/lib/uploadFile'
 import { ReceiptField } from '@/components/dashboard/ReceiptField'
 import { FormError, Spinner } from '@/components/AuthShell'
-import { IconCheck, IconInfo, IconShield } from '@/components/Icons'
+import { IconCheck, IconIdCard, IconInfo, IconShield } from '@/components/Icons'
+import { PageIntro } from '@/components/dashboard/shared'
 
 export type KycState = {
   status: 'unverified' | 'pending' | 'under_review' | 'verified' | 'rejected' | string
@@ -141,9 +142,7 @@ export function VerificationTab({ onStatusChange }: { onStatusChange?: (status: 
 
   return (
     <div className="dep space-y-5 panel-in max-w-2xl mx-auto">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <h2 className="text-[22px] font-semibold tracking-tight text-fg">{t('kyc.title')}</h2>
-      </div>
+      <PageIntro className="" title={t('kyc.title')} icon={<IconIdCard width={20} height={20} />} />
 
       <KycStepper status={hasSubmission ? status : 'unverified'} />
 

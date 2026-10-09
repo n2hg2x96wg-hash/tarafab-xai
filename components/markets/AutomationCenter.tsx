@@ -5,7 +5,8 @@ import { RequestError, authFetch, errorText, newRequestKey, readJson } from '@/l
 import { openPremiumGate, refreshPremium } from '@/components/premium/Premium'
 import { formatPrice, type AssetQuote } from '@/lib/assets'
 import { ConfirmModal } from '@/components/ConfirmModal'
-import { IconAlert, IconCheck, IconClose } from '@/components/Icons'
+import { IconAlert, IconCheck, IconClose, IconRadar } from '@/components/Icons'
+import { PageIntro } from '@/components/dashboard/shared'
 import { Spinner } from '@/components/AuthShell'
 import { StatusBadge, useMk } from './AssetCenter'
 import { useAssets } from './useAssets'
@@ -68,13 +69,8 @@ export function AutomationCenter({ presetAsset, onPresetUsed }: { presetAsset: s
 
   return (
     <section className="space-y-4" aria-labelledby="auto-title">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 id="auto-title" className="text-[22px] font-semibold tracking-tight text-fg">{t('auto.title')}</h2>
-          <p className="text-sm text-fg-faint mt-0.5">{t('auto.subtitle')}</p>
-        </div>
-        <button onClick={() => setWizard({})} className="btn btn-solid w-full sm:w-auto">{t('auto.new')}</button>
-      </div>
+      <PageIntro className="" id="auto-title" title={t('auto.title')} sub={t('auto.subtitle')} icon={<IconRadar width={20} height={20} />}
+        actions={<button onClick={() => setWizard({})} className="btn btn-solid w-full sm:w-auto">{t('auto.new')}</button>} />
 
       <div className="panel p-1.5 grid grid-cols-3 sm:grid-cols-5 gap-1" data-auto-counts>
         {(['active', 'paused', 'triggered', 'failed'] as const).map(s => (

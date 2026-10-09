@@ -26,9 +26,9 @@ const placeBannerCoin = (w: number, h: number) => {
 // Welcome banner. The artwork is decorative (empty alt, hidden from assistive
 // tech); the banner keeps the dark palette in both themes, so its own tokens
 // are pinned to the dark values in globals.css (.ovx-hero).
-export function OverviewHero({ title, body, aside }: { title: string; body: string; aside?: ReactNode }) {
+export function OverviewHero({ title, body, aside, icon, id = 'ovx-hello', kind = 'overview' }: { title: string; body: string; aside?: ReactNode; icon?: ReactNode; id?: string; kind?: string }) {
   return (
-    <section className="ovx-hero relative overflow-hidden rounded-[20px]" aria-labelledby="ovx-hello" data-ov-hero>
+    <section className="ovx-hero relative overflow-hidden rounded-[20px]" aria-labelledby={id} data-ov-hero={kind === 'overview' ? '' : undefined} data-funds-hero={kind === 'overview' ? undefined : kind}>
       {/* Warm rock bed and bokeh behind the coin. */}
       <div className="ovx-hero-backdrop" aria-hidden="true" />
       {/* Live 3D coin and growth line; the still artwork shows until the
@@ -37,7 +37,8 @@ export function OverviewHero({ title, body, aside }: { title: string; body: stri
         // eslint-disable-next-line @next/next/no-img-element
         fallback={<img src="/dashboard/hero-bitcoin.webp" alt="" aria-hidden="true" width={1200} height={672} decoding="async" fetchPriority="low" className="ovx-hero-art" />} />
       <div className="relative min-w-0 max-w-[30rem]">
-        <h2 id="ovx-hello" className="text-[22px] sm:text-[28px] leading-tight font-semibold tracking-[-0.02em] text-fg [overflow-wrap:normal] [word-break:normal]">{title}</h2>
+        {icon && <span className="ovx-hero-icon" aria-hidden="true">{icon}</span>}
+        <h2 id={id} className="text-[22px] sm:text-[28px] leading-tight font-semibold tracking-[-0.02em] text-fg [overflow-wrap:normal] [word-break:normal]">{title}</h2>
         <p className="mt-1.5 text-[13.5px] sm:text-[14.5px] leading-relaxed text-fg-muted">{body}</p>
         {aside && <div className="mt-3.5">{aside}</div>}
       </div>
@@ -188,5 +189,40 @@ function MarketRow({ a, refreshFailed }: { a: AssetQuote; refreshFailed: boolean
         <p className={`text-[12px] tabular-nums whitespace-nowrap ${pctTone(a.changePct)}`}>{pctText(a.changePct)}</p>
       </div>
     </li>
+  )
+}
+
+// Small reassurance chips for the funds pages' banner (static statements
+// about how the process works; no figures).
+export function HeroChips({ items }: { items: string[] }) {
+  return (
+    <ul className="flex flex-wrap gap-2" aria-label="How it works">
+      {items.map(x => (
+        <li key={x} className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full border border-[rgb(var(--contrast)/.12)] bg-[rgb(var(--contrast)/.05)] text-[12px] text-fg-muted backdrop-blur-sm">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgb(var(--accent))" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>{x}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+// "What happens next": the steps of the existing review process.
+export function NextSteps({ title, steps, children }: { title: string; steps: [string, string][]; children?: ReactNode }) {
+  return (
+    <section className="panel ovx-card p-5" aria-label={title} data-next-steps>
+      {children}
+      <h3 className="text-[14px] font-semibold text-fg">{title}</h3>
+      <ol className="fx-steps mt-4">
+        {steps.map(([t, b], i) => (
+          <li key={t} className="fx-step">
+            <span className="fx-step-n" aria-hidden="true">{i + 1}</span>
+            <div className="min-w-0">
+              <p className="text-[13.5px] font-medium text-fg">{t}</p>
+              <p className="mt-0.5 text-[12.5px] leading-relaxed text-fg-faint">{b}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </section>
   )
 }

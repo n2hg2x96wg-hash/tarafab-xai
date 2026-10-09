@@ -7,7 +7,7 @@ import { walletText } from '@/lib/i18n/wallet'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { IconAlert, IconCheck, IconCopy, IconLock, IconWallet } from '@/components/Icons'
 import { Spinner } from '@/components/AuthShell'
-import { fmt, type Account } from '@/components/dashboard/shared'
+import { fmt, PageIntro, type Account } from '@/components/dashboard/shared'
 import { TransferToTarafab } from '@/components/wallet/TransferToTarafab'
 import {
   NETWORKS, WalletError, chainIdOf, connect, discoverWallets, nativeBalance, networkOf, shortAddress, signMessage, switchChain,
@@ -324,10 +324,7 @@ export function WalletTab({ account }: { account: Account | null }) {
 
   return (
     <div className="dep space-y-6 panel-in max-w-3xl">
-      <header>
-        <h2 className="text-[22px] font-semibold tracking-tight text-fg">{t('wallet.title')}</h2>
-        <p className="text-[14px] text-fg-muted mt-0.5">{t('wallet.subtitle')}</p>
-      </header>
+      <PageIntro className="" title={t('wallet.title')} sub={t('wallet.subtitle')} icon={<IconWallet width={20} height={20} />} />
 
       {/* Two different things, never combined: Tarafab's ledger vs the external chain. */}
       <div className="panel grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-ink-700/70" data-balance-split>

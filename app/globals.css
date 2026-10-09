@@ -983,7 +983,6 @@ button.ovx-row:focus-visible { outline: none; box-shadow: inset 0 0 0 2px rgb(va
 .btc3d-host canvas { opacity: 0; transition: opacity .9s ease; }
 .btc3d[data-btc3d="ready"] .btc3d-host canvas { opacity: 1; }
 /* Landing: on phones the coin sits behind the headline, so it is quieter there. */
-@media (max-width: 1023px) { .hero-btc3d .btc3d-host { opacity: .6; } }
 /* Dashboard banner: faded on its left so the greeting stays clear. */
 .ovx-hero-3d .btc3d-host { -webkit-mask-image: linear-gradient(90deg, transparent 0, rgb(0 0 0 / .6) 32%, #000 55%); mask-image: linear-gradient(90deg, transparent 0, rgb(0 0 0 / .6) 32%, #000 55%); }
 @media (max-width: 639px) { .ovx-hero-3d .btc3d-host { opacity: .5; } }
@@ -1000,10 +999,43 @@ button.ovx-row:focus-visible { outline: none; box-shadow: inset 0 0 0 2px rgb(va
   -webkit-mask-composite: source-in; mask-composite: intersect; }
 :root[data-theme="light"] .hero-backdrop { display: none; }
 @media (max-width: 1023px) {
-  .hero-backdrop { width: 100%; bottom: auto; height: 460px; opacity: .42; background-position: 62% 40%;
-    -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent); mask-image: linear-gradient(180deg, #000 55%, transparent); }
+  /* phones: behind the coin and price card, below the copy */
+  .hero-backdrop { width: 100%; top: auto; height: 560px; opacity: .8; background-position: 60% 45%;
+    -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 30%, #000 80%, transparent); mask-image: linear-gradient(180deg, transparent 0, #000 30%, #000 80%, transparent); }
 }
 .ovx-hero-backdrop { position: absolute; top: 0; right: 0; bottom: 0; width: 72%; pointer-events: none;
   background: url(/dashboard/banner-backdrop.webp) right 70% / cover no-repeat;
   -webkit-mask-image: linear-gradient(90deg, transparent 0, rgb(0 0 0 / .5) 30%, #000 60%); mask-image: linear-gradient(90deg, transparent 0, rgb(0 0 0 / .5) 30%, #000 60%); }
 @media (max-width: 639px) { .ovx-hero-backdrop { width: 100%; opacity: .45; } }
+
+/* Section banners (PageIntro) and the funds pages. */
+.ovx-hero.sx-hero { padding: 20px 24px; }
+@media (max-width: 639px) { .ovx-hero.sx-hero { padding: 16px; border-radius: 16px; } }
+.sx-hero-backdrop { position: absolute; top: 0; right: 0; bottom: 0; width: 62%; pointer-events: none; opacity: .9;
+  background: url(/dashboard/banner-backdrop.webp) right 65% / cover no-repeat;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, rgb(0 0 0 / .5) 35%, #000 70%); mask-image: linear-gradient(90deg, transparent 0, rgb(0 0 0 / .5) 35%, #000 70%); }
+@media (max-width: 639px) { .sx-hero-backdrop { width: 100%; opacity: .45; } }
+.sx-hero-icon, .ovx-hero-icon { width: 44px; height: 44px; flex-shrink: 0; border-radius: 14px; display: grid; place-items: center;
+  color: rgb(247 147 26); background: linear-gradient(180deg, rgb(247 147 26 / .22), rgb(247 147 26 / .08)); box-shadow: inset 0 0 0 1px rgb(247 147 26 / .35), 0 10px 24px -12px rgb(247 147 26 / .6); }
+.ovx-hero-icon { margin-bottom: 12px; }
+.dep-h { display: flex; align-items: center; gap: 10px; }
+.dep-num { width: 24px; height: 24px; flex-shrink: 0; border-radius: 9999px; display: grid; place-items: center; font-size: 12px; font-weight: 700;
+  color: rgb(var(--accent-ink)); background: rgb(var(--accent)); box-shadow: 0 6px 16px -8px rgb(var(--accent) / .8); }
+.dep-amount { position: relative; }
+.dep-amount-cur { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 18px; font-weight: 600; color: rgb(var(--fg-faint)); pointer-events: none; }
+.dep-amount .field { padding-left: 32px; min-height: 54px; font-size: 19px; font-weight: 600; }
+.cc-app .btn-premium { min-height: 52px; font-size: 15px; font-weight: 600; box-shadow: 0 14px 30px -14px rgb(var(--accent) / .75), inset 0 1px 0 rgb(255 255 255 / .28); }
+.cc-app .dep .dep-surface { padding: 20px; border-radius: 18px; }
+@media (max-width: 639px) { .cc-app .dep .dep-surface { padding: 16px; } }
+/* "What happens next" timeline */
+.fx-steps { position: relative; display: grid; gap: 16px; }
+.fx-step { position: relative; display: flex; gap: 12px; }
+.fx-step + .fx-step::before { content: ''; position: absolute; left: 13px; top: -16px; height: 16px; width: 2px; background: linear-gradient(180deg, rgb(var(--accent) / .45), rgb(var(--accent) / .15)); }
+.fx-step-n { width: 28px; height: 28px; flex-shrink: 0; border-radius: 9999px; display: grid; place-items: center; font-size: 12.5px; font-weight: 700;
+  color: rgb(var(--accent-text)); background: rgb(var(--accent) / .12); box-shadow: inset 0 0 0 1px rgb(var(--accent) / .4); }
+
+/* Landing: section under the hero, warmed with a soft gold glow. */
+.intro-glow::before { content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(60% 90% at 85% 100%, rgb(var(--accent) / .12), transparent 65%), radial-gradient(40% 70% at 0% 0%, rgb(var(--accent) / .06), transparent 70%); }
+.intro-glow::after { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 1px; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgb(var(--accent) / .45), transparent); }

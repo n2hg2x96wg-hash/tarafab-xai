@@ -80,7 +80,14 @@ export default function LandingPage() {
   const coinSlot = useRef<HTMLDivElement>(null)
   const placeCoin = useCallback((w: number, h: number) => {
     const d = decorRef.current?.getBoundingClientRect(), c = coinSlot.current?.getBoundingClientRect()
-    if (w >= 1024 && d && c && c.width > 0) {
+    if (d && c && c.width > 0 && c.height > 0) {
+      if (w < 1024) {
+        // phones and tablets: the coin floats above the price card, the line
+        // rising from the lower left behind the card
+        const size = Math.min(c.height * 0.86, w * 0.56, 240)
+        const x = c.left - d.left + c.width / 2, y = c.top - d.top + c.height / 2
+        return { x, y, size, lineFrom: { x: 0, y: c.bottom - d.top + 150 }, lineTo: { x: x + size * 0.6, y: y - size * 0.38 } }
+      }
       const size = Math.min(c.width * 0.62, c.height * 0.8, 360)
       // the growth line rises within the right-hand column only
       const x = c.left - d.left + c.width / 2, y = c.top - d.top + size * 0.55 + 8
@@ -88,9 +95,9 @@ export default function LandingPage() {
       // price card and the coin, ending just above the coin's right shoulder
       return { x, y, size, lineFrom: { x: c.left - d.left - 40, y: h * 0.985 }, lineTo: { x: x + size * 0.62, y: y - size * 0.42 } }
     }
-    // phones: the coin peeks in from the right edge beside the headline
-    const size = Math.min(w * 0.62, 260)
-    return { x: w - size * 0.2, y: Math.min(h * 0.2, 160), size, noLine: true }
+    // before the layout is measured: keep it off the headline
+    const size = Math.min(w * 0.5, 220)
+    return { x: w / 2, y: h - size, size, noLine: true }
   }, [])
 
   // A signed-in CLIENT is sent to their dashboard. A signed-in ADMIN is not
@@ -147,19 +154,11 @@ export default function LandingPage() {
 
       {/* Hero */}
       <section ref={heroRef} className="relative border-b border-ink-700 overflow-hidden">
-        {/* Decorative layer, capped to the hero banner's own height. On
-            phones the two grid columns below stack vertically, which makes
-            this section much taller than the banner it is meant to sit
-            behind; without a cap the node network and price wave spread
-            across that extra height and strand isolated marks over
-            unrelated content (e.g. just under the sign-in button).
-            760px approximates the stacked badge+title+body+CTAs+risk text
-            column on a phone; it only needs to roughly bound the banner, not
-            match it exactly, since the network/wave are a diffuse texture
-            rather than content that must align to a pixel. Reverts to the
-            full section (`lg:inset-0 lg:h-auto`) once the grid is
-            side-by-side and the section height already matches the banner. */}
-        <div ref={decorRef} className="absolute inset-x-0 top-0 h-[760px] lg:inset-0 lg:h-auto overflow-hidden" aria-hidden="true">
+        {/* Decorative layer behind the whole hero: light, grid, the gold
+            backdrop and the live 3D coin. The coin is placed from the
+            right-hand column's slot (desktop: beside the copy; phones: above
+            the price card, after the copy), so it never sits on the text. */}
+        <div ref={decorRef} className="absolute inset-0 overflow-hidden" aria-hidden="true">
           <div className="hero-light" aria-hidden="true" />
           <div className="hero-grid" aria-hidden="true" />
           {/* Warm rock bed and bokeh behind the live coin (dark theme). */}
@@ -208,7 +207,7 @@ export default function LandingPage() {
           {/* Right column: room for the 3D coin (drawn by the layer behind),
               with the live BTC price card beneath it. */}
           <div className="relative rise-in lg:min-h-[500px] flex flex-col justify-end" style={{ ['--i' as string]: 3 }}>
-            <div ref={coinSlot} className="hidden lg:block flex-1 min-h-[320px]" aria-hidden="true" />
+            <div ref={coinSlot} className="h-[250px] lg:h-auto lg:flex-1 lg:min-h-[320px]" aria-hidden="true" />
             <div className="relative mx-auto w-full max-w-[320px]">
               <ErrorBoundary label={t('market.bitcoinMarket')}><HeroScene market={market} compact /></ErrorBoundary>
             </div>
@@ -217,8 +216,8 @@ export default function LandingPage() {
       </section>
 
       {/* What the platform does day to day, right under the hero. */}
-      <section className="border-b border-ink-700" aria-labelledby="intro-title" data-landing-intro>
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-20 grid lg:grid-cols-[1.1fr_1fr] gap-5 lg:gap-12 items-end">
+      <section className="intro-glow relative overflow-hidden border-b border-ink-700" aria-labelledby="intro-title" data-landing-intro>
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-20 grid lg:grid-cols-[1.1fr_1fr] gap-5 lg:gap-12 items-end">
           <h2 id="intro-title" className="text-[clamp(28px,8.4vw,46px)] leading-[1.08] font-semibold tracking-[-0.03em] text-fg [overflow-wrap:normal] [word-break:normal]">
             {t('landing.heroTitle1')} <span className="text-accent-sheen">{t('landing.heroTitle2')}</span>
           </h2>

@@ -7,6 +7,7 @@ import { formatPrice, TIMEFRAMES, type AssetQuote, type Timeframe } from '@/lib/
 import { useI18n } from '@/lib/i18n/I18nProvider'
 import { marketsText } from '@/lib/i18n/markets'
 import { IconChart, IconClose, IconLock } from '@/components/Icons'
+import { PageIntro } from '@/components/dashboard/shared'
 import { AreaChart, Sparkline, sma } from './Charts'
 import { loadChart, useAssets } from './useAssets'
 import { hiddenState, useFeatures } from '@/components/ui/features'
@@ -111,12 +112,7 @@ export function AssetCenter({ onAutomate }: { onAutomate: (assetId: string) => v
 
   return (
     <section className="space-y-3 sm:space-y-4" aria-labelledby="asset-center">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 id="asset-center" className="text-lg sm:text-xl font-semibold tracking-tight text-fg">{t('center.title')}</h2>
-          <p className="text-sm text-fg-faint mt-0.5">{t('center.subtitle')}</p>
-        </div>
-      </div>
+      <PageIntro className="" id="asset-center" title={t('center.title')} sub={t('center.subtitle')} icon={<IconChart width={20} height={20} />} />
 
       {/* At a glance: one quiet strip instead of three separate cards. */}
       <div className="panel grid grid-cols-3 divide-x divide-ink-700/70" data-market-glance>

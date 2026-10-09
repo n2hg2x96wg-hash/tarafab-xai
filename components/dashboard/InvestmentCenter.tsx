@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { authFetch, errorText, newRequestKey, readJson } from '@/lib/authFetch'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
 import { IconChart, IconClose, IconPie, IconShield, IconTrend } from '@/components/Icons'
-import { fmt } from '@/components/dashboard/shared'
+import { fmt, PageIntro } from '@/components/dashboard/shared'
 import { projection } from '@/lib/returns'
 import { EnginePanel } from '@/components/automation/EnginePanel'
 import { parseInvestmentSummary, type InvestmentSummary } from '@/lib/investmentSummary'
@@ -247,13 +247,8 @@ export function InvestmentCenter({ go, focusId, onFocusDone, onAccountChanged }:
   return (
     <div className="space-y-6">
       <section aria-labelledby="inv-title">
-        <div className="flex flex-wrap items-end justify-between gap-2 mb-3">
-          <div>
-            <h2 id="inv-title" className="text-[22px] font-semibold tracking-tight text-fg">{t('inv.title')}</h2>
-            <p className="text-sm text-fg-faint mt-0.5">{t('inv.subtitle')}</p>
-          </div>
-          {data.balance && <p className="text-sm text-fg-muted">{t('inv.f.available')}: <span className="text-fg font-semibold tabular-nums">{money(data.balance.available)}</span></p>}
-        </div>
+        <PageIntro className="mb-3" id="inv-title" title={t('inv.title')} sub={t('inv.subtitle')} icon={<IconPie width={20} height={20} />}
+          actions={data.balance ? <p className="text-sm text-fg-muted">{t('inv.f.available')}: <span className="text-fg font-semibold tabular-nums">{money(data.balance.available)}</span></p> : undefined} />
         {/* Figures as a quiet stat list (hairline above each) rather than six cards.
             The explanation of each figure stays available as its tooltip; a warning note still shows. */}
         <dl className="panel px-4 py-3.5 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-x-4 gap-y-3" data-inv-stats>
