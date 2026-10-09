@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react'
 
 // Types and small display helpers shared by the dashboard sections.
-import { IconArrowDown, IconArrowUp, IconFile, IconHistory, IconPie, IconSwap, IconTrend, IconWallet } from '@/components/Icons'
+import { IconArrowDown, IconArrowUp, IconCheck, IconFile, IconHistory, IconPie, IconSliders, IconSwap, IconTrend, IconWallet } from '@/components/Icons'
 import { txCategory, txSign } from '@/lib/txCategory'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
 import { statusLabel } from '@/lib/i18n/format'
@@ -81,6 +81,10 @@ export function txLabel(tx: Tx, t: T) {
   const c = txCategory(tx)
   if (c === 'profit') return t('dash.txType.profit')
   if (c === 'profit_adjustment') return t('dash.txType.profitAdjustment')
+  if (c === 'loyalty_reward') return t('dash.txType.loyaltyReward')
+  if (c === 'promotional_credit') return t('dash.txType.promotionalCredit')
+  if (c === 'profit_correction') return t('dash.txType.profitCorrection')
+  if (c === 'reconciliation') return t('dash.txType.reconciliation')
   if (c === 'deposit') return t('dash.txType.deposit')
   if (c === 'account_debit') return t('dash.txType.accountDebit')
   if (c === 'reversal') return t('dash.txType.reversal')
@@ -88,6 +92,26 @@ export function txLabel(tx: Tx, t: T) {
   // Tarafab's own service fees are always named as such, never as a network fee.
   if (tx.type === 'fee' && tx.method === 'service_fee') return t('dash.txType.serviceFee')
   return t(`dash.txType.${tx.type}` as TKey) || tx.type.replace(/_/g, ' ')
+}
+
+// One short line of context under the label, from the event's meaning only
+// (never the admin's free-text note): says plainly when a profit-balance credit
+// is a reward or a correction rather than an investment return.
+const TX_DESC: Partial<Record<ReturnType<typeof txCategory>, TKey>> = {
+  profit: 'dash.txDesc.profit',
+  account_debit: 'dash.txDesc.accountDebit',
+  loyalty_reward: 'dash.txDesc.loyaltyReward',
+  promotional_credit: 'dash.txDesc.promotionalCredit',
+  profit_correction: 'dash.txDesc.profitCorrection',
+  reconciliation: 'dash.txDesc.reconciliation',
+  profit_adjustment: 'dash.txDesc.profitAdjustment',
+  reversal: 'dash.txDesc.reversal',
+}
+export function txDescription(tx: Tx, t: T): string | null {
+  const c = txCategory(tx)
+  if (c === 'fee' && tx.method === 'available_balance') return t('dash.txDesc.adminFee')
+  const k = TX_DESC[c]
+  return k ? t(k) : null
 }
 
 // Display name for a stored method code. Known codes are translated; common
@@ -112,6 +136,8 @@ export function TxIcon({ type, tx }: { type: string; tx?: Tx }) {
     : c === 'fee' ? [IconFile, 'text-amber-300 border-amber-500/25 bg-amber-500/[.06]']
     : c === 'investment' ? [IconPie, 'text-sky-300 border-sky-500/25 bg-sky-500/[.06]']
     : c === 'account_debit' ? [IconWallet, 'text-rose-300 border-rose-500/25 bg-rose-500/[.06]']
+    : c === 'loyalty_reward' || c === 'promotional_credit' ? [IconCheck, 'text-violet-300 border-violet-500/25 bg-violet-500/[.07]']
+    : c === 'profit_correction' || c === 'reconciliation' || c === 'profit_adjustment' ? [IconSliders, 'text-fg-muted border-ink-700 bg-ink-800']
     : c === 'reversal' ? [IconHistory, 'text-fg-muted border-ink-700 bg-ink-800']
     : [IconSwap, 'text-fg-muted border-ink-700 bg-ink-800']
   return (

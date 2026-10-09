@@ -12,8 +12,12 @@
 //   admin_debit       → Account debit (an admin took money off the spendable
 //                       balance; not a fee, withdrawal or investment)
 //   reversal          → Reversal (a previous transaction intentionally undone)
-//   profit_adjustment → Profit adjustment (an admin changed the profit balance
-//                       directly; not an investment return)
+//   profit-balance adjustments, by the reason the admin chose (never by the
+//   free-text note; none of these is an investment return):
+//     loyalty_reward → Loyalty Reward      promotional_credit → Promotional Credit
+//     profit_correction → Profit Balance Correction
+//     reconciliation → Account Reconciliation
+//     profit_adjustment → Profit Balance Adjustment (reason not stated)
 //   balance_adjustment → Adjustment (an admin changed the invested / pending
 //                       balance; there is no more precise meaning)
 //
@@ -22,7 +26,11 @@
 // profit or a debit — it is shown neutrally as an Adjustment. The sign of the
 // amount never decides the meaning.
 
-export type TxCategory = 'deposit' | 'account_debit' | 'profit' | 'profit_adjustment' | 'investment' | 'withdrawal' | 'fee' | 'reversal' | 'adjustment' | 'transfer' | 'other'
+export type TxCategory = 'deposit' | 'account_debit' | 'profit' | 'profit_adjustment' | 'loyalty_reward' | 'promotional_credit'
+  | 'profit_correction' | 'reconciliation' | 'investment' | 'withdrawal' | 'fee' | 'reversal' | 'adjustment' | 'transfer' | 'other'
+
+// Admin changes to the separate profit balance, by stated reason.
+export const PROFIT_BALANCE_CATEGORIES: TxCategory[] = ['loyalty_reward', 'promotional_credit', 'profit_correction', 'reconciliation', 'profit_adjustment']
 
 export type TxLike = { type: string; method?: string | null; direction?: string | null; source?: string | null }
 
@@ -31,6 +39,10 @@ export function txCategory(tx: TxLike): TxCategory {
     case 'client_deposit': case 'admin_funding': return 'deposit'
     case 'investment_profit': return 'profit'
     case 'profit_adjustment': return 'profit_adjustment'
+    case 'loyalty_reward': return 'loyalty_reward'
+    case 'promotional_credit': return 'promotional_credit'
+    case 'profit_correction': return 'profit_correction'
+    case 'reconciliation': return 'reconciliation'
     case 'investment_principal': return 'investment'
     case 'withdrawal': return 'withdrawal'
     case 'fee': return 'fee'
@@ -76,7 +88,11 @@ export function adminTxLabel(tx: TxLike): string {
     case 'account_debit': return 'Account Debit'
     case 'deposit': return 'Deposit'
     case 'profit': return 'Profit'
-    case 'profit_adjustment': return 'Profit adjustment'
+    case 'profit_adjustment': return 'Profit Balance Adjustment'
+    case 'loyalty_reward': return 'Loyalty Reward'
+    case 'promotional_credit': return 'Promotional Credit'
+    case 'profit_correction': return 'Profit Balance Correction'
+    case 'reconciliation': return 'Account Reconciliation'
     case 'investment': return 'Investment'
     case 'withdrawal': return 'Withdrawal'
     case 'fee': return tx.method === 'service_fee' ? 'Tarafab Service Fee' : 'Fee'

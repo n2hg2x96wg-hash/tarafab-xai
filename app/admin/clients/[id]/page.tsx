@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { adminTxLabel, isAccountCredit, txCategory, txSign } from '@/lib/txCategory'
+import { adminTxLabel, isAccountCredit, PROFIT_BALANCE_CATEGORIES, txCategory, txSign } from '@/lib/txCategory'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -42,6 +42,8 @@ type Transaction = {
   amount: number
   status: string
   notes: string | null
+  reference?: string | null
+  source?: string | null
   created_at: string
   effective_at?: string
 }
@@ -56,9 +58,24 @@ const ACTIONS: { id: BalanceAction; title: string; hint: string; reason: string 
   { id: 'fund', title: 'Fund account', hint: 'Add money to the spendable Account Balance.', reason: 'e.g. Manual account funding' },
   { id: 'debit', title: 'Debit account', hint: 'Take money off the Account Balance, e.g. a balance correction. Not a fee or withdrawal.', reason: 'e.g. Balance correction' },
   { id: 'fee', title: 'Apply fee', hint: 'Charge the client a fee from the Account Balance. Recorded as a Fee.', reason: 'e.g. Maintenance fee' },
-  { id: 'profit', title: 'Adjust profit balance', hint: 'Change the separate Profit Balance directly. Not an investment return.', reason: 'e.g. Profit balance correction' },
+  { id: 'profit', title: 'Adjust profit balance', hint: 'Change the client’s recorded profit balance. Choose a reason for this adjustment. This action is separate from automatically generated investment returns.', reason: 'e.g. Premium loyalty reward' },
   { id: 'other', title: 'Other balance', hint: 'Invested or pending balance, or set an exact value.', reason: 'e.g. Pending balance correction' },
 ]
+// Why the profit balance is changed. The category (not the free-text reason)
+// decides how the entry is named; none of these is an investment return.
+type ProfitCategory = 'loyalty_reward' | 'promotional_credit' | 'profit_correction' | 'reconciliation' | 'other'
+const PROFIT_REASONS: { id: ProfitCategory; title: string; client: string; creditOnly?: boolean }[] = [
+  { id: 'loyalty_reward', title: 'Loyalty reward', client: 'Loyalty Reward', creditOnly: true },
+  { id: 'promotional_credit', title: 'Promotional credit', client: 'Promotional Credit', creditOnly: true },
+  { id: 'profit_correction', title: 'Profit balance correction', client: 'Profit Balance Correction' },
+  { id: 'reconciliation', title: 'Account reconciliation', client: 'Account Reconciliation' },
+  { id: 'other', title: 'Other documented correction', client: 'Profit Balance Adjustment' },
+]
+const PROFIT_SOURCE_CATEGORY: Record<string, ProfitCategory> = {
+  loyalty_reward: 'loyalty_reward', promotional_credit: 'promotional_credit', profit_correction: 'profit_correction',
+  reconciliation: 'reconciliation', profit_adjustment: 'other',
+}
+
 const ACTION_DEFAULTS: Record<BalanceAction, Pick<AdjustForm, 'field' | 'operation'>> = {
   fund: { field: 'available_balance', operation: 'credit' },
   debit: { field: 'available_balance', operation: 'debit' },
@@ -69,6 +86,7 @@ const ACTION_DEFAULTS: Record<BalanceAction, Pick<AdjustForm, 'field' | 'operati
 
 type AdjustForm = {
   action: BalanceAction
+  category: '' | ProfitCategory // profit-balance changes only
   field: 'account_balance' | 'available_balance' | 'invested_balance' | 'pending_balance' | 'profit_balance'
   operation: 'credit' | 'debit' | 'set'
   amount: string
@@ -98,7 +116,10 @@ function entryNames(f: AdjustForm): [string, string] {
     if (f.operation === 'debit') return ['Account Debit', 'Account Debit']
     return ['Deposit · Account credit if raised, Account Debit if lowered', 'Account Credit / Account Debit']
   }
-  if (f.field === 'profit_balance') return ['Profit adjustment (not an investment return)', 'Profit adjustment']
+  if (f.field === 'profit_balance') {
+    const r = PROFIT_REASONS.find(x => x.id === f.category)
+    return r ? [`${r.client} (not an investment return)`, r.client] : ['Choose a reason', 'Choose a reason']
+  }
   return ['Adjustment', 'Adjustment']
 }
 
@@ -127,6 +148,7 @@ export default function ClientDetailPage() {
 
   const [adjustForm, setAdjustForm] = useState<AdjustForm>({
     action: 'fund',
+    category: '',
     field: 'available_balance',
     operation: 'credit',
     amount: '',
@@ -138,6 +160,10 @@ export default function ClientDetailPage() {
   const [adjustSuccess, setAdjustSuccess] = useState('')
   const [showConfirm, setShowConfirm] = useState(false)
   const [loadError, setLoadError] = useState('')
+  // "Set reason" on one existing profit-balance adjustment (meaning only).
+  const [catEdit, setCatEdit] = useState<{ id: string; category: '' | ProfitCategory; reason: string } | null>(null)
+  const [catSaving, setCatSaving] = useState(false)
+  const [catError, setCatError] = useState('')
   const [loadedAt, setLoadedAt] = useState<number | null>(null)
   const [, setTick] = useState(0)
   const { t } = useI18n()
@@ -154,7 +180,7 @@ export default function ClientDetailPage() {
 
   // A different adjustment gets a different key; an unchanged form retried
   // after a network error keeps its key and cannot be applied twice.
-  useEffect(() => { adjustKey.current = newRequestKey() }, [adjustForm.action, adjustForm.field, adjustForm.operation, adjustForm.amount, adjustForm.reason, adjustForm.effective])
+  useEffect(() => { adjustKey.current = newRequestKey() }, [adjustForm.action, adjustForm.category, adjustForm.field, adjustForm.operation, adjustForm.amount, adjustForm.reason, adjustForm.effective])
 
   useEffect(() => {
     const t = setInterval(() => setTick(n => n + 1), 15_000)
@@ -170,7 +196,7 @@ export default function ClientDetailPage() {
       (supabase.from('accounts') as any)
         .select('*').eq('user_id', id).maybeSingle() as Promise<{ data: Account | null; error: { message: string } | null }>,
       (supabase.from('transactions') as any)
-        .select('id, type, method, direction, source, amount, status, notes, created_at, effective_at')
+        .select('id, type, method, direction, source, amount, status, notes, reference, created_at, effective_at')
         .eq('user_id', id)
         .order('effective_at', { ascending: false })
         .limit(20) as Promise<{ data: Transaction[] | null; error: { message: string } | null }>,
@@ -269,6 +295,7 @@ export default function ClientDetailPage() {
     const amt = parseFloat(adjustForm.amount)
     if (!amt || amt <= 0) { setAdjustError('Amount must be greater than 0'); return }
     if (!adjustForm.reason.trim()) { setAdjustError('Reason is required'); return }
+    if (adjustForm.action === 'profit' && !adjustForm.category) { setAdjustError('Choose a reason category for this profit balance adjustment'); return }
     if (parseEffective(adjustForm.effective).error) { setAdjustError(parseEffective(adjustForm.effective).error); return }
     const newVal = computeNewValue()
     if (newVal === null || newVal < 0) { setAdjustError('Resulting balance cannot be negative'); return }
@@ -288,6 +315,7 @@ export default function ClientDetailPage() {
         body: JSON.stringify({
           target_user_id: clientId,
           ...(isFee ? {} : { field: adjustForm.field, operation: adjustForm.operation }),
+          ...(adjustForm.action === 'profit' ? { category: adjustForm.category } : {}),
           amount: parseFloat(adjustForm.amount),
           reason: adjustForm.reason.trim(),
           effective_at: parseEffective(adjustForm.effective).iso,
@@ -297,7 +325,7 @@ export default function ClientDetailPage() {
       }))
 
       setAdjustSuccess(`${ACTIONS.find(a => a.id === adjustForm.action)?.title}: ${entryNames(adjustForm)[1]} of $${parseFloat(adjustForm.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })} recorded. ${FIELD_LABELS[adjustForm.field]} updated successfully.`)
-      setAdjustForm({ action: 'fund', field: 'available_balance', operation: 'credit', amount: '', reason: '', effective: '' })
+      setAdjustForm({ action: 'fund', category: '', field: 'available_balance', operation: 'credit', amount: '', reason: '', effective: '' })
       adjustKey.current = newRequestKey()
       await load()
     } catch (err) {
@@ -305,6 +333,27 @@ export default function ClientDetailPage() {
       if (err instanceof RequestError && err.status === 409) { adjustKey.current = newRequestKey(); await load() }
     } finally {
       setAdjusting(false)
+    }
+  }
+
+  const saveCategory = async () => {
+    if (!catEdit) return
+    setCatError('')
+    if (!catEdit.category) { setCatError('Choose a reason category.'); return }
+    if (catEdit.reason.trim().length < 3) { setCatError('Enter why you are setting this reason (kept in the audit log).'); return }
+    setCatSaving(true)
+    try {
+      await readJson(await authFetch('/api/admin/transaction-category', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transaction_id: catEdit.id, category: catEdit.category, reason: catEdit.reason.trim() }),
+      }))
+      setCatEdit(null)
+      await load()
+    } catch (err) {
+      setCatError(errorText(err))
+    } finally {
+      setCatSaving(false)
     }
   }
 
@@ -488,7 +537,7 @@ export default function ClientDetailPage() {
                   const on = adjustForm.action === a.id
                   return (
                     <button key={a.id} type="button" role="radio" aria-checked={on} disabled={adjusting}
-                      onClick={() => setAdjustForm(f => ({ ...f, action: a.id, ...ACTION_DEFAULTS[a.id] }))}
+                      onClick={() => setAdjustForm(f => ({ ...f, action: a.id, category: '', ...ACTION_DEFAULTS[a.id] }))}
                       className={`text-left px-3.5 py-2.5 rounded-xl border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-400 ${on ? 'border-accent/60 bg-accent/[0.08]' : 'border-white/[0.08] hover:border-white/20'} ${a.id === 'other' ? 'sm:col-span-2' : ''}`}
                       data-balance-action={a.id}>
                       <span className={`block text-[13px] font-semibold ${on ? 'text-white' : 'text-slate-300'}`}>{on ? '● ' : ''}{a.title}</span>
@@ -521,6 +570,27 @@ export default function ClientDetailPage() {
               </div>
             )}
 
+            {adjustForm.action === 'profit' && (
+              <div>
+                <label htmlFor="adj-category" className="block text-xs font-medium text-slate-400 mb-1.5">Reason category</label>
+                <select
+                  id="adj-category"
+                  value={adjustForm.category}
+                  onChange={e => {
+                    const c = e.target.value as AdjustForm['category']
+                    setAdjustForm(f => ({ ...f, category: c, operation: PROFIT_REASONS.find(r => r.id === c)?.creditOnly ? 'credit' : f.operation }))
+                  }}
+                  className="input-field text-sm"
+                  disabled={adjusting}
+                  required
+                >
+                  <option value="" disabled>Choose a reason…</option>
+                  {PROFIT_REASONS.map(r => <option key={r.id} value={r.id}>{r.title}</option>)}
+                </select>
+                <p className="mt-1.5 text-[11px] leading-snug text-slate-500">The category decides how the entry is named for the client and in history; your written reason below is kept for the audit trail. A reward or promotional credit can only be a credit.</p>
+              </div>
+            )}
+
             {(adjustForm.action === 'profit' || adjustForm.action === 'other') && (
               <div>
                 <label className="block text-xs font-medium text-slate-400 mb-1.5">Operation</label>
@@ -530,13 +600,13 @@ export default function ClientDetailPage() {
                       key={op}
                       type="button"
                       onClick={() => setAdjustForm(f => ({ ...f, operation: op }))}
-                      disabled={adjusting}
+                      disabled={adjusting || (op !== 'credit' && adjustForm.action === 'profit' && !!PROFIT_REASONS.find(r => r.id === adjustForm.category)?.creditOnly)}
                       aria-pressed={adjustForm.operation === op}
                       className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all border ${adjustForm.operation === op
                         ? op === 'credit' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
                           : op === 'debit' ? 'bg-red-500/15 text-red-400 border-red-500/30'
                           : 'bg-violet-600/15 text-violet-300 border-violet-500/20'
-                        : 'text-slate-500 border-white/[0.06] hover:text-white hover:border-white/20'}`}
+                        : 'text-slate-500 border-white/[0.06] hover:text-white hover:border-white/20'} disabled:opacity-40 disabled:cursor-not-allowed`}
                     >
                       {op === 'credit' ? '+ Credit' : op === 'debit' ? '− Debit' : '= Set'}
                     </button>
@@ -608,7 +678,7 @@ export default function ClientDetailPage() {
 
           <button
             onClick={handleAdjustSubmit}
-            disabled={adjusting || !adjustForm.amount || !adjustForm.reason.trim()}
+            disabled={adjusting || !adjustForm.amount || !adjustForm.reason.trim() || (adjustForm.action === 'profit' && !adjustForm.category)}
             className="w-full mt-6 py-3.5 text-sm font-semibold text-[#fff] bg-gradient-to-r from-violet-600 to-blue-500 rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_0_20px_rgba(124,58,237,0.3)] flex items-center justify-center gap-2"
           >
             {adjusting ? (
@@ -732,7 +802,7 @@ export default function ClientDetailPage() {
                           Account Credit / Account Debit / Fee / Profit… never by the sign alone. */}
                       <p className="text-sm font-medium text-white" data-admin-tx-type={isAccountCredit(tx) ? 'account_credit' : txCategory(tx)}>
                         {adminTxLabel(tx)}
-                        {(txCategory(tx) === 'profit_adjustment' || txCategory(tx) === 'adjustment') && tx.method && <span className="text-slate-500 font-normal"> · {tx.method.replace(/_/g, ' ')}</span>}
+                        {(PROFIT_BALANCE_CATEGORIES.includes(txCategory(tx)) || txCategory(tx) === 'adjustment') && tx.method && <span className="text-slate-500 font-normal"> · {tx.method.replace(/_/g, ' ')}</span>}
                       </p>
                       <p className="text-sm font-semibold text-white shrink-0 tabular-nums" data-admin-signed-amount>
                         {txSign(tx) > 0 ? '+' : txSign(tx) < 0 ? '−' : ''}${(tx.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
@@ -750,7 +820,35 @@ export default function ClientDetailPage() {
                     </div>
                     <p className="text-[10px] text-slate-600 mt-0.5">
                       {new Date(tx.effective_at || tx.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}{tx.effective_at && tx.effective_at !== tx.created_at ? ` · recorded ${new Date(tx.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}
+                      {tx.reference && <> · <span className="font-mono">{tx.reference}</span></>}
                     </p>
+                    {/* A profit-balance adjustment can be given its documented reason;
+                        only its meaning changes (audited), never the amount or balance. */}
+                    {tx.type === 'adjustment' && tx.method === 'profit_balance' && tx.source && tx.source in PROFIT_SOURCE_CATEGORY && (
+                      catEdit?.id === tx.id ? (
+                        <div className="mt-2 rounded-lg border border-white/[0.08] bg-white/[0.02] p-3 space-y-2" data-cat-editor>
+                          <label className="block text-[11px] text-slate-400" htmlFor={`cat-${tx.id}`}>Reason category</label>
+                          <select id={`cat-${tx.id}`} value={catEdit.category} disabled={catSaving}
+                            onChange={e => setCatEdit(c => c && ({ ...c, category: e.target.value as ProfitCategory }))} className="input-field text-xs py-2">
+                            <option value="" disabled>Choose a reason…</option>
+                            {PROFIT_REASONS.filter(r => !r.creditOnly || tx.direction === 'credit').map(r => <option key={r.id} value={r.id}>{r.title}</option>)}
+                          </select>
+                          <input value={catEdit.reason} disabled={catSaving} onChange={e => setCatEdit(c => c && ({ ...c, reason: e.target.value }))}
+                            placeholder="Why (kept in the audit log), e.g. Documented in the original reason" aria-label="Why you are setting this reason" className="input-field text-xs py-2" />
+                          <p className="text-[10px] text-slate-500">Changes only how this entry is named. Amount, dates, reference and balances stay exactly as recorded.</p>
+                          {catError && <p className="text-[11px] text-red-400" role="alert">{catError}</p>}
+                          <div className="flex gap-2">
+                            <button type="button" onClick={saveCategory} disabled={catSaving} className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-violet-600/80 text-white hover:bg-violet-600 disabled:opacity-50">{catSaving ? 'Saving…' : 'Save reason'}</button>
+                            <button type="button" onClick={() => { setCatEdit(null); setCatError('') }} disabled={catSaving} className="px-3 py-1.5 text-xs rounded-lg border border-white/[0.1] text-slate-300 hover:text-white">Cancel</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button type="button" onClick={() => { setCatError(''); setCatEdit({ id: tx.id, category: tx.source === 'profit_adjustment' ? '' : PROFIT_SOURCE_CATEGORY[tx.source!], reason: '' }) }}
+                          className="mt-1.5 text-[11px] text-violet-300 hover:text-violet-200 underline-offset-2 hover:underline" data-set-reason>
+                          {tx.source === 'profit_adjustment' ? 'Set reason' : 'Change reason'}
+                        </button>
+                      )
+                    )}
                   </div>
                 </div>
               ))}
@@ -769,6 +867,7 @@ export default function ClientDetailPage() {
             <div className="bg-white/[0.03] rounded-xl p-4 mb-4 space-y-2 text-sm" data-confirm-details>
               <div className="flex justify-between gap-3"><span className="text-slate-400">Client</span><span className="text-white font-medium text-right">{profile.full_name || 'Unnamed'}</span></div>
               <div className="flex justify-between gap-3"><span className="text-slate-400">Balance</span><span className="text-white text-right">{FIELD_LABELS[adjustForm.field]}</span></div>
+              {adjustForm.action === 'profit' && <div className="flex justify-between gap-3"><span className="text-slate-400">Reason category</span><span className="text-white text-right">{PROFIT_REASONS.find(r => r.id === adjustForm.category)?.title}</span></div>}
               {(adjustForm.action === 'profit' || adjustForm.action === 'other') && <div className="flex justify-between gap-3"><span className="text-slate-400">Operation</span><span className="text-white capitalize">{adjustForm.operation}</span></div>}
               <div className="flex justify-between gap-3"><span className="text-slate-400">Amount</span><span className="text-white tabular-nums">{adjustForm.operation === 'set' ? '= ' : adjustForm.operation === 'credit' ? '+' : '−'}${parseFloat(adjustForm.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span></div>
               <div className="flex justify-between gap-3"><span className="text-slate-400">New balance</span><span className="text-emerald-400 font-semibold tabular-nums">${(newVal ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span></div>

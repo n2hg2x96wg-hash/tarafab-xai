@@ -14,7 +14,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { authFetch, errorText, newRequestKey, readJson, RequestError, SESSION_EXPIRED } from '@/lib/authFetch'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
 import {
-  EmptyState, OPEN_STATUSES, StatusTag, SUPPORT_EMAIL, TxIcon, fmt, methodLabel, txLabel,
+  EmptyState, OPEN_STATUSES, StatusTag, SUPPORT_EMAIL, TxIcon, fmt, methodLabel, txDescription, txLabel,
   type Account, type Tx, type UserInfo, PageIntro, SettingsRow, SettingsSection, signedAmount,
 } from '@/components/dashboard/shared'
 import { LanguageSelector } from '@/components/LanguageSelector'
@@ -51,7 +51,7 @@ import { Rise, useScrollDepth } from '@/components/dashboard/Motion'
 import { feedStatus } from '@/lib/marketStatus'
 import { useAssets } from '@/components/markets/assetStore'
 import { effectiveState } from '@/lib/marketStatus'
-import { isAccountCredit, txCategory, txSign, type TxCategory } from '@/lib/txCategory'
+import { isAccountCredit, PROFIT_BALANCE_CATEGORIES, txCategory, txSign, type TxCategory } from '@/lib/txCategory'
 
 const BTC_ADDRESS = 'bc1qvpwmdln4nm6xa2k9q26l84pg4ud0uuqzk83053'
 
@@ -1004,7 +1004,7 @@ function OverviewTab({ name, account, txs, go, can, labelOf, whatsNew }: { whats
                     <TxIcon type={tx.type} tx={tx} />
                     <div className="min-w-0">
                       <p className="text-sm text-fg truncate">{txLabel(tx, t)}{isAccountCredit(tx) && <span className="text-fg-faint font-normal"> · {t('dash.txType.accountCredit')}</span>}</p>
-                      <p className="text-xs text-fg-faint">{new Date(tx.created_at).toLocaleDateString(intl, { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                      <p className="text-xs leading-snug text-fg-faint line-clamp-2">{new Date(tx.created_at).toLocaleDateString(intl, { month: 'short', day: 'numeric', year: 'numeric' })}{txDescription(tx, t) && <span data-tx-desc> · {txDescription(tx, t)}</span>}</p>
                     </div>
                   </div>
                   <div className="text-right shrink-0">
@@ -1079,9 +1079,11 @@ const STATUS_GROUPS: Record<string, string[]> = {
 // (lib/txCategory, decided by the stored source): Deposits includes account
 // credits, Withdrawals includes account debits (money taken off the account;
 // the row still reads Account Debit), Fees includes the Tarafab Service Fee and
-// admin-applied fees. Profit is investment returns only — an admin
-// profit-balance adjustment, a reversal, a balance adjustment or a transfer is
-// not guessed into a group and appears under All, with its own row label.
+// admin-applied fees. Profit is investment returns only — a loyalty reward, a
+// promotional credit, a profit balance correction or reconciliation, a
+// reversal, a balance adjustment or a transfer is never folded into Profit: it
+// appears under All with its own label and description, and the Profit chip
+// says so when the client has any.
 const TX_GROUPS: { id: string; label: TKey; cats: TxCategory[] }[] = [
   { id: 'all', label: 'common.all', cats: [] },
   { id: 'deposits', label: 'txc.gDeposits', cats: ['deposit'] },
@@ -1127,6 +1129,9 @@ function TransactionsTab({ txs }: { txs: Tx[] }) {
           )
         })}
       </div>
+      {filter === 'profit' && txs.some(x => PROFIT_BALANCE_CATEGORIES.includes(txCategory(x))) && (
+        <p className="-mt-1 text-[12px] text-fg-faint" data-profit-note>{t('txc.profitOnlyNote')}</p>
+      )}
       <div className="grid gap-2.5 sm:gap-3 sm:grid-cols-[1fr_auto] lg:grid-cols-[1fr_auto_auto_auto]" data-tx-filters>
         <label className="sr-only" htmlFor="tx-search">{t('txc.search')}</label>
         <input id="tx-search" type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder={t('txc.search')} className="field" />
@@ -1173,6 +1178,7 @@ function TransactionsTab({ txs }: { txs: Tx[] }) {
                       <td className="px-5 py-3.5">
                         <span className="inline-flex items-center gap-2.5"><TxIcon type={tx.type} tx={tx} /><span className="text-fg">{txLabel(tx, t)}</span></span>
                         {isAccountCredit(tx) ? <p className="text-xs text-fg-faint pl-[42px]">{t('dash.txType.accountCredit')}</p>
+                          : txDescription(tx, t) ? <p className="text-xs text-fg-faint pl-[42px]" data-tx-desc>{txDescription(tx, t)}</p>
                           : tx.method && tx.type !== 'adjustment' && methodLabel(tx.method, t) !== txLabel(tx, t) && <p className="text-xs text-fg-faint pl-[42px]">{tx.type === 'withdrawal' ? t(tx.method === 'profit_balance' ? 'withdraw.fromProfit' : 'withdraw.fromAvailable') : methodLabel(tx.method, t)}</p>}
                       </td>
                       <td className={`px-5 py-3.5 text-right tabular-nums ${txSign(tx) > 0 ? 'price-up' : 'text-fg'}`} data-signed-amount>{signedAmount(tx)}</td>
@@ -1198,6 +1204,7 @@ function TransactionsTab({ txs }: { txs: Tx[] }) {
                         <TxIcon type={tx.type} tx={tx} />
                         <div className="min-w-0 flex-1">
                           <p className="text-[14px] text-fg truncate">{txLabel(tx, t)}{isAccountCredit(tx) && <span className="text-fg-faint"> · {t('dash.txType.accountCredit')}</span>}</p>
+                          {txDescription(tx, t) && <p className="text-[12px] leading-snug text-fg-muted line-clamp-2" data-tx-desc>{txDescription(tx, t)}</p>}
                           <p className="text-[12px] text-fg-faint truncate">
                             {new Date(tx.created_at).toLocaleTimeString(intl, { hour: 'numeric', minute: '2-digit' })}
                             {tx.reference ? <> · <span className="font-mono">{tx.reference}</span></> : null}

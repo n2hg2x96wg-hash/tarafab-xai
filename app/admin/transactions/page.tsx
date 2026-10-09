@@ -44,15 +44,17 @@ const PAGE = 50
 // Deposit · Account credit), an admin debit is an Account Debit, only
 // investment returns are Profit. Stored types and amounts are never rewritten.
 type AdminKey = TxCategory | 'account_credit'
-const KNOWN_TYPES: AdminKey[] = ['account_credit', 'account_debit', 'deposit', 'withdrawal', 'fee', 'investment', 'profit', 'profit_adjustment', 'reversal', 'adjustment']
+const KNOWN_TYPES: AdminKey[] = ['account_credit', 'account_debit', 'deposit', 'withdrawal', 'fee', 'investment', 'profit', 'loyalty_reward', 'promotional_credit', 'profit_correction', 'reconciliation', 'profit_adjustment', 'reversal', 'adjustment']
 const CATEGORY_SOURCES: Partial<Record<AdminKey, string[]>> = {
   account_credit: ['admin_funding'], account_debit: ['admin_debit'], deposit: ['client_deposit'],
   profit: ['investment_profit'], profit_adjustment: ['profit_adjustment'], investment: ['investment_principal'],
   withdrawal: ['withdrawal'], fee: ['fee'], reversal: ['reversal'], adjustment: ['balance_adjustment'], transfer: ['transfer'],
+  loyalty_reward: ['loyalty_reward'], promotional_credit: ['promotional_credit'], profit_correction: ['profit_correction'], reconciliation: ['reconciliation'],
 }
 const KEY_LABEL: Record<string, string> = {
   account_credit: 'Account Credit', account_debit: 'Account Debit', deposit: 'Deposit (client)', withdrawal: 'Withdrawal', fee: 'Fee',
-  investment: 'Investment', profit: 'Profit', profit_adjustment: 'Profit adjustment', reversal: 'Reversal', adjustment: 'Adjustment', transfer: 'Transfer',
+  investment: 'Investment', profit: 'Profit (investment return)', profit_adjustment: 'Profit balance adjustment (no reason set)', reversal: 'Reversal', adjustment: 'Adjustment', transfer: 'Transfer',
+  loyalty_reward: 'Loyalty Reward', promotional_credit: 'Promotional Credit', profit_correction: 'Profit Balance Correction', reconciliation: 'Account Reconciliation',
 }
 const typeKey = (tx: Pick<Tx, 'type' | 'method' | 'direction' | 'source'>): AdminKey => isAccountCredit(tx) ? 'account_credit' : txCategory(tx)
 const typeText = (tx: Pick<Tx, 'type' | 'method' | 'direction' | 'source'>) => adminTxLabel(tx)
