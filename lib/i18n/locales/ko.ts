@@ -366,7 +366,7 @@ const ko: DeepPartial<typeof en> = {
     invested: '투자 중',
     totalInvested: '총 투자액',
     activeInvestments: '진행 중인 투자',
-    profitReturn: '수익 / 수익률',
+    profitReturn: '수익',
     totalInvestedHint: '완료된 투자를 포함해 기록된 모든 투자 원금입니다.',
     pendingOnly: "아직 진행 중인 투자 없음 — {amount} 활성화 대기 중",
     countAll: '총 {n}건 · 완료 포함',

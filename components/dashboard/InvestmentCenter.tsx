@@ -121,7 +121,7 @@ function PerformancePanel({ activeCount, activeAmount, recorded, txs, intl, basi
       {/* Lifecycle of the most relevant investment (active, else pending, else latest completed). */}
       {stage != null && (
         <ol className="inv-life mt-4 grid grid-cols-4 gap-1 text-[10.5px] text-center" aria-label="Investment lifecycle">
-          {['Requested', 'Active', 'Return recorded', 'Completed'].map((x, i) => (
+          {['Requested', 'Active', 'Profit recorded', 'Completed'].map((x, i) => (
             <li key={x} className={`inv-life-step ${i < stage ? 'is-done' : i === stage ? 'is-now' : ''}`} aria-current={i === stage ? 'step' : undefined}><span aria-hidden="true" />{x}</li>
           ))}
         </ol>
