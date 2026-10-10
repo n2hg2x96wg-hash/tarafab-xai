@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import Script from 'next/script'
 import { hiddenState, useFeatures } from '@/components/ui/features'
 import { startChatAvoid } from '@/lib/chatAvoid'
+import { SITE_HOST } from '@/lib/site'
 
 // Smartsupp counts every browser that loads its script as a visitor and
 // notifies the support team. Only real people on the production site should
@@ -13,7 +14,7 @@ import { startChatAvoid } from '@/lib/chatAvoid'
 //   and opens each deployment in an automated browser for its preview image),
 // - automated browsers, crawlers and link-preview bots,
 // - devices used by staff (marked by the admin panel; see STAFF_FLAG).
-const PRODUCTION_HOSTS = ['tarafabxai.vercel.app']
+const PRODUCTION_HOSTS = [SITE_HOST, `www.${SITE_HOST}`, 'tarafabxai.vercel.app']
 export const STAFF_FLAG = 'tarafab.staffDevice'
 const BOT_UA = /bot|crawl|spider|slurp|headless|lighthouse|pagespeed|preview|vercel|screenshot|monitor|uptime|pingdom|facebookexternalhit|embedly|whatsapp|telegram|discord|slack|curl|wget|python|axios|node-fetch/i
 

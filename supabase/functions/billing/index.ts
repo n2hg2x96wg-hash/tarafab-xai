@@ -9,7 +9,7 @@
 // Secrets (Supabase → Edge Functions → billing):
 //   STRIPE_SECRET_KEY      sk_live_... / sk_test_...
 //   STRIPE_WEBHOOK_SECRET  whsec_... (endpoint: <project>/functions/v1/billing)
-//   APP_URL                optional, defaults to https://tarafabxai.vercel.app
+//   APP_URL                optional, defaults to https://terafabxai.xyz
 // Without them, checkout reports "not configured" and nothing changes.
 //
 // Client actions (signed-in user, JSON body): status | checkout | cancel | resume
@@ -19,7 +19,7 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const STRIPE_KEY = (Deno.env.get('STRIPE_SECRET_KEY') || '').trim()
 const WEBHOOK_SECRET = (Deno.env.get('STRIPE_WEBHOOK_SECRET') || '').trim()
-const APP_URL = (Deno.env.get('APP_URL') || 'https://tarafabxai.vercel.app').replace(/\/$/, '')
+const APP_URL = (Deno.env.get('APP_URL') || 'https://terafabxai.xyz').replace(/\/$/, '')
 const STRIPE = Deno.env.get('STRIPE_API_BASE') || 'https://api.stripe.com/v1'
 
 const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, content-type', 'Access-Control-Allow-Methods': 'POST, OPTIONS' }

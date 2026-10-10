@@ -24,8 +24,8 @@ const cache: Partial<Record<SdkKind, Promise<Disconnectable>>> = {}
 const ready: Partial<Record<SdkKind, Disconnectable>> = {}
 export const readyProvider = (kind: SdkKind) => ready[kind] || null
 
-// Tarafab.xai project on dashboard.reown.com (allowlisted domain:
-// tarafabxai.vercel.app). Project IDs are public identifiers, not secrets;
+// Tarafab.xai project on dashboard.reown.com (allowlisted domains:
+// tarafabxai.vercel.app; add terafabxai.xyz there for the custom domain). Project IDs are public identifiers, not secrets;
 // the env var overrides this if the project changes, and the project's origin
 // allowlist must match the deployed application.
 const DEFAULT_WALLETCONNECT_PROJECT_ID = '38f139f785accee3a73f85588e5a4f67'

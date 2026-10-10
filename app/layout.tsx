@@ -8,8 +8,12 @@ import { I18nProvider } from '@/lib/i18n/I18nProvider'
 import { DEFAULT_LOCALE, LOCALE_COOKIE, isLocale } from '@/lib/i18n/config'
 import { ThemeProvider } from '@/lib/theme/ThemeProvider'
 import { THEME_COOKIE, isThemePreference, themeInitScript } from '@/lib/theme/config'
+import { SITE_URL } from '@/lib/site'
 
 export const metadata: Metadata = {
+  // Absolute URLs (social previews, canonical) resolve against the official domain.
+  metadataBase: new URL(SITE_URL),
+  openGraph: { siteName: 'Tarafab.XAi', url: SITE_URL, type: 'website' },
   title: 'Tarafab.XAi | Bitcoin deposits and account tracking',
   description: 'Deposit Bitcoin, upload your transfer receipt, and track your balance and transaction history in one dashboard.',
   icons: {
