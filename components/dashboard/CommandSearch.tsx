@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ComponentType, type SVGProps } from 'react'
 import { useI18n } from '@/lib/i18n/I18nProvider'
+import { useHideChat } from '@/lib/chatAside'
 
 export type CommandItem = { id: string; label: string; group: string; icon: ComponentType<SVGProps<SVGSVGElement>> }
 
@@ -32,6 +33,7 @@ export function CommandSearch({ items, open, onOpenChange, onGo }: {
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [open, onOpenChange])
+  useHideChat(open)
 
   useEffect(() => {
     if (!open) return

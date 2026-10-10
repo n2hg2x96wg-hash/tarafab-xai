@@ -11,6 +11,7 @@ import { Spinner } from '@/components/AuthShell'
 import { StatusBadge, useMk } from './AssetCenter'
 import { useAssets } from './useAssets'
 import { AutomationFlow, FlowDots } from '@/components/automation/AutomationFlow'
+import { useHideChat } from '@/lib/chatAside'
 
 type Kind = 'price_above' | 'price_below' | 'pct_up' | 'pct_down' | 'move_abs'
 type Auto = {
@@ -194,6 +195,7 @@ function Wizard({ assets, initial, onClose, onDone }: { assets: AssetQuote[]; in
   const validTarget = Number.isFinite(num) && num > 0 && (!isPct(kind) || num <= 1000)
   const results = assets.filter(a => a.automation && (!q.trim() || a.id.toLowerCase().includes(q.trim().toLowerCase()) || a.name.toLowerCase().includes(q.trim().toLowerCase())))
   useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === 'Escape' && !busy) onClose() }; window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k) }, [busy, onClose])
+  useHideChat()
 
   const save = async () => {
     if (busy) return

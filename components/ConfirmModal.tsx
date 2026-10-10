@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, type ReactNode } from 'react'
 import { Spinner } from '@/components/AuthShell'
+import { hideChat } from '@/lib/chatAside'
 
 // A confirmation step before an action that cannot be taken back. The dialog
 // is modal: focus moves into it, Escape and the backdrop cancel (unless a
@@ -24,9 +25,9 @@ export function ConfirmModal({ title, children, confirmLabel, cancelLabel, busy,
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !busyRef.current) onCancel() }
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    document.body.classList.add('dialog-open')
+    const showChat = hideChat()
     document.addEventListener('keydown', onKey)
-    return () => { document.body.style.overflow = prev; document.body.classList.remove('dialog-open'); document.removeEventListener('keydown', onKey) }
+    return () => { document.body.style.overflow = prev; showChat(); document.removeEventListener('keydown', onKey) }
   }, [onCancel])
 
   return (

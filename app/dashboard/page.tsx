@@ -52,6 +52,7 @@ import { feedStatus } from '@/lib/marketStatus'
 import { useAssets } from '@/components/markets/assetStore'
 import { effectiveState } from '@/lib/marketStatus'
 import { isAccountCredit, txCategory, txSign, type TxCategory } from '@/lib/txCategory'
+import { hideChat, useHideChat } from '@/lib/chatAside'
 
 const BTC_ADDRESS = 'bc1qvpwmdln4nm6xa2k9q26l84pg4ud0uuqzk83053'
 
@@ -399,6 +400,9 @@ export default function DashboardPage() {
     return () => window.removeEventListener('popstate', onPop)
   }, [sidebarOpen])
 
+  // The support chat bubble steps aside while the phone menu is open.
+  useHideChat(sidebarOpen)
+
   // Mobile drawer: Escape closes it and the page behind does not scroll.
   useEffect(() => {
     if (!sidebarOpen) return
@@ -507,10 +511,10 @@ export default function DashboardPage() {
                       data-nav-id={id}
                     >
                       <span className="cc-navicon" aria-hidden="true"><I width={17} height={17} className="shrink-0 transition-colors" /></span>
-                      <span className={`flex-1 min-w-0 truncate ${collapsed ? 'lg:sr-only' : ''}`}>{labelOf({ id, label })}</span>
+                      <span className={`cc-navlabel flex-1 min-w-0 truncate ${collapsed ? 'lg:sr-only' : ''}`}>{labelOf({ id, label })}</span>
                       {id === 'automations' && <AutomationBadge collapsed={collapsed} />}
                       {id === 'notifications' && unread > 0 && (
-                        <span className={`cc-navcount shrink-0 min-w-5 h-5 px-1.5 rounded-full ${collapsed ? 'lg:absolute lg:top-0.5 lg:right-2 lg:min-w-4 lg:h-4 lg:px-1 lg:text-[10px]' : ''} bg-brand-500/15 text-brand-300 text-[11px] font-semibold tabular-nums inline-flex items-center justify-center`}>
+                        <span className={`cc-navcount shrink-0 min-w-5 h-5 px-1.5 rounded-full ${collapsed ? 'lg:absolute lg:top-0.5 lg:right-2 lg:min-w-4 lg:h-4 lg:px-1 lg:text-[10px]' : ''} bg-accent/15 text-accent text-[11px] font-semibold tabular-nums inline-flex items-center justify-center`}>
                           {unread}<span className="sr-only"> {t('notices.newCount', { n: unread })}</span>
                         </span>
                       )}
@@ -524,10 +528,10 @@ export default function DashboardPage() {
           {/* Soft fade so a list that continues below reads as scrollable. */}
           <div className="sticky bottom-0 h-6 -mx-3 bg-gradient-to-t from-ink-950/90 to-transparent pointer-events-none" aria-hidden="true" />
         </nav>
-        {/* Fixed account footer (glass): automation status, the signed-in
-            account, then language / theme and sign out. Compact so the
-            navigation above keeps its room on short phones. */}
-        <div className={`shrink-0 px-3 pt-3 pb-3 border-t cc-sep safe-bottom space-y-2.5 ${collapsed ? 'lg:px-2' : ''}`}>
+        {/* Fixed account footer: the signed-in account, language / theme,
+            then Sign out on its own row, set apart from the navigation so it
+            is never mistaken for (or tapped instead of) a menu link. */}
+        <div className={`cc-drawer-foot shrink-0 px-3 pt-3 border-t cc-sep safe-bottom space-y-2.5 ${collapsed ? 'lg:px-2' : ''}`}>
           <div className={`flex items-center gap-2.5 px-1 ${collapsed ? 'lg:justify-center lg:px-0' : ''}`} data-account-card>
             <span className="relative w-9 h-9 rounded-full bg-accent/15 border border-accent/30 flex items-center justify-center text-[13px] font-semibold text-accent shrink-0" title={collapsed ? displayName : undefined}>
               {initials}
@@ -539,21 +543,16 @@ export default function DashboardPage() {
               <p className="text-[11.5px] text-fg-faint truncate">{user?.email}</p>
               <span className="sr-only">{t('shell.status')}: {t(!loadError ? 'shell.statusOk' : 'shell.statusIssue')}</span>
             </div>
-            <button onClick={handleSignOut} disabled={signingOut} aria-busy={signingOut} aria-label={t('common.signOut')} title={t('common.signOut')}
-              className={`shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-fg-faint hover:text-red-300 hover:bg-red-500/[.08] active:scale-[.96] transition disabled:opacity-60 ${collapsed ? 'lg:hidden' : ''}`} data-signout>
-              {signingOut ? <Spinner /> : <IconLogOut width={17} height={17} aria-hidden="true" />}
-            </button>
           </div>
           <div className={`cc-ctl flex items-center gap-2 ${collapsed ? 'lg:hidden' : ''}`}>
             <LanguageSelector align="left" direction="up" />
             <ThemeSelector align="left" direction="up" />
           </div>
-          {/* Collapsed desktop rail: sign out stays reachable as an icon. */}
-          {collapsed && (
-            <button onClick={handleSignOut} disabled={signingOut} aria-label={t('common.signOut')} className="hidden lg:flex w-full justify-center min-h-10 items-center rounded-md text-fg-muted hover:text-fg hover:bg-ink-850">
-              {signingOut ? <Spinner /> : <IconLogOut width={17} height={17} />}
-            </button>
-          )}
+          <button onClick={handleSignOut} disabled={signingOut} aria-busy={signingOut} title={collapsed ? t('common.signOut') : undefined}
+            className={`cc-logout ${collapsed ? 'lg:justify-center lg:px-0' : ''}`} data-signout>
+            <span className="cc-logout-icon" aria-hidden="true">{signingOut ? <Spinner /> : <IconLogOut width={16} height={16} />}</span>
+            <span className={collapsed ? 'lg:sr-only' : ''}>{t('common.signOut')}</span>
+          </button>
         </div>
       </aside>
 
@@ -572,7 +571,7 @@ export default function DashboardPage() {
             <kbd className="text-[11px] border border-ink-600 rounded px-1.5 py-0.5 whitespace-nowrap">{shortcut}</kbd>
           </button>
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <div className={`text-right shrink-0 ${activeNav === 'overview' ? 'max-sm:hidden' : ''}`} data-header-balance>
+            <div className={`text-right shrink-0 ${activeNav === 'overview' ? 'max-sm:hidden' : 'max-[419px]:hidden'}`} data-header-balance>
               <div className="text-[11px] text-fg-faint leading-none mb-1 whitespace-nowrap">{t('dash.accountBalance')}</div>
               {/* One client-facing balance: the account's spendable balance (available_balance), the same figure withdrawals and investments use. */}
               <div className="text-sm font-semibold text-fg tabular-nums leading-none whitespace-nowrap">${fmt(account?.available_balance ?? 0)}</div>
@@ -635,7 +634,7 @@ export default function DashboardPage() {
       </div>
 
       <CommandSearch items={commandItems} open={cmdOpen} onOpenChange={setCmdOpen} onGo={go} />
-      <BottomNav active={activeNav} can={id => !hiddenNav.includes(id)} go={go} onMenu={() => setSidebarOpen(true)} unread={unread} t={t} />
+      <BottomNav active={activeNav} can={id => !hiddenNav.includes(id)} go={go} onMenu={() => setSidebarOpen(true)} unread={unread} t={t} menuOpen={sidebarOpen} />
     </div>
   )
 }
@@ -649,8 +648,8 @@ const INTRO_SUB: Record<string, string> = {
   notifications: 'notices.body', preferences: 'prefs.body', support: 'support.body', marketActivity: '', priceHistory: '',
 }
 
-function BottomNav({ active, can, go, onMenu, unread, t }: {
-  active: string; can: (id: string) => boolean; go: (id: string) => void; onMenu: () => void; unread: number; t: (k: TKey) => string
+function BottomNav({ active, can, go, onMenu, unread, t, menuOpen }: {
+  active: string; can: (id: string) => boolean; go: (id: string) => void; onMenu: () => void; unread: number; t: (k: TKey) => string; menuOpen: boolean
 }) {
   const items = ([
     ['overview', 'shell.home', IconGrid],
@@ -658,8 +657,10 @@ function BottomNav({ active, can, go, onMenu, unread, t }: {
     ['wallet', 'wallet.nav', IconWallet],
     ['transactions', 'shell.activity', IconList],
   ] as [string, TKey, Icon][]).filter(([id]) => id === 'overview' || can(id))
+  // While the full menu is open the bar steps away; it would otherwise show
+  // through the menu's footer and above the backdrop.
   return (
-    <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 cc-tabbar" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }} aria-label={t('shell.quickNav')}>
+    <nav className={`lg:hidden fixed bottom-0 inset-x-0 z-30 cc-tabbar ${menuOpen ? 'invisible' : ''}`} style={{ paddingBottom: 'env(safe-area-inset-bottom)' }} aria-label={t('shell.quickNav')} aria-hidden={menuOpen || undefined}>
       <ul className="flex">
         {items.map(([id, label, I]) => {
           const on = active === id
@@ -695,7 +696,8 @@ function AutomationBadge({ collapsed }: { collapsed: boolean }) {
   return (
     <span className={`cc-navauto shrink-0 inline-flex items-center gap-1.5 text-[11.5px] text-fg-faint ${collapsed ? 'lg:absolute lg:top-1.5 lg:right-3' : ''}`} data-sidebar-automation={loading ? 'connecting' : state} title={label}>
       <span className={`w-1.5 h-1.5 rounded-full ${dot}`} aria-hidden="true" />
-      <span className={collapsed ? 'lg:sr-only' : ''}>{label}</span>
+      {/* Narrow phones: the dot carries the state; the words stay for screen readers and in the tooltip. */}
+      <span className={`max-[419px]:sr-only ${collapsed ? 'lg:sr-only' : ''}`}>{label}</span>
     </span>
   )
 }
@@ -907,7 +909,7 @@ function OverviewTab({ name, account, txs, go, can, labelOf, whatsNew, onOpenAss
               <div className="flex items-center gap-3 min-w-0">
                 <TxIcon type={tx.type} tx={tx} />
                 <div className="min-w-0">
-                  <p className="text-[13.5px] text-fg truncate">{txLabel(tx, t)}{isAccountCredit(tx) && <span className="text-fg-faint font-normal"> · {t('dash.txType.accountCredit')}</span>}</p>
+                  <p className="text-[13.5px] leading-snug text-fg line-clamp-2 break-words">{txLabel(tx, t)}{isAccountCredit(tx) && <span className="text-fg-faint font-normal"> · {t('dash.txType.accountCredit')}</span>}</p>
                   <p className="text-[11.5px] leading-snug text-fg-faint line-clamp-2 break-words" title={txDescription(tx, t) || undefined}>{new Date(tx.created_at).toLocaleDateString(intl, { month: 'short', day: 'numeric', year: 'numeric' })}{txDescription(tx, t) && <span data-tx-desc> · {txDescription(tx, t)}</span>}</p>
                 </div>
               </div>
@@ -1170,7 +1172,7 @@ function TransactionsTab({ txs }: { txs: Tx[] }) {
                       <li key={tx.id} className="flex items-center gap-3 px-4 py-3 cursor-pointer active:bg-[rgb(var(--contrast)/.03)]" data-tx-row={tx.status} data-tx-open={tx.id} onClick={() => setReceipt(tx)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setReceipt(tx) } }} tabIndex={0} aria-label={`${txLabel(tx, t)} ${signedAmount(tx)} — ${t('rcpt.open')}`}>
                         <TxIcon type={tx.type} tx={tx} />
                         <div className="min-w-0 flex-1">
-                          <p className="text-[14px] text-fg truncate">{txLabel(tx, t)}{isAccountCredit(tx) && <span className="text-fg-faint"> · {t('dash.txType.accountCredit')}</span>}</p>
+                          <p className="text-[14px] leading-snug text-fg line-clamp-2 break-words">{txLabel(tx, t)}{isAccountCredit(tx) && <span className="text-fg-faint"> · {t('dash.txType.accountCredit')}</span>}</p>
                           {txDescription(tx, t) && <p className="text-[12px] leading-snug text-fg-muted whitespace-normal break-words" data-tx-desc>{txDescription(tx, t)}</p>}
                           <p className="text-[12px] text-fg-faint truncate">
                             {new Date(tx.created_at).toLocaleTimeString(intl, { hour: 'numeric', minute: '2-digit' })}
@@ -1537,7 +1539,7 @@ function MethodSheet({ choices, value, loading, onPick, onClose, title = 'Choose
     const opener = document.activeElement as HTMLElement | null
     const html = document.documentElement, prevOverflow = html.style.overflow
     html.style.overflow = 'hidden'
-    document.body.classList.add('dialog-open')
+    const showChat = hideChat()
     // Everything else on the page becomes inert while the sheet is open.
     const others = Array.from(document.body.children).filter(el => el !== ref.current?.closest('[data-sheet-root]')) as HTMLElement[]
     const was = others.map(el => [el.inert, el.getAttribute('aria-hidden')] as const)
@@ -1545,7 +1547,7 @@ function MethodSheet({ choices, value, loading, onPick, onClose, title = 'Choose
     ref.current?.querySelector<HTMLButtonElement>('[aria-checked="true"]')?.focus() ?? ref.current?.querySelector<HTMLButtonElement>('button')?.focus()
     return () => {
       html.style.overflow = prevOverflow
-      document.body.classList.remove('dialog-open')
+      showChat()
       others.forEach((el, i) => { el.inert = was[i][0]; if (was[i][1] === null) el.removeAttribute('aria-hidden'); else el.setAttribute('aria-hidden', was[i][1]!) })
       opener?.focus?.()
     }

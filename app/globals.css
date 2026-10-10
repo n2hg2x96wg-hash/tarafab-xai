@@ -349,6 +349,8 @@ html:has(.site) ::-webkit-scrollbar-thumb:hover { background: rgb(var(--ink-500)
 /* Phones/tablets: when the browser scrolls a field or button into view (focus,
    validation, keyboard), stop above the fixed bottom navigation, not under it. */
 @media (max-width: 1023px) { html { scroll-padding-bottom: calc(96px + env(safe-area-inset-bottom)); } }
+/* Dashboard: also clear of the support bubble that sits just above the bar. */
+@media (max-width: 1023px) { html:has(body.has-bottom-nav) { scroll-padding-bottom: calc(150px + env(safe-area-inset-bottom)); } }
 /* While a dialog is open the support bubble steps aside so it never covers
    confirmation controls; it returns when the dialog closes. */
 body.dialog-open #chat-application { visibility: hidden !important; }
@@ -395,7 +397,7 @@ body.dialog-open #chat-application { visibility: hidden !important; }
    support chat bubble lifted above it rather than covering the last tab
    (the lift itself is the widget's offsetY, see SmartsuppWidget). */
 @media (max-width: 1023px) {
-  body.has-bottom-nav .chat-clearance { padding-bottom: calc(190px + env(safe-area-inset-bottom)); }
+  body.has-bottom-nav .chat-clearance { padding-bottom: calc(156px + env(safe-area-inset-bottom)); }
 }
 
 /* Hero floating information panels: slow, small drift; still when motion is reduced. */
@@ -969,14 +971,29 @@ button.ovx-row:focus-visible { outline: none; box-shadow: inset 0 0 0 2px rgb(va
   .cc-navicon { width: 28px; height: 28px; border-radius: 8px; }
 }
 @media (max-width: 1023px) {
-  .cc-navlist { padding: 4px; border-radius: 16px; background: linear-gradient(180deg, rgb(var(--contrast) / .04), rgb(var(--contrast) / .015)); border: 1px solid rgb(var(--contrast) / .07); }
-  .cc-navlist > .cc-navbtn { min-height: 52px; padding: 8px 10px; border-radius: 12px; font-size: 15px; gap: 12px; }
+  /* Phones: each group is one quiet inset list; rows are compact and even,
+     split by fine hairlines that start after the icon. */
+  .cc-navlist { padding: 3px; border-radius: 14px; background: rgb(var(--contrast) / .022); border: 1px solid rgb(var(--contrast) / .055); }
+  .cc-navlist > .cc-navbtn { min-height: 46px; padding: 6px 10px; border-radius: 11px; font-size: 14.5px; gap: 12px; }
   .cc-navlist > .cc-navbtn + .cc-navbtn { position: relative; }
-  .cc-navlist > .cc-navbtn + .cc-navbtn::after { content: ''; position: absolute; top: -1px; left: 52px; right: 10px; height: 1px; background: rgb(var(--contrast) / .06); }
+  .cc-navlist > .cc-navbtn + .cc-navbtn::after { content: ''; position: absolute; top: -1px; left: 50px; right: 10px; height: 1px; background: rgb(var(--contrast) / .055); }
   .cc-navlist > .nav-item-on::after, .cc-navlist > .nav-item-on + .cc-navbtn::after { display: none; }
-  .cc-navgroup { margin-bottom: 10px; }
+  .cc-navgroup { margin-bottom: 6px; }
+  .cc-navgroup > p { padding-top: 8px; }
   .cc-drawer .cc-navgroup + .cc-navgroup { border-top: 0; padding-top: 0; }
+  .cc-navicon { width: 28px; height: 28px; border-radius: 8px; }
 }
+/* Sign out: its own row at the foot of the menu, set apart by a hairline and
+   a quiet red tint, so it never reads as one more navigation link. */
+.cc-logout { width: 100%; min-height: 44px; display: flex; align-items: center; gap: 12px; padding: 0 10px; margin: 0; border-radius: 12px;
+  font-size: 14px; font-weight: 500; color: rgb(var(--danger-400)); border: 1px solid rgb(var(--danger-400) / .16); background: rgb(var(--danger-400) / .045);
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease, transform .12s ease; }
+.cc-logout:hover:not(:disabled) { background: rgb(var(--danger-400) / .09); border-color: rgb(var(--danger-400) / .3); }
+.cc-logout:active:not(:disabled) { transform: scale(.985); }
+.cc-logout:focus-visible { outline: none; box-shadow: 0 0 0 2px rgb(var(--ink-950)), 0 0 0 4px rgb(var(--danger-400) / .6); }
+.cc-logout:disabled { cursor: progress; opacity: .75; }
+.cc-logout-icon { width: 28px; height: 28px; flex-shrink: 0; border-radius: 8px; display: grid; place-items: center; background: rgb(var(--danger-400) / .1); }
+@media (prefers-reduced-motion: reduce) { .cc-logout:active:not(:disabled) { transform: none; } }
 
 /* Live 3D Bitcoin (components/three): a layer behind its section. */
 .btc3d, .btc3d-host { position: absolute; inset: 0; pointer-events: none; }
@@ -1151,3 +1168,41 @@ button.ovx-row:focus-visible { outline: none; box-shadow: inset 0 0 0 2px rgb(va
 .consent-box:disabled { cursor: not-allowed; opacity: .6; }
 .consent-row[data-invalid] .consent-box { border-color: rgb(var(--danger-400) / .85); }
 .consent-error { margin: 6px 0 0 32px; font-size: 12.5px; line-height: 1.45; color: rgb(var(--danger-400)); }
+
+/* ---- Client app button system ------------------------------------------
+   One family for every authenticated page (scoped to .cc-app, so the public
+   site and admin keep theirs):
+   primary .btn-solid · secondary .btn-outline · quiet .btn-ghost ·
+   soft accent .btn-brand · destructive .btn-danger · icon .cc-iconbtn.
+   States: hover, pressed, focus-visible (orange ring), selected
+   (aria-pressed / aria-selected / .is-on), busy (aria-busy) and disabled. */
+.cc-app { --focus: var(--accent); }
+.cc-app .btn { border-radius: 12px; font-size: 14.5px; letter-spacing: -.005em; }
+.cc-app .btn-sm { min-height: 36px; padding: 6px 14px; border-radius: 10px; font-size: 13.5px; }
+@media (pointer: coarse) { .cc-app .btn-sm { min-height: 40px; } }
+.cc-app .btn:focus-visible { outline: none; box-shadow: 0 0 0 2px rgb(var(--ink-950)), 0 0 0 4px rgb(var(--accent) / .65); }
+.cc-app .btn-solid:hover:not(:disabled) { transform: translateY(-1px); }
+.cc-app .btn-solid:active:not(:disabled) { transform: translateY(0) scale(.985); }
+.cc-app .btn-ghost { border-radius: 10px; }
+.cc-app .btn-ghost:hover:not(:disabled) { background: rgb(var(--contrast) / .05); }
+.cc-app .btn-brand { background: rgb(var(--accent) / .1); color: rgb(var(--accent-text)); border: 1px solid rgb(var(--accent) / .3); }
+.cc-app .btn-brand:hover:not(:disabled) { background: rgb(var(--accent) / .16); border-color: rgb(var(--accent) / .5); }
+.cc-app .btn-danger { border-color: rgb(var(--danger-400) / .3); background: rgb(var(--danger-400) / .04); }
+.cc-app .btn-danger:hover:not(:disabled) { background: rgb(var(--danger-400) / .1); border-color: rgb(var(--danger-400) / .5); }
+.cc-app .btn-danger:focus-visible { box-shadow: 0 0 0 2px rgb(var(--ink-950)), 0 0 0 4px rgb(var(--danger-400) / .6); }
+.cc-app :is(.btn-outline, .btn-ghost)[aria-pressed="true"],
+.cc-app :is(.btn-outline, .btn-ghost)[aria-selected="true"],
+.cc-app :is(.btn-outline, .btn-ghost).is-on { color: rgb(var(--accent-text)); border-color: rgb(var(--accent) / .45); background: rgb(var(--accent) / .1); }
+.cc-app :is(.btn-outline, .btn-ghost, .btn-brand, .btn-danger):disabled { opacity: .5; }
+.cc-app .btn[aria-busy="true"] { cursor: progress; }
+.cc-app .cc-iconbtn:active { transform: scale(.96); }
+.cc-app .cc-iconbtn:disabled { opacity: .5; cursor: not-allowed; }
+@media (prefers-reduced-motion: reduce) {
+  .cc-app .btn-solid:hover:not(:disabled), .cc-app .btn-solid:active:not(:disabled), .cc-app .cc-iconbtn:active { transform: none; }
+}
+/* The menu's footer is solid, so nothing behind the drawer shows through
+   the account row or Sign out. */
+@media (max-width: 1023px) { .cc-drawer-foot { background: rgb(var(--ink-950) / .94); border-radius: 0 0 18px 0; } }
+/* Very narrow phones: the chevrons give their room to the labels, so long
+   translated names (e.g. "Benachrichtigungen") are not cut off. */
+@media (max-width: 379px) { .cc-navchev { display: none; } }

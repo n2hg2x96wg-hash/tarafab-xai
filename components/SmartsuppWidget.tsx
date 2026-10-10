@@ -75,14 +75,18 @@ export default function SmartsuppWidget() {
         {`
           var _smartsupp = _smartsupp || {};
           _smartsupp.key = '7609b94f32c953ff2d48e555ce2d1f77f817d98e';
-          // Keep the bubble clear of the iPhone home indicator and page edges;
-          // pages add matching bottom space on phones (see .chat-clearance).
-          // Below 1024px the dashboard has a 64px bottom bar (plus the iPhone
-          // safe area). The widget reads its offset once when it loads, and
-          // sign-in moves to the dashboard without a reload, so on phones and
-          // tablets the bubble always sits above where that bar would be.
+          // Keep the bubble clear of the page edges and, on phones and
+          // tablets (below 1024px), 16px above the dashboard's 60px bottom bar
+          // plus the device's safe area (iPhone home indicator). The widget
+          // reads its offset once when it loads, and sign-in moves to the
+          // dashboard without a reload, so below 1024px it always sits above
+          // where that bar would be. Pages add matching bottom space
+          // (.chat-clearance), and it steps aside while a menu or dialog is
+          // open (body.dialog-open).
+          var _sa = 0;
+          try { var _p = document.createElement('div'); _p.style.cssText = 'position:fixed;left:0;bottom:0;width:0;height:0;visibility:hidden;padding-bottom:env(safe-area-inset-bottom)'; document.body.appendChild(_p); _sa = _p.offsetHeight || 0; _p.remove(); } catch (e) {}
           _smartsupp.offsetX = 16;
-          _smartsupp.offsetY = window.innerWidth < 1024 ? 112 : 20;
+          _smartsupp.offsetY = window.innerWidth < 1024 ? 76 + _sa : 20;
           window.smartsupp||(function(d) {
             var s,c,o=smartsupp=function(){ o._.push(arguments)};o._=[];
             s=d.getElementsByTagName('script')[0];c=d.createElement('script');

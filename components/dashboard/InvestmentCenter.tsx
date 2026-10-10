@@ -8,6 +8,7 @@ import { fmt, PageIntro } from '@/components/dashboard/shared'
 import { projection } from '@/lib/returns'
 import { EnginePanel } from '@/components/automation/EnginePanel'
 import { parseInvestmentSummary, type InvestmentSummary } from '@/lib/investmentSummary'
+import { useHideChat } from '@/lib/chatAside'
 
 // The client's Investment Center. Everything shown is read from real records
 // through /api/client/investments, which runs under row level security.
@@ -374,6 +375,7 @@ export function InvestmentCenter({ go, focusId, onFocusDone, onAccountChanged }:
 
 function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   const { t } = useI18n()
+  useHideChat()
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     const prev = document.body.style.overflow

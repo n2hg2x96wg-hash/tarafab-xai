@@ -12,6 +12,7 @@ import { AreaChart, Sparkline, sma } from './Charts'
 import { loadChart, useAssets } from './useAssets'
 import { hiddenState, useFeatures } from '@/components/ui/features'
 import { effectiveState } from '@/lib/marketStatus'
+import { useHideChat } from '@/lib/chatAside'
 
 type Cat = 'all' | 'crypto' | 'stock' | 'index' | 'watchlist'
 const CATS: Cat[] = ['all', 'crypto', 'stock', 'index', 'watchlist']
@@ -214,6 +215,7 @@ function AssetDetail({ a, watched, onWatch, onAutomate, onClose, watchOff = fals
     return () => ac.abort()
   }, [a.id, a.chart, tf, chartsOff])
   useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }; window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k) }, [onClose])
+  useHideChat()
   const stats: [string, string][] = [
     [t('detail.high'), formatPrice(a.high)], [t('detail.low'), formatPrice(a.low)],
     [a.category === 'crypto' ? t('detail.open24') : t('detail.prevClose'), formatPrice(a.prevClose)],

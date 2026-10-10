@@ -7,6 +7,7 @@ import { statusLabel } from '@/lib/i18n/format'
 import { isAccountCredit, txSign } from '@/lib/txCategory'
 import { IconCheck, IconClose, IconCopy } from '@/components/Icons'
 import { StatusTag, fmt, methodLabel, signedAmount, txDescription, txLabel, type Tx } from '@/components/dashboard/shared'
+import { hideChat } from '@/lib/chatAside'
 
 /* A receipt for one of the client's own transactions: every line comes from
    that transaction record (nothing is recalculated). It can be shared as an
@@ -108,8 +109,9 @@ export function TxReceipt({ tx, onClose }: { tx: Tx; onClose: () => void }) {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
+    const showChat = hideChat()
     document.addEventListener('keydown', onKey)
-    return () => { document.body.style.overflow = prev; document.removeEventListener('keydown', onKey) }
+    return () => { document.body.style.overflow = prev; showChat(); document.removeEventListener('keydown', onKey) }
   }, [onClose])
 
   const save = (blob: Blob) => {
