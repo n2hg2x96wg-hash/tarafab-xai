@@ -1146,18 +1146,54 @@ button.ovx-row:focus-visible { outline: none; box-shadow: inset 0 0 0 2px rgb(va
   background: linear-gradient(90deg, transparent, rgb(var(--accent) / .45), transparent); opacity: .7; }
 .ax-panel[data-live] { border-color: rgb(52 211 153 / .28); }
 .ax-foot { margin-top: auto; padding-top: 10px; font-size: 11.5px; line-height: 1.4; color: rgb(var(--fg-faint)); }
-.ax-tag { flex-shrink: 0; border-radius: 9999px; border: 1px solid rgb(var(--contrast) / .14); padding: 1px 8px; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: rgb(var(--fg-faint)); }
-.ax-chart { display: block; width: 100%; height: 56px; margin-top: 10px; overflow: visible; }
-.ax-chart-level { stroke: rgb(var(--accent) / .55); stroke-width: 1; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }
-.ax-chart-line { fill: none; stroke: rgb(var(--fg-muted)); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke;
-  stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 1.2s ease .35s; }
-.ax-step.is-in .ax-chart-line { stroke-dashoffset: 0; }
-.ax-chart-hit { fill: rgb(var(--accent)); opacity: 0; transition: opacity .3s ease 1.4s; }
-.ax-step.is-in .ax-chart-hit { opacity: 1; }
-.ax-ticks { display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 4px; align-items: end; height: 40px; margin-top: 12px; }
-.ax-ticks span { height: 60%; border-radius: 3px; background: rgb(var(--contrast) / .1); transform-origin: bottom; transform: scaleY(.2); transition: transform .5s cubic-bezier(.2,.7,.2,1); transition-delay: calc(.3s + var(--j) * 45ms); }
-.ax-ticks span.is-on { height: 100%; background: linear-gradient(180deg, rgb(var(--accent)), rgb(var(--accent) / .45)); }
-.ax-step.is-in .ax-ticks span { transform: none; }
+.ax-tag { flex-shrink: 0; display: inline-block; border-radius: 9999px; border: 1px solid rgb(var(--contrast) / .14); padding: 1px 8px; font-size: 10px; line-height: 1.5; text-transform: uppercase; letter-spacing: .06em; color: rgb(var(--fg-faint)); vertical-align: 1px; }
+.ax-legend { margin-top: 10px; font-size: 12.5px; color: rgb(var(--fg-faint)); }
+.ax-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11.5px; color: rgb(var(--fg-faint)); }
+.ax-state { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 11.5px; color: rgb(var(--fg-faint)); }
+/* 01 · rule form (illustration; not interactive) */
+.ax-form { display: grid; gap: 6px; margin-top: 10px; }
+.ax-field { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 34px; padding: 0 10px; border-radius: 10px;
+  border: 1px solid rgb(var(--contrast) / .08); background: rgb(var(--ink-950) / .55); font-size: 12.5px;
+  opacity: 0; transform: translateY(6px); transition: opacity .4s ease, transform .5s cubic-bezier(.2,.7,.2,1), border-color .4s ease; }
+.ax-field:nth-child(1) { transition-delay: .25s; } .ax-field:nth-child(2) { transition-delay: .38s; } .ax-field:nth-child(3) { transition-delay: .51s; }
+.ax-step.is-in .ax-field { opacity: 1; transform: none; }
+.ax-field-k { flex-shrink: 0; color: rgb(var(--fg-faint)); }
+.ax-field-v { display: inline-flex; align-items: center; gap: 6px; min-width: 0; color: rgb(var(--fg)); font-weight: 500; white-space: nowrap; }
+.ax-field-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ax-field-v svg, .ax-coin { flex-shrink: 0; }
+/* four columns on small laptops: a little tighter so whole values fit */
+@media (min-width: 1024px) and (max-width: 1279px) { .ax-field { padding: 0 8px; gap: 6px; font-size: 12px; } .ax-panel { padding: 12px 12px 10px; } }
+.ax-field-v svg { color: rgb(var(--fg-faint)); }
+.ax-field-on { border-color: rgb(var(--accent) / .5); box-shadow: 0 0 0 3px rgb(var(--accent) / .1); }
+.ax-coin { width: 16px; height: 16px; border-radius: 9999px; display: grid; place-items: center; font-size: 10px; font-weight: 800; color: #fff7e2; background: radial-gradient(circle at 35% 30%, #ffd77a, #f7931a 60%, #b4610b); }
+.ax-caret { width: 1.5px; height: 14px; background: rgb(var(--accent)); animation: axCaret 1.1s steps(1) infinite; }
+@keyframes axCaret { 50% { opacity: 0; } }
+/* 02 · price line */
+.ax-line { margin-top: 10px; }
+.ax-line svg { display: block; width: 100%; height: 56px; overflow: visible; }
+.ax-line-target { stroke: rgb(var(--accent) / .6); stroke-width: 1; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }
+.ax-line-path { fill: none; stroke: rgb(var(--success-400)); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke;
+  stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 1.4s ease .3s; }
+.ax-line-path.is-illustrative { stroke: rgb(var(--fg-faint)); stroke-dasharray: none; }
+.ax-step.is-in .ax-line-path { stroke-dashoffset: 0; }
+.ax-line-cap { display: block; margin-top: 6px; font-size: 11px; color: rgb(var(--fg-faint)); }
+/* 03 · evaluation states */
+.ax-eval { display: grid; gap: 4px; margin-top: 8px; }
+.ax-eval-row { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 10px; border: 1px solid transparent; opacity: .55; transition: opacity .4s ease .5s, background-color .4s ease .5s, border-color .4s ease .5s; }
+.ax-eval-dot { width: 8px; height: 8px; flex-shrink: 0; border-radius: 9999px; background: rgb(var(--fg-faint)); }
+.ax-eval-met .ax-eval-dot { background: rgb(var(--accent)); }
+.ax-eval-waiting .ax-eval-dot { background: rgb(var(--info-400, 96 165 250)); }
+.ax-step.is-in .ax-eval-row.is-current { opacity: 1; border-color: rgb(var(--contrast) / .12); background: rgb(var(--contrast) / .045); }
+.ax-step.is-in .ax-eval-met.is-current { border-color: rgb(var(--accent) / .45); background: rgb(var(--accent) / .08); }
+/* 04 · notification and log */
+.ax-note { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 8px 10px; border-radius: 12px; border: 1px solid rgb(var(--accent) / .3); background: rgb(var(--accent) / .07);
+  opacity: 0; transform: translateY(-6px) scale(.98); transition: opacity .4s ease .35s, transform .5s cubic-bezier(.2,.7,.2,1) .35s; }
+.ax-step.is-in .ax-note { opacity: 1; transform: none; }
+.ax-note-icon { width: 26px; height: 26px; flex-shrink: 0; border-radius: 8px; display: grid; place-items: center; color: rgb(var(--accent-ink)); background: rgb(var(--accent)); }
+.ax-log { display: grid; gap: 6px; margin-top: 10px; font-size: 12px; color: rgb(var(--fg-muted)); }
+.ax-log li { display: flex; align-items: center; gap: 8px; opacity: 0; transform: translateX(-6px); transition: opacity .35s ease, transform .45s ease; transition-delay: calc(.6s + var(--k) * .12s); }
+.ax-log li > span { width: 6px; height: 6px; flex-shrink: 0; border-radius: 9999px; }
+.ax-step.is-in .ax-log li { opacity: 1; transform: none; }
 @media (min-width: 640px) and (max-width: 1023px) {
   /* tablets: text and panel side by side, still one vertical rail */
   .ax-step { grid-template-columns: 36px minmax(0, 1fr) minmax(0, 1fr); column-gap: 20px; }
@@ -1181,9 +1217,11 @@ button.ovx-row:focus-visible { outline: none; box-shadow: inset 0 0 0 2px rgb(va
 @media (prefers-reduced-motion: reduce) {
   .ax-panel, .ax-step.is-in .ax-panel { opacity: 1; transform: none; transition: none; }
   .ax-step:not(:last-child)::after { transform: none !important; transition: none; }
-  .ax-chart-line { stroke-dashoffset: 0; transition: none; }
-  .ax-chart-hit { opacity: 1; transition: none; }
-  .ax-ticks span { transform: none; transition: none; }
+  .ax-field, .ax-note, .ax-log li { opacity: 1; transform: none; transition: none; }
+  .ax-line-path { stroke-dashoffset: 0; transition: none; }
+  .ax-eval-row { transition: none; }
+  .ax-eval-row.is-current { opacity: 1; border-color: rgb(var(--contrast) / .12); background: rgb(var(--contrast) / .045); }
+  .ax-caret { animation: none; }
   .ax-node { transition: none; }
   .ax-depth::before { opacity: 1; transform: none; transition: none; }
 }
@@ -1303,3 +1341,12 @@ button.ovx-row:focus-visible { outline: none; box-shadow: inset 0 0 0 2px rgb(va
 /* Phones: a long translated menu name wraps onto a second line (between
    words) rather than being cut off. */
 @media (max-width: 1023px) { .cc-navlist .cc-navlabel { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.25; } }
+/* Support bubble steps aside while it would cover marked content (lib/chatAvoid). */
+#chat-application { transition: opacity .18s ease, visibility .18s; }
+body.chat-avoid #chat-application { opacity: 0 !important; visibility: hidden !important; pointer-events: none !important; }
+/* Landing page: one button shape (matching the signed-in app and auth). */
+.lp .btn { border-radius: 12px; }
+.lp .btn-sm { border-radius: 10px; }
+.lp .btn-outline { border-color: rgb(var(--contrast) / .14); background: rgb(var(--contrast) / .03); }
+.lp .btn-outline:hover:not(:disabled) { border-color: rgb(var(--contrast) / .26); background: rgb(var(--contrast) / .06); }
+.lp .btn:focus-visible { outline: none; box-shadow: 0 0 0 2px rgb(var(--ink-950)), 0 0 0 4px rgb(var(--accent) / .65); }

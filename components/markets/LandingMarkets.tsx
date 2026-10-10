@@ -24,7 +24,7 @@ export default function LandingMarkets() {
             <p className="lp-eyebrow">{t('gm.eyebrow')}</p>
             <h2 id="markets-title" className="lp-h2">{t('gm.title')}</h2>
             <p className="lp-lead max-w-lg">{t('gm.body')}</p>
-            <Link href="/sign-up" className="btn btn-outline mt-6 inline-flex">{t('gm.cta')}</Link>
+            <Link href="/sign-up" className="btn btn-outline min-h-12 px-6 mt-6 inline-flex">{t('gm.cta')}</Link>
           </div>
           <div className="space-y-4 min-w-0">
             <LiveMarketBoard />

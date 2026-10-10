@@ -963,9 +963,9 @@ function OverviewTab({ name, account, txs, go, can, labelOf, whatsNew, onOpenAss
       </dl>
 
       {quick.length > 0 && (
-        <nav aria-label={t('overview.quickActions')} className="ovx-actions" data-quick-actions>
+        <nav aria-label={t('overview.quickActions')} className="ovx-actions" data-quick-actions data-chat-avoid>
           {quick.map(([id, label, I]) => (
-            <button key={id} onClick={() => go(id)} data-tile={id} className={`ovx-act ${id === 'deposit' ? 'ovx-act-primary' : ''}`}>
+            <button key={id} type="button" onClick={() => go(id)} data-tile={id} className={`ovx-act ${id === 'deposit' ? 'ovx-act-primary' : ''}`}>
               <span className="ovx-act-icon"><I width={18} height={18} aria-hidden="true" /></span>
               <span className="ovx-act-label">{id === 'transactions' ? t('shell.activity') : id === 'portfolio' ? t('ov2.invest') : labelOf({ id, label })}</span>
             </button>
@@ -1440,7 +1440,7 @@ function DepositTab({ onSuccess, go, can }: { onSuccess: () => void; go: (id: st
       {/* Tell us about the transfer */}
       <section aria-labelledby="dep-tell">
         <h3 id="dep-tell" className="dep-h"><span className="dep-num" aria-hidden="true">{isCrypto ? 2 : 1}</span>{t('fund.stepDetails')}</h3>
-        <form onSubmit={handleSubmit} className="dep-surface mt-3 space-y-5" noValidate>
+        <form onSubmit={handleSubmit} className="dep-surface mt-3 space-y-5" noValidate data-chat-avoid>
           {/* How a submitted deposit is handled (no speed is promised: it is processed, then confirmed). */}
           <div className="dep-quick" data-deposit-processing>
             <span className="dep-quick-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7z" /></svg></span>
@@ -1756,7 +1756,7 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="dep-surface mt-3 space-y-5" noValidate>
+      <form onSubmit={handleSubmit} className="dep-surface mt-3 space-y-5" noValidate data-chat-avoid>
         {error && <FormError message={error} />}
 
         <fieldset>

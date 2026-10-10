@@ -50,7 +50,7 @@ export function AuthShell({ title, subtitle, children, footer }: { title: string
           </aside>
 
           <div className="min-w-0">
-            <div className="auth-card glass-panel rise-in">
+            <div className="auth-card glass-panel rise-in" data-chat-avoid>
               <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.02em] text-fg">{title}</h1>
               {subtitle && <p className="mt-2 text-[15px] leading-relaxed text-fg-muted">{subtitle}</p>}
               <div className="mt-7">{children}</div>

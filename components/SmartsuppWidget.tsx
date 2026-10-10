@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import Script from 'next/script'
 import { hiddenState, useFeatures } from '@/components/ui/features'
+import { startChatAvoid } from '@/lib/chatAvoid'
 
 // Smartsupp counts every browser that loads its script as a visitor and
 // notifies the support team. Only real people on the production site should
@@ -34,6 +35,8 @@ export default function SmartsuppWidget() {
   // Decided once per page load in the browser; later navigation reuses the
   // already-loaded widget, so moving between pages is never a new visit.
   useEffect(() => { setAllowed(chatAllowed()) }, [])
+  // Steps the bubble aside while it would cover marked content (see lib/chatAvoid).
+  useEffect(() => startChatAvoid(), [])
   // Admin → Feature Control Center → Live chat. Not loaded while OFF; if it
   // is switched OFF after loading, the bubble is hidden without a reload.
   const feature = useFeatures()

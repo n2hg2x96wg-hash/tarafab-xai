@@ -130,7 +130,7 @@ export default function LiveMarketBoard() {
       </div>
 
       {state === 'loading' ? (
-        <ul className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2" aria-hidden="true">
+        <ul className="mt-4 grid grid-cols-[repeat(auto-fill,minmax(132px,1fr))] gap-2" aria-hidden="true">
           {Array.from({ length: 8 }, (_, i) => <li key={i} className="h-[92px] rounded-lg border border-ink-700/70 skeleton-sheen" />)}
         </ul>
       ) : state === 'error' && !tiles.length ? (
@@ -140,7 +140,7 @@ export default function LiveMarketBoard() {
           {at ? <span className="block mt-1 text-[11px] text-fg-faint">Last attempt {ago(Date.now() - at)}</span> : null}
         </div>
       ) : (
-        <ul className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2">{tiles.map(a => <Tile key={a.id} a={a} />)}</ul>
+        <ul className="mt-4 grid grid-cols-[repeat(auto-fill,minmax(132px,1fr))] gap-2">{tiles.map(a => <Tile key={a.id} a={a} />)}</ul>
       )}
 
       <div className="mt-4 rounded-lg border border-ink-700/70 px-3 pt-2 pb-1">

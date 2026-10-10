@@ -47,7 +47,8 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-16">
           <Link href="/" aria-label={t('common.home')} className="shrink-0"><Logo /></Link>
 
-          <div className="hidden lg:flex items-center gap-7 min-w-0">
+          {/* Section links from 1280px: below that they crowded the logo and buttons. */}
+          <div className="hidden xl:flex items-center gap-7 min-w-0">
             {navLinks.map(link => (
               <a key={link.href} href={link.href} className="text-sm text-fg-muted hover:text-fg transition-colors whitespace-nowrap">
                 {t(link.label)}
@@ -58,8 +59,8 @@ export default function Navbar() {
           <div className="hidden md:flex items-center gap-3">
             <ThemeSelector />
             <LanguageSelector />
-            <Link href="/sign-in" className="btn btn-sm btn-outline">{t('common.signIn')}</Link>
-            <Link href="/sign-up" className="btn btn-sm btn-solid">{t('common.openAccountShort')}</Link>
+            <Link href="/sign-in" className="btn btn-sm btn-outline whitespace-nowrap">{t('common.signIn')}</Link>
+            <Link href="/sign-up" className="btn btn-sm btn-solid whitespace-nowrap">{t('common.openAccountShort')}</Link>
           </div>
 
           <button

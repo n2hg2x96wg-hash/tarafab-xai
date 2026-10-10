@@ -137,7 +137,7 @@ export default function LandingPage() {
   }, [router])
 
   return (
-    <div className="site min-h-screen bg-ink-950 text-fg">
+    <div className="site lp min-h-screen bg-ink-950 text-fg">
       <HashSettle />
       <Navbar />
       {adminSession && (
@@ -325,8 +325,8 @@ export default function LandingPage() {
             <p className="lp-lead !mt-2">{t('landing.closingBody')}</p>
           </div>
           <div className="flex flex-col sm:flex-row gap-3">
-            <Link href="/sign-up" className="btn btn-solid">{t('common.openAccount')}</Link>
-            <Link href="/sign-in" className="btn btn-outline">{t('common.signIn')}</Link>
+            <Link href="/sign-up" className="btn btn-solid min-h-12 px-6">{t('common.openAccount')}</Link>
+            <Link href="/sign-in" className="btn btn-outline min-h-12 px-6">{t('common.signIn')}</Link>
           </div>
         </div></Reveal>
       </section>
