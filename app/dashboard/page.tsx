@@ -562,7 +562,7 @@ export default function DashboardPage() {
         <header className="sticky top-0 z-20 h-16 flex items-center justify-between gap-3 px-4 sm:px-6 border-b border-ink-700/80 glass-bar">
           <div className="flex items-center gap-3 min-w-0">
             {/* Phones: the logo leads (back to Overview); the full menu is under More in the tab bar. */}
-            <button onClick={() => go('overview')} className="lg:hidden min-w-0 rounded-lg" aria-label={t('shell.home')}><Logo /></button>
+            <button onClick={() => go('overview')} className={`cc-head-logo lg:hidden min-w-0 rounded-lg ${activeNav !== 'overview' ? 'is-compact' : ''}`} aria-label={t('shell.home')}><Logo /></button>
             <h1 className="sr-only lg:not-sr-only text-[15px] font-semibold text-fg truncate">{current ? labelOf(current) : t('dash.dashboard')}</h1>
           </div>
           <button onClick={() => setCmdOpen(true)} className="hidden md:flex items-center gap-2 h-10 pl-3 pr-2 rounded-xl border border-[rgb(var(--contrast)/.08)] bg-[rgb(var(--contrast)/.03)] text-[13px] text-fg-faint hover:text-fg-muted hover:border-[rgb(var(--contrast)/.16)] transition-colors w-64 lg:w-80 mr-auto ml-2 lg:ml-6" aria-label={t('cmd.title')}>
@@ -571,7 +571,7 @@ export default function DashboardPage() {
             <kbd className="text-[11px] border border-ink-600 rounded px-1.5 py-0.5 whitespace-nowrap">{shortcut}</kbd>
           </button>
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <div className={`text-right shrink-0 ${activeNav === 'overview' ? 'max-sm:hidden' : 'max-[419px]:hidden'}`} data-header-balance>
+            <div className={`text-right shrink-0 ${activeNav === 'overview' ? 'max-sm:hidden' : ''}`} data-header-balance>
               <div className="text-[11px] text-fg-faint leading-none mb-1 whitespace-nowrap">{t('dash.accountBalance')}</div>
               {/* One client-facing balance: the account's spendable balance (available_balance), the same figure withdrawals and investments use. */}
               <div className="text-sm font-semibold text-fg tabular-nums leading-none whitespace-nowrap">${fmt(account?.available_balance ?? 0)}</div>

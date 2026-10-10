@@ -1206,3 +1206,9 @@ button.ovx-row:focus-visible { outline: none; box-shadow: inset 0 0 0 2px rgb(va
 /* Very narrow phones: the chevrons give their room to the labels, so long
    translated names (e.g. "Benachrichtigungen") are not cut off. */
 @media (max-width: 379px) { .cc-navchev { display: none; } }
+/* Narrow phones: where the header also shows the balance, the logo keeps
+   just its coin so the two never collide (the button keeps its label). */
+@media (max-width: 419px) { .cc-head-logo.is-compact .logo-word { display: none; } }
+/* Phones: a long translated menu name wraps onto a second line (between
+   words) rather than being cut off. */
+@media (max-width: 1023px) { .cc-navlist .cc-navlabel { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.25; } }

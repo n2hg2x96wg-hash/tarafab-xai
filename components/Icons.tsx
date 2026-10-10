@@ -66,7 +66,7 @@ export function Logo({ className = '' }: { className?: string }) {
           </g>
         </svg>
       </span>
-      <span className="text-[17px] font-semibold tracking-tight text-fg">Tarafab<span className="text-fg-muted">.XAi</span></span>
+      <span className="logo-word text-[17px] font-semibold tracking-tight text-fg">Tarafab<span className="text-fg-muted">.XAi</span></span>
     </span>
   )
 }
