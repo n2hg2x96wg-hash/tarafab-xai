@@ -522,11 +522,11 @@ export function NetworkSection() {
 export function FaqSection() {
   const { t } = useI18n()
   return (
-    <section id="faq" className="scroll-mt-16 border-b border-ink-700">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 lg:py-20 grid lg:grid-cols-[1fr_1.6fr] gap-10">
+    <section id="faq" className="lp-section scroll-mt-16 border-b border-ink-700">
+      <div className="lp-wrap grid lg:grid-cols-[1fr_1.6fr] gap-6 lg:gap-10">
         <Reveal>
-          <h2 className="text-3xl font-semibold tracking-tight text-fg">{t('faq.title')}</h2>
-          <p className="mt-3 text-fg-muted">{t('faq.body')}</p>
+          <h2 className="lp-h2 !mt-0">{t('faq.title')}</h2>
+          <p className="lp-lead">{t('faq.body')}</p>
         </Reveal>
         <Reveal delay={100}><FaqList /></Reveal>
       </div>

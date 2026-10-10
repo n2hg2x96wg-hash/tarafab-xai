@@ -2,20 +2,28 @@
 
 import Link from 'next/link'
 import { useCallback, useRef, type ReactNode } from 'react'
-import { IconAlert, IconEye, IconEyeOff, IconLock, Logo } from '@/components/Icons'
+import { IconAlert, IconEye, IconEyeOff, IconHistory, IconLock, IconShield, Logo } from '@/components/Icons'
 import { LanguageSelector } from '@/components/LanguageSelector'
 import { ThemeSelector } from '@/components/ThemeSelector'
 import { useI18n } from '@/lib/i18n/I18nProvider'
 
 // Shared frame for sign-in, registration and password recovery, so all four
-// read as one part of the product: the landing page's ambient light behind a
-// single frosted card, with a plain statement of how sign-in is protected.
+// read as one part of the product: the landing page's gold backdrop and
+// ambient light behind a single frosted card, with a plain statement of how
+// sign-in is protected. On wide screens a short brand column sits beside the
+// card (copy only, no figures), so the page is not one small box in a void.
 export function AuthShell({ title, subtitle, children, footer }: { title: string; subtitle?: string; children: ReactNode; footer?: ReactNode }) {
   const { t } = useI18n()
+  const points: [typeof IconShield, string, string][] = [
+    [IconShield, t('trust.review'), t('trust.reviewSub')],
+    [IconHistory, t('trust.audit'), t('trust.auditSub')],
+    [IconLock, t('trust.access'), t('trust.accessSub')],
+  ]
   return (
-    <div className="site relative min-h-screen bg-ink-950 text-fg flex flex-col overflow-hidden">
+    <div className="site auth relative min-h-screen bg-ink-950 text-fg flex flex-col overflow-hidden">
       <div className="hero-light" aria-hidden="true" />
       <div className="hero-grid" aria-hidden="true" />
+      <div className="auth-backdrop" aria-hidden="true" />
 
       <header className="relative z-30 h-16 flex items-center justify-between gap-4 px-4 sm:px-6 border-b border-ink-700/70 glass-bar safe-top">
         <Link href="/" aria-label={t('common.home')} className="rounded-md"><Logo /></Link>
@@ -25,20 +33,36 @@ export function AuthShell({ title, subtitle, children, footer }: { title: string
         </div>
       </header>
 
-      <main className="relative z-10 flex-1 flex items-start sm:items-center justify-center px-4 py-8 sm:py-12">
-        <div className="w-full max-w-[420px]">
-          <div className="glass-panel rounded-2xl p-6 sm:p-8 rise-in">
-            <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.02em] text-fg">{title}</h1>
-            {subtitle && <p className="mt-2 text-[15px] leading-relaxed text-fg-muted">{subtitle}</p>}
-            <div className="mt-7">{children}</div>
+      <main className="relative z-10 flex-1 flex items-start sm:items-center justify-center px-4 py-8 sm:py-12 safe-bottom">
+        <div className="w-full max-w-[420px] lg:max-w-[1040px] lg:grid lg:grid-cols-[1fr_420px] lg:gap-16 lg:items-center">
+          <aside className="hidden lg:block rise-in" data-auth-aside>
+            <p className="lp-eyebrow mb-3">Tarafab.XAi</p>
+            <p className="text-[40px] leading-[1.08] font-semibold tracking-[-0.025em] text-fg [text-wrap:balance]">{t('landing.growTitle1')} <span className="text-accent">{t('landing.growTitle2')}</span></p>
+            <p className="mt-4 max-w-md text-[15.5px] leading-relaxed text-fg-muted">{t('landing.growBody')}</p>
+            <ul className="mt-8 max-w-md auth-points">
+              {points.map(([Icon, k, sub]) => (
+                <li key={k} className="flex items-center gap-3.5 py-3.5">
+                  <span className="auth-point-icon" aria-hidden="true"><Icon width={17} height={17} /></span>
+                  <span className="min-w-0"><span className="block text-[14.5px] font-medium text-fg">{k}</span><span className="block text-[13px] text-fg-faint">{sub}</span></span>
+                </li>
+              ))}
+            </ul>
+          </aside>
+
+          <div className="min-w-0">
+            <div className="auth-card glass-panel rise-in">
+              <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.02em] text-fg">{title}</h1>
+              {subtitle && <p className="mt-2 text-[15px] leading-relaxed text-fg-muted">{subtitle}</p>}
+              <div className="mt-7">{children}</div>
+            </div>
+
+            {footer && <div className="mt-5 text-center text-sm text-fg-muted rise-in" style={{ ['--i' as string]: 1 }}>{footer}</div>}
+
+            <p className="mt-6 flex lg:hidden items-center justify-center gap-2 text-xs text-fg-faint rise-in" style={{ ['--i' as string]: 2 }}>
+              <IconLock width={13} height={13} aria-hidden="true" />
+              <span>{t('trust.access')} · {t('trust.accessSub')}</span>
+            </p>
           </div>
-
-          {footer && <div className="mt-5 text-center text-sm text-fg-muted rise-in" style={{ ['--i' as string]: 1 }}>{footer}</div>}
-
-          <p className="mt-6 flex items-center justify-center gap-2 text-xs text-fg-faint rise-in" style={{ ['--i' as string]: 2 }}>
-            <IconLock width={13} height={13} aria-hidden="true" />
-            <span>{t('trust.access')} · {t('trust.accessSub')}</span>
-          </p>
         </div>
       </main>
     </div>
@@ -90,7 +114,7 @@ export function PasswordInput({ id, value, onChange, autoComplete, disabled, vis
       <button
         type="button"
         onClick={onToggle}
-        className="absolute right-1 top-1/2 -translate-y-1/2 w-10 h-10 rounded-md flex items-center justify-center text-fg-faint hover:text-fg transition-colors"
+        className="absolute right-1 top-1/2 -translate-y-1/2 w-11 h-11 rounded-[10px] flex items-center justify-center text-fg-faint hover:text-fg hover:bg-[rgb(var(--contrast)/.05)] transition-colors"
         aria-label={visible ? t('common.hidePassword') : t('common.showPassword')}
         aria-pressed={visible}
       >

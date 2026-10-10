@@ -217,7 +217,7 @@ export default function LandingPage() {
 
       {/* What the platform does day to day, right under the hero. */}
       <section className="intro-glow relative overflow-hidden border-b border-ink-700" aria-labelledby="intro-title" data-landing-intro>
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-20 grid lg:grid-cols-[1.1fr_1fr] gap-5 lg:gap-12 items-end">
+        <div className="relative lp-wrap lp-pad grid lg:grid-cols-[1.1fr_1fr] gap-5 lg:gap-12 items-end">
           <h2 id="intro-title" className="text-[clamp(28px,8.4vw,46px)] leading-[1.08] font-semibold tracking-[-0.03em] text-fg [overflow-wrap:normal] [word-break:normal]">
             {t('landing.heroTitle1')} <span className="text-accent-sheen">{t('landing.heroTitle2')}</span>
           </h2>
@@ -233,20 +233,22 @@ export default function LandingPage() {
 
       {/* Intelligent automation: the engine's real status and activity. */}
 
-      <section id="platform" className="scroll-mt-16 border-b border-ink-700">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 lg:py-24">
-          <Reveal><div className="mb-10 max-w-2xl">
-            <p className="text-[12px] font-medium uppercase tracking-[0.14em] text-accent mb-3">{t('landing.platformEyebrow')}</p>
-            <h2 className="text-3xl sm:text-[34px] font-semibold tracking-tight text-fg">{t('landing.platformTitle')}</h2>
-            <p className="mt-3 text-fg-muted leading-relaxed">{t('landing.platformBody')}</p>
+      <section id="platform" className="lp-section scroll-mt-16 border-b border-ink-700">
+        <div className="lp-wrap">
+          <Reveal><div className="mb-8 lg:mb-10 max-w-2xl">
+            <p className="lp-eyebrow">{t('landing.platformEyebrow')}</p>
+            <h2 className="lp-h2">{t('landing.platformTitle')}</h2>
+            <p className="lp-lead">{t('landing.platformBody')}</p>
           </div></Reveal>
           <div className="grid sm:grid-cols-2 gap-3 max-w-4xl">
             {capabilities.filter(c => PUBLIC_CAPS.includes(c.title)).map(({ icon: Icon, title, body }, i) => (
               <Reveal key={title} delay={(i % 4) * 70} className="h-full">
-                <div className="panel panel-lift p-5 h-full">
-                  <span className="icon-tile mb-4"><Icon width={19} height={19} /></span>
-                  <h3 className="text-[16px] font-semibold text-fg mb-1.5">{t(title)}</h3>
-                  <p className="text-[14px] text-fg-muted leading-relaxed">{t(body)}</p>
+                <div className="panel panel-lift p-4 sm:p-5 h-full flex gap-4 sm:block">
+                  <span className="icon-tile shrink-0 sm:mb-4"><Icon width={19} height={19} /></span>
+                  <div className="min-w-0">
+                    <h3 className="text-[16px] font-semibold text-fg mb-1">{t(title)}</h3>
+                    <p className="text-[14px] text-fg-muted leading-relaxed">{t(body)}</p>
+                  </div>
                 </div>
               </Reveal>
             ))}
@@ -255,18 +257,19 @@ export default function LandingPage() {
       </section>
 
       {/* How it works: the overall account and investment workflow */}
-      <section id="how-it-works" className="scroll-mt-16 border-b border-ink-700">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 lg:py-20">
-          <Reveal><div className="mb-10 max-w-2xl">
-            <h2 className="text-3xl font-semibold tracking-tight text-fg">{t('landing.workflowTitle')}</h2>
-            <p className="mt-3 text-fg-muted">{t('landing.workflowBody')}</p>
+      <section id="how-it-works" className="lp-section scroll-mt-16 border-b border-ink-700">
+        <div className="lp-wrap">
+          <Reveal><div className="mb-8 lg:mb-10 max-w-2xl">
+            <h2 className="lp-h2 !mt-0">{t('landing.workflowTitle')}</h2>
+            <p className="lp-lead">{t('landing.workflowBody')}</p>
           </div></Reveal>
-          <Reveal><ol className="grid sm:grid-cols-2 lg:grid-cols-4 gap-px bg-ink-700 border border-ink-700 rounded-lg overflow-hidden">
+          <Reveal><ol className="lp-steps sm:grid-cols-2 lg:grid-cols-4">
             {workflow.map((s, i) => (
-              <li key={s.title} className="bg-ink-950 p-6">
-                <div className="text-[13px] text-accent font-medium tabular-nums mb-3">{t('landing.step', { n: i + 1 })}</div>
-                <h3 className="text-[17px] font-semibold text-fg mb-2">{t(s.title)}</h3>
-                <p className="text-[15px] text-fg-muted leading-relaxed">{t(s.body)}</p>
+              <li key={s.title} className="lp-step">
+                <span className="lp-step-n" aria-hidden="true">{i + 1}</span>
+                <div className="lp-step-label">{t('landing.step', { n: i + 1 })}</div>
+                <h3 className="text-[16.5px] font-semibold text-fg mb-1.5">{t(s.title)}</h3>
+                <p className="text-[14.5px] text-fg-muted leading-relaxed">{t(s.body)}</p>
               </li>
             ))}
           </ol></Reveal>
@@ -275,18 +278,19 @@ export default function LandingPage() {
       </section>
 
       {/* How deposits work: funding specifically */}
-      <section id="how-deposits-work" className="scroll-mt-16 border-b border-ink-700">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 lg:py-20">
-          <Reveal><div className="mb-10 max-w-2xl">
-            <h2 className="text-3xl font-semibold tracking-tight text-fg">{t('landing.howTitle')}</h2>
-            <p className="mt-3 text-fg-muted">{t('landing.howBody')}</p>
+      <section id="how-deposits-work" className="lp-section scroll-mt-16 border-b border-ink-700">
+        <div className="lp-wrap">
+          <Reveal><div className="mb-8 lg:mb-10 max-w-2xl">
+            <h2 className="lp-h2 !mt-0">{t('landing.howTitle')}</h2>
+            <p className="lp-lead">{t('landing.howBody')}</p>
           </div></Reveal>
-          <Reveal><ol className="grid sm:grid-cols-2 lg:grid-cols-4 gap-px bg-ink-700 border border-ink-700 rounded-lg overflow-hidden">
+          <Reveal><ol className="lp-steps sm:grid-cols-2 lg:grid-cols-4">
             {steps.map((s, i) => (
-              <li key={s.title} className="bg-ink-950 p-6">
-                <div className="text-[13px] text-accent font-medium tabular-nums mb-3">{t('landing.step', { n: i + 1 })}</div>
-                <h3 className="text-[17px] font-semibold text-fg mb-2">{t(s.title)}</h3>
-                <p className="text-[15px] text-fg-muted leading-relaxed">{t(s.body)}</p>
+              <li key={s.title} className="lp-step">
+                <span className="lp-step-n" aria-hidden="true">{i + 1}</span>
+                <div className="lp-step-label">{t('landing.step', { n: i + 1 })}</div>
+                <h3 className="text-[16.5px] font-semibold text-fg mb-1.5">{t(s.title)}</h3>
+                <p className="text-[14.5px] text-fg-muted leading-relaxed">{t(s.body)}</p>
               </li>
             ))}
           </ol></Reveal>
@@ -294,15 +298,15 @@ export default function LandingPage() {
       </section>
 
       {/* Security */}
-      <section id="security" className="scroll-mt-16 border-b border-ink-700">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 lg:py-20 grid lg:grid-cols-[1fr_1.4fr] gap-10">
+      <section id="security" className="lp-section scroll-mt-16 border-b border-ink-700">
+        <div className="lp-wrap grid lg:grid-cols-[1fr_1.4fr] gap-8 lg:gap-10">
           <Reveal>
-            <h2 className="text-3xl font-semibold tracking-tight text-fg">{t('landing.securityTitle')}</h2>
-            <p className="mt-3 text-fg-muted">{t('landing.securityBody')}</p>
+            <h2 className="lp-h2 !mt-0">{t('landing.securityTitle')}</h2>
+            <p className="lp-lead">{t('landing.securityBody')}</p>
           </Reveal>
           <Reveal delay={100}><ul className="divide-y divide-ink-700 border-y border-ink-700">
             {safeguards.map(item => (
-              <li key={item} className="flex gap-3 py-4">
+              <li key={item} className="flex gap-3 py-3.5">
                 <IconCheck className="shrink-0 mt-0.5 text-accent" />
                 <span className="text-[15px] text-fg-muted leading-relaxed">{t(item)}</span>
               </li>
@@ -315,10 +319,10 @@ export default function LandingPage() {
 
       {/* Closing */}
       <section className="border-b border-ink-700">
-        <Reveal><div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <Reveal><div className="lp-wrap lp-pad flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <h2 className="text-2xl font-semibold tracking-tight text-fg">{t('common.openAccount')}</h2>
-            <p className="mt-2 text-fg-muted">{t('landing.closingBody')}</p>
+            <h2 className="lp-h2 !mt-0">{t('common.openAccount')}</h2>
+            <p className="lp-lead !mt-2">{t('landing.closingBody')}</p>
           </div>
           <div className="flex flex-col sm:flex-row gap-3">
             <Link href="/sign-up" className="btn btn-solid">{t('common.openAccount')}</Link>

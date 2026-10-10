@@ -1439,7 +1439,14 @@ function DepositTab({ onSuccess, go, can }: { onSuccess: () => void; go: (id: st
       <section aria-labelledby="dep-tell">
         <h3 id="dep-tell" className="dep-h"><span className="dep-num" aria-hidden="true">{isCrypto ? 2 : 1}</span>{t('fund.stepDetails')}</h3>
         <form onSubmit={handleSubmit} className="dep-surface mt-3 space-y-5" noValidate>
-          <p className="-mt-1 text-[12.5px] text-fg-faint">{t('deposit.step2Body')}</p>
+          {/* How a submitted deposit is handled (no speed is promised: it is processed, then confirmed). */}
+          <div className="dep-quick" data-deposit-processing>
+            <span className="dep-quick-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7z" /></svg></span>
+            <div className="min-w-0">
+              <p className="text-[13.5px] font-semibold text-fg">{t('fund.quickTitle')}</p>
+              <p className="mt-0.5 text-[12.5px] leading-relaxed text-fg-muted">{t('fund.quickBody')}</p>
+            </div>
+          </div>
           {error && <FormError message={error} />}
 
           <div>
@@ -1488,7 +1495,7 @@ function DepositTab({ onSuccess, go, can }: { onSuccess: () => void; go: (id: st
             <textarea id="notes" value={notes} onChange={e => setNotes(e.target.value)} placeholder={t('deposit.notesPlaceholder')} rows={3} className="field resize-none" disabled={submitting} />
           </div>
 
-          <button type="submit" disabled={submitting} className="btn btn-solid btn-premium w-full">
+          <button type="submit" disabled={submitting} aria-busy={submitting} className="btn btn-solid btn-premium w-full">
             {submitting ? <><Spinner />{stage === 'uploading' ? t('deposit.uploading') : t('common.submitting')}</> : t('deposit.submit')}
           </button>
         </form>
@@ -1806,7 +1813,7 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
           <textarea id="w-notes" value={notes} onChange={e => setNotes(e.target.value)} rows={2} className="field resize-none" disabled={submitting} />
         </div>
 
-        <button type="submit" disabled={submitting || max <= 0} className="btn btn-solid btn-premium w-full">
+        <button type="submit" disabled={submitting || max <= 0} aria-busy={submitting} className="btn btn-solid btn-premium w-full">
           {submitting ? <><Spinner />{t('common.submitting')}</> : max <= 0 ? t('withdraw.nothing') : t('withdraw.review')}
         </button>
       </form>

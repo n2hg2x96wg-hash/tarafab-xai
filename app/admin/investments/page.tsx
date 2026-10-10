@@ -231,7 +231,7 @@ function ProductsTab() {
           {form.return_type !== 'none' && <p className="text-xs text-yellow-300">The configured return is shown to clients as a projection (expected return and expected total), copied onto each investment when it is made. The system never credits returns automatically; credited returns are recorded per investment by an admin.</p>}
           <div className="flex gap-3">
             <button onClick={() => setForm(null)} disabled={busy} className="btn btn-sm btn-outline">Cancel</button>
-            <button onClick={save} disabled={busy} className="btn btn-sm btn-solid">{busy ? 'Saving…' : 'Save draft'}</button>
+            <button onClick={save} disabled={busy} aria-busy={busy} className="btn btn-sm btn-solid">{busy ? 'Saving…' : 'Save draft'}</button>
           </div>
         </div>
       )}

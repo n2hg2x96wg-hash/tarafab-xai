@@ -215,7 +215,7 @@ export function TransferToTarafab({ provider, address, chainId, walletId }: { pr
             </div>
             {error && <p role="alert" className="text-sm text-red-300 flex items-start gap-2"><IconAlert width={16} height={16} className="mt-0.5 shrink-0" />{error}</p>}
             {notice && <p role="status" className="text-sm text-emerald-300 flex items-start gap-2"><IconCheck width={16} height={16} className="mt-0.5 shrink-0" />{notice}</p>}
-            <button onClick={review} disabled={!!busy || !amount} className="btn btn-solid w-full sm:w-auto">{busy === 'quote' ? <Spinner /> : null}{pt('tr.review')}</button>
+            <button onClick={review} disabled={!!busy || !amount} aria-busy={busy === 'quote'} className="btn btn-solid w-full sm:w-auto">{busy === 'quote' ? <Spinner /> : null}{pt('tr.review')}</button>
           </>
         )}
       <p className="text-[12px] text-fg-faint">{pt('tr.legal')}</p>

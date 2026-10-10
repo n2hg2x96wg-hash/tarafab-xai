@@ -55,7 +55,7 @@ export default function ForgotPasswordPage() {
           <label htmlFor="email" className="field-label">{t('common.email')}</label>
           <input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" className="field" disabled={loading} />
         </div>
-        <button type="submit" disabled={loading || !email.trim()} className="btn btn-solid w-full">
+        <button type="submit" disabled={loading || !email.trim()} className="btn btn-solid w-full" aria-busy={loading}>
           {loading ? <><Spinner />{t('common.sending')}</> : t('auth.sendLink')}
         </button>
       </form>

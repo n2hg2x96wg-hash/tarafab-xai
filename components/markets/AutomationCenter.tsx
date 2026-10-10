@@ -280,7 +280,7 @@ function Wizard({ assets, initial, onClose, onDone }: { assets: AssetQuote[]; in
           {step > (edit ? 2 : 1) && <button onClick={() => setStep(s => s - 1)} disabled={busy} className="btn btn-ghost">{t('wiz.back')}</button>}
           {step === 3 && <button onClick={() => setStep(4)} disabled={!validTarget} className="btn btn-solid sm:ml-auto">{t('wiz.next')}</button>}
           {step === 4 && <button onClick={() => setStep(5)} className="btn btn-solid sm:ml-auto">{t('wiz.next')}</button>}
-          {step === 5 && <button onClick={save} disabled={busy} className="btn btn-solid sm:ml-auto">{busy ? <Spinner /> : <IconCheck width={16} height={16} />} {edit ? t('wiz.save') : t('wiz.create')}</button>}
+          {step === 5 && <button onClick={save} disabled={busy} aria-busy={busy} className="btn btn-solid sm:ml-auto">{busy ? <Spinner /> : <IconCheck width={16} height={16} />} {edit ? t('wiz.save') : t('wiz.create')}</button>}
         </div>
       </div>
     </div>

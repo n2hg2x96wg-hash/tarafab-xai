@@ -436,7 +436,7 @@ export function WalletTab({ account }: { account: Account | null }) {
 
             <div className="flex flex-col-reverse sm:flex-row gap-2">
               <button onClick={leaveSession} disabled={busy === 'verify'} className="btn btn-ghost">{t('wallet.useAnother')}</button>
-              <button onClick={verify} disabled={!!busy || session.chainId !== targetChain} className="btn btn-solid sm:ml-auto">
+              <button onClick={verify} disabled={!!busy || session.chainId !== targetChain} aria-busy={!!busy} className="btn btn-solid sm:ml-auto">
                 {busy === 'sign' ? <><Spinner /> {t('wallet.waitingSignature')}</> : busy === 'verify' ? <><Spinner /> {t('wallet.verifying')}</> : sessionLinked ? t('wallet.reverify') : t('wallet.verify')}
               </button>
             </div>

@@ -75,7 +75,7 @@ export default function ResetPasswordPage() {
           <label htmlFor="confirm" className="field-label">{t('auth.confirmNewPassword')}</label>
           <input id="confirm" type="password" value={confirm} onChange={e => setConfirm(e.target.value)} required autoComplete="new-password" className="field" disabled={loading} />
         </div>
-        <button type="submit" disabled={loading} className="btn btn-solid w-full">
+        <button type="submit" disabled={loading} className="btn btn-solid w-full" aria-busy={loading}>
           {loading ? <><Spinner />{t('common.saving')}</> : t('auth.saveNewPassword')}
         </button>
       </form>

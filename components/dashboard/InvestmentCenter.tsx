@@ -531,7 +531,7 @@ function InvestForm({ v, balance, onBack, onDone }: { v: Version; balance: Balan
       {err && <p role="alert" className="text-sm text-danger-300">{err}</p>}
       <div className="flex gap-3">
         <button onClick={onBack} disabled={busy} className="btn btn-outline flex-1">{t('inv.f.back')}</button>
-        <button onClick={submit} disabled={busy || !valid || !!problem || !accept} className="btn btn-solid flex-1">{busy ? t('inv.f.submitting') : t('inv.f.confirm')}</button>
+        <button onClick={submit} disabled={busy || !valid || !!problem || !accept} aria-busy={busy} className="btn btn-solid flex-1">{busy ? t('inv.f.submitting') : t('inv.f.confirm')}</button>
       </div>
     </div>
   )

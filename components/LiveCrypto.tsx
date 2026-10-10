@@ -151,6 +151,7 @@ function TickPrice({ quote, className = '' }: { quote?: Quote; className?: strin
 type TickerRow = {
   asset: { symbol: string; name: string }
   quote: { price: number | null; change24h: number | null; status: 'live' | 'delayed' | 'stale' | 'unavailable' }
+  at?: string | null
 }
 
 export function LiveTickerBar() {
@@ -164,22 +165,24 @@ export function LiveTickerBar() {
     .filter(a => typeof a?.id === 'string' && typeof a?.name === 'string' && a.price != null && Number.isFinite(a.price) && a.price > 0)
     .map(a => ({ a, st: effectiveState(a, error) }))
     .filter(x => x.st !== 'unavailable')
-    .map(({ a, st }) => ({ asset: { symbol: a.id, name: a.name }, quote: { price: a.price, change24h: a.changePct, status: st as 'live' | 'delayed' | 'stale' } })), [assets, error])
+    .map(({ a, st }) => ({ asset: { symbol: a.id, name: a.name }, quote: { price: a.price, change24h: a.changePct, status: st as 'live' | 'delayed' | 'stale' }, at: a.updatedAt })), [assets, error])
 
-  const renderItems = (copy: number) => rows.map(({ asset, quote }) => (
-    <div key={`${copy}-${asset.symbol}`} className="flex items-center gap-2 sm:gap-3 px-5 sm:px-8 shrink-0 text-[12px] sm:text-[13px]">
+  // Age of a quote that is not live, from its own provider timestamp.
+  const age = (iso: string | null | undefined) => { if (!iso) return ''; const m = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000)); return m < 1 ? '<1m' : m < 60 ? `${m}m` : m < 1440 ? `${Math.round(m / 60)}h` : `${Math.round(m / 1440)}d` }
+  const renderItems = (copy: number) => rows.map(({ asset, quote, at }) => (
+    <div key={`${copy}-${asset.symbol}`} className="flex items-center gap-2 sm:gap-2.5 px-4 sm:px-6 shrink-0 text-[12px] sm:text-[12.5px]">
       <span className="text-fg-muted">{asset.name}</span>
       <span className="text-fg-faint">{asset.symbol}</span>
-      <span className="min-w-[5.5rem] text-right text-fg font-medium tabular-nums">{usd(quote.price!)}</span>
+      <span className="text-fg font-medium tabular-nums">{usd(quote.price!)}</span>
       <Change value={quote.change24h} />
       <span className={`text-[10px] uppercase tracking-wide ${quote.status === 'live' ? 'text-emerald-400' : 'text-amber-400'}`}>
-        {quote.status === 'live' ? t('status.live') : quote.status === 'stale' ? t('status.stale') : t('status.delayed')}
+        {quote.status === 'live' ? t('status.live') : quote.status === 'stale' ? t('status.stale') : t('status.delayed')}{quote.status !== 'live' && age(at) ? <span className="normal-case tracking-normal text-fg-faint"> · {age(at)}</span> : null}
       </span>
     </div>
   ))
 
   return (
-    <div className="relative overflow-hidden border-b border-ink-700 bg-ink-900 h-10 flex items-center marquee-mask" aria-label={t('market.livePrices')}>
+    <div className="relative overflow-hidden border-b border-ink-700 bg-ink-900/80 h-9 flex items-center marquee-mask" aria-label={t('market.livePrices')} data-ticker>
       <div className={`flex w-max ${rows.length > 1 ? 'animate-marquee' : ''}`}>
         {rows.length ? <>{renderItems(0)}<div className="flex" aria-hidden="true">{renderItems(1)}</div></>
           : assets === null && !error ? <span className="mx-5 inline-block h-3 w-64 rounded skeleton-sheen" aria-hidden="true" />

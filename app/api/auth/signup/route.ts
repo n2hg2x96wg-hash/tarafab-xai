@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { getSupabaseEnv } from '@/lib/supabase/env'
 import { clientIp, rateLimited } from '@/lib/rateLimit'
+import { SIGNUP_CONSENT_VERSION } from '@/lib/consent'
 
 export async function POST(request: NextRequest) {
   const { url, anonKey: key } = getSupabaseEnv()
@@ -17,17 +18,30 @@ export async function POST(request: NextRequest) {
     const fullName = String(body.fullName || '').trim()
     if (!email || !password) return NextResponse.json({ error: 'Email and password required' }, { status: 400 })
     if (password.length < 8) return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 })
+    // Both statements must be explicitly accepted; nothing is inferred.
+    if (body.consent?.age !== true || body.consent?.risk !== true) {
+      return NextResponse.json({ error: 'Please confirm both statements to continue.' }, { status: 400 })
+    }
 
     const safePassword = password.replace(/[^\x20-\x7E]/g, '')
     if (safePassword !== password) {
       return NextResponse.json({ error: 'Password contains unsupported characters. Please use only standard characters.' }, { status: 400 })
     }
 
+    // Each acceptance is recorded separately with the server's time and the
+    // wording version, alongside the name in the new user's sign-up metadata.
+    const acceptedAt = new Date().toISOString()
+    const consent = {
+      age_confirmed_at: acceptedAt,
+      risk_accepted_at: acceptedAt,
+      version: SIGNUP_CONSENT_VERSION,
+    }
+
     const supabase = createClient(url, key)
     const { data, error } = await supabase.auth.signUp({
       email,
       password: safePassword,
-      options: { data: { full_name: fullName || '' } },
+      options: { data: { full_name: fullName || '', consent } },
     })
 
     if (error) return NextResponse.json({ error: error.status === 429 ? 'Too many attempts. Please wait a moment and try again.' : error.message }, { status: error.status === 429 ? 429 : 400 })

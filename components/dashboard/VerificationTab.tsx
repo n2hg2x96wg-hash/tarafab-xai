@@ -249,7 +249,7 @@ export function VerificationTab({ onStatusChange }: { onStatusChange?: (status: 
 
           {error && <FormError message={error} />}
 
-          <button type="submit" disabled={submitting || !consent} className="btn btn-solid w-full sm:w-auto">
+          <button type="submit" disabled={submitting || !consent} aria-busy={submitting} className="btn btn-solid w-full sm:w-auto">
             {submitting
               ? <span className="flex items-center gap-2"><Spinner />{stage === 'uploading' ? t('kyc.uploading') : t('kyc.submitting')}</span>
               : status === 'rejected' ? t('kyc.resubmit') : t('kyc.submit')}

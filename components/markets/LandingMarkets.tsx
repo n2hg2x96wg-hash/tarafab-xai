@@ -15,13 +15,13 @@ export default function LandingMarkets() {
   // price-history chart. Deeper market detail (24h figures, charts, blocks,
   // network data) lives in the client dashboard's Markets section.
   return (
-    <section aria-labelledby="markets-title" className="border-b border-ink-700 relative overflow-hidden">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
+    <section aria-labelledby="markets-title" className="lp-section border-b border-ink-700 relative overflow-hidden">
+      <div className="lp-wrap">
         <div className="grid gap-8 lg:gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
           <div className="lg:sticky lg:top-28">
-            <p className="text-[12px] font-medium uppercase tracking-[0.14em] text-accent">{t('gm.eyebrow')}</p>
-            <h2 id="markets-title" className="mt-3 text-3xl sm:text-4xl font-semibold tracking-tight text-fg">{t('gm.title')}</h2>
-            <p className="mt-4 text-fg-muted leading-relaxed max-w-lg">{t('gm.body')}</p>
+            <p className="lp-eyebrow">{t('gm.eyebrow')}</p>
+            <h2 id="markets-title" className="lp-h2">{t('gm.title')}</h2>
+            <p className="lp-lead max-w-lg">{t('gm.body')}</p>
             <Link href="/sign-up" className="btn btn-solid mt-6 inline-flex">{t('gm.cta')}</Link>
           </div>
           <div className="space-y-4 min-w-0">

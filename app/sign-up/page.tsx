@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
@@ -26,7 +26,12 @@ export default function SignUpPage() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [agreed, setAgreed] = useState(false)
+  // Two separate statements, both unticked until the person ticks them.
+  const [ageOk, setAgeOk] = useState(false)
+  const [riskOk, setRiskOk] = useState(false)
+  const [consentTried, setConsentTried] = useState(false)
+  const ageRef = useRef<HTMLInputElement>(null)
+  const riskRef = useRef<HTMLInputElement>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
@@ -45,7 +50,11 @@ export default function SignUpPage() {
       if (!fullName.trim()) { setError(t('auth.errName')); return }
       if (password.length < 8) { setError(t('auth.errLength')); return }
       if (password !== confirmPassword) { setError(t('auth.errMatch')); return }
-      if (!agreed) { setError(t('auth.errAgree')); return }
+      if (!ageOk || !riskOk) {
+        setConsentTried(true)
+        ;(!ageOk ? ageRef : riskRef).current?.focus()
+        return
+      }
 
       const cleanEmail = email.trim().replace(/[^\x20-\x7E]/g, '')
       if (password.replace(/[^\x20-\x7E]/g, '') !== password) {
@@ -58,7 +67,7 @@ export default function SignUpPage() {
         const res = await fetch('/api/auth/signup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: cleanEmail, password, fullName: fullName.trim() }),
+          body: JSON.stringify({ email: cleanEmail, password, fullName: fullName.trim(), consent: { age: ageOk, risk: riskOk } }),
         })
         const data = await res.json()
         if (!res.ok) {
@@ -135,17 +144,50 @@ export default function SignUpPage() {
           {mismatch && <p id="confirm-error" className="text-xs text-danger-400 mt-1.5">{t('auth.mismatch')}</p>}
         </div>
 
-        <label className="flex items-start gap-3 cursor-pointer py-1">
-          <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} disabled={loading} className="mt-0.5 w-5 h-5 shrink-0 accent-[rgb(var(--accent))]" />
-          <span className="text-sm text-fg-muted leading-relaxed">
-            {t('auth.agree')}
-          </span>
-        </label>
+        <fieldset className="consent" data-consent>
+          <legend className="sr-only">{t('auth.consentLegend')}</legend>
+          <ConsentBox id="consent-age" inputRef={ageRef} checked={ageOk} onChange={setAgeOk} disabled={loading} text={t('auth.consentAge')} error={consentTried && !ageOk ? t('auth.errConsentAge') : ''} />
+          <ConsentBox id="consent-risk" inputRef={riskRef} checked={riskOk} onChange={setRiskOk} disabled={loading} text={t('auth.consentRisk')} error={consentTried && !riskOk ? t('auth.errConsentRisk') : ''} />
+        </fieldset>
 
         <button type="submit" disabled={loading} className="btn btn-solid w-full min-h-12" aria-busy={loading}>
           {loading ? <><Spinner />{t('auth.creatingAccount')}</> : t('auth.createAccount')}
         </button>
       </form>
     </AuthShell>
+  )
+}
+
+// A custom-styled checkbox row: the whole row is the label, the native input
+// stays in place (so keyboard, screen readers and form semantics are
+// unchanged), and a missing tick shows its own message under the text.
+function ConsentBox({ id, inputRef, checked, onChange, disabled, text, error }: {
+  id: string
+  inputRef: React.RefObject<HTMLInputElement>
+  checked: boolean
+  onChange: (v: boolean) => void
+  disabled?: boolean
+  text: string
+  error: string
+}) {
+  return (
+    <div className="consent-row" data-invalid={error ? '' : undefined}>
+      <label htmlFor={id} className="flex items-start gap-3 cursor-pointer">
+        <input
+          ref={inputRef}
+          id={id}
+          type="checkbox"
+          className="consent-box"
+          checked={checked}
+          onChange={e => onChange(e.target.checked)}
+          disabled={disabled}
+          required
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? `${id}-error` : undefined}
+        />
+        <span className="min-w-0 text-[13.5px] leading-[1.55] text-fg-muted break-words">{text}</span>
+      </label>
+      {error && <p id={`${id}-error`} role="alert" className="consent-error">{error}</p>}
+    </div>
   )
 }

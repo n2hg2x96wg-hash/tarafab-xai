@@ -160,7 +160,7 @@ export function TxReceipt({ tx, onClose }: { tx: Tx; onClose: () => void }) {
         </dl>
         <p className="px-6 pb-4 text-[12px] text-fg-faint">{note}</p>
         <div className="px-6 pb-6 grid grid-cols-2 gap-2">
-          <button onClick={onShare} disabled={!!busy} className="btn btn-solid col-span-2 min-h-12" data-rcpt-share>{busy === 'share' ? t('rcpt.preparing') : t('rcpt.share')}</button>
+          <button onClick={onShare} disabled={!!busy} aria-busy={busy === 'share'} className="btn btn-solid col-span-2 min-h-12" data-rcpt-share>{busy === 'share' ? t('rcpt.preparing') : t('rcpt.share')}</button>
           <button onClick={onSave} disabled={!!busy} className="btn btn-outline whitespace-nowrap" data-rcpt-save>{busy === 'save' ? t('rcpt.preparing') : t('rcpt.save')}</button>
           <button onClick={onCopy} className="btn btn-outline whitespace-nowrap" data-rcpt-copy>{copied ? <><IconCheck width={15} height={15} className="max-[380px]:hidden" />{t('rcpt.copied')}</> : <><IconCopy width={15} height={15} className="max-[380px]:hidden" />{t('rcpt.copy')}</>}</button>
           {msg && <p role="status" className="col-span-2 text-[12.5px] text-fg-muted text-center">{msg}</p>}
