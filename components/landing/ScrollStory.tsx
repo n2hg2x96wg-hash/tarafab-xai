@@ -1,27 +1,34 @@
 'use client'
 
-import { useEffect, useRef, useState, type ReactNode } from 'react'
-import Link from 'next/link'
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { useAssets } from '@/components/markets/assetStore'
 import { formatPrice } from '@/lib/assets'
 import { effectiveState } from '@/lib/marketStatus'
 
-// "How Tarafab works": one compact sequence, Market data → Condition
-// evaluation → Recorded result, as a single composition (three panels in a
-// row on wide screens, a vertical timeline on phones). It replaces the
-// earlier long scroll-driven 3D stack, whose layered panels showed through
-// each other and needed several screens of scrolling.
+// "How Tarafab works": four stages, Market data → Analysis → Monitoring →
+// Recorded result, joined by one rail. Each stage is a layered glass panel
+// that settles from a slight tilt into place as it scrolls into view, and the
+// rail fills from stage to stage; while the section is on screen the panels
+// lean very slightly with the scroll position. Nothing is stacked on top of
+// anything else, so no text ever shows through another panel.
 //
 // Honesty: only the first panel shows data (the real BTC quote, with its own
-// live / delayed / stale / unavailable state and update time). The other two
-// are labelled examples; a visitor has no account, so nothing is shown as
-// running, triggered or profitable. Motion: the connector draws in once when
-// the section comes into view; nothing moves with reduced motion.
+// live / delayed / stale / unavailable state and update time). The other
+// three are labelled examples; a visitor has no account, so nothing is shown
+// as running, triggered or profitable, and the copy says plainly that
+// automation notifies and does not trade. Reduced motion: everything is shown
+// in place, flat, with no movement.
 
 function ago(iso: string | null | undefined) {
   if (!iso) return ''
   const s = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000))
   return s < 60 ? 'just now' : s < 3600 ? `${Math.round(s / 60)} min ago` : s < 86400 ? `${Math.round(s / 3600)} h ago` : new Date(iso).toLocaleDateString()
+}
+
+function ExampleTag() { return <span className="ax-tag">Example</span> }
+
+function PanelHead({ label, aside }: { label: string; aside: ReactNode }) {
+  return <div className="flex items-center justify-between gap-2"><span className="text-[11.5px] text-fg-faint">{label}</span>{aside}</div>
 }
 
 function MarketPanel() {
@@ -33,81 +40,120 @@ function MarketPanel() {
   const label = st === 'live' ? 'Live' : st === 'stale' ? 'Stale' : st === 'delayed' ? 'Delayed' : assets === null && !error ? 'Loading' : 'Unavailable'
   const dot = st === 'live' ? 'bg-emerald-400 board-pulse' : usable ? 'bg-amber-400' : 'bg-fg-faint'
   return (
-    <div className="hw-card" data-market-state={st || 'none'}>
-      <div className="flex items-center justify-between gap-2 text-[11.5px] text-fg-faint">
-        <span>BTC · USD</span>
-        <span className="inline-flex items-center gap-1.5 whitespace-nowrap"><span className={`w-1.5 h-1.5 rounded-full ${dot}`} aria-hidden="true" />{label}</span>
-      </div>
-      <p className="mt-2 text-[22px] font-semibold tabular-nums text-fg">{usable ? formatPrice(btc!.price!) : '—'}</p>
-      <p className="mt-0.5 text-[12px] tabular-nums text-fg-faint">
+    <div className="ax-panel" data-market-state={st || 'none'} data-live={st === 'live' || undefined}>
+      <PanelHead label="BTC · USD" aside={<span className="inline-flex items-center gap-1.5 whitespace-nowrap text-[11.5px] text-fg-faint"><span className={`w-1.5 h-1.5 rounded-full ${dot}`} aria-hidden="true" />{label}</span>} />
+      <p className="mt-3 text-[22px] leading-none font-semibold tabular-nums text-fg">{usable ? formatPrice(btc!.price!) : '—'}</p>
+      <p className="mt-2 text-[12px] tabular-nums text-fg-faint">
         {usable && btc!.changePct != null && <span className={btc!.changePct >= 0 ? 'price-up' : 'price-down'}>{btc!.changePct >= 0 ? '+' : '−'}{Math.abs(btc!.changePct).toFixed(2)}% 24h · </span>}
         {usable ? `Updated ${ago(btc!.updatedAt)}` : 'No current quote — nothing estimated'}
       </p>
+      <p className="ax-foot">Always labelled live, delayed or stale</p>
     </div>
   )
 }
 
-function ExampleTag() { return <span className="shrink-0 rounded-full border border-[rgb(var(--contrast)/.14)] px-2 py-0.5 text-[10px] uppercase tracking-wide text-fg-faint">Example</span> }
-
-function RulePanel() {
+function AnalysisPanel() {
+  // An illustration of a price series meeting a level the client chose. No
+  // figures: it is a picture of the comparison, not a quote.
   return (
-    <div className="hw-card">
-      <div className="flex items-center justify-between gap-2"><span className="text-[11.5px] text-fg-faint">Your rule</span><ExampleTag /></div>
-      <p className="mt-2 text-[14px] font-semibold text-fg">Notify me if BTC is above a target price</p>
-      <p className="mt-1.5 text-[12px] text-fg-muted">Each new quote is checked against the rule.</p>
+    <div className="ax-panel">
+      <PanelHead label="Your condition" aside={<ExampleTag />} />
+      <p className="mt-2 text-[13.5px] font-semibold text-fg leading-snug">BTC above your target price</p>
+      <svg className="ax-chart" viewBox="0 0 220 64" preserveAspectRatio="none" aria-hidden="true">
+        <line x1="0" y1="24" x2="220" y2="24" className="ax-chart-level" />
+        <path d="M0 50 L22 46 L44 49 L66 40 L88 43 L110 34 L132 37 L154 29 L176 26 L198 18 L220 14" className="ax-chart-line" pathLength={1} />
+        <circle cx="181" cy="24" r="3.5" className="ax-chart-hit" />
+      </svg>
+      <p className="ax-foot">Each new quote is compared with your level</p>
+    </div>
+  )
+}
+
+function MonitoringPanel() {
+  // A row of checks over time; the last ones lit. Illustrative only.
+  return (
+    <div className="ax-panel">
+      <PanelHead label="Rule checks" aside={<ExampleTag />} />
+      <p className="mt-2 text-[13.5px] font-semibold text-fg leading-snug">About once a minute</p>
+      <div className="ax-ticks" aria-hidden="true">
+        {Array.from({ length: 14 }, (_, i) => <span key={i} style={{ '--j': i } as CSSProperties} className={i >= 11 ? 'is-on' : ''} />)}
+      </div>
+      <p className="ax-foot">Runs only for rules a signed-in client has switched on</p>
     </div>
   )
 }
 
 function ResultPanel() {
   return (
-    <div className="hw-card">
-      <div className="flex items-center justify-between gap-2"><span className="text-[11.5px] text-fg-faint">Activity log</span><ExampleTag /></div>
-      <ul className="mt-2 space-y-1.5 text-[12.5px]">
-        <li className="flex items-center gap-2 text-fg"><span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" aria-hidden="true" />Condition met · notification sent</li>
-        <li className="flex items-center gap-2 text-fg-muted"><span className="w-1.5 h-1.5 rounded-full bg-fg-faint shrink-0" aria-hidden="true" />Check recorded · condition not met</li>
+    <div className="ax-panel">
+      <PanelHead label="Activity log" aside={<ExampleTag />} />
+      <ul className="mt-2.5 space-y-2 text-[12.5px]">
+        <li className="flex items-start gap-2 text-fg"><span className="mt-[5px] w-1.5 h-1.5 rounded-full bg-accent shrink-0" aria-hidden="true" />Condition met · notification sent</li>
+        <li className="flex items-start gap-2 text-fg-muted"><span className="mt-[5px] w-1.5 h-1.5 rounded-full bg-fg-faint shrink-0" aria-hidden="true" />Check recorded · condition not met</li>
       </ul>
+      <p className="ax-foot">Notifies you · never places a trade</p>
     </div>
   )
 }
 
 const STEPS: { n: string; title: string; body: string; panel: () => ReactNode }[] = [
   { n: '01', title: 'Market data', body: 'Prices arrive with their own timestamps. Delayed, stale or unavailable quotes say so — nothing is estimated.', panel: () => <MarketPanel /> },
-  { n: '02', title: 'Condition evaluation', body: 'Once you are signed in, rules you set for supported markets are checked against new market data about once a minute.', panel: () => <RulePanel /> },
-  { n: '03', title: 'Recorded result', body: 'Every check is recorded, and you are notified when a condition is met. Automation notifies you; it does not place trades.', panel: () => <ResultPanel /> },
+  { n: '02', title: 'Analysis', body: 'Each new quote is compared with the conditions you set, such as a price level or a percentage move.', panel: () => <AnalysisPanel /> },
+  { n: '03', title: 'Monitoring', body: 'Once you are signed in, your active rules are checked against new market data about once a minute.', panel: () => <MonitoringPanel /> },
+  { n: '04', title: 'Recorded result', body: 'Every check is recorded, and you are notified when a condition is met. Automation notifies you; it does not place trades.', panel: () => <ResultPanel /> },
 ]
 
 export default function ScrollStory() {
   const ref = useRef<HTMLElement>(null)
-  const [seen, setSeen] = useState(false)
+  const [seen, setSeen] = useState<boolean[]>(() => STEPS.map(() => false))
   useEffect(() => {
     const el = ref.current
-    if (!el || typeof IntersectionObserver === 'undefined') { setSeen(true); return }
-    const io = new IntersectionObserver(e => { if (e[0].isIntersecting) { setSeen(true); io.disconnect() } }, { threshold: 0.2 })
-    io.observe(el)
-    return () => io.disconnect()
+    if (!el) return
+    const items = Array.from(el.querySelectorAll<HTMLElement>('[data-ax-step]'))
+    if (typeof IntersectionObserver === 'undefined') { setSeen(STEPS.map(() => true)); return }
+    // Each stage settles in once, when it comes into view.
+    const io = new IntersectionObserver(entries => {
+      for (const e of entries) if (e.isIntersecting) {
+        const i = Number((e.target as HTMLElement).dataset.axStep)
+        setSeen(s => (s[i] ? s : s.map((v, k) => v || k === i)))
+        io.unobserve(e.target)
+      }
+    }, { threshold: 0.25, rootMargin: '0px 0px -8% 0px' })
+    items.forEach(n => io.observe(n))
+    // While the section is on screen, a very small lean that follows the
+    // scroll position (--ax-t, -1 at the bottom of the screen to 1 at the
+    // top). Skipped with reduced motion; one rAF per frame at most.
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    let raf = 0, onScreen = false
+    const update = () => {
+      raf = 0
+      const r = el.getBoundingClientRect(), vh = window.innerHeight || 1
+      const t = Math.max(-1, Math.min(1, ((vh / 2) - (r.top + r.height / 2)) / (vh / 2 + r.height / 2)))
+      el.style.setProperty('--ax-t', t.toFixed(3))
+    }
+    const onScroll = () => { if (onScreen && !raf) raf = requestAnimationFrame(update) }
+    const vis = !reduce && new IntersectionObserver(e => { onScreen = e[0].isIntersecting; if (onScreen) onScroll() })
+    if (vis) { vis.observe(el); window.addEventListener('scroll', onScroll, { passive: true }) }
+    return () => { io.disconnect(); if (vis) { vis.disconnect(); window.removeEventListener('scroll', onScroll) } if (raf) cancelAnimationFrame(raf) }
   }, [])
   return (
-    <section ref={ref} className="story lp-section border-b border-ink-700" aria-labelledby="story-title" data-story-mode="sequence" data-seen={seen ? '' : undefined}>
+    <section ref={ref} className="story lp-section border-b border-ink-700" aria-labelledby="story-title" data-story-mode="sequence" data-seen={seen.every(Boolean) ? '' : undefined}>
       <div className="lp-wrap">
         <div className="max-w-2xl">
-          <p className="lp-eyebrow">How Tarafab works</p>
+          <p className="lp-eyebrow">Automation</p>
           <h2 id="story-title" className="lp-h2">Intelligent automation for market monitoring</h2>
-          <p className="lp-lead">Three steps, from a market quote to a recorded result. Illustration only: automation runs for signed-in clients who set up rules.</p>
+          <p className="lp-lead">Four stages, from a market quote to a recorded result. The quote is real; the other panels are labelled examples, because automation runs only for signed-in clients who set up rules.</p>
         </div>
-        <ol className="hw-seq mt-8 lg:mt-10" aria-label="Market data, condition evaluation, recorded result">
-          {STEPS.map(s => (
-            <li key={s.n} className="hw-step">
-              <span className="hw-num" aria-hidden="true">{s.n}</span>
-              <div className="min-w-0">
-                <h3 className="text-[16px] font-semibold text-fg">{s.title}</h3>
-                <p className="mt-1 text-[14px] leading-relaxed text-fg-muted">{s.body}</p>
-                <div className="mt-3">{s.panel()}</div>
-              </div>
+        <ol className="ax-seq" aria-label="Market data, analysis, monitoring, recorded result">
+          {STEPS.map((s, i) => (
+            <li key={s.n} className={`ax-step ${seen[i] ? 'is-in' : ''}`} style={{ '--i': i } as CSSProperties} data-ax-step={i}>
+              <span className="ax-node" aria-hidden="true">{s.n}</span>
+              <h3 className="ax-title">{s.title}</h3>
+              <p className="ax-body">{s.body}</p>
+              <div className="ax-depth">{s.panel()}</div>
             </li>
           ))}
         </ol>
-        <Link href="/sign-up" className="btn btn-solid mt-8 inline-flex">Open an account</Link>
       </div>
     </section>
   )

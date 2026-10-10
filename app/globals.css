@@ -343,7 +343,7 @@ html:has(.site) ::-webkit-scrollbar-thumb:hover { background: rgb(var(--ink-500)
 
 /* Room at the bottom of scrolling pages on phones so the floating support
    chat bubble never sits on top of the last button or chart. */
-@media (max-width: 1023px) { .chat-clearance { padding-bottom: calc(176px + env(safe-area-inset-bottom)); } }
+@media (max-width: 1023px) { .chat-clearance { padding-bottom: calc(148px + env(safe-area-inset-bottom)); } }
 /* Desktop: room for the support bubble (bottom-right) below the last card. */
 @media (min-width: 1024px) { .chat-clearance { padding-bottom: 96px; } }
 /* Phones/tablets: when the browser scrolls a field or button into view (focus,
@@ -915,26 +915,45 @@ body.dialog-open #chat-application { visibility: hidden !important; }
 .ovx-stat-invested .ovx-stat-icon { background: rgb(var(--info-400) / .12); color: rgb(var(--info-400)); }
 .ovx-stat-pending .ovx-stat-icon { background: rgb(var(--warning-400) / .12); color: rgb(var(--warning-400)); }
 
-/* Quick actions: round buttons on phones, a row of buttons from 640px. */
-.ovx-actions { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; }
-.ovx-act { display: flex; flex-direction: column; align-items: center; gap: 7px; min-height: 76px; padding: 4px 0; font-size: 11.5px; font-weight: 500; color: rgb(var(--fg-muted)); border-radius: 14px; transition: color .15s ease, transform .15s ease; }
+/* Quick actions: one card holding every action. Phones: icon tile over a
+   label, five equal columns. From 640px: icon tile beside the label, split by
+   hairlines. The main action (Deposit) is the only orange tile; the others
+   are charcoal. */
+.ovx-actions { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 2px; padding: 8px 4px; border-radius: 18px;
+  border: 1px solid rgb(var(--contrast) / .07); background: linear-gradient(180deg, rgb(var(--contrast) / .035), rgb(var(--contrast) / .01)), rgb(var(--ink-900) / .9);
+  box-shadow: inset 0 1px 0 rgb(var(--contrast) / .05); }
+.ovx-act { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-width: 0; min-height: 68px; padding: 4px 2px;
+  font-size: 11.5px; font-weight: 500; line-height: 1.2; color: rgb(var(--fg-muted)); border-radius: 12px; -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  transition: color .15s ease, background-color .15s ease; }
+.ovx-act-label { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
+.ovx-act-icon { width: 40px; height: 40px; flex-shrink: 0; border-radius: 12px; display: grid; place-items: center; color: rgb(var(--fg));
+  background: rgb(var(--contrast) / .05); box-shadow: inset 0 0 0 1px rgb(var(--contrast) / .08), inset 0 1px 0 rgb(var(--contrast) / .06);
+  transition: background-color .15s ease, box-shadow .15s ease, transform .12s ease; }
+.ovx-act-icon svg { stroke-width: 1.8; }
 .ovx-act:hover { color: rgb(var(--fg)); }
-.ovx-act:active { transform: scale(.96); }
-.ovx-act:focus-visible { outline: none; box-shadow: 0 0 0 2px rgb(var(--accent) / .5); }
-.ovx-act-label { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ovx-act-icon { width: 50px; height: 50px; border-radius: 9999px; display: grid; place-items: center; color: rgb(var(--fg)); background: linear-gradient(180deg, rgb(var(--contrast) / .07), rgb(var(--contrast) / .025)), rgb(var(--ink-900)); border: 1px solid rgb(var(--contrast) / .1); box-shadow: inset 0 1px 0 rgb(var(--contrast) / .06); transition: border-color .15s ease, background-color .15s ease; }
-.ovx-act:hover .ovx-act-icon { border-color: rgb(var(--contrast) / .2); }
-.ovx-act-primary { color: rgb(var(--fg)); }
-.ovx-act-primary .ovx-act-icon { background: rgb(var(--accent)); color: rgb(var(--accent-ink)); border-color: transparent; box-shadow: 0 10px 22px -10px rgb(var(--accent) / .7), inset 0 1px 0 rgb(255 255 255 / .3); }
+.ovx-act:hover .ovx-act-icon { background: rgb(var(--contrast) / .08); box-shadow: inset 0 0 0 1px rgb(var(--contrast) / .14), inset 0 1px 0 rgb(var(--contrast) / .06); }
+.ovx-act:active .ovx-act-icon { transform: scale(.94); }
+.ovx-act:focus-visible { outline: none; }
+.ovx-act:focus-visible .ovx-act-icon { box-shadow: 0 0 0 2px rgb(var(--ink-950)), 0 0 0 4px rgb(var(--accent) / .65); }
+.ovx-act[aria-current="page"] .ovx-act-icon { box-shadow: inset 0 0 0 1px rgb(var(--accent) / .5); color: rgb(var(--accent)); }
+.ovx-act:disabled { opacity: .45; cursor: not-allowed; }
+.ovx-act[aria-busy="true"] { cursor: progress; }
+.ovx-act-primary { color: rgb(var(--fg)); font-weight: 600; }
+.ovx-act-primary .ovx-act-icon { color: rgb(var(--accent-ink)); background: linear-gradient(180deg, rgb(var(--accent-hover)), rgb(var(--accent)));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .28), 0 8px 18px -10px rgb(var(--accent) / .8); }
+.ovx-act-primary:hover .ovx-act-icon { background: rgb(var(--accent-hover)); box-shadow: inset 0 1px 0 rgb(255 255 255 / .3), 0 10px 22px -10px rgb(var(--accent) / .85); }
 @media (min-width: 640px) {
-  .ovx-actions { gap: 10px; }
-  .ovx-act { flex-direction: row; justify-content: center; gap: 10px; min-height: 0; height: 50px; padding: 0 14px; font-size: 14px; color: rgb(var(--fg)); border: 1px solid rgb(var(--contrast) / .09); background: linear-gradient(180deg, rgb(var(--contrast) / .05), rgb(var(--contrast) / .015)), rgb(var(--ink-900)); box-shadow: inset 0 1px 0 rgb(var(--contrast) / .05); }
-  .ovx-act:hover { border-color: rgb(var(--contrast) / .18); transform: translateY(-1px); }
-  .ovx-act-icon { width: 28px; height: 28px; border: 0; background: none; box-shadow: none; color: rgb(var(--accent)); }
-  .ovx-act-primary { background: rgb(var(--accent)); color: rgb(var(--accent-ink)); border-color: transparent; font-weight: 600; box-shadow: 0 12px 26px -14px rgb(var(--accent) / .75), inset 0 1px 0 rgb(255 255 255 / .28); }
-  .ovx-act-primary:hover { background: rgb(var(--accent-hover)); border-color: transparent; }
-  .ovx-act-primary .ovx-act-icon { background: rgb(0 0 0 / .12); color: rgb(var(--accent-ink)); box-shadow: none; border-radius: 8px; }
+  .ovx-actions { padding: 6px; gap: 0; }
+  .ovx-act { flex-direction: row; justify-content: flex-start; gap: 10px; min-height: 52px; padding: 6px 12px; font-size: 13.5px; color: rgb(var(--fg)); }
+  .ovx-act:hover { background: rgb(var(--contrast) / .035); }
+  .ovx-act + .ovx-act::before { content: ''; position: absolute; left: -1px; top: 12px; bottom: 12px; width: 1px; background: rgb(var(--contrast) / .07); }
+  .ovx-act-icon { width: 36px; height: 36px; border-radius: 11px; }
+  .ovx-act-label { text-align: left; }
 }
+@media (min-width: 1024px) { .ovx-act { justify-content: center; } }
+/* Narrowest phones (320–359px): every label stays whole. */
+@media (max-width: 359px) { .ovx-actions { padding: 8px 2px; gap: 0; } .ovx-act { font-size: 10.5px; letter-spacing: -.01em; padding: 4px 0; } .ovx-act-icon { width: 38px; height: 38px; } }
+@media (prefers-reduced-motion: reduce) { .ovx-act:active .ovx-act-icon { transform: none; } }
 
 /* Overview cards, rows and segmented pills */
 .cc-app .ovx-card { border-radius: 18px; }
@@ -957,7 +976,6 @@ button.ovx-row:focus-visible { outline: none; box-shadow: inset 0 0 0 2px rgb(va
 .cc-iconbtn:focus-visible, .cc-avatar-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px rgb(var(--accent) / .5); }
 .cc-avatar-btn { border-radius: 14px; transition: background-color .15s ease; }
 .cc-avatar-btn:hover { background: rgb(var(--contrast) / .04); }
-@media (prefers-reduced-motion: reduce) { .ovx-act, .ovx-act:hover, .ovx-act:active { transform: none; } }
 
 /* Menu rows: an icon chip per section, the current page in orange. On
    phones each group is an inset card of comfortable rows with a chevron. */
@@ -1045,11 +1063,16 @@ button.ovx-row:focus-visible { outline: none; box-shadow: inset 0 0 0 2px rgb(va
 .cc-app .dep .dep-surface { padding: 20px; border-radius: 18px; }
 @media (max-width: 639px) { .cc-app .dep .dep-surface { padding: 16px; } }
 /* "What happens next" timeline */
-.fx-steps { position: relative; display: grid; gap: 16px; }
-.fx-step { position: relative; display: flex; gap: 12px; }
-.fx-step + .fx-step::before { content: ''; position: absolute; left: 13px; top: -16px; height: 16px; width: 2px; background: linear-gradient(180deg, rgb(var(--accent) / .45), rgb(var(--accent) / .15)); }
-.fx-step-n { width: 28px; height: 28px; flex-shrink: 0; border-radius: 9999px; display: grid; place-items: center; font-size: 12.5px; font-weight: 700;
-  color: rgb(var(--accent-text)); background: rgb(var(--accent) / .12); box-shadow: inset 0 0 0 1px rgb(var(--accent) / .4); }
+/* Compact: number and heading share one line; the description sits directly
+   under its heading; one connector runs from each number to the next. */
+.fx-steps { position: relative; display: grid; gap: 0; }
+.fx-step { position: relative; display: grid; grid-template-columns: 24px minmax(0, 1fr); column-gap: 12px; padding-bottom: 14px; }
+.fx-step:last-child { padding-bottom: 0; }
+.fx-step:not(:last-child)::before { content: ''; position: absolute; left: 11px; top: 28px; bottom: 4px; width: 2px; border-radius: 2px; background: linear-gradient(180deg, rgb(var(--accent) / .45), rgb(var(--accent) / .12)); }
+.fx-step-n { width: 24px; height: 24px; border-radius: 9999px; display: grid; place-items: center; font-size: 11.5px; font-weight: 700; font-variant-numeric: tabular-nums;
+  color: rgb(var(--accent-text)); background: rgb(var(--accent) / .12); box-shadow: inset 0 0 0 1px rgb(var(--accent) / .45); }
+.fx-step-t { font-size: 13.5px; font-weight: 600; line-height: 24px; color: rgb(var(--fg)); }
+.fx-step-b { margin-top: 1px; font-size: 12.5px; line-height: 1.5; color: rgb(var(--fg-muted)); }
 
 /* Landing: section under the hero, warmed with a soft gold glow. */
 .intro-glow::before { content: ''; position: absolute; inset: 0; pointer-events: none;
@@ -1081,21 +1104,89 @@ button.ovx-row:focus-visible { outline: none; box-shadow: inset 0 0 0 2px rgb(va
 .lp-h2 { margin-top: 10px; font-size: clamp(25px, 6.6vw, 34px); line-height: 1.15; font-weight: 600; letter-spacing: -.02em; color: rgb(var(--fg)); text-wrap: balance; word-break: normal; overflow-wrap: normal; hyphens: manual; }
 .lp-lead { margin-top: 12px; font-size: 15.5px; line-height: 1.65; color: rgb(var(--fg-muted)); }
 
-/* "How Tarafab works": three connected steps (timeline on phones). */
-.hw-seq { position: relative; display: grid; gap: 22px; }
-.hw-step { position: relative; display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 14px; }
-.hw-step + .hw-step::before { content: ''; position: absolute; left: 17px; top: -22px; height: 22px; width: 2px; background: rgb(var(--accent) / .35); transform-origin: top; transform: scaleY(0); transition: transform .5s ease .15s; }
-.story[data-seen] .hw-step + .hw-step::before { transform: scaleY(1); }
-.hw-num { width: 36px; height: 36px; border-radius: 9999px; display: grid; place-items: center; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums;
-  color: rgb(var(--accent-text)); background: rgb(var(--accent) / .1); box-shadow: inset 0 0 0 1px rgb(var(--accent) / .4); }
-.hw-card { border-radius: 14px; padding: 14px 16px; border: 1px solid rgb(var(--contrast) / .08); background: linear-gradient(180deg, rgb(var(--contrast) / .04), rgb(var(--contrast) / .012)), rgb(var(--ink-900)); }
-@media (min-width: 1024px) {
-  .hw-seq { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; }
-  .hw-step { grid-template-columns: 1fr; gap: 14px; }
-  .hw-step + .hw-step::before { left: -28px; top: 17px; height: 2px; width: 28px; transform-origin: left; transform: scaleX(0); }
-  .story[data-seen] .hw-step + .hw-step::before { transform: scaleX(1); }
+/* "How Tarafab works": four stages on one rail. Phones and tablets: a
+   vertical timeline (node, then title, text and panel). From 1024px: four
+   equal columns whose rows line up (subgrid), the rail running through the
+   nodes. Panels are layered glass: a back plate set behind in 3D, a lit top
+   edge, and a soft shadow; each settles from a tilt as it comes into view. */
+.ax-seq { position: relative; display: grid; gap: 26px; margin-top: 32px; }
+.ax-step { position: relative; display: grid; grid-template-columns: 36px minmax(0, 1fr); column-gap: 14px; align-content: start; }
+.ax-node { grid-row: 1 / span 3; width: 36px; height: 36px; border-radius: 9999px; display: grid; place-items: center; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums;
+  color: rgb(var(--accent-text)); background: rgb(var(--ink-950)); box-shadow: inset 0 0 0 1px rgb(var(--accent) / .45), 0 0 0 4px rgb(var(--ink-950)); position: relative; z-index: 1;
+  transition: background-color .4s ease, color .4s ease, box-shadow .4s ease; }
+.ax-step.is-in .ax-node { background: rgb(var(--accent) / .14); box-shadow: inset 0 0 0 1px rgb(var(--accent) / .7), 0 0 0 4px rgb(var(--ink-950)), 0 0 18px -4px rgb(var(--accent) / .55); }
+.ax-title { grid-column: 2; font-size: 16px; font-weight: 600; color: rgb(var(--fg)); line-height: 1.3; padding-top: 7px; }
+.ax-body { grid-column: 2; margin-top: 4px; font-size: 14px; line-height: 1.6; color: rgb(var(--fg-muted)); }
+.ax-depth { grid-column: 2; margin-top: 12px; perspective: 900px; perspective-origin: 50% 0; }
+/* The rail: a track from each node to the next, filled as the stage arrives. */
+.ax-step:not(:last-child)::before, .ax-step:not(:last-child)::after { content: ''; position: absolute; left: 17px; top: 40px; bottom: -22px; width: 2px; border-radius: 2px; }
+.ax-step:not(:last-child)::before { background: rgb(var(--contrast) / .08); }
+.ax-step:not(:last-child)::after { background: linear-gradient(180deg, rgb(var(--accent)), rgb(var(--accent) / .35)); transform-origin: top; transform: scaleY(0); transition: transform .7s cubic-bezier(.3,.7,.2,1) .2s; }
+.ax-step.is-in:not(:last-child)::after { transform: scaleY(1); }
+/* Panels */
+.ax-panel { position: relative; height: 100%; display: flex; flex-direction: column; border-radius: 16px; padding: 14px 16px 12px;
+  border: 1px solid rgb(var(--contrast) / .09);
+  background: linear-gradient(180deg, rgb(var(--contrast) / .055), rgb(var(--contrast) / .012) 55%), rgb(var(--ink-900));
+  box-shadow: inset 0 1px 0 rgb(var(--contrast) / .07), 0 24px 40px -26px rgb(0 0 0 / .85), 0 2px 6px -2px rgb(0 0 0 / .4);
+  transform-style: preserve-3d; transform-origin: 50% 0;
+  opacity: 0; transform: rotateX(16deg) translateY(18px) scale(.97);
+  transition: opacity .55s ease, transform .8s cubic-bezier(.2,.7,.2,1), box-shadow .4s ease, border-color .4s ease;
+  transition-delay: calc(var(--i, 0) * 110ms); }
+.ax-step.is-in .ax-panel { opacity: 1; transform: rotateX(calc(var(--ax-t, 0) * 4deg)) rotateY(calc(var(--ax-t, 0) * -2.5deg)) translateZ(0); }
+/* back plate: a second layer of glass behind the panel (its edge shows
+   below the panel; it carries no text) */
+.ax-depth { position: relative; }
+.ax-depth::before { content: ''; position: absolute; left: 12px; right: 12px; top: 14px; bottom: -9px; border-radius: 16px; pointer-events: none;
+  border: 1px solid rgb(var(--contrast) / .06); background: linear-gradient(180deg, rgb(var(--ink-850) / .4), rgb(var(--ink-850) / .9));
+  opacity: 0; transform: translateY(-6px); transition: opacity .5s ease, transform .8s cubic-bezier(.2,.7,.2,1); transition-delay: calc(var(--i, 0) * 110ms + .15s); }
+.ax-step.is-in .ax-depth::before { opacity: 1; transform: none; }
+.ax-panel { z-index: 1; }
+/* lit top edge */
+.ax-panel::after { content: ''; position: absolute; left: 14px; right: 14px; top: -1px; height: 1px; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgb(var(--accent) / .45), transparent); opacity: .7; }
+.ax-panel[data-live] { border-color: rgb(52 211 153 / .28); }
+.ax-foot { margin-top: auto; padding-top: 10px; font-size: 11.5px; line-height: 1.4; color: rgb(var(--fg-faint)); }
+.ax-tag { flex-shrink: 0; border-radius: 9999px; border: 1px solid rgb(var(--contrast) / .14); padding: 1px 8px; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: rgb(var(--fg-faint)); }
+.ax-chart { display: block; width: 100%; height: 56px; margin-top: 10px; overflow: visible; }
+.ax-chart-level { stroke: rgb(var(--accent) / .55); stroke-width: 1; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }
+.ax-chart-line { fill: none; stroke: rgb(var(--fg-muted)); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke;
+  stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 1.2s ease .35s; }
+.ax-step.is-in .ax-chart-line { stroke-dashoffset: 0; }
+.ax-chart-hit { fill: rgb(var(--accent)); opacity: 0; transition: opacity .3s ease 1.4s; }
+.ax-step.is-in .ax-chart-hit { opacity: 1; }
+.ax-ticks { display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 4px; align-items: end; height: 40px; margin-top: 12px; }
+.ax-ticks span { height: 60%; border-radius: 3px; background: rgb(var(--contrast) / .1); transform-origin: bottom; transform: scaleY(.2); transition: transform .5s cubic-bezier(.2,.7,.2,1); transition-delay: calc(.3s + var(--j) * 45ms); }
+.ax-ticks span.is-on { height: 100%; background: linear-gradient(180deg, rgb(var(--accent)), rgb(var(--accent) / .45)); }
+.ax-step.is-in .ax-ticks span { transform: none; }
+@media (min-width: 640px) and (max-width: 1023px) {
+  /* tablets: text and panel side by side, still one vertical rail */
+  .ax-step { grid-template-columns: 36px minmax(0, 1fr) minmax(0, 1fr); column-gap: 20px; }
+  .ax-title, .ax-body { grid-column: 2; }
+  .ax-depth { grid-column: 3; grid-row: 1 / span 3; margin-top: 0; }
 }
-@media (prefers-reduced-motion: reduce) { .hw-step + .hw-step::before { transition: none; transform: none !important; } }
+@media (min-width: 1024px) {
+  .ax-seq { grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: auto auto auto 1fr; column-gap: 22px; row-gap: 0; margin-top: 44px; }
+  .ax-step { grid-row: span 4; grid-template-columns: 1fr; grid-template-rows: subgrid; }
+  .ax-node { grid-row: 1; }
+  .ax-title, .ax-body, .ax-depth { grid-column: 1; }
+  .ax-title { grid-row: 2; padding-top: 16px; }
+  .ax-body { grid-row: 3; }
+  .ax-depth { grid-row: 4; margin-top: 16px; }
+  /* the rail runs from this node to the next column's node */
+  .ax-step:not(:last-child)::before, .ax-step:not(:last-child)::after { left: 44px; right: -14px; top: 17px; bottom: auto; width: auto; height: 2px; }
+  .ax-step:not(:last-child)::after { background: linear-gradient(90deg, rgb(var(--accent)), rgb(var(--accent) / .35)); transform-origin: left; transform: scaleX(0); }
+  .ax-step.is-in:not(:last-child)::after { transform: scaleX(1); }
+}
+:root[data-theme="light"] .ax-panel { box-shadow: inset 0 1px 0 rgb(255 255 255 / .6), 0 20px 36px -26px rgb(0 0 0 / .35); }
+@media (prefers-reduced-motion: reduce) {
+  .ax-panel, .ax-step.is-in .ax-panel { opacity: 1; transform: none; transition: none; }
+  .ax-step:not(:last-child)::after { transform: none !important; transition: none; }
+  .ax-chart-line { stroke-dashoffset: 0; transition: none; }
+  .ax-chart-hit { opacity: 1; transition: none; }
+  .ax-ticks span { transform: none; transition: none; }
+  .ax-node { transition: none; }
+  .ax-depth::before { opacity: 1; transform: none; transition: none; }
+}
 
 /* Numbered steps: a compact timeline on phones, a joined grid from 640px. */
 .lp-steps { display: grid; }

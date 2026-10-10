@@ -33,7 +33,7 @@ export function AuthShell({ title, subtitle, children, footer }: { title: string
         </div>
       </header>
 
-      <main className="relative z-10 flex-1 flex items-start sm:items-center justify-center px-4 py-8 sm:py-12 safe-bottom">
+      <main className="relative z-10 flex-1 flex items-start sm:items-center justify-center px-4 pt-8 sm:py-12 chat-clearance">
         <div className="w-full max-w-[420px] lg:max-w-[1040px] lg:grid lg:grid-cols-[1fr_420px] lg:gap-16 lg:items-center">
           <aside className="hidden lg:block rise-in" data-auth-aside>
             <p className="lp-eyebrow mb-3">Tarafab.XAi</p>

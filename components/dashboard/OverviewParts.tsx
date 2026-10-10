@@ -215,16 +215,16 @@ export function HeroChips({ items }: { items: string[] }) {
 // "What happens next": the steps of the existing review process.
 export function NextSteps({ title, steps, children }: { title: string; steps: [string, string][]; children?: ReactNode }) {
   return (
-    <section className="panel ovx-card p-5" aria-label={title} data-next-steps>
+    <section className="panel ovx-card p-4 sm:p-5" aria-label={title} data-next-steps>
       {children}
       <h3 className="text-[14px] font-semibold text-fg">{title}</h3>
-      <ol className="fx-steps mt-4">
+      <ol className="fx-steps mt-3.5">
         {steps.map(([t, b], i) => (
           <li key={t} className="fx-step">
             <span className="fx-step-n" aria-hidden="true">{i + 1}</span>
             <div className="min-w-0">
-              <p className="text-[13.5px] font-medium text-fg">{t}</p>
-              <p className="mt-0.5 text-[12.5px] leading-relaxed text-fg-faint">{b}</p>
+              <p className="fx-step-t">{t}</p>
+              <p className="fx-step-b">{b}</p>
             </div>
           </li>
         ))}
