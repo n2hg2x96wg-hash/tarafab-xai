@@ -1403,7 +1403,6 @@ body.chat-avoid #chat-application { opacity: 0 !important; visibility: hidden !i
 .ovx-board .ovx-qa { order: 1; } .ovx-board .ovx-btc { order: 2; } .ovx-board .ovx-auto2 { order: 3; } .ovx-board .ovx-recent { order: 4; } .ovx-board [data-ov-watchlist] { order: 5; }
 /* Phones and tablets: quick actions keep their compact single-row card. */
 .ovx-qa { background: none; border: 0; box-shadow: none; padding: 0; }
-.ovx-qa-title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 @media (min-width: 1024px) {
   .ovx-board { display: block; }
   .ovx-board-a, .ovx-board-b { display: grid; gap: 16px; align-items: stretch; }
@@ -1413,7 +1412,7 @@ body.chat-avoid #chat-application { opacity: 0 !important; visibility: hidden !i
   .ovx-board .ovx-qa { grid-column: 1 / -1; }
   .ovx-board[data-markets="0"] .ovx-recent { grid-column: 1 / -1; }
   .ovx-qa { background: linear-gradient(180deg, rgb(var(--contrast) / .035), rgb(var(--contrast) / .008)), rgb(var(--ink-900)); border: 1px solid rgb(var(--contrast) / .08); padding: 16px 18px 18px; }
-  .ovx-qa-title { position: static; width: auto; height: auto; clip: auto; overflow: visible; margin-bottom: 12px; }
+  .ovx-qa-title { display: block; margin-bottom: 12px; }
   .ovx-qa .ovx-actions { grid-auto-flow: row; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 0; border: 0; background: none; box-shadow: none; }
   .ovx-qa .ovx-act { flex-direction: row; justify-content: flex-start; gap: 10px; min-height: 60px; padding: 10px 12px; border-radius: 14px; font-size: 13.5px; font-weight: 600; color: rgb(var(--fg));
     border: 1px solid rgb(var(--contrast) / .08); background: rgb(var(--contrast) / .03); }

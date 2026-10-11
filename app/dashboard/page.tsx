@@ -967,7 +967,7 @@ function OverviewTab({ name, account, txs, go, can, labelOf, whatsNew, onOpenAss
           {recent}
           {quick.length > 0 && (
             <section className="panel ovx-card ovx-pro ovx-qa" aria-labelledby="ov-qa">
-              <h3 id="ov-qa" className="ovx-qa-title text-[15px] font-semibold text-fg">{t('overview.quickActions')}</h3>
+              <h3 id="ov-qa" className="ovx-qa-title sr-only lg:not-sr-only text-[15px] font-semibold text-fg">{t('overview.quickActions')}</h3>
               <nav aria-labelledby="ov-qa" className="ovx-actions" data-quick-actions data-chat-avoid>
                 {quick.map(([id, label, I]) => (
                   <button key={id} type="button" onClick={() => go(id)} data-tile={id} className={`ovx-act ${QA_TONE[id] || ''} ${id === 'deposit' ? 'ovx-act-primary' : ''}`}>
