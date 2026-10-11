@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import type { AssetQuote } from '@/lib/assets'
-import { effectiveState, type MarketState } from '@/lib/marketStatus'
+import { effectiveState, marketNow, setClockSkew, type MarketState } from '@/lib/marketStatus'
 
 // Shared market snapshot (no authentication, no Supabase): one fetch of
 // /api/market/assets for every component on the page, refreshed every 30 s
@@ -26,16 +26,42 @@ let inflight: Promise<void> | null = null
 let failures = 0
 let nextAt = 0
 
+// Server time from the reply (Date, plus Age when a CDN copy answered),
+// compared with the middle of the request on this device. Only a clear
+// difference (over 30 s) is applied, so ordinary jitter changes nothing.
+function syncClock(r: Response, sent: number) {
+  const date = Date.parse(r.headers.get('date') || '')
+  if (!Number.isFinite(date)) return
+  const age = Number(r.headers.get('age')) || 0
+  const skew = date + age * 1000 - (sent + Date.now()) / 2
+  setClockSkew(Math.abs(skew) > 30_000 ? skew : 0)
+}
+
+// A reply can be older than what is already on screen (a cached copy from
+// another edge): per asset, a quote with an older provider time never
+// replaces a newer one.
+export function newestOf(prev: AssetQuote[] | null, next: AssetQuote[]) {
+  if (!prev) return next
+  const old = new Map(prev.map(a => [a.id, a]))
+  return next.map(a => {
+    const p = old.get(a.id)
+    const tn = a.updatedAt ? Date.parse(a.updatedAt) : NaN, tp = p?.updatedAt ? Date.parse(p.updatedAt) : NaN
+    return p && p.price != null && Number.isFinite(tp) && Number.isFinite(tn) && tn < tp ? p : a
+  })
+}
+
 async function load() {
   if (inflight) return inflight
   inflight = (async () => {
     try {
+      const sent = Date.now()
       const r = await fetch('/api/market/assets', { cache: 'no-store' })
       if (!r.ok) throw new Error(String(r.status))
       const j = await r.json() as { assets?: unknown }
       // A reply without an asset list is a failure, not "no assets".
       if (!Array.isArray(j?.assets)) throw new Error('Malformed market data')
-      snap = { assets: j.assets as AssetQuote[], error: false, at: Date.now() }
+      syncClock(r, sent)
+      snap = { assets: newestOf(snap.assets, (j.assets as AssetQuote[]).filter(a => a && typeof a.id === 'string')), error: false, at: Date.now() }
       failures = 0; nextAt = 0
     } catch {
       snap = { ...snap, error: true, at: Date.now() }
@@ -52,7 +78,7 @@ const visible = () => document.visibilityState === 'visible'
 // started while the page slept.
 const onResume = () => {
   if (!visible()) return
-  ticks.forEach(f => f(Date.now()))
+  ticks.forEach(f => f(marketNow()))
   const age = Date.now() - snap.at
   if (age > 25_000 || (snap.error && age > 3_000)) { nextAt = 0; load() }
 }
@@ -64,14 +90,14 @@ const listen = (on: boolean) => {
 
 export function useAssets() {
   const [s, setS] = useState<Snap>(snap)
-  const [now, setTick] = useState(() => Date.now())
+  const [, setTick] = useState(0)
   useEffect(() => {
     subs.add(setS); ticks.add(setTick)
     if (!snap.assets || Date.now() - snap.at > 25_000) load()
     if (!timer) {
       timer = setInterval(() => {
         if (!visible()) return
-        ticks.forEach(f => f(Date.now()))
+        ticks.forEach(f => f(marketNow()))
         if (Date.now() >= nextAt && Date.now() - snap.at >= 29_000) load()
       }, 15_000)
       listen(true)
@@ -81,8 +107,9 @@ export function useAssets() {
       if (!subs.size && timer) { clearInterval(timer); timer = null; listen(false) }
     }
   }, [])
-  // now: the clock labels are computed against (advances every 15 s).
-  return { ...s, now: Math.max(now, s.at), reload: load }
+  // now: the clock labels are computed against (server-corrected; every
+  // subscriber re-renders at least every 15 s).
+  return { ...s, now: marketNow(), reload: load }
 }
 
 // Bitcoin as every landing surface shows it: the shared snapshot's BTC quote

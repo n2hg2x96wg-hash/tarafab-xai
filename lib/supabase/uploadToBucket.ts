@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { noStoreFetch } from '@/lib/supabase/noStore'
 import { getSupabaseEnv, isJwt } from '@/lib/supabase/env'
 import { rateLimited } from '@/lib/rateLimit'
 import { limitUser } from '@/lib/userRateLimit'
@@ -37,7 +38,7 @@ export async function uploadToBucket(request: NextRequest, bucket: string, limit
   }
 
   try {
-    const authClient = createClient(url, anonKey, { auth: { persistSession: false, autoRefreshToken: false } })
+    const authClient = createClient(url, anonKey, { global: { fetch: noStoreFetch }, auth: { persistSession: false, autoRefreshToken: false } })
     const { data: { user }, error: authErr } = await authClient.auth.getUser(token)
     if (authErr || !user) return NextResponse.json({ error: 'Please sign in again.' }, { status: 401 })
     const limited = rateLimited(`${limitName}:${user.id}`, 10, 10 * 60_000)
@@ -59,7 +60,7 @@ export async function uploadToBucket(request: NextRequest, bucket: string, limit
     // access token is a real JWT. A new-format sb_secret_ key is not a JWT and
     // Supabase Storage rejects it as "Invalid Compact JWS".
     const storageClient = createClient(url, anonKey, {
-      global: { headers: { Authorization: `Bearer ${token}` } },
+      global: { headers: { Authorization: `Bearer ${token}` }, fetch: noStoreFetch },
       auth: { persistSession: false, autoRefreshToken: false },
     })
     // Shared across server instances (the in-memory limit above is per instance).

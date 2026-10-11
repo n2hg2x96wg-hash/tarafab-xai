@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { noStoreFetch } from '@/lib/supabase/noStore'
 import { getSupabaseEnv } from '@/lib/supabase/env'
 import { clientIp, rateLimited } from '@/lib/rateLimit'
 import { SIGNUP_CONSENT_VERSION } from '@/lib/consent'
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
       version: SIGNUP_CONSENT_VERSION,
     }
 
-    const supabase = createClient(url, key)
+    const supabase = createClient(url, key, { global: { fetch: noStoreFetch } })
     const { data, error } = await supabase.auth.signUp({
       email,
       password: safePassword,

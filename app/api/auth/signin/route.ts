@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { noStoreFetch } from '@/lib/supabase/noStore'
 import { getSupabaseEnv } from '@/lib/supabase/env'
 import { clientIp, rateLimited } from '@/lib/rateLimit'
 import { recordSecurityEvent } from '@/lib/securityEvents'
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest) {
     const limited = rateLimited(`signin:${clientIp(request)}:${email.toLowerCase()}`, 10, 5 * 60_000)
     if (limited) return limited
 
-    const supabase = createClient(url, key)
+    const supabase = createClient(url, key, { global: { fetch: noStoreFetch } })
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {

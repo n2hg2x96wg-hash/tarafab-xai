@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { noStoreFetch } from '@/lib/supabase/noStore'
 import { getSupabaseEnv } from '@/lib/supabase/env'
 import { usMarketOpen, type AssetQuote, type DataState } from '@/lib/assets'
 import { effectiveState } from '@/lib/marketStatus'
@@ -12,11 +13,13 @@ import { effectiveState } from '@/lib/marketStatus'
 // (lib/marketStatus), so the server never calls "live" what a page would
 // call stale; browsers re-apply it with their own clock.
 export const dynamic = 'force-dynamic'
+// Never serve a cached database read for quotes (see lib/supabase/noStore).
+export const fetchCache = 'force-no-store'
 const SOURCE: Record<string, AssetQuote['source']> = { coinbase: 'Coinbase Exchange', coingecko: 'CoinGecko', finnhub: 'Finnhub' }
 
 export async function GET() {
   const { url, anonKey } = getSupabaseEnv()
-  const sb = createClient(url, anonKey, { auth: { persistSession: false, autoRefreshToken: false } })
+  const sb = createClient(url, anonKey, { global: { fetch: noStoreFetch }, auth: { persistSession: false, autoRefreshToken: false } })
   const [assets, quotes] = await Promise.all([
     sb.from('market_assets').select('id, name, category, note, chart_enabled, automation_enabled, sort_order, provider').order('sort_order').order('id'),
     sb.from('market_quotes').select('asset_id, price, change_pct, change_abs, high, low, prev_close, volume, source_time, fetched_at, state, error'),
@@ -28,6 +31,10 @@ export async function GET() {
   const list: AssetQuote[] = (assets.data || []).map(a => {
     const r = q.get(a.id)
     let state: DataState = (r?.state as DataState) || 'unavailable'
+    // The latest refresh failed but an earlier valid price is still recorded
+    // (with its own provider time): show that price as stale, never as live
+    // and never as if there were no price at all.
+    if (state === 'error' && r?.price != null && (r?.source_time || null)) state = 'stale'
     const crypto = a.category === 'crypto'
     const market: AssetQuote['market'] = state === 'unavailable' || state === 'error' ? 'unavailable' : crypto ? '24/7' : open ? 'open' : 'closed'
     const updatedAt: string | null = r?.source_time || r?.fetched_at || null
