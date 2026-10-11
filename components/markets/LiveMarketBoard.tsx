@@ -84,7 +84,7 @@ function DayLine() {
 }
 
 export default function LiveMarketBoard() {
-  const { assets, error, at, reload } = useAssets()
+  const { assets, error, at, reload, now } = useAssets()
   const ref = useRef<HTMLDivElement>(null)
   const [onScreen, setOnScreen] = useState(true)
   useEffect(() => {
@@ -93,19 +93,21 @@ export default function LiveMarketBoard() {
   }, [])
   useClock(onScreen)
 
-  const { tiles, sources, newest, liveCount } = useMemo(() => {
+  const { tiles, sources, newest, liveCount, anyStale } = useMemo(() => {
     const list = assets || []
     const crypto = list.filter(a => a.category === 'crypto')
     // Shared status rule (lib/marketStatus): age and a failed refresh both downgrade "live".
     const tiles = [...crypto].sort((x, y) => (x.id === 'BTC' ? -1 : y.id === 'BTC' ? 1 : 0)).slice(0, 8)
-      .map(a => ({ ...a, state: effectiveState(a, error) as AssetQuote['state'] }))
+      .map(a => ({ ...a, state: effectiveState(a, error, now) as AssetQuote['state'] }))
       .filter(a => a.price != null && a.state !== 'unavailable' && a.state !== 'error')
     const shownSources = new Set<string>()
     tiles.forEach(a => { if (a.source && a.price != null) shownSources.add(a.source) })
     shownSources.add('CoinGecko') // fallback provider for BTC summary/history on this page
-    const times = list.map(a => (a.updatedAt ? Date.parse(a.updatedAt) : NaN)).filter(Number.isFinite)
-    return { tiles, sources: Array.from(shownSources), newest: times.length ? Math.max(...times) : null, liveCount: tiles.filter(a => a.state === 'live').length }
-  }, [assets, error])
+    // "Updated" is the newest provider time among the quotes shown here.
+    const times = tiles.map(a => (a.updatedAt ? Date.parse(a.updatedAt) : NaN)).filter(t => Number.isFinite(t) && t <= now + 60_000)
+    return { tiles, sources: Array.from(shownSources), newest: times.length ? Math.max(...times) : null, liveCount: tiles.filter(a => a.state === 'live').length,
+      anyStale: tiles.some(a => a.state === 'stale') }
+  }, [assets, error, now])
 
   const state: 'loading' | 'error' | 'stale' | 'live' = assets === null ? (error ? 'error' : 'loading')
     // The last refresh failed: whatever is on screen is no longer current.
@@ -120,12 +122,12 @@ export default function LiveMarketBoard() {
           <p className="text-[12px] text-fg-faint">
             {state === 'loading' ? 'Loading current quotes…'
               : state === 'error' ? 'Market data is unavailable right now.'
-              : `${liveCount} of ${tiles.length} live${newest ? ` · updated ${ago(Date.now() - newest)}` : ''}`}
+              : `${liveCount} of ${tiles.length} live${newest ? ` · updated ${ago(Math.max(0, Date.now() - newest))}` : ''}`}
           </p>
         </div>
         <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] ${state === 'live' ? 'border-emerald-500/30 text-emerald-300' : state === 'loading' ? 'border-ink-600 text-fg-faint' : 'border-amber-500/30 text-amber-300'}`}>
           <span className={`w-1.5 h-1.5 rounded-full ${state === 'live' ? 'bg-emerald-400 board-pulse' : state === 'loading' ? 'bg-fg-faint' : 'bg-amber-400'}`} aria-hidden="true" />
-          {state === 'live' ? 'Live feed' : state === 'loading' ? 'Connecting' : state === 'stale' ? 'Delayed' : 'Unavailable'}
+          {state === 'live' ? 'Live feed' : state === 'loading' ? 'Connecting' : state === 'stale' ? (anyStale ? 'Stale' : 'Delayed') : 'Unavailable'}
         </span>
       </div>
 

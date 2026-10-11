@@ -1,125 +1,16 @@
 'use client'
 
-import { chartColors } from '@/lib/chartColors'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAssets } from '@/components/markets/assetStore'
-import { sharedSummary, useBtcHistory } from '@/components/useMarket'
 import { useI18n } from '@/lib/i18n/I18nProvider'
-import type { AssetQuote } from '@/lib/assets'
-import { effectiveState } from '@/lib/marketStatus'
-
-type Product = 'BTC-USD'
-const PRODUCTS: Product[] = ['BTC-USD']
-
-export interface Quote { price: number; open24h: number; dir: 'up' | 'down' | null }
-export interface Trade { id: number; price: number; size: number; side: 'buy' | 'sell'; time: string }
-type Status = 'connecting' | 'live' | 'polling' | 'error'
+import { ageLabel, effectiveState } from '@/lib/marketStatus'
 
 const usd = (n: number, digits = 2) =>
   `$${n.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits })}`
 
-// Streams real Bitcoin prices and trades from Coinbase's public feed; falls
-// back to the shared server-side quote when the socket can't connect.
-export function useLiveMarket() {
-  const [quotes, setQuotes] = useState<Partial<Record<Product, Quote>>>({})
-  const [trades, setTrades] = useState<Trade[]>([])
-  const [status, setStatus] = useState<Status>('connecting')
-  const pendingQuotes = useRef<Partial<Record<Product, { price: number; open24h: number }>>>({})
-  const pendingTrades = useRef<Trade[]>([])
-
-  useEffect(() => {
-    let ws: WebSocket | null = null
-    let pollTimer: ReturnType<typeof setInterval> | null = null
-    let closed = false
-
-    const flush = setInterval(() => {
-      const q = pendingQuotes.current
-      if (Object.keys(q).length) {
-        pendingQuotes.current = {}
-        setQuotes(prev => {
-          const next = { ...prev }
-          for (const p of Object.keys(q) as Product[]) {
-            const old = prev[p]?.price
-            const { price, open24h } = q[p]!
-            next[p] = { price, open24h, dir: old == null || old === price ? prev[p]?.dir ?? null : price > old ? 'up' : 'down' }
-          }
-          return next
-        })
-      }
-      if (pendingTrades.current.length) {
-        const batch = pendingTrades.current
-        pendingTrades.current = []
-        setTrades(prev => [...batch.reverse(), ...prev].slice(0, 9))
-      }
-    }, 600)
-
-    // Bitcoin from our own server route: its provider timestamp says whether
-    // the price is current. Used for the first price (before the stream opens)
-    // and by the fallback feed if the stream cannot connect.
-    const btcFromServer = async () => {
-      // Shared with the other widgets on the page, so one page load makes one
-      // summary request instead of one per widget.
-      const j = await sharedSummary().catch(() => null)
-      const x = j?.summary
-      if (!x?.price || !(Date.now() - Date.parse(x.updatedAt) < 3 * 60_000)) return false
-      pendingQuotes.current['BTC-USD'] = { price: x.price, open24h: x.price / (1 + (x.change24h ?? 0) / 100) }
-      return true
-    }
-    btcFromServer().catch(() => false)
-
-    const startPolling = () => {
-      if (pollTimer || closed) return
-      const poll = async () => {
-        const btcOk = await btcFromServer().catch(() => false)
-        if (!closed) setStatus(btcOk ? 'polling' : 'error')
-      }
-      poll()
-      pollTimer = setInterval(poll, 30_000)
-    }
-
-    try {
-      ws = new WebSocket('wss://ws-feed.exchange.coinbase.com')
-      const failTimer = setTimeout(() => { if (ws?.readyState !== WebSocket.OPEN) startPolling() }, 6000)
-      ws.onopen = () => {
-        clearTimeout(failTimer)
-        ws!.send(JSON.stringify({
-          type: 'subscribe',
-          product_ids: PRODUCTS,
-          channels: ['ticker', { name: 'matches', product_ids: ['BTC-USD'] }],
-        }))
-      }
-      ws.onmessage = (ev) => {
-        const m = JSON.parse(ev.data)
-        if (m.type === 'ticker' && m.price) {
-          pendingQuotes.current[m.product_id as Product] = { price: +m.price, open24h: +m.open_24h }
-          setStatus('live')
-        } else if (m.type === 'match' && m.product_id === 'BTC-USD') {
-          pendingTrades.current.push({ id: m.trade_id, price: +m.price, size: +m.size, side: m.side === 'buy' ? 'sell' : 'buy', time: m.time })
-          if (pendingTrades.current.length > 20) pendingTrades.current.splice(0, pendingTrades.current.length - 20)
-        }
-      }
-      ws.onerror = () => startPolling()
-      ws.onclose = () => { if (!closed) startPolling() }
-    } catch {
-      startPolling()
-    }
-
-    return () => {
-      closed = true
-      clearInterval(flush)
-      if (pollTimer) clearInterval(pollTimer)
-      ws?.close()
-    }
-  }, [])
-
-  return { quotes, trades, status }
-}
-
-
-function pctChange(q?: Quote) {
-  if (!q || !q.open24h) return null
-  return ((q.price - q.open24h) / q.open24h) * 100
-}
+// The landing hero reads Bitcoin from the same shared snapshot as this ticker
+// and the market board (components/markets/assetStore: useBtcQuote), so every
+// price and status label on the page agrees.
 
 function Change({ value, className = '' }: { value: number | null; className?: string }) {
   if (value === null) return null
@@ -131,23 +22,6 @@ function Change({ value, className = '' }: { value: number | null; className?: s
   )
 }
 
-// Colors the price briefly when a new trade moves it, then settles back.
-function TickPrice({ quote, className = '' }: { quote?: Quote; className?: string }) {
-  const [dir, setDir] = useState<'up' | 'down' | null>(null)
-  const last = useRef<number | undefined>(undefined)
-  useEffect(() => {
-    if (!quote) return
-    const prev = last.current
-    last.current = quote.price
-    if (prev === undefined || prev === quote.price) return
-    setDir(quote.price > prev ? 'up' : 'down')
-    const t = setTimeout(() => setDir(null), 900)
-    return () => clearTimeout(t)
-  }, [quote])
-  if (!quote) return <span className={`inline-block skeleton h-[0.9em] w-44 align-middle ${className}`} />
-  return <span className={`tabular-nums price-tick ${dir === 'up' ? 'price-up' : dir === 'down' ? 'price-down' : ''} ${className}`}>{usd(quote.price)}</span>
-}
-
 type TickerRow = {
   asset: { symbol: string; name: string }
   quote: { price: number | null; change24h: number | null; status: 'live' | 'delayed' | 'stale' | 'unavailable' }
@@ -157,18 +31,18 @@ type TickerRow = {
 export function LiveTickerBar() {
   const { t } = useI18n()
   // Shares the page's single /api/market/assets snapshot (no second request).
-  const { assets, error } = useAssets()
-  // Only real, current quotes; stale or unavailable assets are left out.
-  // Labels follow the shared status rule (lib/marketStatus): a quote whose
-  // provider time is old, or shown after a failed refresh, reads STALE.
+  const { assets, error, now } = useAssets()
+  // Only real quotes; unavailable assets are left out. Labels follow the
+  // shared status rule (lib/marketStatus): a quote whose provider time is
+  // old, or shown after a failed refresh, reads STALE with its age.
   const rows: TickerRow[] = useMemo(() => (assets || [])
     .filter(a => typeof a?.id === 'string' && typeof a?.name === 'string' && a.price != null && Number.isFinite(a.price) && a.price > 0)
-    .map(a => ({ a, st: effectiveState(a, error) }))
+    .map(a => ({ a, st: effectiveState(a, error, now) }))
     .filter(x => x.st !== 'unavailable')
-    .map(({ a, st }) => ({ asset: { symbol: a.id, name: a.name }, quote: { price: a.price, change24h: a.changePct, status: st as 'live' | 'delayed' | 'stale' }, at: a.updatedAt })), [assets, error])
+    .map(({ a, st }) => ({ asset: { symbol: a.id, name: a.name }, quote: { price: a.price, change24h: a.changePct, status: st as 'live' | 'delayed' | 'stale' }, at: a.updatedAt })), [assets, error, now])
 
   // Age of a quote that is not live, from its own provider timestamp.
-  const age = (iso: string | null | undefined) => { if (!iso) return ''; const m = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000)); return m < 1 ? '<1m' : m < 60 ? `${m}m` : m < 1440 ? `${Math.round(m / 60)}h` : `${Math.round(m / 1440)}d` }
+  const age = (iso: string | null | undefined) => ageLabel(iso, now)
   const renderItems = (copy: number) => rows.map(({ asset, quote, at }) => (
     <div key={`${copy}-${asset.symbol}`} className="flex items-center gap-2 sm:gap-2.5 px-4 sm:px-6 shrink-0 text-[12px] sm:text-[12.5px]">
       <span className="text-fg-muted">{asset.name}</span>
@@ -189,98 +63,6 @@ export function LiveTickerBar() {
           : <span className="px-5 text-[12px] text-fg-faint" role="status">{t('market.tickerUnavailable')}</span>}
       </div>
     </div>
-  )
-}
-
-// 24h history for the hero chart, via the shared cached market route.
-function useDayHistory() {
-  const h = useBtcHistory('1')
-  const points = h.history ? h.history.points.map(([, p]) => p) : null
-  return { points, status: h.status, retry: h.retry }
-}
-
-function LineChart({ points, positive }: { points: number[]; positive: boolean }) {
-  const { t } = useI18n()
-  const w = 400, h = 120
-  const min = Math.min(...points), max = Math.max(...points)
-  const span = max - min || 1
-  const xy = points.map((p, i) => [(i / (points.length - 1)) * w, h - ((p - min) / span) * (h - 12) - 6])
-  const line = xy.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ')
-  const color = positive ? chartColors.up : chartColors.down
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-28" preserveAspectRatio="none" role="img" aria-label={t('market.chart24hAria')}>
-      <path d={`${line} L${w},${h} L0,${h} Z`} style={{ fill: color, fillOpacity: 0.07 }} />
-      <path d={line} fill="none" style={{ stroke: color }} strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
-    </svg>
-  )
-}
-
-export function HeroLivePanel({ quotes, trades, status }: ReturnType<typeof useLiveMarket>) {
-  const btc = quotes['BTC-USD']
-  const ch = pctChange(btc)
-  const day = useDayHistory()
-  const history = day.points
-  const { t, intl: intlTime } = useI18n()
-  const series = history && history.length > 1 ? (btc ? [...history, btc.price] : history) : null
-
-  return (
-    <div className="panel p-5 sm:p-6">
-      <div className="flex items-center justify-between mb-5">
-        <div className="text-sm text-fg-muted">Bitcoin <span className="text-fg-faint">BTC/USD</span></div>
-        <StatusTag status={status} />
-      </div>
-
-      <TickPrice quote={btc} className="block text-[40px] sm:text-[44px] leading-none font-semibold tracking-tight text-fg" />
-      <div className="mt-2 h-5 text-sm">
-        {ch !== null && <><Change value={ch} /> <span className="text-fg-faint">{t('market.past24h')}</span></>}
-      </div>
-
-      <div className="mt-4 mb-5 -mx-1">
-        {series ? <LineChart points={series} positive={(ch ?? 0) >= 0} /> : day.status === 'loading' ? <div className="skeleton h-28" /> : (
-          <div className="h-28 flex flex-col items-center justify-center gap-2 text-xs text-fg-faint">
-            {day.status === 'error' ? t('market.chart24hFailed') : t('common.unavailable')}
-            <button onClick={day.retry} className="underline underline-offset-2 hover:text-fg">{t('common.tryAgain')}</button>
-          </div>
-        )}
-      </div>
-
-      <div className="border-t border-ink-700 pt-4">
-        <div className="grid grid-cols-3 text-[11px] uppercase tracking-wide text-fg-faint mb-2">
-          <span>{t('market.priceUsd')}</span><span className="text-right">{t('market.sizeBtc')}</span><span className="text-right">{t('market.time')}</span>
-        </div>
-        <div className="h-[176px] overflow-hidden">
-          {trades.length === 0 && (
-            <div className="text-xs text-fg-faint pt-8 text-center">
-              {status === 'polling' || status === 'error' ? t('market.tradesUnavailable') : t('market.waitingTrades')}
-            </div>
-          )}
-          {trades.slice(0, 8).map(t => (
-            <div key={t.id} className="row-in grid grid-cols-3 text-[13px] tabular-nums h-[22px] items-center">
-              <span className={t.side === 'buy' ? 'price-up' : 'price-down'}>{usd(t.price)}</span>
-              <span className="text-right text-fg-muted">{t.size.toFixed(5)}</span>
-              <span className="text-right text-fg-faint">{new Date(t.time).toLocaleTimeString(intlTime, { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function StatusTag({ status }: { status: Status }) {
-  const { t } = useI18n()
-  const map = {
-    live: { t: t('status.live'), c: 'text-emerald-400 border-emerald-500/30', d: 'bg-emerald-400' },
-    // Fallback feed refreshed every 30 seconds: current, but not streaming.
-    polling: { t: t('status.current'), c: 'text-emerald-400 border-emerald-500/30', d: 'bg-emerald-400' },
-    connecting: { t: t('status.connecting'), c: 'text-fg-muted border-ink-600', d: 'bg-fg-faint' },
-    error: { t: t('common.unavailable'), c: 'text-red-400 border-red-500/30', d: 'bg-red-400' },
-  }[status]
-  return (
-    <span className={`tag ${map.c}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${map.d}`} />
-      {map.t}
-    </span>
   )
 }
 

@@ -1350,3 +1350,7 @@ body.chat-avoid #chat-application { opacity: 0 !important; visibility: hidden !i
 .lp .btn-outline { border-color: rgb(var(--contrast) / .14); background: rgb(var(--contrast) / .03); }
 .lp .btn-outline:hover:not(:disabled) { border-color: rgb(var(--contrast) / .26); background: rgb(var(--contrast) / .06); }
 .lp .btn:focus-visible { outline: none; box-shadow: 0 0 0 2px rgb(var(--ink-950)), 0 0 0 4px rgb(var(--accent) / .65); }
+
+/* Overview: a compact figure ($1.23M) is a quiet button that reveals the exact amount. */
+.ovx-stat-toggle { font: inherit; color: inherit; letter-spacing: inherit; padding: 0; background: none; border: 0; border-bottom: 1px dashed rgb(var(--contrast) / .22); border-radius: 0; cursor: pointer; line-height: inherit; }
+.ovx-stat-toggle:focus-visible { outline: 2px solid rgb(var(--accent)); outline-offset: 3px; border-radius: 4px; }

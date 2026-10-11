@@ -2,14 +2,23 @@
 
 import { useEffect, useState } from 'react'
 import type { AssetQuote } from '@/lib/assets'
+import { effectiveState, type MarketState } from '@/lib/marketStatus'
 
 // Shared market snapshot (no authentication, no Supabase): one fetch of
 // /api/market/assets for every component on the page, refreshed every 30 s
 // while the page is visible (paused in background tabs). Kept free of heavy
 // imports so the landing page can use it in its first load.
+//
+// Every surface showing a price (hero, ticker, market board, story, dashboard)
+// reads this one snapshot and labels it with lib/marketStatus, so they always
+// agree. Labels age on their own: subscribers re-render every 15 s even when
+// no new data arrives, so a quote turns stale on screen once it is too old.
+// A page brought back after sleeping (tab switch, back/forward cache, phone
+// unlock, network back) fetches again straight away.
 export type Snap = { assets: AssetQuote[] | null; error: boolean; at: number }
 let snap: Snap = { assets: null, error: false, at: 0 }
 const subs = new Set<(s: Snap) => void>()
+const ticks = new Set<(n: number) => void>()
 let timer: ReturnType<typeof setInterval> | null = null
 let inflight: Promise<void> | null = null
 // Consecutive failures: retries back off (30 s, 60 s, 2 min … up to 5 min)
@@ -37,22 +46,59 @@ async function load() {
   })().finally(() => { inflight = null })
   return inflight
 }
-const onVisible = () => { if (document.visibilityState === 'visible' && Date.now() - snap.at > 25_000) load() }
+const visible = () => document.visibilityState === 'visible'
+// Back on screen or back online: refresh now if the snapshot is not recent
+// (or the last attempt failed), without waiting out a failure back-off that
+// started while the page slept.
+const onResume = () => {
+  if (!visible()) return
+  ticks.forEach(f => f(Date.now()))
+  const age = Date.now() - snap.at
+  if (age > 25_000 || (snap.error && age > 3_000)) { nextAt = 0; load() }
+}
+const RESUME_EVENTS = ['visibilitychange', 'pageshow', 'focus', 'online'] as const
+const listen = (on: boolean) => {
+  document[on ? 'addEventListener' : 'removeEventListener']('visibilitychange', onResume)
+  RESUME_EVENTS.slice(1).forEach(e => window[on ? 'addEventListener' : 'removeEventListener'](e, onResume))
+}
 
 export function useAssets() {
   const [s, setS] = useState<Snap>(snap)
+  const [now, setTick] = useState(() => Date.now())
   useEffect(() => {
-    subs.add(setS)
+    subs.add(setS); ticks.add(setTick)
     if (!snap.assets || Date.now() - snap.at > 25_000) load()
     if (!timer) {
-      timer = setInterval(() => { if (document.visibilityState === 'visible' && Date.now() >= nextAt) load() }, 30_000)
-      document.addEventListener('visibilitychange', onVisible)
+      timer = setInterval(() => {
+        if (!visible()) return
+        ticks.forEach(f => f(Date.now()))
+        if (Date.now() >= nextAt && Date.now() - snap.at >= 29_000) load()
+      }, 15_000)
+      listen(true)
     }
     return () => {
-      subs.delete(setS)
-      if (!subs.size && timer) { clearInterval(timer); timer = null; document.removeEventListener('visibilitychange', onVisible) }
+      subs.delete(setS); ticks.delete(setTick)
+      if (!subs.size && timer) { clearInterval(timer); timer = null; listen(false) }
     }
   }, [])
-  return { ...s, reload: load }
+  // now: the clock labels are computed against (advances every 15 s).
+  return { ...s, now: Math.max(now, s.at), reload: load }
+}
+
+// Bitcoin as every landing surface shows it: the shared snapshot's BTC quote
+// with its shared status. No price is shown when there is none.
+export type BtcQuote = {
+  price: number | null; changePct: number | null; updatedAt: string | null
+  state: MarketState | 'loading'; source: AssetQuote['source'] | null
+}
+export function useBtcQuote(): BtcQuote {
+  const { assets, error, now } = useAssets()
+  const btc = assets?.find(a => a?.id === 'BTC')
+  if (!btc) return { price: null, changePct: null, updatedAt: null, source: null, state: assets === null && !error ? 'loading' : 'unavailable' }
+  const state = effectiveState(btc, error, now)
+  return {
+    price: state === 'unavailable' ? null : btc.price, changePct: state === 'unavailable' ? null : btc.changePct,
+    updatedAt: btc.updatedAt, source: btc.source ?? null, state,
+  }
 }
 

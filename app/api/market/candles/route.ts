@@ -28,7 +28,8 @@ export async function GET(req: NextRequest) {
   // Premium-only timeframes (configured by an admin) are checked on the
   // server against the caller's entitlement, not just hidden in the page.
   const { data: st } = await sb.from('premium_settings').select('premium_timeframes').eq('id', 1).maybeSingle()
-  if ((st?.premium_timeframes as string[] | undefined)?.includes(tf)) {
+  const premiumTf = !!(st?.premium_timeframes as string[] | undefined)?.includes(tf)
+  if (premiumTf) {
     const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '').trim()
     const user = token ? createClient(url, anonKey, { global: { headers: { Authorization: `Bearer ${token}` } }, auth: { persistSession: false, autoRefreshToken: false } }) : null
     const { data: allowed } = user ? await user.rpc('client_can_use_timeframe', { p_tf: tf }) : { data: false }
@@ -43,17 +44,21 @@ export async function GET(req: NextRequest) {
         { headers: { 'User-Agent': 'tarafab-xai/1.0' }, signal: AbortSignal.timeout(8000), next: { revalidate: ttl } })
       if (!r.ok) throw new Error(String(r.status))
       const rows = await r.json() as number[][] // [time, low, high, open, close, volume]
-      points = rows.filter(x => Array.isArray(x) && x.length >= 5).map(x => [x[0] * 1000, x[4]] as [number, number]).sort((p, q) => p[0] - q[0])
+      points = (Array.isArray(rows) ? rows : []).filter(x => Array.isArray(x) && x.length >= 5).map(x => [x[0] * 1000, x[4]] as [number, number]).sort((p, q) => p[0] - q[0])
     } else if (a.provider === 'coingecko') {
       const r = await fetch(`${COINGECKO}/coins/${encodeURIComponent(a.provider_symbol)}/market_chart?vs_currency=usd&days=${CG_DAYS[tf]}`,
         { headers: { 'User-Agent': 'tarafab-xai/1.0' }, signal: AbortSignal.timeout(8000), next: { revalidate: ttl } })
       if (!r.ok) throw new Error(String(r.status))
       const j = await r.json() as { prices?: [number, number][] }
       const since = Date.now() - span * 1000
-      points = (j.prices || []).filter(p => p[0] >= since)
+      points = (Array.isArray(j?.prices) ? j.prices : []).filter(p => Array.isArray(p) && p[0] >= since)
     }
+    // Malformed provider rows are dropped, never drawn.
+    points = points.filter(([t, v]) => Number.isFinite(t) && Number.isFinite(v) && v > 0)
     if (!points.length) return NextResponse.json({ points: [], available: false, reason: 'No chart data was returned.' })
-    return NextResponse.json({ points, available: true }, { headers: { 'Cache-Control': `public, s-maxage=${ttl}, stale-while-revalidate=${ttl}` } })
+    // A Premium timeframe was checked against this caller's entitlement, so its
+    // answer must not be stored by the CDN and replayed to other visitors.
+    return NextResponse.json({ points, available: true }, { headers: { 'Cache-Control': premiumTf ? 'private, no-store' : `public, s-maxage=${ttl}, stale-while-revalidate=${ttl}` } })
   } catch {
     return NextResponse.json({ points: [], available: false, reason: 'Chart data is temporarily unavailable.' }, { status: 503 })
   }

@@ -9,6 +9,9 @@ export type AssetQuote = {
   price: number | null; changePct: number | null; changeAbs: number | null
   high: number | null; low: number | null; prevClose: number | null; volume: number | null
   updatedAt: string | null; state: DataState; market: MarketStatus
+  // When the server last checked the provider for this quote (the provider's
+  // own time is updatedAt). Optional so older API replies still parse.
+  checkedAt?: string | null
   // Data provider of this quote (display/attribution only).
   source?: 'Coinbase Exchange' | 'CoinGecko' | 'Finnhub' | null
   // Why there is no usable quote: the data source is not connected yet, or a

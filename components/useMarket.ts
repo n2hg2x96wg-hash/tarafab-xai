@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { quoteAgeMs, STALE_AFTER_MS } from '@/lib/marketStatus'
 
 export type Source = 'Coinbase Exchange' | 'CoinGecko'
 
@@ -10,7 +11,7 @@ export interface Summary {
   high24h: number
   low24h: number
   volume24hUsd: number
-  updatedAt: string
+  updatedAt: string | null
   source: Source
 }
 
@@ -49,9 +50,8 @@ export function sharedSummary(bypass = false) {
   return promise
 }
 
-// A price older than this is shown as delayed. The server refreshes every
-// 30 seconds, so a healthy feed stays well inside it.
-const STALE_AFTER_MS = 3 * 60_000
+// Freshness uses the shared rule and threshold (lib/marketStatus): a price
+// older than STALE_AFTER_MS, or with no provider time, is never live.
 
 export type SummaryStatus = 'loading' | 'live' | 'stale' | 'error'
 
@@ -72,23 +72,25 @@ export function useBtcSummary(refreshMs = 30_000) {
       // Freshness comes from the provider's own timestamp, not from when we
       // asked: during a provider outage the server keeps serving its last
       // good price, and that must read as delayed rather than live.
-      const ageOf = (x: Summary) => {
-        const asOf = Date.parse(x.updatedAt)
-        return Number.isFinite(asOf) ? Math.min(asOf, Date.now()) : Date.now()
+      // Provider time of the quote, or null when it has none.
+      const timeOf = (x: Summary) => {
+        const age = quoteAgeMs(x?.updatedAt)
+        return age == null ? null : Date.now() - age
       }
+      const isOld = (x: Summary) => { const at = timeOf(x); return at == null || Date.now() - at > STALE_AFTER_MS }
       // First load only: an old first answer is re-checked straight away
       // (the card keeps showing "Loading") before it is called delayed.
-      if (!hasData.current && !bypass && Date.now() - ageOf(summary) > STALE_AFTER_MS) {
+      if (!hasData.current && !bypass && isOld(summary)) {
         try {
           const fresh = await sharedSummary(true)
           if (!alive.current) return
           summary = fresh.summary
         } catch { /* keep the first answer; it is labelled by its age below */ }
       }
-      const dataTime = ageOf(summary)
+      if (!summary || !Number.isFinite(summary.price)) throw new Error('Malformed market data')
       setSummary(summary)
-      setFetchedAt(dataTime)
-      setStatus(Date.now() - dataTime > STALE_AFTER_MS ? 'stale' : 'live')
+      setFetchedAt(timeOf(summary))
+      setStatus(isOld(summary) ? 'stale' : 'live')
       hasData.current = true
       failures.current = 0
     } catch {
@@ -131,7 +133,10 @@ export function useBtcSummary(refreshMs = 30_000) {
     }
   }, [run, schedule])
 
-  return { summary, fetchedAt, status, retry }
+  // A live label expires on its own once the quote passes the threshold,
+  // even before the next poll answers.
+  const shown: SummaryStatus = status === 'live' && (fetchedAt == null || Date.now() - fetchedAt > STALE_AFTER_MS) ? 'stale' : status
+  return { summary, fetchedAt, status: shown, retry }
 }
 
 export type HistoryStatus = 'loading' | 'ready' | 'error'

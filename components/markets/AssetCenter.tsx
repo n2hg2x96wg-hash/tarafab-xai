@@ -49,14 +49,14 @@ export const isUsable = (a: AssetQuote) => a.price != null && a.price > 0 && (a.
 
 export function AssetCenter({ onAutomate, openAsset, onOpened }: { onAutomate: (assetId: string) => void; openAsset?: string | null; onOpened?: () => void }) {
   const { t } = useMk()
-  const { assets: raw, error, reload } = useAssets()
+  const { assets: raw, error, reload, now } = useAssets()
   // Shared status rule (lib/marketStatus): an old quote, or one shown after a
   // failed refresh, is labelled stale everywhere in this view.
   // Clients only see assets with a usable quote. An asset whose feed is not
   // connected or down (e.g. a stock with no provider yet) is hidden here, not
   // deleted: its record and admin settings stay, and it reappears on its own
   // once real data arrives.
-  const assets = useMemo(() => raw ? raw.map(a => ({ ...a, state: effectiveState(a, error) as AssetQuote['state'] })).filter(isUsable) : raw, [raw, error])
+  const assets = useMemo(() => raw ? raw.map(a => ({ ...a, state: effectiveState(a, error, now) as AssetQuote['state'] })).filter(isUsable) : raw, [raw, error, now])
   // Admin → Feature controls (watchlist / charts); data is kept when off.
   const feature = useFeatures()
   const watchOff = hiddenState(feature('watchlist')), chartsOff = hiddenState(feature('charts'))
