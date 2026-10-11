@@ -14,7 +14,8 @@ import { SITE_HOST } from '@/lib/site'
 //   and opens each deployment in an automated browser for its preview image),
 // - automated browsers, crawlers and link-preview bots,
 // - devices used by staff (marked by the admin panel; see STAFF_FLAG).
-const PRODUCTION_HOSTS = [SITE_HOST, `www.${SITE_HOST}`, 'tarafabxai.vercel.app']
+const BARE_HOST = SITE_HOST.replace(/^www\./, '')
+const PRODUCTION_HOSTS = [BARE_HOST, `www.${BARE_HOST}`, 'tarafabxai.vercel.app']
 export const STAFF_FLAG = 'tarafab.staffDevice'
 const BOT_UA = /bot|crawl|spider|slurp|headless|lighthouse|pagespeed|preview|vercel|screenshot|monitor|uptime|pingdom|facebookexternalhit|embedly|whatsapp|telegram|discord|slack|curl|wget|python|axios|node-fetch/i
 
