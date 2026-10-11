@@ -84,7 +84,7 @@ function ProChart({ points, tf }: { points: [number, number][]; tf: Timeframe })
             </defs>
             {[0, 1, 2, 3, 4].map(k => <line key={k} x1="0" x2={W} y1={PAD + ((H - PAD * 2) * k) / 4} y2={PAD + ((H - PAD * 2) * k) / 4} className="pro-grid" vectorEffect="non-scaling-stroke" />)}
             <path d={g.area} fill="url(#proFill)" className="chart-fade" />
-            <path d={g.line} fill="none" className="pro-line spark-draw" vectorEffect="non-scaling-stroke" />
+            <path d={g.line} fill="none" className="pro-line chart-fade" vectorEffect="non-scaling-stroke" />
           </svg>
           {h && <>
             <span className="pro-cross" style={{ left: `${h.x}%` }} aria-hidden="true" />
