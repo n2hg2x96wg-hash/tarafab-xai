@@ -11,3 +11,11 @@ export const SITE_HOST = new URL(SITE_URL).host
 // SITE_URL once REDIRECT_LEGACY_HOSTS=1 is set (after the custom domain is
 // confirmed working), so clients are never sent to a domain that is not live.
 export const LEGACY_HOSTS = ['tarafabxai.vercel.app']
+
+// Where Supabase's email links (password reset, sign-up confirmation) send
+// people back to: always the official domain, whichever address the request
+// came from, except during local development. Supabase only honours an
+// address on its Redirect URLs list; any other falls back to its Site URL.
+export function authReturnBase(origin: string): string {
+  return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) ? origin : SITE_URL
+}

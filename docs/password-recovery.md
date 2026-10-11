@@ -29,26 +29,28 @@ The older email link (`{{ .ConfirmationURL }}`, on the Supabase project URL) kee
 
 Nothing below can be done from the codebase. Each item is a dashboard setting.
 
-### Supabase (project `jdskpqjwmaeurxspipyv`)
+### Supabase (project `jdskpqjwmaeurxspipyv`), with the default email service
 
-1. **Authentication → URL Configuration → Site URL:** `https://tarafabxai.xyz`, with no trailing slash.
-2. **Authentication → URL Configuration → Redirect URLs.** Keep only the URLs you need:
-   - `https://tarafabxai.xyz/reset-password`
+**Limits of Supabase's default email service** (from Supabase's documentation):
+- It delivers only to email addresses of members of your Supabase organization's team. Every other address fails with "Email address not authorized". New clients therefore cannot receive confirmation or reset emails until custom SMTP is set up, or until they are added to the team (not practical for clients).
+- It sends only a few emails per hour, and the limit can change without notice.
+- Mail comes from `noreply@mail.app.supabase.io`, as the live auth logs confirm. The sender cannot be changed to `no-reply@tarafabxai.xyz` without custom SMTP.
+- Email templates can be edited; only the sender is fixed.
+
+Settings:
+1. **Authentication → URL Configuration → Redirect URLs.** **Add** these and keep every existing entry, including the `tarafabxai.vercel.app` ones, as a fallback:
    - `https://www.tarafabxai.xyz/reset-password`
-   - `https://tarafabxai.xyz/auth/confirm`
+   - `https://www.tarafabxai.xyz/sign-in`
    - `https://www.tarafabxai.xyz/auth/confirm`
+   - `https://tarafabxai.xyz/reset-password`
+   - `https://tarafabxai.xyz/sign-in`
+   - `https://tarafabxai.xyz/auth/confirm`
 
-   Remove broad wildcards such as `https://*.vercel.app/**`. For local development, use a separate Supabase project with `http://localhost:3000/**`. Do not add localhost to the production project.
-3. **Authentication → Emails → Templates → Reset password:**
-   - Subject: `Reset your Tarafab.XAi password`.
-   - Body: paste the contents of `supabase/templates/recovery.html`.
-   - Save, then send yourself a test reset from `/forgot-password`.
-4. **Authentication → Emails → SMTP Settings** (optional, recommended). Supabase's built-in sender is for testing: it sends only a few emails per hour and comes from a Supabase address. To send from your own domain:
-   - Enable custom SMTP.
-   - Enter the provider's host, port, user and password here, never in the code or repository.
-   - Sender: `no-reply@tarafabxai.xyz`, name `Tarafab.XAi`.
-5. **Authentication → Rate Limits:** after custom SMTP is on, raise "emails sent per hour" to suit real use.
-6. **Authentication → Sign In / Providers → Email:** keep "Secure email change" on. Optionally shorten the email OTP expiry; the default is 1 hour (3600 s).
+   The app asks Supabase to return reset links to `https://www.tarafabxai.xyz/reset-password` and confirmation links to `https://www.tarafabxai.xyz/sign-in`. Supabase honours them only once they are listed; until then it uses the Site URL.
+2. **Authentication → URL Configuration → Site URL.** Leave it on the Vercel address until the custom-domain flow has been tested (see "How to test"). Then change it to `https://tarafabxai.xyz`, with no trailing slash.
+3. **Authentication → Emails → Templates → Reset password** (optional; works with the default service). Subject: `Reset your Tarafab.XAi password`. Body: the contents of `supabase/templates/recovery.html`. The link in the email is then on `tarafabxai.xyz`. Without this step, the link in the email is on `jdskpqjwmaeurxspipyv.supabase.co`, and the final destination is still your domain.
+4. **Authentication → Sign In / Providers → Email:** keep "Confirm email" on. Turning it off would let anyone register without proving they own the address.
+5. To reach every client: set up custom SMTP (Authentication → Emails → SMTP Settings), then raise the email rate limit. This is a separate decision; see the email provider and DNS sections below.
 
 ### Email provider (only if custom SMTP is used)
 
@@ -75,9 +77,14 @@ The sender only changes after the provider shows the domain as verified and Supa
 
 ## How to test
 
+Use an account whose email is a member of the Supabase organization's team; the default email service delivers only to those addresses.
+
 1. Open `https://tarafabxai.xyz/forgot-password` and request a reset for your own account.
-2. **The email link starts with `https://tarafabxai.xyz/auth/confirm#token_hash=`.** If it still starts with `https://jdskpqjwmaeurxspipyv.supabase.co`, the template has not been saved yet.
+2. **Check the link in the email.**
+   - With the branded template, it starts with `https://tarafabxai.xyz/auth/confirm#token_hash=`.
+   - With the default template, it starts with `https://jdskpqjwmaeurxspipyv.supabase.co/auth/v1/verify`. After clicking, the browser must end on `https://www.tarafabxai.xyz/reset-password`. If it ends on `tarafabxai.vercel.app`, the Redirect URLs from step 1 are not saved yet.
 3. **Opening the link** shows "Reset your password" with **Continue**, and the address bar shows only `/auth/confirm`.
 4. **Pressing Continue** opens the new-password form. Save a new password, then sign in with it.
 5. **Opening the same link again** shows "This link has expired".
 6. **While signed in, opening `/reset-password` directly** shows "This link has expired", not the form.
+7. **Sign-up confirmation:** register with a team-member address. The confirmation link should end on `https://www.tarafabxai.xyz/sign-in`, with nothing after `#` in the address. Sign in with the new password.

@@ -4,6 +4,7 @@ import { noStoreFetch } from '@/lib/supabase/noStore'
 import { getSupabaseEnv } from '@/lib/supabase/env'
 import { clientIp, rateLimited } from '@/lib/rateLimit'
 import { SIGNUP_CONSENT_VERSION } from '@/lib/consent'
+import { authReturnBase } from '@/lib/site'
 
 export async function POST(request: NextRequest) {
   const { url, anonKey: key } = getSupabaseEnv()
@@ -42,7 +43,8 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password: safePassword,
-      options: { data: { full_name: fullName || '', consent } },
+      // The confirmation link returns to sign-in on the official domain.
+      options: { data: { full_name: fullName || '', consent }, emailRedirectTo: `${authReturnBase(`http://${request.headers.get('host') || ''}`)}/sign-in` },
     })
 
     if (error) return NextResponse.json({ error: error.status === 429 ? 'Too many attempts. Please wait a moment and try again.' : error.message }, { status: error.status === 429 ? 429 : 400 })
