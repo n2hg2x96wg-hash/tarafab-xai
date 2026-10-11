@@ -22,7 +22,7 @@ import { ThemeSelector } from '@/components/ThemeSelector'
 import { useTheme } from '@/lib/theme/ThemeProvider'
 import {
   IconAlert, IconArrowDown, IconArrowUp, IconChart, IconCheck, IconClose, IconCopy, IconGrid,
-  IconInfo, IconList, IconLogOut, IconMail, IconMenu, IconUser, Logo,
+  IconEye, IconEyeOff, IconInfo, IconList, IconLogOut, IconMail, IconMenu, IconUser, Logo,
   IconBell, IconHelp, IconHistory, IconIdCard, IconInbox, IconLock, IconOutbox, IconRadar, IconPie, IconShield, IconSliders, IconSwap, IconTrend, IconWallet,
 } from '@/components/Icons'
 import { WalletTab } from '@/components/dashboard/WalletTab'
@@ -42,8 +42,9 @@ import { ReceiptField } from '@/components/dashboard/ReceiptField'
 import { isAllowedUpload, MAX_UPLOAD_BYTES, prepareUpload } from '@/lib/uploadFile'
 import { VerificationTab } from '@/components/dashboard/VerificationTab'
 import { useToast } from '@/components/Toast'
-import { InvestmentCenter, InvestmentsMini } from '@/components/dashboard/InvestmentCenter'
-import { HeroChips, MarketSnapshot, NextSteps, OverviewHero } from '@/components/dashboard/OverviewParts'
+import { InvestmentCenter } from '@/components/dashboard/InvestmentCenter'
+import { HeroChips, NextSteps, OverviewHero } from '@/components/dashboard/OverviewParts'
+import { AutomationStatusPanel, BtcMarketPanel, WatchlistPanel, useClockText } from '@/components/dashboard/OverviewPro'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { CommandSearch, type CommandItem } from '@/components/dashboard/CommandSearch'
 import { TxReceipt } from '@/components/dashboard/TxReceipt'
@@ -697,7 +698,7 @@ function AutomationBadge({ collapsed }: { collapsed: boolean }) {
     <span className={`cc-navauto shrink-0 inline-flex items-center gap-1.5 text-[11.5px] text-fg-faint ${collapsed ? 'lg:absolute lg:top-1.5 lg:right-3' : ''}`} data-sidebar-automation={loading ? 'connecting' : state} title={label}>
       <span className={`w-1.5 h-1.5 rounded-full ${dot}`} aria-hidden="true" />
       {/* Narrow phones: the dot carries the state; the words stay for screen readers and in the tooltip. */}
-      <span className={`max-[419px]:sr-only ${collapsed ? 'lg:sr-only' : ''}`}>{label}</span>
+      <span className="max-[419px]:sr-only lg:sr-only">{label}</span>
     </span>
   )
 }
@@ -760,83 +761,6 @@ function WhatsNew({ n, onDismiss, onOpen }: { n: TeamNotice; onDismiss: () => vo
   )
 }
 
-// Overview card for XAI automation: the engine's verified state, when it
-// last checked, and a short stream of REAL events only — the engine's own
-// heartbeat and market sync timestamps plus this client's rule events.
-const AUTO_EVENT: Record<string, string> = { created: 'Rule created', triggered: 'Condition met · notification sent', resumed: 'Rule resumed', paused: 'Rule paused' }
-function agoShort(iso: string | null | undefined) {
-  if (!iso) return '—'
-  const s = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000))
-  return s < 60 ? `${s}s ago` : s < 3600 ? `${Math.round(s / 60)} min ago` : s < 86400 ? `${Math.round(s / 3600)} h ago` : new Date(iso).toLocaleDateString()
-}
-function OverviewAutomation({ onOpen }: { onOpen: () => void }) {
-  const { t } = useI18n()
-  const { status, state, loading, refreshFailed, refreshed, presentation } = useEngineStatus()
-  const [events, setEvents] = useState<{ id: string | number; event: string; created_at: string; asset?: string }[] | null>(null)
-  // The client's own rule events, refreshed with the shared engine status.
-  useEffect(() => {
-    let alive = true
-    authFetch('/api/client/automations').then(r => readJson<{ automations?: { id: string; asset_id: string }[]; events?: { id: number; event: string; created_at: string; automation_id: string }[] }>(r))
-      .then(r => { if (!alive) return
-        const asset = new Map((r.automations || []).map(a => [a.id, a.asset_id]))
-        setEvents((r.events || []).map(e => ({ id: e.id, event: e.event, created_at: e.created_at, asset: asset.get(e.automation_id) }))) })
-      .catch(() => { if (alive) setEvents([]) })
-    return () => { alive = false }
-  }, [refreshed])
-  if (!presentation.panel_visible) return null
-  // Every label is the engine's own reported state; with no answer from the
-  // service the panel says it is not connected rather than showing activity.
-  const label = loading ? 'Connecting…' : state === 'unavailable' && refreshFailed ? 'Not connected'
-    : ({ running: 'Monitoring active', paused: 'Paused', maintenance: 'Maintenance', degraded: 'Delayed', offline: 'Offline', unavailable: 'Unavailable' } as const)[state]
-  const on = state === 'running'
-  const connected = !!status && !refreshFailed
-  const assets = status?.monitored?.length ? status.monitored.slice(0, 4).join(' · ') + (status.monitored_count > 4 ? ` +${status.monitored_count - 4}` : '') : presentation.asset_labels
-  const stream: { key: string; label: string; at: string; tone: string }[] = []
-  if (status?.last_ok_at) stream.push({ key: 'c', label: `Automation check completed${status.last_evaluated != null ? ` · ${status.last_evaluated} rule${status.last_evaluated === 1 ? '' : 's'}` : ''}`, at: status.last_ok_at, tone: 'bg-emerald-400' })
-  if (status?.market_at) stream.push({ key: 'm', label: `Market monitored${status.monitored.length ? ` · ${status.monitored.slice(0, 2).join(', ')}` : ''}`, at: status.market_at, tone: 'bg-sky-400' })
-  for (const e of events || []) stream.push({ key: `e${e.id}`, label: `${AUTO_EVENT[e.event] || e.event}${e.asset ? ` · ${e.asset}` : ''}`, at: e.created_at, tone: e.event === 'triggered' ? 'bg-amber-400' : 'bg-fg-faint' })
-  stream.sort((a, b) => Date.parse(b.at) - Date.parse(a.at)); stream.splice(3)
-  const pill = on ? 'border-emerald-500/30 bg-emerald-500/[.08] text-emerald-300'
-    : state === 'paused' || state === 'degraded' ? 'border-amber-500/30 bg-amber-500/[.08] text-amber-300'
-    : 'border-[rgb(var(--contrast)/.12)] bg-[rgb(var(--contrast)/.04)] text-fg-muted'
-  return (
-    <section className="panel ovx-card ovx-auto relative overflow-hidden p-5" aria-labelledby="ov-auto" data-ov-automation={loading ? 'connecting' : state}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 id="ov-auto" className="text-[15px] font-semibold text-fg">{presentation.display_name || t('nav4.automation')}</h3>
-          <p className={`mt-2 inline-flex items-center gap-2 h-8 px-3 rounded-full border text-[13px] font-semibold ${pill}`} data-ov-auto-state>
-            <span className={`w-2 h-2 rounded-full ${on ? 'bg-emerald-400 cc-pulse' : state === 'paused' || state === 'degraded' ? 'bg-amber-400' : 'bg-fg-faint'}`} aria-hidden="true" />{label}
-          </p>
-        </div>
-        <span className="engine-orb shrink-0 scale-[.72] -m-2" aria-hidden="true" data-engine-state={state}>
-          <span className="eo-ring r1" /><span className="eo-ring r2" /><span className="eo-sweep" />
-          <span className="eo-core"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 17l5-5 4 4 7-8" /><path d="M15 8h5v5" /></svg></span>
-        </span>
-      </div>
-      <p className="mt-3 text-[12.5px] leading-relaxed text-fg-muted">{t('ov2.autoNote')}</p>
-      <dl className="mt-3 space-y-1.5 text-[12.5px]">
-        <div className="flex items-center justify-between gap-3"><dt className="text-fg-faint">{t('ov2.autoService')}</dt><dd className="inline-flex items-center gap-1.5 text-fg"><span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-success-400' : 'bg-fg-faint'}`} aria-hidden="true" />{connected ? 'Connected' : loading ? 'Connecting' : 'Not connected'}</dd></div>
-        <div className="flex items-center justify-between gap-3"><dt className="text-fg-faint">{t('ov2.autoWatching')}</dt><dd className="text-fg truncate">{assets || '—'}</dd></div>
-        <div className="flex items-center justify-between gap-3"><dt className="text-fg-faint">{t('ov2.autoLastCheck')}</dt><dd className="text-fg tabular-nums">{agoShort(status?.last_ok_at)}</dd></div>
-      </dl>
-      <div className="mt-4 pt-3 border-t border-[rgb(var(--contrast)/.06)]">
-        <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-fg-faint mb-2">XAI activity</p>
-        {stream.length ? (
-          <ol className="space-y-2" data-ov-activity>
-            {stream.map(x => (
-              <li key={x.key} className="flex items-center justify-between gap-3 text-[12.5px]">
-                <span className="flex items-center gap-2 min-w-0"><span className={`w-1.5 h-1.5 rounded-full shrink-0 ${x.tone}`} aria-hidden="true" /><span className="text-fg-muted truncate">{x.label}</span></span>
-                <span className="text-fg-faint tabular-nums shrink-0">{agoShort(x.at)}</span>
-              </li>
-            ))}
-          </ol>
-        ) : <p className="text-[12.5px] text-fg-muted" data-ov-activity-empty>{loading || events === null ? 'Loading activity…' : 'No recent automation activity.'}</p>}
-      </div>
-      <button onClick={onOpen} className="mt-4 inline-flex items-center gap-1.5 text-[13px] font-medium text-accent hover:brightness-110 min-h-9">View automation <span aria-hidden="true">→</span></button>
-    </section>
-  )
-}
-
 function KycChip({ go }: { go: (id: string) => void }) {
   const { t } = useI18n()
   const [state, setState] = useState<{ status: string; has_submission?: boolean } | null>(null)
@@ -862,58 +786,82 @@ function KycChip({ go }: { go: (id: string) => void }) {
   )
 }
 
-/* One overview figure. The main figure always shows the exact amount. A
-   secondary figure of a million or more is shown in short form ($1.23M,
-   truncated, never rounded up); tapping it shows the exact amount, which is
-   also in its tooltip and read out by screen readers. Display only. */
-function OverviewFigure({ f, main, loading }: { f: { key: string; label: TKey; value: number | null; sub: string; state?: string; icon: Icon }; main: boolean; loading: boolean }) {
+/* One overview figure. The available balance always shows the exact amount.
+   A secondary money figure of a million or more is shown in short form
+   ($1.23M, truncated, never rounded up); tapping it shows the exact amount,
+   which is also in its tooltip and read out by screen readers. Amounts can
+   be hidden on screen (display only, remembered on this device). */
+type Figure = { key: string; label: TKey; value: number | null; text?: string; sub: ReactNode; state?: string; icon: Icon; tone: string; onOpen?: () => void }
+function OverviewFigure({ f, main, loading, hidden, onToggleHidden, className = '' }: { f: Figure; main: boolean; loading: boolean; hidden: boolean; onToggleHidden?: () => void; className?: string }) {
   const { t } = useI18n()
   const [exact, setExact] = useState(false)
-  const full = f.value != null ? `$${fmt(f.value)}` : ''
-  const compactable = !main && f.value != null && Math.abs(f.value) >= COMPACT_FROM
+  const money = f.text == null
+  const full = f.value != null ? (money ? `$${fmt(f.value)}` : f.text!) : ''
+  const compactable = money && !main && f.value != null && Math.abs(f.value) >= COMPACT_FROM
   const short = compactable && !exact
   const shown = f.value == null ? '' : short ? `$${fmtCompact(f.value)}` : full
   const len = shown.length
   const size = main
-    ? (len > 15 ? 'text-[clamp(20px,6.2vw,36px)] xl:text-[26px] 2xl:text-[30px]' : len > 12 ? 'text-[clamp(24px,7.6vw,40px)] xl:text-[30px] 2xl:text-[34px]' : 'text-[clamp(30px,8.6vw,42px)] xl:text-[34px] 2xl:text-[38px]')
-    : (len > 12 ? 'text-[clamp(13px,3.7vw,18px)] sm:text-[18px] xl:text-[16px] 2xl:text-[18px]' : 'text-[clamp(17px,5vw,22px)] sm:text-[22px] xl:text-[20px] 2xl:text-[24px]')
+    ? (len > 15 ? 'text-[clamp(20px,6.2vw,36px)] xl:text-[24px] 2xl:text-[28px]' : len > 12 ? 'text-[clamp(24px,7.6vw,40px)] xl:text-[26px] 2xl:text-[30px]' : 'text-[clamp(30px,8.6vw,42px)] xl:text-[30px] 2xl:text-[34px]')
+    : (len > 12 ? 'text-[clamp(13px,3.7vw,18px)] sm:text-[17px] xl:text-[16px] 2xl:text-[18px]' : 'text-[clamp(17px,5vw,22px)] sm:text-[22px] xl:text-[21px] 2xl:text-[24px]')
   const tone = f.key === 'profit' && (f.value ?? 0) > 0 ? 'text-success-300' : 'text-fg'
-  const figure = f.value != null
-    ? <AnimatedPrice value={f.value} format={n => short ? `$${fmtCompact(n)}` : `$${fmt(n)}`} />
+  const figure = hidden && f.value != null ? <span aria-label={t('ov2.hiddenAmount')}>••••••</span>
+    : f.value != null ? (money ? <AnimatedPrice value={f.value} format={n => short ? `$${fmtCompact(n)}` : `$${fmt(n)}`} /> : <span>{f.text}</span>)
     : loading ? <span className="inline-block h-5 w-20 rounded skeleton align-middle" aria-hidden="true" />
     : <span className="text-[12px] font-normal text-fg-faint">{t('dash.unavailable')}</span>
   return (
-    <div data-figure={f.key} className={`ovx-stat ovx-stat-${f.key} min-w-0 ${main ? 'min-[360px]:col-span-2 xl:col-span-1' : ''}`}>
-      <div className="flex items-center gap-3 min-w-0">
-        <span className={`ovx-stat-icon ${main ? '' : 'max-sm:hidden'}`} aria-hidden="true"><f.icon width={main ? 19 : 17} height={main ? 19 : 17} /></span>
-        <dt className="min-w-0 text-[12px] sm:text-[12.5px] font-medium text-fg-muted truncate">{t(f.label)}</dt>
+    <div data-figure={f.key} className={`ovx-stat ovx-stat-${f.key} min-w-0 ${className}`}>
+      <div className="flex items-start justify-between gap-3 min-w-0">
+        <div className="flex items-center gap-1.5 min-w-0 pt-0.5">
+          <dt className="min-w-0 text-[12.5px] sm:text-[13px] leading-snug font-medium text-fg-muted line-clamp-2 break-words">{t(f.label)}</dt>
+          {main && onToggleHidden && (
+            <button type="button" onClick={onToggleHidden} aria-pressed={hidden} aria-label={hidden ? t('ov2.showAmounts') : t('ov2.hideAmounts')} className="ovx-eye" data-hide-amounts>
+              {hidden ? <IconEyeOff width={15} height={15} aria-hidden="true" /> : <IconEye width={15} height={15} aria-hidden="true" />}
+            </button>
+          )}
+        </div>
+        <span className={`ovx-stat-icon ${f.tone}`} aria-hidden="true"><f.icon width={main ? 19 : 17} height={main ? 19 : 17} /></span>
       </div>
-      <dd data-value data-exact={full || undefined} title={compactable ? full : undefined}
-        className={`tabular-nums font-semibold tracking-[-0.02em] whitespace-nowrap ${main ? 'mt-3 leading-none' : 'mt-2 sm:mt-3 leading-tight'} ${size} ${tone}`}>
-        {compactable ? (
+      <dd data-value data-exact={full || undefined} title={compactable && !hidden ? full : undefined}
+        className={`tabular-nums font-semibold tracking-[-0.02em] whitespace-nowrap ${main ? 'mt-2.5 leading-none' : 'mt-2 leading-tight'} ${size} ${tone}`}>
+        {compactable && !hidden ? (
           <button type="button" onClick={() => setExact(v => !v)} className="ovx-stat-toggle" aria-label={`${t(f.label)}: ${full}`} aria-pressed={exact}>
             <span aria-hidden="true">{figure}</span>
           </button>
         ) : figure}
       </dd>
-      {f.sub && <dd className="mt-1.5 text-[11px] sm:text-[12px] leading-snug text-fg-faint line-clamp-2 break-words" data-profit-state={f.key === 'profit' ? f.state : undefined} data-pending-state={f.key === 'pending' ? f.state : undefined}>{f.sub}</dd>}
+      {f.sub && <dd className="mt-2 text-[11.5px] sm:text-[12px] leading-snug text-fg-faint line-clamp-2 break-words" data-profit-state={f.key === 'profit' ? f.state : undefined} data-pending-state={f.key === 'pending' ? f.state : undefined}>{f.sub}</dd>}
+      {f.onOpen && <button type="button" onClick={f.onOpen} className="absolute inset-0 rounded-[inherit] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60" aria-label={`${t(f.label)}: ${t('common.viewAll')}`} data-figure-open={f.key} />}
     </div>
   )
 }
 
-/* Overview: welcome, the spendable balance, the account's other recorded
-   figures, quick actions, recent activity, a market snapshot and the
-   automation service's own status. Every figure is the server's value. */
+// "Hide amounts" preference: display only, kept on this device.
+const HIDE_KEY = 'tfx-hide-amounts'
+function useHiddenAmounts() {
+  const [hidden, setHidden] = useState(false)
+  useEffect(() => { try { setHidden(localStorage.getItem(HIDE_KEY) === '1') } catch { /* storage unavailable: amounts stay visible */ } }, [])
+  const toggle = () => setHidden(v => { try { localStorage.setItem(HIDE_KEY, v ? '0' : '1') } catch { /* display-only preference */ } return !v })
+  return [hidden, toggle] as const
+}
+
+/* Overview: the account's own figures, the Bitcoin market, the automation
+   service's own status, the client's watchlist, recent activity and quick
+   actions. Every figure is a server value; nothing here is estimated. */
 function OverviewTab({ name, account, txs, go, can, labelOf, whatsNew, onOpenAsset }: { onOpenAsset?: (id: string) => void; whatsNew?: ReactNode; name: string; account: Account | null; txs: Tx[]; go: (id: string) => void; can: (id: string) => boolean; labelOf: (item: { id: string; label: TKey }) => string }) {
   const feature = useFeatures()
-  const recentTxs = txs.slice(0, 5)
+  const recentTxs = txs.slice(0, 4)
   const pendingCount = account?.pending_transaction_count ?? txs.filter(x => x.status.startsWith('pending')).length
   const { t, intl } = useI18n()
+  const clock = useClockText(intl)
+  const [hidden, toggleHidden] = useHiddenAmounts()
   const money = (n: number) => `$${fmt(n)}`
   const firstName = name.trim().split(/\s+/)[0] || name
   const showInv = can('portfolio') && !hiddenState(feature('investments'))
   const [receipt, setReceipt] = useState<Tx | null>(null)
   const showAuto = can('automations')
+  const showMarkets = can('markets')
+  const inv = account?.investments ?? null
   const quick = ([
     ['deposit', 'dash.nav.deposit', IconArrowDown],
     ['withdraw', 'dash.nav.withdraw', IconArrowUp],
@@ -921,28 +869,34 @@ function OverviewTab({ name, account, txs, go, can, labelOf, whatsNew, onOpenAss
     ['markets', 'dash.nav.markets', IconChart],
     ['transactions', 'shell.activity', IconList],
   ] as [string, TKey, Icon][]).filter(([id]) => can(id) && (id !== 'portfolio' || showInv))
-  // The three core figures, each from its own stored field: Account Balance
-  // (the spendable available_balance, as everywhere else), Profit and Pending.
-  // Invested totals live on the Investments page (records unchanged).
-  const figures: { key: string; label: TKey; value: number | null; sub: string; state?: string; icon: Icon }[] = [
-    { key: 'available', label: 'dash.accountBalance', value: account ? Number(account.available_balance ?? 0) : null, sub: t('ov2.availableSub'), icon: IconWallet },
-    { key: 'profit', label: 'dash.profitReturn', value: account ? Number(account.profit_balance ?? 0) : null, icon: IconTrend,
-      sub: account && Number(account.profit_balance ?? 0) > 0 ? t('ov2.profitSub') : t('ov2.profitNone'), state: account && Number(account.profit_balance ?? 0) > 0 ? 'positive' : 'none' },
-    { key: 'pending', label: 'dash.pending', value: account ? Number(account.pending_balance ?? 0) : null, icon: IconHistory,
-      sub: account && Number(account.pending_balance ?? 0) > 0 ? t('ov2.pendingSub') : t('ov2.pendingClear'), state: account && Number(account.pending_balance ?? 0) > 0 ? 'review' : 'clear' },
+  // Each figure from its own stored field: the spendable available_balance,
+  // recorded profit, the investment records' active count and principal (only
+  // when investments are offered), and pending activity.
+  const profit = account ? Number(account.profit_balance ?? 0) : null
+  const pending = account ? Number(account.pending_balance ?? 0) : null
+  const figures: Figure[] = [
+    { key: 'available', label: 'ov2.available', value: account ? Number(account.available_balance ?? 0) : null, sub: t('ov2.availableSub'), icon: IconWallet, tone: 'is-accent' },
+    { key: 'profit', label: 'dash.profitReturn', value: profit, icon: IconTrend, tone: 'is-green',
+      sub: profit != null && profit > 0 ? <span className="text-success-300/90">{t('ov2.profitSub')}</span> : t('ov2.profitNone'), state: profit != null && profit > 0 ? 'positive' : 'none' },
+    ...(showInv ? [{ key: 'investments', label: 'inv.f.activeTitle' as TKey, icon: IconPie, tone: 'is-blue', onOpen: () => go('portfolio'),
+      value: inv ? Number(inv.active_count ?? 0) : null, text: inv ? String(Number(inv.active_count ?? 0)) : undefined,
+      sub: inv ? <>{hidden ? '••••' : money(Number(inv.active_principal ?? 0))}{Number(inv.pending_count ?? 0) > 0 && <span className="text-info-300"> · {t('ov2.investedPending', { n: Number(inv.pending_count) })}</span>}</> : '' }] : []),
+    { key: 'pending', label: 'dash.pending', value: pending, icon: IconHistory, tone: 'is-amber',
+      sub: pending != null && pending > 0 ? t('ov2.pendingSub') : t('ov2.pendingClear'), state: pending != null && pending > 0 ? 'review' : 'clear' },
   ]
+  const secondary = figures.length - 1
   const recent = (
-    <section className="panel ovx-card overflow-hidden" aria-labelledby="ov-recent">
-      <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-2">
-        <h3 id="ov-recent" className="text-[15px] font-semibold text-fg">{t('dash.recentTx')}</h3>
-        {txs.length > 0 && can('transactions') && <button onClick={() => go('transactions')} className="text-[13px] text-fg-muted hover:text-fg min-h-8 px-1 whitespace-nowrap">{t('common.viewAll')}</button>}
+    <section className="panel ovx-card ovx-pro ovx-recent overflow-hidden" aria-labelledby="ov-recent">
+      <div className="flex items-center justify-between gap-3 px-4 sm:px-5 pt-4 pb-1">
+        <h3 id="ov-recent" className="text-[15px] font-semibold text-fg">{t('ov2.recentActivity')}</h3>
+        {txs.length > 0 && can('transactions') && <button onClick={() => go('transactions')} className="text-[13px] text-fg-muted hover:text-fg min-h-8 px-1 whitespace-nowrap">{t('common.viewAll')} <span aria-hidden="true">→</span></button>}
       </div>
       {recentTxs.length === 0 ? (
         <EmptyState title={t('dash.noTx')} body={t('dash.noTxBody')} />
       ) : (
         <ul className="px-2 pb-2">
           {recentTxs.map(tx => (
-            <li key={tx.id} className="ovx-row flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 cursor-pointer" onClick={() => setReceipt(tx)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setReceipt(tx) } }} tabIndex={0} aria-label={`${txLabel(tx, t)} ${signedAmount(tx)} — ${t('rcpt.open')}`} data-tx-open={tx.id}>
+            <li key={tx.id} className="ovx-row flex items-center justify-between gap-3 rounded-xl px-2.5 sm:px-3 py-2.5 cursor-pointer" onClick={() => setReceipt(tx)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setReceipt(tx) } }} tabIndex={0} aria-label={`${txLabel(tx, t)} ${signedAmount(tx)} — ${t('rcpt.open')}`} data-tx-open={tx.id}>
               <div className="flex items-center gap-3 min-w-0">
                 <TxIcon type={tx.type} tx={tx} />
                 <div className="min-w-0">
@@ -951,7 +905,7 @@ function OverviewTab({ name, account, txs, go, can, labelOf, whatsNew, onOpenAss
                 </div>
               </div>
               <div className="text-right shrink-0">
-                <p className={`text-[13.5px] font-semibold tabular-nums mb-1 whitespace-nowrap ${txSign(tx) > 0 ? 'price-up' : 'text-fg'}`} data-signed-amount>{signedAmount(tx)}</p>
+                <p className={`text-[13.5px] font-semibold tabular-nums mb-1 whitespace-nowrap ${txSign(tx) > 0 ? 'price-up' : 'text-fg'}`} data-signed-amount>{hidden ? '••••' : signedAmount(tx)}</p>
                 <StatusTag status={tx.status} />
               </div>
             </li>
@@ -960,10 +914,22 @@ function OverviewTab({ name, account, txs, go, can, labelOf, whatsNew, onOpenAss
       )}
     </section>
   )
+  const QA_TONE: Record<string, string> = { deposit: 'is-accent', withdraw: 'is-green', portfolio: 'is-blue', markets: 'is-violet', transactions: '' }
 
   return (
-    <div className="ovx space-y-4 sm:space-y-5 panel-in">
-      <OverviewHero title={t('overview.welcome', { name: firstName })} body={t('ov2.heroBody')} aside={can('verification') ? <KycChip go={go} /> : undefined} />
+    <div className="ovx ovx-v3 space-y-4 sm:space-y-5 panel-in">
+      {/* Header: greeting, today's date and the main action. */}
+      <section className="ovx-head" aria-labelledby="ovx-hello" data-ov-hero>
+        <div className="min-w-0">
+          <h2 id="ovx-hello" className="text-[22px] sm:text-[28px] leading-tight font-semibold tracking-[-0.02em] text-fg">{t('overview.welcome', { name: firstName })}</h2>
+          <p className="mt-1 text-[13.5px] sm:text-[14.5px] leading-relaxed text-fg-muted">{t('ov2.headBody')}</p>
+          {can('verification') && <div className="mt-3"><KycChip go={go} /></div>}
+        </div>
+        <div className="flex items-center gap-3 shrink-0 max-sm:hidden">
+          {clock && <p className="text-right text-[12.5px] leading-snug text-fg-muted tabular-nums" data-ov-clock><span className="block">{clock.date}</span><span className="block text-fg-faint">{clock.time}</span></p>}
+          {can('deposit') && <button type="button" onClick={() => go('deposit')} className="btn btn-solid min-h-11 px-5 gap-2" data-ov-deposit><IconArrowDown width={17} height={17} aria-hidden="true" />{labelOf({ id: 'deposit', label: 'dash.nav.deposit' })}</button>}
+        </div>
+      </section>
 
       {whatsNew}
 
@@ -976,37 +942,43 @@ function OverviewTab({ name, account, txs, go, can, labelOf, whatsNew, onOpenAss
         </div>
       )}
 
-      {/* Three core figures. Account Balance leads at full width with its
-          exact amount; Profit and Pending sit side by side beneath it (stacked
-          on very narrow phones), and all three share one row on wide screens. */}
-      <dl className="ovx-stats grid grid-cols-1 min-[360px]:grid-cols-2 xl:grid-cols-[1.6fr_1fr_1fr] gap-2.5 sm:gap-3" data-overview-figures aria-label={t('dash.accountBalance')}>
-        {figures.map(f => <OverviewFigure key={f.key} f={f} main={f.key === 'available'} loading={!account} />)}
+      {/* Account figures. Available balance leads with its exact amount; the
+          others sit beside it (two per row on phones, stacked on very narrow
+          screens) and share one row with it on wide screens. */}
+      <dl className={`ovx-stats grid grid-cols-1 min-[360px]:grid-cols-2 gap-2.5 sm:gap-3 ${secondary === 3 ? 'sm:grid-cols-3 xl:grid-cols-[1.35fr_1fr_1fr_1fr]' : 'xl:grid-cols-[1.5fr_1fr_1fr]'}`} data-overview-figures aria-label={t('ov2.available')}>
+        {figures.map((f, i) => (
+          <OverviewFigure key={f.key} f={f} main={i === 0} loading={!account} hidden={hidden} onToggleHidden={i === 0 ? toggleHidden : undefined}
+            className={i === 0 ? `min-[360px]:col-span-2 ${secondary === 3 ? 'sm:col-span-3' : ''} xl:col-span-1` : secondary === 3 && i === figures.length - 1 ? 'min-[360px]:max-sm:col-span-2' : ''} />
+        ))}
       </dl>
 
-      {quick.length > 0 && (
-        <nav aria-label={t('overview.quickActions')} className="ovx-actions" data-quick-actions data-chat-avoid>
-          {quick.map(([id, label, I]) => (
-            <button key={id} type="button" onClick={() => go(id)} data-tile={id} className={`ovx-act ${id === 'deposit' ? 'ovx-act-primary' : ''}`}>
-              <span className="ovx-act-icon"><I width={18} height={18} aria-hidden="true" /></span>
-              <span className="ovx-act-label">{id === 'transactions' ? t('shell.activity') : id === 'portfolio' ? t('ov2.invest') : labelOf({ id, label })}</span>
-            </button>
-          ))}
-        </nav>
-      )}
-
-      <div className={`grid gap-4 items-start ${showAuto || showInv ? 'lg:grid-cols-[minmax(0,1fr)_minmax(300px,360px)]' : ''}`}>
-        <div className="space-y-4 min-w-0">
-          <div className="grid xl:grid-cols-2 gap-4 items-start">
-            {recent}
-            {can('markets') && <ErrorBoundary label={t('market.bitcoinMarket')}><MarketSnapshot onOpenMarkets={() => go('markets')} onOpenAsset={onOpenAsset} /></ErrorBoundary>}
-          </div>
-        </div>
-        {(showAuto || showInv) && (
-          <div className="space-y-4 min-w-0">
-            {showAuto && <OverviewAutomation onOpen={() => go('automations')} />}
-            {showInv && <ErrorBoundary label={t('inv.f.activeTitle')}><InvestmentsMini go={go} /></ErrorBoundary>}
+      {/* Phones: one column in priority order (quick actions first). Large
+          screens: the Bitcoin market beside the automation status, then the
+          watchlist, recent activity and quick actions in one row. */}
+      <div className="ovx-board" data-auto={showAuto ? '1' : '0'} data-markets={showMarkets ? '1' : '0'}>
+        {(showMarkets || showAuto) && (
+          <div className="ovx-board-a">
+            {showMarkets && <ErrorBoundary label={t('market.bitcoinMarket')}><BtcMarketPanel onOpenMarkets={() => go('markets')} /></ErrorBoundary>}
+            {showAuto && <AutomationStatusPanel onOpen={() => go('automations')} />}
           </div>
         )}
+        <div className="ovx-board-b">
+          {showMarkets && <ErrorBoundary label={t('ov2.marketTitle')}><WatchlistPanel enabled={!hiddenState(feature('watchlist'))} onOpenMarkets={() => go('markets')} onOpenAsset={onOpenAsset} /></ErrorBoundary>}
+          {recent}
+          {quick.length > 0 && (
+            <section className="panel ovx-card ovx-pro ovx-qa" aria-labelledby="ov-qa">
+              <h3 id="ov-qa" className="ovx-qa-title text-[15px] font-semibold text-fg">{t('overview.quickActions')}</h3>
+              <nav aria-labelledby="ov-qa" className="ovx-actions" data-quick-actions data-chat-avoid>
+                {quick.map(([id, label, I]) => (
+                  <button key={id} type="button" onClick={() => go(id)} data-tile={id} className={`ovx-act ${QA_TONE[id] || ''} ${id === 'deposit' ? 'ovx-act-primary' : ''}`}>
+                    <span className="ovx-act-icon"><I width={18} height={18} aria-hidden="true" /></span>
+                    <span className="ovx-act-label">{id === 'transactions' ? t('shell.activity') : id === 'portfolio' ? t('ov2.invest') : labelOf({ id, label })}</span>
+                  </button>
+                ))}
+              </nav>
+            </section>
+          )}
+        </div>
       </div>
 
       {!hiddenState(feature('trading_status')) && <TradingStatusCard

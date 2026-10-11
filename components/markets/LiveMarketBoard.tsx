@@ -6,7 +6,7 @@ import { useBtcHistory } from '@/components/useMarket'
 import { formatPrice, type AssetQuote } from '@/lib/assets'
 import { chartColors } from '@/lib/chartColors'
 import { MarketSources } from './MarketSources'
-import { effectiveState } from '@/lib/marketStatus'
+import { effectiveState, marketNow } from '@/lib/marketStatus'
 
 // Real market board for the landing page (replaces the decorative globe).
 // Every number comes from /api/market/assets (quotes recorded server-side by
@@ -122,7 +122,7 @@ export default function LiveMarketBoard() {
           <p className="text-[12px] text-fg-faint">
             {state === 'loading' ? 'Loading current quotes…'
               : state === 'error' ? 'Market data is unavailable right now.'
-              : `${liveCount} of ${tiles.length} live${newest ? ` · updated ${ago(Math.max(0, Date.now() - newest))}` : ''}`}
+              : `${liveCount} of ${tiles.length} live${newest ? ` · updated ${ago(Math.max(0, marketNow() - newest))}` : ''}`}
           </p>
         </div>
         <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] ${state === 'live' ? 'border-emerald-500/30 text-emerald-300' : state === 'loading' ? 'border-ink-600 text-fg-faint' : 'border-amber-500/30 text-amber-300'}`}>

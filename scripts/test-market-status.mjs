@@ -162,3 +162,41 @@ test('summary: malformed provider data is rejected, not shown', async () => {
   assert.equal(s.updatedAt, '2026-10-11T11:59:00.000Z')
   globalThis.fetch = realFetch
 })
+
+// ---- device clock skew and out-of-order replies
+const ms = await import('../lib/marketStatus.ts')
+
+test('server-clock correction: a phone clock 35 min fast does not turn fresh quotes stale', () => {
+  const realNow = Date.now
+  try {
+    const server = Date.parse('2026-10-11T12:00:00Z')
+    Date.now = () => server + 35 * 60_000 // device clock 35 min ahead
+    const quote = { price: 83050.39, state: 'live', updatedAt: new Date(server - 20_000).toISOString(), market: '24/7' }
+    ms.setClockSkew(0)
+    assert.equal(ms.effectiveState(quote, false), 'stale') // uncorrected: wrongly stale
+    ms.setClockSkew(-35 * 60_000)
+    assert.equal(ms.effectiveState(quote, false), 'live')
+    assert.equal(ms.ageLabel(quote.updatedAt), '<1m')
+    // A genuinely old quote is still stale with the correction applied.
+    assert.equal(ms.effectiveState({ ...quote, updatedAt: new Date(server - 4 * 3600_000).toISOString() }, false), 'stale')
+  } finally { Date.now = realNow; ms.setClockSkew(0) }
+})
+
+test('server-clock correction: invalid skew is ignored', () => {
+  ms.setClockSkew(Number.NaN)
+  assert.ok(Math.abs(ms.marketNow() - Date.now()) < 5)
+  ms.setClockSkew(0)
+})
+
+const store = await import('../components/markets/assetStore.ts')
+test('an older reply never replaces a newer quote on screen', () => {
+  const a = (id, at, price) => ({ id, name: id, category: 'crypto', price, updatedAt: at, state: 'live' })
+  const prev = [a('BTC', '2026-10-11T12:00:30Z', 83100), a('ETH', '2026-10-11T12:00:30Z', 2500)]
+  const next = [a('BTC', '2026-10-11T12:00:00Z', 83000), a('ETH', '2026-10-11T12:01:30Z', 2510)]
+  const out = store.newestOf(prev, next)
+  assert.equal(out[0].price, 83100) // older BTC reply ignored
+  assert.equal(out[1].price, 2510)  // newer ETH reply applied
+  assert.deepEqual(store.newestOf(null, next), next)
+  // A reply without a usable time is taken as given (it is labelled by the status rule).
+  assert.equal(store.newestOf(prev, [a('BTC', null, null)])[0].price, null)
+})

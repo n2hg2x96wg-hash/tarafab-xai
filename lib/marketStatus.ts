@@ -31,11 +31,19 @@ export const STALE_AFTER_MS = staleAfterMs()
 // this is treated as an invalid timestamp rather than as "brand new".
 const FUTURE_TOLERANCE_MS = 60_000
 
+// Difference between the server's clock and this device's (browser only).
+// Ages are measured on the server's clock, so a phone whose clock is wrong
+// cannot make fresh quotes look old (or old ones look fresh). Set from the
+// market API's Date/Age headers; 0 on the server.
+let clockSkewMs = 0
+export function setClockSkew(ms: number) { clockSkewMs = Number.isFinite(ms) ? ms : 0 }
+export const marketNow = () => Date.now() + clockSkewMs
+
 const parse = (iso: string | null | undefined) => (iso ? Date.parse(iso) : NaN)
 
 // Age of a quote from its provider timestamp, or null when it has no usable
 // timestamp (missing, unparsable, or implausibly in the future).
-export function quoteAgeMs(updatedAt: string | null | undefined, now = Date.now()): number | null {
+export function quoteAgeMs(updatedAt: string | null | undefined, now = marketNow()): number | null {
   const at = parse(updatedAt)
   if (!Number.isFinite(at) || at - now > FUTURE_TOLERANCE_MS) return null
   return Math.max(0, now - at)
@@ -43,7 +51,7 @@ export function quoteAgeMs(updatedAt: string | null | undefined, now = Date.now(
 
 type QuoteLike = Pick<AssetQuote, 'price' | 'state' | 'updatedAt'> & Partial<Pick<AssetQuote, 'market' | 'checkedAt'>>
 
-export function effectiveState(a: QuoteLike, refreshFailed: boolean, now = Date.now(), staleAfter = STALE_AFTER_MS): MarketState {
+export function effectiveState(a: QuoteLike, refreshFailed: boolean, now = marketNow(), staleAfter = STALE_AFTER_MS): MarketState {
   if (a.price == null || !Number.isFinite(a.price) || a.state === 'unavailable' || a.state === 'error') return 'unavailable'
   if (a.state === 'stale' || refreshFailed) return 'stale'
   // A closed market's last close is expectedly old: it is "delayed" as long
@@ -60,7 +68,7 @@ export function effectiveState(a: QuoteLike, refreshFailed: boolean, now = Date.
 // Overall feed status for a set of quotes: 'live' only if at least one quote
 // is genuinely live; 'error' only when nothing usable is available at all.
 // Delayed/stale quotes report 'connecting' (shown as "Refreshing"), never live.
-export function feedStatus(assets: AssetQuote[] | null, refreshFailed: boolean, now = Date.now()): 'connecting' | 'live' | 'error' {
+export function feedStatus(assets: AssetQuote[] | null, refreshFailed: boolean, now = marketNow()): 'connecting' | 'live' | 'error' {
   if (!assets) return refreshFailed ? 'error' : 'connecting'
   const states = assets.map(a => effectiveState(a, refreshFailed, now))
   if (states.includes('live')) return 'live'
@@ -69,7 +77,7 @@ export function feedStatus(assets: AssetQuote[] | null, refreshFailed: boolean, 
 }
 
 // Compact age for labels ("<1m", "4m", "3h", "2d"); '' without a usable time.
-export function ageLabel(updatedAt: string | null | undefined, now = Date.now()) {
+export function ageLabel(updatedAt: string | null | undefined, now = marketNow()) {
   const ms = quoteAgeMs(updatedAt, now)
   if (ms == null) return ''
   const m = Math.round(ms / 60_000)

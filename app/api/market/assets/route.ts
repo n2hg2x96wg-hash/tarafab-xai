@@ -28,6 +28,10 @@ export async function GET() {
   const list: AssetQuote[] = (assets.data || []).map(a => {
     const r = q.get(a.id)
     let state: DataState = (r?.state as DataState) || 'unavailable'
+    // The latest refresh failed but an earlier valid price is still recorded
+    // (with its own provider time): show that price as stale, never as live
+    // and never as if there were no price at all.
+    if (state === 'error' && r?.price != null && (r?.source_time || null)) state = 'stale'
     const crypto = a.category === 'crypto'
     const market: AssetQuote['market'] = state === 'unavailable' || state === 'error' ? 'unavailable' : crypto ? '24/7' : open ? 'open' : 'closed'
     const updatedAt: string | null = r?.source_time || r?.fetched_at || null
