@@ -352,6 +352,8 @@ const es: DeepPartial<typeof en> = {
     newPassword: 'Contraseña nueva',
     confirmNewPassword: 'Confirmar contraseña nueva',
     saveNewPassword: 'Guardar contraseña',
+    confirmBody: 'Continúa para confirmar este enlace de restablecimiento y luego elige una contraseña nueva.',
+    confirmContinue: 'Continuar',
   },
   dash: {
     nav: {

@@ -36,6 +36,10 @@ const nextConfig = {
       { source: '/investments', headers: privateNoStore },
       { source: '/verification/:path*', headers: privateNoStore },
       { source: '/verification', headers: privateNoStore },
+      // Password recovery: never cached, and the page address (which can hold
+      // a one-time token) is never sent to other sites as a referrer.
+      { source: '/reset-password', headers: [...privateNoStore, { key: 'Referrer-Policy', value: 'no-referrer' }] },
+      { source: '/auth/:path*', headers: [...privateNoStore, { key: 'Referrer-Policy', value: 'no-referrer' }] },
     ]
   },
 }

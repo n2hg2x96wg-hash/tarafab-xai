@@ -28,6 +28,10 @@ function chatAllowed(): boolean {
   return true
 }
 
+// Password-recovery pages carry one-time tokens in the address; the chat
+// script (a third party that records the page address) is never loaded there.
+const isRecoveryPage = (p: string | null) => p === '/reset-password' || !!p?.startsWith('/auth/')
+
 // Client-facing live chat. Renders on the landing page, sign-in/up, and
 // dashboard — hidden under /admin, since support chat is for clients
 // reaching out, not for the admin's own panel.
@@ -72,7 +76,7 @@ export default function SmartsuppWidget() {
     const t = setInterval(() => { if (apply() || ++tries > 60) clearInterval(t) }, 250)
     return () => clearInterval(t)
   }, [off, heroCta, allowed])
-  if (pathname?.startsWith('/admin') || !allowed || off) return null
+  if (pathname?.startsWith('/admin') || isRecoveryPage(pathname) || !allowed || off) return null
 
   return (
     <>

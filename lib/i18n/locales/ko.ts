@@ -355,6 +355,8 @@ const ko: DeepPartial<typeof en> = {
     newPassword: '새 비밀번호',
     confirmNewPassword: '새 비밀번호 확인',
     saveNewPassword: '새 비밀번호 저장',
+    confirmBody: '계속하여 이 재설정 링크를 확인한 다음 새 비밀번호를 설정하세요.',
+    confirmContinue: '계속',
   },
   dash: {
     nav: {
