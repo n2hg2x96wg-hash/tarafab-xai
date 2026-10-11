@@ -1,0 +1,57 @@
+<!--
+  Tarafab.XAi password-reset email.
+  Supabase dashboard → Authentication → Emails → Templates → "Reset password".
+  Subject: Reset your Tarafab.XAi password
+
+  The link goes to https://tarafabxai.xyz/auth/confirm, which verifies the
+  one-time token with Supabase only after the client presses Continue.
+  The token travels after "#", so it never reaches server logs.
+  {{ .TokenHash }} is Supabase's hashed recovery token. Do not use
+  {{ .ConfirmationURL }} here: that link points to the Supabase project URL.
+  No images, tracking pixels or third-party links.
+-->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Reset your Tarafab.XAi password</title>
+</head>
+<body style="margin:0;padding:0;background:#f4f2ec;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f2ec;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:14px;border:1px solid #e6e1d4;">
+          <tr>
+            <td style="padding:28px 32px 0 32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+              <p style="margin:0;font-size:20px;font-weight:700;letter-spacing:-0.01em;color:#14161a;">Tarafab<span style="color:#a65200;">.XAi</span></p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px 32px 8px 32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#14161a;">
+              <h1 style="margin:0 0 12px 0;font-size:22px;line-height:1.3;font-weight:650;">Reset your password</h1>
+              <p style="margin:0 0 20px 0;font-size:15px;line-height:1.6;color:#454a55;">We received a request to reset the password for your Tarafab.XAi account. Use the button below to choose a new one. The link works once and expires in one hour.</p>
+              <table role="presentation" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="border-radius:10px;background:#f7931a;">
+                    <a href="https://tarafabxai.xyz/auth/confirm#token_hash={{ .TokenHash }}&type=recovery" style="display:inline-block;padding:13px 26px;font-size:15px;font-weight:600;color:#0a0c0f;text-decoration:none;border-radius:10px;">Reset password</a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:20px 0 0 0;font-size:13px;line-height:1.6;color:#6b7080;">If the button does not work, copy this address into your browser:<br>
+                <span style="word-break:break-all;color:#454a55;">https://tarafabxai.xyz/auth/confirm#token_hash={{ .TokenHash }}&amp;type=recovery</span></p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 32px 28px 32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+              <p style="margin:0;padding-top:16px;border-top:1px solid #eeeae0;font-size:13px;line-height:1.6;color:#6b7080;">If you did not ask to reset your password, you can ignore this email; your password stays the same. Tarafab.XAi will never ask for your password by email.</p>
+            </td>
+          </tr>
+        </table>
+        <p style="margin:16px 0 0 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;color:#8a8f9a;">Tarafab.XAi · <a href="https://tarafabxai.xyz/" style="color:#8a8f9a;">tarafabxai.xyz</a></p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

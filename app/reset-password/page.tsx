@@ -6,6 +6,7 @@ import { useI18n } from '@/lib/i18n/I18nProvider'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { AuthShell, FormError, Spinner, useSingleFlight } from '@/components/AuthShell'
+import { clearRecovery, inRecovery, markRecovery } from '@/lib/auth/recovery'
 
 export default function ResetPasswordPage() {
   const [ready, setReady] = useState<'checking' | 'ok' | 'invalid'>('checking')
@@ -16,14 +17,20 @@ export default function ResetPasswordPage() {
   const router = useRouter()
   const { t } = useI18n()
 
+  // The form is offered only to a recovery session: one opened from a reset
+  // link (our /auth/confirm page, or Supabase's own "#…&type=recovery"
+  // redirect). Being signed in alone is not enough. See lib/auth/recovery.ts.
+  // Read during the first render, before the Supabase client clears the address.
+  const [linkError] = useState(() => typeof window !== 'undefined' && /(^#|&)error(_code)?=/.test(window.location.hash))
   useEffect(() => {
     const supabase = createClient()
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY' || session) setReady('ok')
+      if (event === 'PASSWORD_RECOVERY') markRecovery()
+      if (session && inRecovery()) setReady('ok')
     })
     const t = setTimeout(async () => {
       const { data: { session } } = await supabase.auth.getSession()
-      setReady(r => (r === 'ok' || session ? 'ok' : 'invalid'))
+      setReady(r => (r === 'ok' || (session && inRecovery() && !linkError) ? 'ok' : 'invalid'))
     }, 1500)
     return () => { sub.subscription.unsubscribe(); clearTimeout(t) }
   }, [])
@@ -40,7 +47,12 @@ export default function ResetPasswordPage() {
       setLoading(true)
       try {
         const { error: err } = await createClient().auth.updateUser({ password })
-        if (err) { setError(err.message); return }
+        if (err) {
+          // The recovery session ended (expired or signed out elsewhere).
+          if (err.name === 'AuthSessionMissingError' || err.status === 401 || err.status === 403) { clearRecovery(); setReady('invalid'); return }
+          setError(err.message); return
+        }
+        clearRecovery()
         router.push('/dashboard')
       } catch {
         setError(t('errors.network'))

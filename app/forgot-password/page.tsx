@@ -24,7 +24,10 @@ export default function ForgotPasswordPage() {
         const { error: err } = await createClient().auth.resetPasswordForEmail(email.trim(), {
           redirectTo: `${window.location.origin}/reset-password`,
         })
-        if (err) { setError(err.message); return }
+        // Supabase answers "too many requests" only for addresses that have
+        // an account. Showing it would reveal which emails are registered,
+        // so it gets the same reply as a successful request.
+        if (err && err.status !== 429) { setError(err.message); return }
         setSent(true)
       } catch {
         setError(t('errors.network'))

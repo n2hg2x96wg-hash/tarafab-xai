@@ -355,6 +355,8 @@ const en = {
     newPassword: 'New password',
     confirmNewPassword: 'Confirm new password',
     saveNewPassword: 'Save new password',
+    confirmBody: 'Continue to confirm this reset link, then choose a new password.',
+    confirmContinue: 'Continue',
   },
   dash: {
     nav: {
