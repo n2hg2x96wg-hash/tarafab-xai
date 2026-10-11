@@ -808,7 +808,7 @@ function OverviewFigure({ f, main, loading, hidden, onToggleHidden, className = 
   const figure = hidden && f.value != null ? <span aria-label={t('ov2.hiddenAmount')}>••••••</span>
     : f.value != null ? (money ? <AnimatedPrice value={f.value} format={n => short ? `$${fmtCompact(n)}` : `$${fmt(n)}`} /> : <span>{f.text}</span>)
     : loading ? <span className="inline-block h-5 w-20 rounded skeleton align-middle" aria-hidden="true" />
-    : <span className="text-[12px] font-normal text-fg-faint">{t('dash.unavailable')}</span>
+    : <span className="block whitespace-normal break-words text-[12px] leading-snug font-normal text-fg-faint">{t('dash.unavailable')}</span>
   return (
     <div data-figure={f.key} className={`ovx-stat ovx-stat-${f.key} min-w-0 ${className}`}>
       <div className="flex items-start justify-between gap-3 min-w-0">
