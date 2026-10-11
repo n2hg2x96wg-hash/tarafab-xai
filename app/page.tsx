@@ -5,7 +5,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
-import { LiveTickerBar, useLiveMarket } from '@/components/LiveCrypto'
+import { LiveTickerBar } from '@/components/LiveCrypto'
+import { useBtcQuote } from '@/components/markets/assetStore'
 import { IconArrowDown, IconChart, IconCheck, IconGrid, IconList, IconLock, IconSwap, IconUser, Logo } from '@/components/Icons'
 import { FaqSection, HeroFloatPanels, Reveal, TrustBar } from '@/components/LandingExtras'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
@@ -64,7 +65,8 @@ const loadStory = () => import('@/components/landing/ScrollStory')
 
 export default function LandingPage() {
   const router = useRouter()
-  const market = useLiveMarket()
+  // One Bitcoin quote for the hero, the ticker and the market board.
+  const btc = useBtcQuote()
   const [ambient, setAmbient] = useState(false)
   const [adminSession, setAdminSession] = useState(false)
   useEffect(() => {
@@ -165,17 +167,17 @@ export default function LandingPage() {
           <div className="hero-backdrop" aria-hidden="true" />
           {ambient && <BitcoinGrowth3D variant="hero" place={placeCoin} scrollRef={heroRef} className="hero-btc3d" fallback={<AmbientField className="opacity-90" />} />}
           <HeroFloatPanels
-            live={market.status === 'live' || market.status === 'polling'}
-            price={market.quotes['BTC-USD']?.price}
-            change={market.quotes['BTC-USD']?.open24h ? ((market.quotes['BTC-USD']!.price / market.quotes['BTC-USD']!.open24h) - 1) * 100 : undefined}
+            state={btc.state}
+            price={btc.price ?? undefined}
+            change={btc.changePct ?? undefined}
           />
         </div>
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-8 pb-12 sm:pt-12 lg:pt-20 lg:pb-20 grid lg:grid-cols-[1.08fr_1fr] gap-12 lg:gap-12 items-center">
           <div>
             <div className="rise-in inline-flex items-center gap-2 rounded-full border border-ink-600 bg-ink-900/70 px-3 py-1 text-[12px] text-fg-muted mb-5 backdrop-blur-sm" style={{ ['--i' as string]: 0 }}>
               <span className="relative flex w-1.5 h-1.5">
-                {market.status === 'live' && <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-70 animate-ping" />}
-                <span className={`relative inline-flex rounded-full w-1.5 h-1.5 ${market.status === 'live' ? 'bg-emerald-400' : 'bg-fg-faint'}`} />
+                {btc.state === 'live' && <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-70 animate-ping" />}
+                <span className={`relative inline-flex rounded-full w-1.5 h-1.5 ${btc.state === 'live' ? 'bg-emerald-400' : 'bg-fg-faint'}`} />
               </span>
               {t('landing.badge')}
             </div>
@@ -209,7 +211,7 @@ export default function LandingPage() {
           <div className="relative rise-in lg:min-h-[500px] flex flex-col justify-end" style={{ ['--i' as string]: 3 }}>
             <div ref={coinSlot} className="h-[250px] lg:h-auto lg:flex-1 lg:min-h-[320px]" aria-hidden="true" />
             <div className="relative mx-auto w-full max-w-[320px]">
-              <ErrorBoundary label={t('market.bitcoinMarket')}><HeroScene market={market} compact /></ErrorBoundary>
+              <ErrorBoundary label={t('market.bitcoinMarket')}><HeroScene quote={btc} compact /></ErrorBoundary>
             </div>
           </div>
         </div>

@@ -939,19 +939,20 @@ function OverviewTab({ name, account, txs, go, can, labelOf, whatsNew, onOpenAss
         </div>
       )}
 
-      {/* Available balance leads; the other three recorded figures sit
-          beside it (a compact row of three on phones). */}
-      <dl className="ovx-stats grid grid-cols-6 xl:grid-cols-[1.3fr_1fr_1fr_1fr] gap-2.5 sm:gap-3" data-overview-figures aria-label={t('dash.accountBalance')}>
+      {/* Available balance leads. Phones: Profit and Invested side by side,
+          Pending spanning the row beneath (never three squeezed across);
+          tablets: a row of three; wide screens: one row of four. */}
+      <dl className="ovx-stats grid grid-cols-2 sm:grid-cols-6 xl:grid-cols-[1.3fr_1fr_1fr_1fr] gap-2.5 sm:gap-3" data-overview-figures aria-label={t('dash.accountBalance')}>
         {figures.map(f => {
           const text = f.value != null ? money(f.value) : ''
           const main = f.key === 'available'
           return (
-            <div key={f.key} data-figure={f.key} className={`ovx-stat ovx-stat-${f.key} min-w-0 ${main ? 'col-span-6 xl:col-span-1' : 'col-span-2 xl:col-span-1'}`}>
+            <div key={f.key} data-figure={f.key} className={`ovx-stat ovx-stat-${f.key} min-w-0 ${main ? 'col-span-2 sm:col-span-6 xl:col-span-1' : f.key === 'pending' ? 'col-span-2 sm:col-span-2 xl:col-span-1' : 'col-span-1 sm:col-span-2 xl:col-span-1'}`}>
               <div className="flex items-center gap-3 min-w-0">
                 <span className={`ovx-stat-icon ${main ? '' : 'max-sm:hidden'}`} aria-hidden="true"><f.icon width={main ? 19 : 17} height={main ? 19 : 17} /></span>
                 <dt className="min-w-0 text-[11.5px] sm:text-[12.5px] font-medium text-fg-muted truncate">{t(f.label)}</dt>
               </div>
-              <dd data-value className={`tabular-nums font-semibold tracking-[-0.02em] whitespace-nowrap ${main ? 'mt-3 text-[clamp(30px,8.6vw,40px)] xl:text-[30px] 2xl:text-[34px] leading-none text-fg' : `mt-2 sm:mt-3 leading-tight ${text.length > 12 ? 'text-[12.5px] sm:text-[17px] xl:text-[17px] 2xl:text-[20px]' : 'text-[14px] sm:text-[19px] xl:text-[19px] 2xl:text-[22px]'} ${f.key === 'profit' && (f.value ?? 0) > 0 ? 'text-success-300' : 'text-fg'}`}`}>
+              <dd data-value className={`tabular-nums font-semibold tracking-[-0.02em] whitespace-nowrap ${main ? `mt-3 ${text.length > 15 ? 'text-[clamp(20px,6.2vw,36px)] xl:text-[24px] 2xl:text-[28px]' : text.length > 12 ? 'text-[clamp(24px,7.6vw,40px)] xl:text-[26px] 2xl:text-[30px]' : 'text-[clamp(30px,8.6vw,40px)] xl:text-[30px] 2xl:text-[34px]'} leading-none text-fg` : `mt-2 sm:mt-3 leading-tight ${text.length > 12 ? 'text-[clamp(12.5px,3.9vw,18px)] sm:text-[17px] xl:text-[17px] 2xl:text-[20px]' : 'text-[clamp(15px,4.8vw,21px)] sm:text-[19px] xl:text-[19px] 2xl:text-[22px]'} ${f.key === 'profit' && (f.value ?? 0) > 0 ? 'text-success-300' : 'text-fg'}`}`}>
                 {f.value != null ? <AnimatedPrice value={f.value} format={money} />
                   : !account ? <span className="inline-block h-5 w-20 rounded skeleton align-middle" aria-hidden="true" />
                   : <span className="text-[12px] font-normal text-fg-faint">{t('dash.unavailable')}</span>}

@@ -18,7 +18,9 @@ export interface MarketSummary {
   high24h: number
   low24h: number
   volume24hUsd: number
-  updatedAt: string
+  // Provider time of the quote; null when the provider gave none (never
+  // replaced by the time of our request).
+  updatedAt: string | null
   source: MarketSource
 }
 
@@ -55,6 +57,13 @@ const num = (v: unknown) => {
 
 /* ---------- summary ---------- */
 
+// A provider timestamp as ISO text, or null when it is missing or unreadable.
+// Never substituted with "now": that would make an old quote look current.
+export function providerTime(v: unknown): string | null {
+  const t = typeof v === 'string' || typeof v === 'number' ? Date.parse(String(v)) : NaN
+  return Number.isFinite(t) ? new Date(t).toISOString() : null
+}
+
 async function coinbaseSummary(): Promise<MarketSummary> {
   const [stats, ticker] = await Promise.all([
     getJson<Record<string, string>>(`${COINBASE}/products/BTC-USD/stats`, 0),
@@ -68,7 +77,7 @@ async function coinbaseSummary(): Promise<MarketSummary> {
     high24h: num(stats.high),
     low24h: num(stats.low),
     volume24hUsd: num(stats.volume) * price,
-    updatedAt: ticker.time || new Date().toISOString(), // time of the last trade
+    updatedAt: providerTime(ticker.time), // time of the last trade
     source: 'Coinbase Exchange',
   }
 }
@@ -82,7 +91,7 @@ async function coingeckoSummary(): Promise<MarketSummary> {
     high24h: num(btc.high_24h),
     low24h: num(btc.low_24h),
     volume24hUsd: num(btc.total_volume),
-    updatedAt: String(btc.last_updated || new Date().toISOString()),
+    updatedAt: providerTime(btc.last_updated),
     source: 'CoinGecko',
   }
 }

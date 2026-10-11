@@ -4,6 +4,7 @@ import { chartColors } from '@/lib/chartColors'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { compactUsd, useBtcHistory, useBtcSummary, type SummaryStatus } from '@/components/useMarket'
+import { useBtcQuote } from '@/components/markets/assetStore'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
 import { AnimatedPrice, freshnessText } from '@/components/MarketBits'
 
@@ -55,11 +56,12 @@ const RANGES = [
   { id: '1825', label: '5Y' },
 ] as const
 
-export function MarketStatusPill({ status }: { status: SummaryStatus }) {
+export function MarketStatusPill({ status }: { status: SummaryStatus | 'delayed' }) {
   const { t } = useI18n()
   const map = {
     live: { t: t('status.live'), c: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/[0.06]', d: 'bg-emerald-400', pulse: true },
-    stale: { t: t('status.delayed'), c: 'text-amber-400 border-amber-500/30 bg-amber-500/[0.06]', d: 'bg-amber-400', pulse: false },
+    delayed: { t: t('status.delayed'), c: 'text-amber-400 border-amber-500/30 bg-amber-500/[0.06]', d: 'bg-amber-400', pulse: false },
+    stale: { t: t('status.stale'), c: 'text-amber-400 border-amber-500/30 bg-amber-500/[0.06]', d: 'bg-amber-400', pulse: false },
     loading: { t: t('common.loading'), c: 'text-fg-muted border-ink-600', d: 'bg-fg-faint', pulse: false },
     error: { t: t('common.unavailable'), c: 'text-red-400 border-red-500/30 bg-red-500/[0.06]', d: 'bg-red-400', pulse: false },
   }[status]
@@ -86,6 +88,10 @@ export function PriceHistory({ compact = false }: { compact?: boolean } = {}) {
   const [hover, setHover] = useState<number | null>(null)
   const svgRef = useRef<SVGSVGElement>(null)
   const market = useBtcSummary()
+  // The public page's headline price and label come from the same quote as
+  // its hero, ticker and market board; the dashboard keeps the full summary
+  // (with its 24h figures) under the same freshness rule.
+  const shared = useBtcQuote()
   const hist = useBtcHistory(range)
   const { t, intl } = useI18n()
   useTicker()
@@ -115,7 +121,9 @@ export function PriceHistory({ compact = false }: { compact?: boolean } = {}) {
   const color = up ? chartColors.up : chartColors.down
   const longRange = range === '365' || range === '1825'
   const s = market.summary
-  const headlinePrice = hovered ? hovered.p : s?.price ?? geo?.last
+  const sharedPrice = shared.price != null && shared.state !== 'unavailable' && shared.state !== 'loading' ? shared.price : undefined
+  const headlinePrice = hovered ? hovered.p : compact ? sharedPrice ?? (shared.state === 'loading' ? undefined : geo?.last) : s?.price ?? geo?.last
+  const pillStatus = compact ? (shared.state === 'unavailable' ? 'error' : shared.state) : market.status
   const source = s?.source ?? hist.history?.source
 
   const stats: [TKey, string | null][] = [
@@ -132,7 +140,7 @@ export function PriceHistory({ compact = false }: { compact?: boolean } = {}) {
           <div className="min-w-0">
             <div className="flex items-center gap-2.5 text-[13px] text-fg-faint">
               <span>{hovered ? t('market.priceOn', { date: new Date(hovered.t).toLocaleDateString(intl, { month: 'short', day: 'numeric', year: 'numeric', ...(longRange ? {} : { hour: '2-digit', minute: '2-digit' }) }) }) : 'BTC / USD'}</span>
-              {!hovered && <MarketStatusPill status={market.status} />}
+              {!hovered && <MarketStatusPill status={pillStatus} />}
             </div>
             <div className="text-[32px] sm:text-4xl font-semibold text-fg tabular-nums mt-1.5 leading-none tracking-tight">
               {hovered ? usd(hovered.p)
@@ -614,19 +622,20 @@ export function PlatformStatus({ marketStatus }: { marketStatus?: 'connecting' |
 
 // Floating information panels for very wide screens, placed only in the empty
 // space beside the hero content. The market panel shows the real BTC price
-// from the same feed as the hero, or "Unavailable"; the portfolio panel
-// describes the product. Neither shows client activity or performance.
-export function HeroFloatPanels({ price, change, live }: { price?: number; change?: number; live: boolean }) {
+// from the same quote and status as the hero, or "Unavailable"; the portfolio
+// panel describes the product. Neither shows client activity or performance.
+export function HeroFloatPanels({ price, change, state }: { price?: number; change?: number; state: 'live' | 'delayed' | 'stale' | 'unavailable' | 'loading' }) {
   const { t } = useI18n()
   return (
     <div className="hidden min-[1760px]:block pointer-events-none absolute inset-0" aria-hidden="true">
       <div className="absolute left-8 top-[20%] w-52 rounded-xl border border-ink-700/80 bg-ink-900/55 backdrop-blur-md px-4 py-3 shadow-[0_20px_40px_-24px_rgb(0_0_0/.6)] float-a">
         <p className="text-[10.5px] uppercase tracking-[0.14em] text-accent/90">{t('landing.status.panelMarket')}</p>
         <p className="mt-1 text-[13px] font-medium text-fg">BTC/USD</p>
-        {live && price ? (
+        {price && state !== 'unavailable' && state !== 'loading' ? (<>
           <p className="text-[15px] font-semibold tabular-nums text-fg">${price.toLocaleString('en-US', { maximumFractionDigits: 2 })}
             {change !== undefined && <span className={`ml-2 text-[11.5px] ${change >= 0 ? 'price-up' : 'price-down'}`}>{change >= 0 ? '+' : ''}{change.toFixed(2)}%</span>}</p>
-        ) : <p className="text-[11.5px] text-fg-faint">{t('landing.status.unavailable')}</p>}
+          {state !== 'live' && <p className="text-[11px] text-amber-400">{state === 'stale' ? t('status.stale') : t('status.delayed')}</p>}
+        </>) : <p className="text-[11.5px] text-fg-faint">{t('landing.status.unavailable')}</p>}
       </div>
       <div className="absolute right-8 bottom-[16%] w-52 rounded-xl border border-ink-700/80 bg-ink-900/55 backdrop-blur-md px-4 py-3 shadow-[0_20px_40px_-24px_rgb(0_0_0/.6)] float-b">
         <p className="text-[10.5px] uppercase tracking-[0.14em] text-accent/90">{t('landing.status.panelPortfolio')}</p>
