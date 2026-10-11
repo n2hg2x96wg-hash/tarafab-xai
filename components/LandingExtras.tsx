@@ -7,6 +7,7 @@ import { compactUsd, useBtcHistory, useBtcSummary, type SummaryStatus } from '@/
 import { useBtcQuote } from '@/components/markets/assetStore'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
 import { AnimatedPrice, freshnessText } from '@/components/MarketBits'
+import { timeAgoT } from '@/lib/i18n/format'
 
 const usd = (n: number, d = 2) => `$${n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d })}`
 
@@ -242,26 +243,34 @@ export function PriceHistory({ compact = false }: { compact?: boolean } = {}) {
   )
 }
 
-/* BTC <-> USD converter using the live price */
-export function Converter({ price }: { price?: number }) {
+/* BTC <-> USD converter using the live price. When the caller passes the
+   quote's status (landing page), a price that is not live is labelled with
+   its real status and time, so an old price is never presented as live. */
+export function Converter({ price: rawPrice, status, updatedAt }: { price?: number; status?: 'live' | 'delayed' | 'stale' | 'unavailable' | 'loading'; updatedAt?: string | null }) {
   const [usdVal, setUsdVal] = useState('1000')
   const [btcVal, setBtcVal] = useState('')
   const [last, setLast] = useState<'usd' | 'btc'>('usd')
   const { t } = useI18n()
+  // Only a real, positive price converts; anything else reads as unavailable.
+  const price = rawPrice != null && Number.isFinite(rawPrice) && rawPrice > 0 ? rawPrice : undefined
+  // Empty, unreadable or negative amounts give an empty result, not a number.
+  const amount = (v: string) => { const n = parseFloat(v); return Number.isFinite(n) && n >= 0 ? n : null }
 
   useEffect(() => {
     if (!price) return
     if (last === 'usd') {
-      const n = parseFloat(usdVal)
-      setBtcVal(Number.isFinite(n) ? (n / price).toFixed(8).replace(/\.?0+$/, '') : '')
+      const n = amount(usdVal)
+      setBtcVal(n != null ? (n / price).toFixed(8).replace(/\.?0+$/, '') : '')
     } else {
-      const n = parseFloat(btcVal)
-      setUsdVal(Number.isFinite(n) ? (n * price).toFixed(2) : '')
+      const n = amount(btcVal)
+      setUsdVal(n != null ? (n * price).toFixed(2) : '')
     }
   }, [price, usdVal, btcVal, last])
+  const notLive = !!price && (status === 'delayed' || status === 'stale')
+  const at = updatedAt ? Date.parse(updatedAt) : NaN
 
   return (
-    <div className="panel p-5 sm:p-6 flex flex-col">
+    <div className="panel p-5 sm:p-6 flex flex-col" data-calculator data-calc-status={status}>
       <h3 className="text-[15px] font-semibold text-fg">{t('market.calculator')}</h3>
       <p className="text-[13px] text-fg-faint mt-1 mb-5">{t('market.calculatorBody')}</p>
       <div className="space-y-3">
@@ -276,6 +285,12 @@ export function Converter({ price }: { price?: number }) {
       </div>
       <div className="mt-auto pt-5 text-[13px] text-fg-muted tabular-nums">
         {price ? <>1 BTC = {usd(price)}<br />$1 = {(1 / price).toFixed(8)} BTC ({Math.round(1e8 / price).toLocaleString()} sats)</> : t('market.livePriceUnavailable')}
+        {notLive && (
+          <p className="mt-2 text-[12px] text-amber-400" data-calc-note>
+            {status === 'stale' ? t('status.stale') : t('status.delayed')}
+            {Number.isFinite(at) ? <span className="text-fg-faint"> · {t('common.lastUpdated', { time: timeAgoT(t, at) })}</span> : null}
+          </p>
+        )}
       </div>
     </div>
   )
