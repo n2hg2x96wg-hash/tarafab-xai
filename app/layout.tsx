@@ -9,6 +9,7 @@ import { DEFAULT_LOCALE, LOCALE_COOKIE, isLocale } from '@/lib/i18n/config'
 import { ThemeProvider } from '@/lib/theme/ThemeProvider'
 import { THEME_COOKIE, isThemePreference, themeInitScript } from '@/lib/theme/config'
 import { SITE_URL } from '@/lib/site'
+import { recoveryRedirectScript } from '@/lib/auth/recoveryRedirect'
 
 export const metadata: Metadata = {
   // Absolute URLs (social previews, canonical) resolve against the official domain.
@@ -39,6 +40,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang={locale} className="scroll-smooth" data-theme={themePref === 'light' ? 'light' : 'dark'} suppressHydrationWarning>
       <head>
+        {/* Password-reset links that land on any page go straight to the reset page. */}
+        <script dangerouslySetInnerHTML={{ __html: recoveryRedirectScript }} />
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className="min-h-screen bg-ink-950 text-fg antialiased overflow-x-hidden">
