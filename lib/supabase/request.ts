@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { noStoreFetch } from '@/lib/supabase/noStore'
 import { getSupabaseEnv, isJwt } from './env'
 
 // A Supabase client that acts as the signed-in caller, so database rules
@@ -14,7 +15,7 @@ export function clientForRequest(request: NextRequest) {
   }
   const { url, anonKey } = getSupabaseEnv()
   const supabase = createClient(url, anonKey, {
-    global: { headers: { Authorization: `Bearer ${token}` } },
+    global: { headers: { Authorization: `Bearer ${token}` }, fetch: noStoreFetch },
     auth: { persistSession: false, autoRefreshToken: false },
   })
   return { token, supabase }

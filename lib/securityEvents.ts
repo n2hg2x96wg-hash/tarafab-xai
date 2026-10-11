@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { noStoreFetch } from '@/lib/supabase/noStore'
 import { getSupabaseEnv } from '@/lib/supabase/env'
 
 // Server-only: writes to the admin-only security_events table with the
@@ -8,7 +9,7 @@ export async function recordSecurityEvent(kind: string, actor: string | null, ip
   try {
     const { url, serviceKey } = getSupabaseEnv()
     if (!url || !serviceKey) return
-    const db = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } })
+    const db = createClient(url, serviceKey, { global: { fetch: noStoreFetch }, auth: { persistSession: false, autoRefreshToken: false } })
     const { error } = await db.from('security_events').insert({ kind, actor, ip: ip ? ip.slice(0, 64) : null, detail })
     if (error) console.error('security event not recorded:', error.message)
   } catch (e) { console.error('security event not recorded:', e instanceof Error ? e.message : e) }

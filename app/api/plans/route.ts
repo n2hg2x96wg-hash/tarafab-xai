@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { noStoreFetch } from '@/lib/supabase/noStore'
 import { getSupabaseEnv } from '@/lib/supabase/env'
 import { featureHidden } from '@/lib/features'
 
@@ -9,7 +10,7 @@ export const dynamic = 'force-dynamic'
 // or provider identifiers are included.
 export async function GET() {
   const { url, anonKey } = getSupabaseEnv()
-  const sb = createClient(url, anonKey, { auth: { persistSession: false, autoRefreshToken: false } })
+  const sb = createClient(url, anonKey, { global: { fetch: noStoreFetch }, auth: { persistSession: false, autoRefreshToken: false } })
   // Premium switched off by an admin: no plans are offered anywhere.
   if (await featureHidden(sb, 'premium')) return NextResponse.json({ plans: [], free: null, code: 'FEATURE_DISABLED' }, { headers: { 'Cache-Control': 'no-store' } })
   const [p, s] = await Promise.all([

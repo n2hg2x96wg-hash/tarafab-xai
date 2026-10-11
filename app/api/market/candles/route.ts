@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { noStoreFetch } from '@/lib/supabase/noStore'
 import { getSupabaseEnv } from '@/lib/supabase/env'
 import { TIMEFRAMES, type Timeframe } from '@/lib/assets'
 
@@ -21,7 +22,7 @@ export async function GET(req: NextRequest) {
   const tf = (req.nextUrl.searchParams.get('tf') || '1D') as Timeframe
   if (!/^[A-Z0-9.]{1,12}$/.test(id) || !TIMEFRAMES.includes(tf)) return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
   const { url, anonKey } = getSupabaseEnv()
-  const sb = createClient(url, anonKey, { auth: { persistSession: false, autoRefreshToken: false } })
+  const sb = createClient(url, anonKey, { global: { fetch: noStoreFetch }, auth: { persistSession: false, autoRefreshToken: false } })
   const { data: a } = await sb.from('market_assets').select('id, category, provider, provider_symbol, chart_enabled').eq('id', id).maybeSingle()
   if (!a) return NextResponse.json({ error: 'Unknown asset.' }, { status: 404 })
   if (!a.chart_enabled || a.category !== 'crypto') return NextResponse.json({ points: [], available: false, reason: 'Chart data is not available for this asset.' })
@@ -31,7 +32,7 @@ export async function GET(req: NextRequest) {
   const premiumTf = !!(st?.premium_timeframes as string[] | undefined)?.includes(tf)
   if (premiumTf) {
     const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '').trim()
-    const user = token ? createClient(url, anonKey, { global: { headers: { Authorization: `Bearer ${token}` } }, auth: { persistSession: false, autoRefreshToken: false } }) : null
+    const user = token ? createClient(url, anonKey, { global: { headers: { Authorization: `Bearer ${token}` }, fetch: noStoreFetch }, auth: { persistSession: false, autoRefreshToken: false } }) : null
     const { data: allowed } = user ? await user.rpc('client_can_use_timeframe', { p_tf: tf }) : { data: false }
     if (!allowed) return NextResponse.json({ points: [], available: false, premium: true, reason: 'This timeframe is available with Tarafab Premium.' }, { status: 402, headers: { 'Cache-Control': 'private, no-store' } })
   }

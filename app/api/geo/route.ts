@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { noStoreFetch } from '@/lib/supabase/noStore'
 import { getSupabaseEnv } from '@/lib/supabase/env'
 import { visitorCountry } from '@/lib/payments'
 import { currencyForCountry, parseCurrencyConfig } from '@/lib/currency'
@@ -10,7 +11,7 @@ import { currencyForCountry, parseCurrencyConfig } from '@/lib/currency'
 export async function GET(request: NextRequest) {
   const country = visitorCountry(request)
   const { url, anonKey } = getSupabaseEnv()
-  const sb = createClient(url, anonKey, { auth: { persistSession: false, autoRefreshToken: false } })
+  const sb = createClient(url, anonKey, { global: { fetch: noStoreFetch }, auth: { persistSession: false, autoRefreshToken: false } })
   const { data } = await sb.from('premium_settings').select('currency_config').eq('id', 1).maybeSingle()
   const config = parseCurrencyConfig(data?.currency_config)
   return NextResponse.json({ country, currency: currencyForCountry(country, config), source: country ? 'ip' : 'fallback', config },
