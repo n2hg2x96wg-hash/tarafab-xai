@@ -1,0 +1,46 @@
+/* How /sitemap.xml looks when opened in a browser. Search engines read the
+   XML itself and ignore this file. */
+urlset {
+  display: block;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 32px 16px;
+  font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: #15171c;
+  background: #ffffff;
+}
+urlset::before {
+  content: "Tarafab.XAi sitemap";
+  display: block;
+  font-size: 24px;
+  font-weight: 700;
+}
+urlset::after {
+  content: "XML sitemap (Sitemap Protocol 0.9) listing the public pages for search engines.";
+  display: block;
+  margin-top: 16px;
+  font-size: 14px;
+  color: #5d6371;
+}
+url {
+  display: block;
+  padding: 12px 0;
+  border-bottom: 1px solid #e2e4e9;
+}
+url:first-of-type {
+  margin-top: 16px;
+  border-top: 1px solid #e2e4e9;
+}
+loc {
+  display: block;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+lastmod, changefreq, priority {
+  display: none;
+}
+@media (prefers-color-scheme: dark) {
+  urlset { color: #e9ebef; background: #0e1014; }
+  urlset::after { color: #9aa1ae; }
+  url, url:first-of-type { border-color: #2a2f38; }
+}
