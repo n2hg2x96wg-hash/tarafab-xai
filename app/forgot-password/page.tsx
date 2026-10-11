@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useI18n } from '@/lib/i18n/I18nProvider'
 import { createClient } from '@/lib/supabase/client'
+import { authReturnBase } from '@/lib/site'
 import { AuthShell, FormError, Spinner, useSingleFlight } from '@/components/AuthShell'
 
 export default function ForgotPasswordPage() {
@@ -22,7 +23,7 @@ export default function ForgotPasswordPage() {
       setLoading(true)
       try {
         const { error: err } = await createClient().auth.resetPasswordForEmail(email.trim(), {
-          redirectTo: `${window.location.origin}/reset-password`,
+          redirectTo: `${authReturnBase(window.location.origin)}/reset-password`,
         })
         // Supabase answers "too many requests" only for addresses that have
         // an account. Showing it would reveal which emails are registered,

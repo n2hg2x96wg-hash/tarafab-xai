@@ -12,4 +12,7 @@ import { RECOVERY_FLAG } from './recovery'
 // When the address carries Supabase's recovery session, it also marks the tab
 // as being in password recovery (lib/auth/recovery.ts) here, because the Supabase client removes the tokens from the address as
 // soon as it starts, possibly before the reset page has read them.
-export const recoveryRedirectScript = `(function(){try{var h=location.hash||'',p=location.pathname;if(p!=='/auth/confirm'&&/(^#|&)type=recovery(&|$)/.test(h)){if(/(^#|&)access_token=/.test(h)){try{sessionStorage.setItem('${RECOVERY_FLAG}',String(Date.now()))}catch(e){}}if(p!=='/reset-password'){location.replace('/reset-password'+h)}}}catch(e){}})()`
+// Any other sign-in tokens in the address (the sign-up confirmation link
+// returns with "#access_token=…&type=signup") are removed unused before
+// anything else on the page can read them; the person then signs in as usual.
+export const recoveryRedirectScript = `(function(){try{var h=location.hash||'',p=location.pathname;if(p!=='/auth/confirm'&&/(^#|&)type=recovery(&|$)/.test(h)){if(/(^#|&)access_token=/.test(h)){try{sessionStorage.setItem('${RECOVERY_FLAG}',String(Date.now()))}catch(e){}}if(p!=='/reset-password'){location.replace('/reset-password'+h)}}else if(p!=='/auth/confirm'&&/(^#|&)access_token=/.test(h)){history.replaceState(null,'',p+location.search)}}catch(e){}})()`
