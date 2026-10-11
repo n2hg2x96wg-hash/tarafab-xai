@@ -14,7 +14,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { authFetch, errorText, newRequestKey, readJson, RequestError, SESSION_EXPIRED } from '@/lib/authFetch'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
 import {
-  EmptyState, OPEN_STATUSES, StatusTag, SUPPORT_EMAIL, TxIcon, fmt, methodLabel, txDescription, txLabel,
+  EmptyState, OPEN_STATUSES, StatusTag, SUPPORT_EMAIL, TxIcon, fmt, fmtCompact, COMPACT_FROM, methodLabel, txDescription, txLabel,
   type Account, type Tx, type UserInfo, PageIntro, SettingsRow, SettingsSection, signedAmount,
 } from '@/components/dashboard/shared'
 import { LanguageSelector } from '@/components/LanguageSelector'
@@ -571,7 +571,7 @@ export default function DashboardPage() {
             <kbd className="text-[11px] border border-ink-600 rounded px-1.5 py-0.5 whitespace-nowrap">{shortcut}</kbd>
           </button>
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <div className={`text-right shrink-0 ${activeNav === 'overview' ? 'max-sm:hidden' : ''}`} data-header-balance>
+            <div className={`text-right shrink-0 ${activeNav === 'overview' ? 'hidden' : ''}`} data-header-balance>
               <div className="text-[11px] text-fg-faint leading-none mb-1 whitespace-nowrap">{t('dash.accountBalance')}</div>
               {/* One client-facing balance: the account's spendable balance (available_balance), the same figure withdrawals and investments use. */}
               <div className="text-sm font-semibold text-fg tabular-nums leading-none whitespace-nowrap">${fmt(account?.available_balance ?? 0)}</div>
@@ -862,6 +862,45 @@ function KycChip({ go }: { go: (id: string) => void }) {
   )
 }
 
+/* One overview figure. The main figure always shows the exact amount. A
+   secondary figure of a million or more is shown in short form ($1.23M,
+   truncated, never rounded up); tapping it shows the exact amount, which is
+   also in its tooltip and read out by screen readers. Display only. */
+function OverviewFigure({ f, main, loading }: { f: { key: string; label: TKey; value: number | null; sub: string; state?: string; icon: Icon }; main: boolean; loading: boolean }) {
+  const { t } = useI18n()
+  const [exact, setExact] = useState(false)
+  const full = f.value != null ? `$${fmt(f.value)}` : ''
+  const compactable = !main && f.value != null && Math.abs(f.value) >= COMPACT_FROM
+  const short = compactable && !exact
+  const shown = f.value == null ? '' : short ? `$${fmtCompact(f.value)}` : full
+  const len = shown.length
+  const size = main
+    ? (len > 15 ? 'text-[clamp(20px,6.2vw,36px)] xl:text-[26px] 2xl:text-[30px]' : len > 12 ? 'text-[clamp(24px,7.6vw,40px)] xl:text-[30px] 2xl:text-[34px]' : 'text-[clamp(30px,8.6vw,42px)] xl:text-[34px] 2xl:text-[38px]')
+    : (len > 12 ? 'text-[clamp(13px,3.7vw,18px)] sm:text-[18px] xl:text-[16px] 2xl:text-[18px]' : 'text-[clamp(17px,5vw,22px)] sm:text-[22px] xl:text-[20px] 2xl:text-[24px]')
+  const tone = f.key === 'profit' && (f.value ?? 0) > 0 ? 'text-success-300' : 'text-fg'
+  const figure = f.value != null
+    ? <AnimatedPrice value={f.value} format={n => short ? `$${fmtCompact(n)}` : `$${fmt(n)}`} />
+    : loading ? <span className="inline-block h-5 w-20 rounded skeleton align-middle" aria-hidden="true" />
+    : <span className="text-[12px] font-normal text-fg-faint">{t('dash.unavailable')}</span>
+  return (
+    <div data-figure={f.key} className={`ovx-stat ovx-stat-${f.key} min-w-0 ${main ? 'min-[360px]:col-span-2 xl:col-span-1' : ''}`}>
+      <div className="flex items-center gap-3 min-w-0">
+        <span className={`ovx-stat-icon ${main ? '' : 'max-sm:hidden'}`} aria-hidden="true"><f.icon width={main ? 19 : 17} height={main ? 19 : 17} /></span>
+        <dt className="min-w-0 text-[12px] sm:text-[12.5px] font-medium text-fg-muted truncate">{t(f.label)}</dt>
+      </div>
+      <dd data-value data-exact={full || undefined} title={compactable ? full : undefined}
+        className={`tabular-nums font-semibold tracking-[-0.02em] whitespace-nowrap ${main ? 'mt-3 leading-none' : 'mt-2 sm:mt-3 leading-tight'} ${size} ${tone}`}>
+        {compactable ? (
+          <button type="button" onClick={() => setExact(v => !v)} className="ovx-stat-toggle" aria-label={`${t(f.label)}: ${full}`} aria-pressed={exact}>
+            <span aria-hidden="true">{figure}</span>
+          </button>
+        ) : figure}
+      </dd>
+      {f.sub && <dd className="mt-1.5 text-[11px] sm:text-[12px] leading-snug text-fg-faint line-clamp-2 break-words" data-profit-state={f.key === 'profit' ? f.state : undefined} data-pending-state={f.key === 'pending' ? f.state : undefined}>{f.sub}</dd>}
+    </div>
+  )
+}
+
 /* Overview: welcome, the spendable balance, the account's other recorded
    figures, quick actions, recent activity, a market snapshot and the
    automation service's own status. Every figure is the server's value. */
@@ -871,7 +910,6 @@ function OverviewTab({ name, account, txs, go, can, labelOf, whatsNew, onOpenAss
   const pendingCount = account?.pending_transaction_count ?? txs.filter(x => x.status.startsWith('pending')).length
   const { t, intl } = useI18n()
   const money = (n: number) => `$${fmt(n)}`
-  const inv = account?.investments ?? null
   const firstName = name.trim().split(/\s+/)[0] || name
   const showInv = can('portfolio') && !hiddenState(feature('investments'))
   const [receipt, setReceipt] = useState<Tx | null>(null)
@@ -883,14 +921,13 @@ function OverviewTab({ name, account, txs, go, can, labelOf, whatsNew, onOpenAss
     ['markets', 'dash.nav.markets', IconChart],
     ['transactions', 'shell.activity', IconList],
   ] as [string, TKey, Icon][]).filter(([id]) => can(id) && (id !== 'portfolio' || showInv))
-  // The account's recorded figures, each from its own stored field (the
-  // invested total from the investment records, as in Investments).
+  // The three core figures, each from its own stored field: Account Balance
+  // (the spendable available_balance, as everywhere else), Profit and Pending.
+  // Invested totals live on the Investments page (records unchanged).
   const figures: { key: string; label: TKey; value: number | null; sub: string; state?: string; icon: Icon }[] = [
-    { key: 'available', label: 'ov2.available', value: account ? Number(account.available_balance ?? 0) : null, sub: t('ov2.availableSub'), icon: IconWallet },
+    { key: 'available', label: 'dash.accountBalance', value: account ? Number(account.available_balance ?? 0) : null, sub: t('ov2.availableSub'), icon: IconWallet },
     { key: 'profit', label: 'dash.profitReturn', value: account ? Number(account.profit_balance ?? 0) : null, icon: IconTrend,
       sub: account && Number(account.profit_balance ?? 0) > 0 ? t('ov2.profitSub') : t('ov2.profitNone'), state: account && Number(account.profit_balance ?? 0) > 0 ? 'positive' : 'none' },
-    { key: 'invested', label: 'dash.invested', value: inv ? Number(inv.total_invested) : null, icon: IconPie,
-      sub: inv ? (inv.active_count > 0 ? t('dash.countActive', { n: inv.active_count }) : inv.pending_count > 0 ? t('ov2.investedPending', { n: inv.pending_count }) : inv.completed_count > 0 ? t('ov2.investedCompleted', { n: inv.completed_count }) : t('ov2.investedNone')) : '' },
     { key: 'pending', label: 'dash.pending', value: account ? Number(account.pending_balance ?? 0) : null, icon: IconHistory,
       sub: account && Number(account.pending_balance ?? 0) > 0 ? t('ov2.pendingSub') : t('ov2.pendingClear'), state: account && Number(account.pending_balance ?? 0) > 0 ? 'review' : 'clear' },
   ]
@@ -939,28 +976,11 @@ function OverviewTab({ name, account, txs, go, can, labelOf, whatsNew, onOpenAss
         </div>
       )}
 
-      {/* Available balance leads. Phones: Profit and Invested side by side,
-          Pending spanning the row beneath (never three squeezed across);
-          tablets: a row of three; wide screens: one row of four. */}
-      <dl className="ovx-stats grid grid-cols-2 sm:grid-cols-6 xl:grid-cols-[1.3fr_1fr_1fr_1fr] gap-2.5 sm:gap-3" data-overview-figures aria-label={t('dash.accountBalance')}>
-        {figures.map(f => {
-          const text = f.value != null ? money(f.value) : ''
-          const main = f.key === 'available'
-          return (
-            <div key={f.key} data-figure={f.key} className={`ovx-stat ovx-stat-${f.key} min-w-0 ${main ? 'col-span-2 sm:col-span-6 xl:col-span-1' : f.key === 'pending' ? 'col-span-2 sm:col-span-2 xl:col-span-1' : 'col-span-1 sm:col-span-2 xl:col-span-1'}`}>
-              <div className="flex items-center gap-3 min-w-0">
-                <span className={`ovx-stat-icon ${main ? '' : 'max-sm:hidden'}`} aria-hidden="true"><f.icon width={main ? 19 : 17} height={main ? 19 : 17} /></span>
-                <dt className="min-w-0 text-[11.5px] sm:text-[12.5px] font-medium text-fg-muted truncate">{t(f.label)}</dt>
-              </div>
-              <dd data-value className={`tabular-nums font-semibold tracking-[-0.02em] whitespace-nowrap ${main ? `mt-3 ${text.length > 15 ? 'text-[clamp(20px,6.2vw,36px)] xl:text-[24px] 2xl:text-[28px]' : text.length > 12 ? 'text-[clamp(24px,7.6vw,40px)] xl:text-[26px] 2xl:text-[30px]' : 'text-[clamp(30px,8.6vw,40px)] xl:text-[30px] 2xl:text-[34px]'} leading-none text-fg` : `mt-2 sm:mt-3 leading-tight ${text.length > 12 ? 'text-[clamp(12.5px,3.9vw,18px)] sm:text-[17px] xl:text-[17px] 2xl:text-[20px]' : 'text-[clamp(15px,4.8vw,21px)] sm:text-[19px] xl:text-[19px] 2xl:text-[22px]'} ${f.key === 'profit' && (f.value ?? 0) > 0 ? 'text-success-300' : 'text-fg'}`}`}>
-                {f.value != null ? <AnimatedPrice value={f.value} format={money} />
-                  : !account ? <span className="inline-block h-5 w-20 rounded skeleton align-middle" aria-hidden="true" />
-                  : <span className="text-[12px] font-normal text-fg-faint">{t('dash.unavailable')}</span>}
-              </dd>
-              {f.sub && <dd className="mt-1.5 text-[11px] sm:text-[12px] leading-snug text-fg-faint line-clamp-2 [overflow-wrap:normal]" data-profit-state={f.key === 'profit' ? f.state : undefined} data-pending-state={f.key === 'pending' ? f.state : undefined}>{f.sub}</dd>}
-            </div>
-          )
-        })}
+      {/* Three core figures. Account Balance leads at full width with its
+          exact amount; Profit and Pending sit side by side beneath it (stacked
+          on very narrow phones), and all three share one row on wide screens. */}
+      <dl className="ovx-stats grid grid-cols-1 min-[360px]:grid-cols-2 xl:grid-cols-[1.6fr_1fr_1fr] gap-2.5 sm:gap-3" data-overview-figures aria-label={t('dash.accountBalance')}>
+        {figures.map(f => <OverviewFigure key={f.key} f={f} main={f.key === 'available'} loading={!account} />)}
       </dl>
 
       {quick.length > 0 && (

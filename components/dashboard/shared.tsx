@@ -76,6 +76,20 @@ export function fmt(n: number) {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+// Display-only short form for very large secondary figures: 1,234,567.89 ->
+// "1.23M". Truncated toward zero (never shows more than the stored amount)
+// and used only where the exact amount stays one tap away; stored values and
+// calculations are untouched. Below a million it is the same as fmt().
+export const COMPACT_FROM = 1_000_000
+export function fmtCompact(n: number) {
+  const a = Math.abs(n)
+  if (!Number.isFinite(n) || a < COMPACT_FROM) return fmt(n)
+  const [div, unit] = a >= 1e12 ? [1e12, 'T'] : a >= 1e9 ? [1e9, 'B'] : [1e6, 'M']
+  // Hundredths of the unit, by integer division (no float drift: 1.15M stays 1.15M).
+  const v = Math.trunc(a / (div / 100)) / 100
+  return `${n < 0 ? '-' : ''}${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${unit}`
+}
+
 export type T = ReturnType<typeof useI18n>['t']
 export function txLabel(tx: Tx, t: T) {
   // Named by the event that created the row (lib/txCategory), not by whether
