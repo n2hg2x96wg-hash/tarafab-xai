@@ -1,7 +1,10 @@
 // The official public address of Tarafab.XAi. Vercel keeps hosting the app;
 // clients use this domain. NEXT_PUBLIC_SITE_URL can override it (for example
 // if the domain ever changes) without a code change.
-export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://tarafabxai.xyz').replace(/\/+$/, '')
+// It is the www host because that is where Vercel serves the site: the bare
+// domain (tarafabxai.xyz) redirects to it. Canonical links, the sitemap and
+// robots.txt must name the address that answers 200, not one that redirects.
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://www.tarafabxai.xyz').replace(/\/+$/, '')
 export const SITE_HOST = new URL(SITE_URL).host
 
 // The former production address on Vercel. Requests to it are sent to
