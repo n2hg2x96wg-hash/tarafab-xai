@@ -8,6 +8,7 @@ import AdminLayout from '@/components/AdminLayout'
 import { AdminLoadError } from '@/components/AdminLoadError'
 import { authFetch, errorText, readJson, RequestError } from '@/lib/authFetch'
 import { EffectiveDateModal } from '@/components/admin/EffectiveDateModal'
+import { BankReviewPanel } from '@/components/admin/BankReviewPanel'
 
 type Tx = {
   id: string
@@ -22,6 +23,8 @@ type Tx = {
   notes: string | null
   reference: string | null
   address: string | null
+  bank_account_id?: string | null
+  tx_hash?: string | null
   created_at: string
   effective_at: string
   profiles: { full_name: string | null } | null
@@ -92,7 +95,7 @@ export default function TransactionsPage() {
   // behind a fixed row cap. Name search also narrows the loaded rows below.
   const fetchTxs = async (before?: string) => {
     let q = (supabase.from('transactions') as any)
-      .select('id, user_id, type, method, direction, source, amount, fee, status, notes, reference, address, created_at, effective_at, profiles(full_name)')
+      .select('id, user_id, type, method, direction, source, amount, fee, status, notes, reference, address, bank_account_id, tx_hash, created_at, effective_at, profiles(full_name)')
       .order('effective_at', { ascending: false }).order('id', { ascending: false })
       .limit(PAGE + 1)
     if (filterType) { const src = CATEGORY_SOURCES[filterType as AdminKey]; q = src ? q.in('source', src) : q.eq('type', filterType) }
@@ -122,6 +125,9 @@ export default function TransactionsPage() {
 
   const handleReview = async () => {
     if (!reviewingId || !reviewAction) return
+    // A bank transfer is approved only once it has been sent: the bank's
+    // payment reference is required (the database refuses it without one).
+    if (reviewAction === 'approve' && reviewIsBank && !reviewReason.trim()) { setReviewError('Enter the bank payment reference of the transfer you sent.'); return }
     setReviewLoading(true)
     setReviewError('')
     try {
@@ -149,6 +155,7 @@ export default function TransactionsPage() {
   const canReview = (tx: Tx) => isPending(tx.status) && (tx.type === 'deposit' || tx.type === 'withdrawal')
   const reviewingTx = txs.find(t => t.id === reviewingId)
   const reviewNoun = reviewingTx?.type === 'withdrawal' ? 'Withdrawal' : 'Deposit'
+  const reviewIsBank = reviewingTx?.type === 'withdrawal' && !!reviewingTx.bank_account_id
   const receiptPath = (notes: string | null) => notes?.match(/receipt:([0-9a-f-]{36}\/[\w.-]+)/i)?.[1] || null
   // The stored note carries the receipt's file path for the viewer button;
   // the path itself is an internal detail, so it is not printed in the table.
@@ -189,12 +196,21 @@ export default function TransactionsPage() {
       {/* Review Modal */}
       {reviewingId && reviewAction && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={() => { setReviewingId(null); setReviewAction(null) }}>
-          <div className="glass rounded-2xl p-6 border border-white/[0.08] max-w-md w-full" onClick={e => e.stopPropagation()}>
+          <div className="glass rounded-2xl p-6 border border-white/[0.08] max-w-md w-full max-h-[90dvh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-white mb-1">
-              {reviewAction === 'approve' ? `Approve ${reviewNoun}` : `Reject ${reviewNoun}`}
+              {reviewAction === 'approve' ? `Approve ${reviewNoun}` : `Reject ${reviewNoun}`}{reviewIsBank ? ' · Bank transfer' : ''}
             </h3>
+            {reviewIsBank && reviewingTx && (
+              <p className="text-slate-500 text-xs mb-2" data-bank-review-ref>
+                {reviewingTx.reference || reviewingTx.id} · {new Date(reviewingTx.created_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })} · client {reviewingTx.profiles?.full_name || reviewingTx.user_id.slice(0, 8)}
+              </p>
+            )}
             <p className="text-slate-400 text-sm mb-4">
-              {reviewingTx?.type === 'withdrawal'
+              {reviewIsBank
+                ? reviewAction === 'approve'
+                  ? `Approve only after you have sent the bank transfer. This deducts $${Number(reviewingTx!.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })} (USD) from the client's ${reviewingTx!.method === 'profit_balance' ? 'profit' : 'available'} balance and records your bank payment reference. The account must be verified first.`
+                  : 'This declines the bank withdrawal. Nothing is deducted from the client\'s balance. The reason is shown in the audit log.'
+                : reviewingTx?.type === 'withdrawal'
                 ? reviewAction === 'approve'
                   ? `This deducts $${Number(reviewingTx.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })} from the client's ${reviewingTx.method === 'profit_balance' ? 'profit' : 'available'} balance. Send the Bitcoin to ${reviewingTx.address || 'their address'} yourself.`
                   : 'This declines the withdrawal. Nothing is deducted from the client\'s balance.'
@@ -202,14 +218,17 @@ export default function TransactionsPage() {
                   ? 'This will mark the deposit as completed and credit the client\'s balance.'
                   : 'This will reject the deposit. The client\'s balance will not change.'}
             </p>
+            {reviewIsBank && reviewingTx?.bank_account_id && <BankReviewPanel bankAccountId={reviewingTx.bank_account_id} userId={reviewingTx.user_id} />}
             {reviewError && (
               <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm mb-4">{reviewError}</div>
             )}
             <div className="mb-4">
-              <label className="block text-sm font-medium text-slate-300 mb-2">Reason (optional)</label>
-              <textarea
+              <label className="block text-sm font-medium text-slate-300 mb-2" htmlFor="review-reason">
+                {reviewIsBank ? (reviewAction === 'approve' ? 'Bank payment reference (required)' : 'Reason for rejection') : 'Reason (optional)'}
+              </label>
+              <textarea id="review-reason"
                 value={reviewReason} onChange={e => setReviewReason(e.target.value)}
-                placeholder={reviewAction === 'approve' ? 'e.g. Receipt verified' : 'e.g. Invalid receipt'}
+                placeholder={reviewIsBank ? (reviewAction === 'approve' ? 'Reference shown by your bank for the transfer you sent' : 'e.g. Account holder name does not match') : reviewAction === 'approve' ? 'e.g. Receipt verified' : 'e.g. Invalid receipt'}
                 rows={3} className="input-field resize-none text-sm" disabled={reviewLoading}
               />
             </div>
@@ -225,7 +244,7 @@ export default function TransactionsPage() {
                 } disabled:opacity-50`}
               >
                 {reviewLoading && <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-                {reviewAction === 'approve' ? (reviewingTx?.type === 'withdrawal' ? 'Approve & Deduct' : 'Approve & Credit') : 'Reject'}
+                {reviewAction === 'approve' ? (reviewIsBank ? 'Transfer sent · Approve' : reviewingTx?.type === 'withdrawal' ? 'Approve & Deduct' : 'Approve & Credit') : 'Reject'}
               </button>
             </div>
           </div>
@@ -285,6 +304,7 @@ export default function TransactionsPage() {
                         <span className="text-xs text-slate-300 capitalize" data-admin-tx-type={typeKey(tx)}>{typeText(tx)}</span>
                         {tx.method && <p className="text-[10px] text-slate-600 mt-0.5">{sourceLabel(tx)}</p>}
                         {tx.address && <p className="text-[10px] text-slate-400 mt-0.5 font-mono break-all max-w-[180px] select-all">{tx.address}</p>}
+                        {tx.bank_account_id && tx.tx_hash && <p className="text-[10px] text-slate-500 mt-0.5 break-all max-w-[180px]" data-bank-ref>Bank ref: {tx.tx_hash}</p>}
                         {receiptPath(tx.notes) && (
                           <button onClick={() => openReceipt(receiptPath(tx.notes)!)} className="mt-1 text-[10px] font-medium text-sky-400 hover:text-sky-300 underline underline-offset-2 whitespace-nowrap">View receipt</button>
                         )}
@@ -349,6 +369,7 @@ export default function TransactionsPage() {
                   </div>
                   {tx.method && <p className="text-[11px] text-slate-500">{sourceLabel(tx)}</p>}
                   {tx.address && <p className="text-[11px] text-slate-400 font-mono break-all select-all">{tx.address}</p>}
+                  {tx.bank_account_id && tx.tx_hash && <p className="text-[11px] text-slate-500 break-all" data-bank-ref>Bank ref: {tx.tx_hash}</p>}
                   {tx.reference && <p className="text-xs font-mono text-slate-400">{tx.reference}</p>}
                   {noteText(tx.notes) && <p className="text-xs text-slate-500 truncate">{noteText(tx.notes)}</p>}
                   {receiptPath(tx.notes) && (

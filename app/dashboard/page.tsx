@@ -54,6 +54,8 @@ import { useAssets } from '@/components/markets/assetStore'
 import { effectiveState } from '@/lib/marketStatus'
 import { isAccountCredit, txCategory, txSign, type TxCategory } from '@/lib/txCategory'
 import { hideChat } from '@/lib/chatAside'
+import { BankAccountPanel, BankAccountSheet, BankGlyph, useBankAccounts } from '@/components/dashboard/BankDestination'
+import { BANK_STATUS_TEXT, bankMasked, bankTitle, countryName, ROUTE_NAMES, type SavedBankAccount } from '@/lib/bankRoutes'
 
 const BTC_ADDRESS = 'bc1qvpwmdln4nm6xa2k9q26l84pg4ud0uuqzk83053'
 
@@ -1514,7 +1516,7 @@ function DepositTab({ onSuccess, go, can }: { onSuccess: () => void; go: (id: st
 // reader on the page underneath), page scroll is locked, Smartsupp is hidden
 // behind it, and focus is trapped inside. Closes on pick, backdrop tap,
 // drag-down, or Escape; dismissing keeps the current selection.
-function MethodSheet({ choices, value, loading, onPick, onClose, title = 'Choose payment method' }: { choices: { value: string; glyph: string; tone: string; title: string; sub: string; group: 'crypto' | 'other' }[]; value: string; loading?: boolean; onPick: (v: string) => void; onClose: () => void; title?: string }) {
+function MethodSheet({ choices, value, loading, onPick, onClose, title = 'Choose payment method' }: { choices: { value: string; glyph: ReactNode; tone: string; title: string; sub: string; group: 'crypto' | 'other' }[]; value: string; loading?: boolean; onPick: (v: string) => void; onClose: () => void; title?: string }) {
   const ref = useRef<HTMLDivElement>(null)
   const [closing, setClosing] = useState(false)
   const [dragY, setDragY] = useState(0)
@@ -1635,7 +1637,17 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
   // the service and its fee rule from the wallet id); a typed address = Normal
   // Withdrawal on that address's network (Bitcoin).
   const feeWallet = wallets.find(w => w.id === destinationWalletId)
-  const feeQ = useServiceFee('withdrawal', amtNum > 0 ? amtNum : 0, feeWallet ? { walletId: feeWallet.id } : { network: 'Bitcoin' })
+  // Saved bank accounts (manual bank transfer). Shown only when bank
+  // withdrawals are switched on; the value of a bank choice is "bank:<id>".
+  const bank = useBankAccounts()
+  const bankOn = bank.state === 'ok' && !!bank.context?.enabled
+  const [bankSheet, setBankSheet] = useState<{ replace: SavedBankAccount | null } | null>(null)
+  // "Add a bank account" opens the form once the destination sheet has closed.
+  const pendingBankSheet = useRef(false)
+  const selectedBank = destinationWalletId.startsWith('bank:') ? bank.accounts.find(a => `bank:${a.id}` === destinationWalletId) : undefined
+  // A bank transfer is a Normal Withdrawal on the "Bank transfer" network,
+  // the same rule the database applies when it charges the fee.
+  const feeQ = useServiceFee('withdrawal', amtNum > 0 ? amtNum : 0, selectedBank ? { network: 'Bank transfer' } : feeWallet ? { walletId: feeWallet.id } : { network: 'Bitcoin' })
   useEffect(() => {
     let active = true
     authFetch('/api/client/wallets')
@@ -1655,22 +1667,34 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
   const max = withdrawable(source)
   const selectedWallet = wallets.find(wallet => wallet.id === destinationWalletId)
   // Destination options for the bottom sheet: a typed Bitcoin address, or a verified wallet.
-  const destChoices: { value: string; glyph: string; tone: string; title: string; sub: string; group: 'crypto' | 'other' }[] = [
+  const destChoices: { value: string; glyph: ReactNode; tone: string; title: string; sub: string; group: 'crypto' | 'other' }[] = [
     { value: '', glyph: '₿', tone: 'bg-amber-500/15 text-amber-300', title: 'Enter a Bitcoin address', sub: 'Paste it in the field below', group: 'other' },
     ...wallets.map(w => ({ value: w.id, glyph: '◈', tone: 'bg-sky-500/15 text-sky-300', title: w.wallet_name || w.label || 'Verified wallet', sub: `${w.network} · ${w.address.length > 12 ? `${w.address.slice(0, 6)}…${w.address.slice(-4)}` : w.address}`, group: 'crypto' as const })),
+    ...(bankOn ? [
+      ...bank.accounts.map(a => ({ value: `bank:${a.id}`, glyph: <BankGlyph />, tone: 'bg-emerald-500/15 text-emerald-300', title: bankTitle(a), sub: `${bankMasked(a)} · ${BANK_STATUS_TEXT[a.status]}`, group: 'other' as const })),
+      bank.accounts.length
+        ? { value: 'bank:new', glyph: <BankGlyph />, tone: 'bg-emerald-500/15 text-emerald-300', title: 'Add a bank account', sub: 'Bank transfer to another account', group: 'other' as const }
+        : { value: 'bank:new', glyph: <BankGlyph />, tone: 'bg-emerald-500/15 text-emerald-300', title: 'Bank transfer', sub: 'Withdraw to your bank account', group: 'other' as const },
+    ] : []),
   ]
   const destChoice = destChoices.find(c => c.value === destinationWalletId) || destChoices[0]
   const destinationAddress = selectedWallet?.address || address.trim()
 
   // Submitting validates and opens a review of exactly what will be sent;
   // only Confirm in that review makes the request.
-  const [review, setReview] = useState<{ amt: number; walletId: string | null; address: string; network: string } | null>(null)
+  const [review, setReview] = useState<{ amt: number; walletId: string | null; bank?: SavedBankAccount; address: string; network: string } | null>(null)
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     const amt = Math.round(parseFloat(amount) * 100) / 100
     if (!amt || amt <= 0) { setError(t('withdraw.errAmount')); return }
     if (amt > max) { setError(t('withdraw.errMax', { max: `$${fmt(max)}` })); return }
+    if (destinationWalletId.startsWith('bank:')) {
+      if (!selectedBank) { setError('Choose one of your saved bank accounts.'); return }
+      if (selectedBank.status === 'rejected') { setError('This bank account was not accepted. Replace the details or choose another destination.'); return }
+      setReview({ amt, walletId: null, bank: selectedBank, address: bankMasked(selectedBank), network: 'Bank transfer' })
+      return
+    }
     if (destinationWalletId && !selectedWallet) { setError('Select a currently linked, verified wallet.'); return }
     if (!selectedWallet && !/^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,87}$/.test(address.trim())) { setError(t('withdraw.errAddress')); return }
     setReview({ amt, walletId: selectedWallet?.id || null, address: destinationAddress, network: selectedWallet?.network || 'Bitcoin' })
@@ -1689,7 +1713,7 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
         body: JSON.stringify({
           amount: amt,
           source,
-          ...(review.walletId ? { wallet_id: review.walletId } : { address: review.address }),
+          ...(review.bank ? { bank_account_id: review.bank.id } : review.walletId ? { wallet_id: review.walletId } : { address: review.address }),
           notes: notes.trim() || undefined,
         }),
       }))
@@ -1725,6 +1749,17 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
           onConfirm={send}
           onCancel={() => setReview(null)}
         >
+          {review.bank ? (
+            <dl className="divide-y divide-ink-700 text-sm" data-bank-review>
+              <div className="flex justify-between gap-4 py-2.5"><dt className="text-fg-muted">Method</dt><dd className="text-fg text-right">Bank transfer · {ROUTE_NAMES[review.bank.route]}</dd></div>
+              <div className="flex justify-between gap-4 py-2.5"><dt className="text-fg-muted">{t('withdraw.amount')}</dt><dd className="text-fg font-semibold tabular-nums">${fmt(review.amt)}</dd></div>
+              <div className="flex justify-between gap-4 py-2.5"><dt className="text-fg-muted">{t('withdraw.from')}</dt><dd className="text-fg">{t(source === 'profit_balance' ? 'withdraw.profitShort' : 'withdraw.availableShort')}</dd></div>
+              <div className="py-2.5"><dt className="text-fg-muted mb-1">Destination</dt>
+                <dd className="text-fg"><span className="block font-medium">{bankTitle(review.bank)}</span><span className="block text-fg-muted">{bankMasked(review.bank)}</span><span className="block text-fg-faint text-[13px]">{review.bank.bank_name} · {countryName(review.bank.country)}</span></dd></div>
+              <div className="flex justify-between gap-4 py-2.5"><dt className="text-fg-muted">Paid in</dt><dd className="text-fg text-right" data-bank-payout-currency>{review.bank.currency}</dd></div>
+              <div className="flex justify-between gap-4 py-2.5"><dt className="text-fg-muted">Account status</dt><dd className="text-fg text-right">{BANK_STATUS_TEXT[review.bank.status]}</dd></div>
+            </dl>
+          ) : (
           <dl className="divide-y divide-ink-700 text-sm">
             <div className="flex justify-between gap-4 py-2.5"><dt className="text-fg-muted">Service</dt><dd className="text-fg text-right" data-review-service>{feeQ.state === 'ok' && feeQ.service ? (feeQ.service === 'wallet_withdrawal' ? 'External Wallet Transfer' : 'Normal Withdrawal') : '…'}</dd></div>
             <div className="flex justify-between gap-4 py-2.5"><dt className="text-fg-muted">Asset · Network</dt><dd className="text-fg text-right">{feeQ.state === 'ok' && feeQ.asset ? `${feeQ.asset} · ` : ''}{review.network}</dd></div>
@@ -1732,8 +1767,16 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
             <div className="flex justify-between gap-4 py-2.5"><dt className="text-fg-muted">{t('withdraw.from')}</dt><dd className="text-fg">{t(source === 'profit_balance' ? 'withdraw.profitShort' : 'withdraw.availableShort')}</dd></div>
             <div className="py-2.5"><dt className="text-fg-muted mb-1">{review.walletId ? 'Destination (linked wallet)' : t('withdraw.yourAddress')} · {review.network}</dt><dd className="text-fg font-mono text-[13px] break-all">{review.address}</dd></div>
           </dl>
+          )}
           <div className="mt-3"><FeeRows q={feeQ} amount={review.amt} kind="withdrawal" /></div>
-          <p className="mt-4 text-[13px] text-fg-muted leading-relaxed">{t('withdraw.reviewNote')}</p>
+          {review.bank ? (
+            <div className="mt-4 space-y-2 text-[13px] text-fg-muted leading-relaxed" data-bank-review-note>
+              {review.bank.currency !== 'USD' && <p>Amounts are in USD. Your bank receives {review.bank.currency}; the exchange rate is applied by our payments team when the transfer is sent, so the exact {review.bank.currency} amount is not fixed yet.</p>}
+              <p>Bank transfers are sent by our payments team, not automatically. They verify the account, send the transfer and then mark the request completed with the bank&apos;s payment reference. Until then it stays pending and the amount is held, not deducted. Timing depends on that review and on your bank.</p>
+            </div>
+          ) : (
+            <p className="mt-4 text-[13px] text-fg-muted leading-relaxed">{t('withdraw.reviewNote')}</p>
+          )}
         </ConfirmModal>
       )}
       <OverviewHero kind="withdraw" id="wd-title" icon={<IconArrowUp width={20} height={20} />} title={t('withdraw.title')} body={t('withdraw.body')}
@@ -1790,8 +1833,24 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
             <span id="w-destination-value" className="min-w-0 flex-1 truncate">{destChoice.title} <span className="text-fg-faint">· {destChoice.sub}</span></span>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-fg-faint shrink-0" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
           </button>
-          {destSheet && <MethodSheet title="Withdrawal destination" choices={destChoices} value={destinationWalletId} onPick={v => { setDestinationWalletId(v); setAddress(''); setError('') }} onClose={() => setDestSheet(false)} />}
-          {selectedWallet ? (
+          {destSheet && <MethodSheet title="Withdrawal destination" choices={destChoices} value={destinationWalletId}
+            onPick={v => { setError(''); if (v === 'bank:new') { pendingBankSheet.current = true; return } setDestinationWalletId(v); setAddress('') }}
+            onClose={() => { setDestSheet(false); if (pendingBankSheet.current) { pendingBankSheet.current = false; setBankSheet({ replace: null }) } }} />}
+          {bankSheet && bank.context && (
+            <BankAccountSheet ctx={bank.context} replace={bankSheet.replace} onClose={() => setBankSheet(null)}
+              onSaved={a => {
+                const old = bankSheet.replace?.id
+                bank.setAccounts(prev => [...prev.filter(x => x.id !== old), a])
+                setDestinationWalletId(`bank:${a.id}`); setAddress(''); setBankSheet(null)
+                toast.show(old ? 'New bank details saved. They will be verified again.' : 'Bank account saved.')
+              }} />
+          )}
+          {selectedBank ? (
+            <BankAccountPanel account={selectedBank} disabled={submitting}
+              onRenamed={a => bank.setAccounts(prev => prev.map(x => x.id === a.id ? a : x))}
+              onReplace={() => setBankSheet({ replace: selectedBank })}
+              onRemoved={id => { bank.setAccounts(prev => prev.filter(x => x.id !== id)); setDestinationWalletId(''); toast.show('Bank account removed.') }} />
+          ) : selectedWallet ? (
             <p className="mt-2 break-all font-mono text-xs text-fg-muted">{selectedWallet.address}</p>
           ) : (
             <>
@@ -1801,6 +1860,7 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
             </>
           )}
           {walletLoadError && <p role="status" className="mt-2 text-xs text-amber-300">Verified wallets could not be loaded. You can still enter a Bitcoin address.</p>}
+          {bank.state === 'error' && <p role="status" className="mt-2 text-xs text-amber-300" data-bank-load-error>Saved bank accounts could not be loaded. <button type="button" className="underline underline-offset-2" onClick={() => bank.reload()}>Try again</button></p>}
         </div>
 
         <div>
