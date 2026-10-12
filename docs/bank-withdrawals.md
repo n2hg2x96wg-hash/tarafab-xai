@@ -19,7 +19,16 @@ Every country also needs:
 - the bank name;
 - an optional nickname.
 
-Any other country shows "not available yet". These are the routes **your team** has agreed to pay by hand.
+**Listed versus payable:**
+- The country picker lists every inhabited country and territory, with its currencies, from the maintained `countries-list` package (`lib/countryCatalog.ts`). It is searchable by English or local name, ISO code, common other names, or currency.
+- Only the countries above are marked **Available** and show bank fields. These are the routes **your team** has agreed to pay by hand.
+- Any other country shows "not available yet" and a **Contact Tarafab.XAi Support** action, which opens the live chat (or Help & Support when chat is off).
+- The database (`_bank_route_for`) refuses unsupported countries regardless of what the page shows.
+
+**Adding a country** needs all of the following:
+- a decision that your team (or a provider) can pay there;
+- its route, currency and field rules in `_bank_route_for` / `_bank_normalize` and in `lib/bankRoutes.ts`;
+- the route added to `system_settings.bank_withdrawals.routes`.
 
 **Turning routes on or off:**
 - Edit `system_settings` key `bank_withdrawals`: `{"enabled": true, "mode": "manual", "routes": [...]}`.

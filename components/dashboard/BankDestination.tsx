@@ -6,9 +6,12 @@ import { authFetch, errorText, messageFor, readJson, RequestError } from '@/lib/
 import { hideChat } from '@/lib/chatAside'
 import { FormError, Spinner } from '@/components/AuthShell'
 import {
-  BANK_COUNTRIES, BANK_STATUS_TEXT, bankCountry, bankMasked, bankTitle, countryName, ROUTE_NAMES, routeFields, validateBankDetails,
+  BANK_STATUS_TEXT, bankCountry, bankMasked, bankTitle, countryName, pickDetails, ROUTE_NAMES, routeFields, validateBankDetails,
   type BankContext, type SavedBankAccount,
 } from '@/lib/bankRoutes'
+import type { CatalogCountry } from '@/lib/countryCatalog'
+import { CountryPicker, NOT_LISTED } from '@/components/dashboard/CountryPicker'
+import { SupportButton } from '@/components/dashboard/SupportAction'
 
 // Bank-transfer withdrawal destinations in the Withdraw tab: the client's
 // saved bank accounts (masked), the form that adds or replaces one, and the
@@ -60,8 +63,8 @@ export function BankAccountSheet({ ctx, replace, onSaved, onClose }: {
   onSaved: (a: SavedBankAccount) => void
   onClose: () => void
 }) {
-  const allowed = BANK_COUNTRIES.filter(c => ctx.routes.includes(c.route))
   const [country, setCountry] = useState(replace?.country || '')
+  const [picked, setPicked] = useState<CatalogCountry | null>(null)
   const [holder, setHolder] = useState(replace?.holder_name || ctx.legal_name || '')
   const [bankName, setBankName] = useState(replace?.bank_name || '')
   const [label, setLabel] = useState(replace?.label || '')
@@ -80,7 +83,7 @@ export function BankAccountSheet({ ctx, replace, onSaved, onClose }: {
     const html = document.documentElement, prev = html.style.overflow
     html.style.overflow = 'hidden'
     const showChat = hideChat()
-    ref.current?.querySelector<HTMLElement>('select, input')?.focus()
+    ref.current?.querySelector<HTMLElement>('[data-country-trigger], select, input')?.focus()
     return () => { html.style.overflow = prev; showChat(); opener?.focus?.() }
   }, [])
 
@@ -109,7 +112,7 @@ export function BankAccountSheet({ ctx, replace, onSaved, onClose }: {
       const res = await authFetch('/api/client/bank-accounts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'save', country: c!.code, holder_name: holder, bank_name: bankName, label: label.trim() || undefined, details, replace_id: replace?.id }),
+        body: JSON.stringify({ action: 'save', country: c!.code, holder_name: holder, bank_name: bankName, label: label.trim() || undefined, details: pickDetails(c!, details), replace_id: replace?.id }),
       })
       const body = await res.json().catch(() => null) as { account?: SavedBankAccount; error?: string; fields?: Record<string, string> } | null
       if (!res.ok || !body?.account) {
@@ -153,20 +156,31 @@ export function BankAccountSheet({ ctx, replace, onSaved, onClose }: {
           <form onSubmit={save} className="mt-4 space-y-4" noValidate data-bank-form>
             {error && <FormError message={error} />}
             <div>
-              <label htmlFor="bk-country" className="field-label">Country of bank account</label>
-              <select id="bk-country" name="country" value={country} onChange={e => { setCountry(e.target.value); setDetails({}); setFieldErr({}); setError('') }} className={cls('country')} disabled={saving || !!replace} {...aria('country')}>
-                <option value="">Choose a country</option>
-                {allowed.map(x => <option key={x.code} value={x.code}>{x.name} · {x.currency}</option>)}
-                <option value="other">My country is not listed</option>
-              </select>
+              <span id="bk-country-label" className="field-label">Country of bank account</span>
+              {/* Every country is listed; only those marked Available can be paid by bank transfer.
+                  Entered details are kept when the country changes. */}
+              <CountryPicker value={country} disabled={saving || !!replace} invalid={!!fieldErr.country} describedBy={fieldErr.country ? 'bk-country-err' : undefined}
+                isAvailable={x => !!x.payout && ctx.routes.includes(x.payout.route)}
+                onChange={(code, x) => { setCountry(code); setPicked(x); setFieldErr({}); setError('') }} />
               {err('country')}
-              {country === 'other' && (
+              {country && !supported && (
                 <p className="mt-2 text-[13px] text-amber-300" role="status" data-bank-unsupported>
-                  Bank withdrawals are not available for other countries yet. You can still withdraw with Bitcoin or a verified wallet.
+                  {country === NOT_LISTED || !picked
+                    ? 'Bank withdrawals are only available for the countries marked Available.'
+                    : `Bank withdrawals to ${picked.name} (${picked.currencies.join(', ')}) are not available yet.`}
+                  {' '}You can still withdraw with Bitcoin or a verified wallet.
                 </p>
               )}
               {c && supported && <p className="mt-1.5 text-[12.5px] text-fg-faint" data-bank-route>{ROUTE_NAMES[c.route]} · paid in {c.currency}</p>}
             </div>
+
+            {country && !supported && (
+              <div className="rounded-xl border border-ink-700 p-3.5 text-[13px]" data-bank-help>
+                <p className="font-medium text-fg">Need help with your bank account?</p>
+                <p className="mt-1 text-fg-muted">Contact your representative or Tarafab.XAi Support to ask about bank-transfer availability for your country.</p>
+                <SupportButton className="btn btn-sm btn-outline mt-3" beforeOpen={onClose} data-bank-support>Contact Tarafab.XAi Support</SupportButton>
+              </div>
+            )}
 
             {c && supported && (
               <>

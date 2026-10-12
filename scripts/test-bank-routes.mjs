@@ -58,3 +58,66 @@ test('invalid details are reported on the right field', () => {
 test('only the route\'s own keys are sent', () => {
   assert.deepEqual(pickDetails(bankCountry('GB'), { sort_code: ' 200000 ', account_number: '55779911', pin: '1234', iban: 'x', cvv: 1 }), { sort_code: '200000', account_number: '55779911' })
 })
+
+// ---- Country catalog (lib/countryCatalog.ts, data from countries-list) ----
+const CAT = await import('../lib/countryCatalog.ts')
+
+test('catalog: requested countries with their currencies', () => {
+  const want = { NG: 'NGN', PH: 'PHP', GH: 'GHS', KE: 'KES', ZA: 'ZAR', IN: 'INR', PK: 'PKR', BD: 'BDT', EG: 'EGP', AE: 'AED', SA: 'SAR', SG: 'SGD', MY: 'MYR', ID: 'IDR', JP: 'JPY', NZ: 'NZD', CH: 'CHF', BR: 'BRL', MX: 'MXN', TH: 'THB' }
+  for (const [code, cur] of Object.entries(want)) {
+    const c = CAT.findCountry(code)
+    assert.ok(c, code)
+    assert.deepEqual(c.currencies, [cur], code)
+  }
+  assert.equal(CAT.countryLabel(CAT.findCountry('NG')), 'Nigeria · NGN')
+  assert.equal(CAT.countryLabel(CAT.findCountry('PH')), 'Philippines · PHP')
+})
+
+test('catalog: comprehensive, no duplicates, no fund codes, no uninhabited places', () => {
+  const all = CAT.allCountries()
+  assert.ok(all.length >= 240, String(all.length))
+  assert.equal(new Set(all.map(c => c.code)).size, all.length)
+  assert.equal(new Set(all.map(c => c.name)).size, all.length)
+  const codes = all.flatMap(c => c.currencies)
+  for (const f of ['CHE', 'CHW', 'USN', 'BOV', 'CLF', 'UYI']) assert.ok(!codes.includes(f), f)
+  for (const u of ['AQ', 'BV', 'HM']) assert.equal(CAT.findCountry(u), undefined, u)
+  assert.ok(all.every(c => c.currencies.length && c.currencies.every(x => /^[A-Z]{3}$/.test(x))))
+  // Sorted by name.
+  assert.deepEqual(all.map(c => c.name), [...all.map(c => c.name)].sort((a, b) => a.localeCompare(b, 'en')))
+})
+
+test('catalog: several currencies are kept and shown', () => {
+  assert.deepEqual(CAT.findCountry('PA').currencies, ['PAB', 'USD'])
+  assert.equal(CAT.countryLabel(CAT.findCountry('PA')), 'Panama · PAB, USD')
+  assert.deepEqual(CAT.findCountry('CH').currencies, ['CHF'])
+  assert.deepEqual(CAT.findCountry('US').currencies, ['USD'])
+  assert.match(CAT.currencyText(CAT.findCountry('ZW')), /^ZWG, USD, ZAR \+\d+$/)
+})
+
+test('catalog: every previously offered country is still listed, with its payout route', () => {
+  for (const b of BANK_COUNTRIES) {
+    const c = CAT.findCountry(b.code)
+    assert.ok(c, b.code)
+    assert.equal(c.payout?.route, b.route, b.code)
+    assert.ok(c.currencies.includes(b.currency), b.code)
+  }
+  // Listing a country does not make it payable.
+  assert.equal(CAT.allCountries().filter(c => c.payout).length, BANK_COUNTRIES.length)
+  for (const code of ['NG', 'PH', 'IN', 'JP']) assert.equal(CAT.findCountry(code).payout, undefined, code)
+})
+
+test('catalog: search by name, local name, other names, code and currency', () => {
+  const first = q => CAT.searchCountries(q)[0]?.code
+  assert.equal(first('Nigeria'), 'NG')
+  assert.ok(CAT.searchCountries('nig').map(c => c.code).includes('NG'))
+  assert.equal(first('philip'), 'PH')
+  assert.equal(first('Pilipinas'), 'PH')
+  assert.equal(first('uae'), 'AE')
+  assert.equal(first('cote divoire'), 'CI')
+  assert.equal(first('curacao'), 'CW')
+  assert.equal(first('Deutschland'), 'DE')
+  assert.equal(first('NGN'), 'NG')
+  assert.equal(first('united kingdom'), 'GB')
+  assert.deepEqual(CAT.searchCountries('zzzz'), [])
+  assert.equal(CAT.searchCountries('').length, CAT.allCountries().length)
+})
