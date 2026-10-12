@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     if (authErr || !user) return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
 
     const [{ data: profile, error: profileErr }, { data: account, error: accountErr }, { data: pendingTransactions, error: pendingErr }, summary] = await Promise.all([
-      supabase.from('profiles').select('full_name, role').eq('id', user.id).maybeSingle(),
+      supabase.from('profiles').select('full_name, role, display_name').eq('id', user.id).maybeSingle(),
       supabase
         .from('accounts')
         .select('account_balance, available_balance, invested_balance, pending_balance, profit_balance, trading_status, trading_strategy_name, trading_status_updated_at')
@@ -64,6 +64,8 @@ export async function GET(request: NextRequest) {
         id: user.id,
         email: user.email,
         full_name: profile?.full_name || user.user_metadata?.full_name || null,
+        // Preferred name for greetings only; full_name stays the legal name.
+        display_name: profile?.display_name || null,
         role: profile?.role || 'customer',
         email_confirmed: Boolean(user.email_confirmed_at),
         created_at: user.created_at,

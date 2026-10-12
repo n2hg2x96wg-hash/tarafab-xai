@@ -27,6 +27,8 @@ export interface UserInfo {
   id: string
   email: string
   full_name: string | null
+  // Client-chosen nickname for greetings; never used as the legal name.
+  display_name?: string | null
   role: string
   email_confirmed?: boolean
   created_at?: string
