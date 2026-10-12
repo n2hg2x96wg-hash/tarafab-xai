@@ -16,12 +16,26 @@ export async function POST(request: NextRequest) {
   if (off === true) return NextResponse.json({ error: 'This feature is currently unavailable. Please contact support.' }, { status: 403 })
 
   try {
-    const body = await request.json() as { amount: number; source: string; address?: string; wallet_id?: string; notes?: string; idempotency_key?: string }
-    const { amount, source, address, wallet_id, notes } = body
+    const body = await request.json() as { amount: number; source: string; address?: string; wallet_id?: string; bank_account_id?: string; notes?: string; idempotency_key?: string }
+    const { amount, source, address, wallet_id, bank_account_id, notes } = body
     if (typeof amount !== 'number' || !(amount > 0)) return NextResponse.json({ error: 'Enter an amount greater than zero.' }, { status: 400 })
+    if (bank_account_id !== undefined && (typeof bank_account_id !== 'string' || !/^[0-9a-f-]{36}$/i.test(bank_account_id))) {
+      return NextResponse.json({ error: 'Choose one of your saved bank accounts.' }, { status: 400 })
+    }
 
     const key = idempotencyKey(request, body)
-    const { data, error } = wallet_id
+    // A saved bank account (manual bank transfer, reviewed by staff), a linked
+    // and verified wallet, or a typed Bitcoin address. All three create the
+    // same pending_review withdrawal and hold the amount the same way.
+    const { data, error } = bank_account_id
+      ? await supabase.rpc('client_request_withdrawal_to_bank', {
+        p_amount: amount,
+        p_source: source,
+        p_bank_account_id: bank_account_id,
+        p_notes: notes?.trim() || null,
+        p_idempotency_key: key,
+      })
+      : wallet_id
       ? await supabase.rpc('client_request_withdrawal_to_wallet', {
         p_amount: amount,
         p_source: source,
