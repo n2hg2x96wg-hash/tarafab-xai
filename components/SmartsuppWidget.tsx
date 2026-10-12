@@ -19,12 +19,14 @@ const PRODUCTION_HOSTS = [BARE_HOST, `www.${BARE_HOST}`, 'tarafabxai.vercel.app'
 export const STAFF_FLAG = 'tarafab.staffDevice'
 const BOT_UA = /bot|crawl|spider|slurp|headless|lighthouse|pagespeed|preview|vercel|screenshot|monitor|uptime|pingdom|facebookexternalhit|embedly|whatsapp|telegram|discord|slack|curl|wget|python|axios|node-fetch/i
 
-export function chatAllowed(): boolean {
+// includeStaff: also allow devices marked by the admin panel (tawk.to has no
+// per-visitor cost, and staff need to see the chat to test and answer it).
+export function chatAllowed({ includeStaff = false }: { includeStaff?: boolean } = {}): boolean {
   const host = window.location.hostname
   const isProd = PRODUCTION_HOSTS.includes(host) || (!host.endsWith('.vercel.app') && host !== 'localhost' && !/^\d+\.\d+\.\d+\.\d+$/.test(host))
   if (!isProd) return false
   if (navigator.webdriver || BOT_UA.test(navigator.userAgent)) return false
-  try { if (localStorage.getItem(STAFF_FLAG) === '1') return false } catch { /* storage blocked: treat as visitor */ }
+  if (!includeStaff) try { if (localStorage.getItem(STAFF_FLAG) === '1') return false } catch { /* storage blocked: treat as visitor */ }
   return true
 }
 

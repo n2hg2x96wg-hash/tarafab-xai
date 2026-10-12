@@ -7,7 +7,8 @@ import { startChatAvoid } from '@/lib/chatAvoid'
 import { chatAllowed, isRecoveryPage } from '@/components/SmartsuppWidget'
 
 // tawk.to live chat (replaces Smartsupp; the same rules decide where it runs,
-// see SmartsuppWidget): production site only, not for bots or staff devices,
+// see SmartsuppWidget, except that staff devices also get it): production site
+// only, not for bots,
 // never loaded on /admin or the password-recovery pages (their addresses carry
 // one-time tokens), and switchable from Admin → Feature Control Center → Live
 // chat. Rendered once in the root layout.
@@ -23,6 +24,29 @@ type TawkApi = {
   customStyle?: unknown
 }
 declare global { interface Window { Tawk_API?: TawkApi; Tawk_LoadStart?: Date } }
+
+// The API's methods may only be used once tawk.to has called onLoad.
+let ready = false
+const waiting = new Set<() => void>()
+function markReady() { ready = true; waiting.forEach(f => f()); waiting.clear() }
+
+// Opens the chat window (Help & Support). If the widget is still starting,
+// waits for it instead of reporting chat as unavailable; resolves false only
+// when it is not loading on this page or does not start within the timeout.
+export function openTawkChat(timeoutMs = 10_000): Promise<boolean> {
+  const open = () => {
+    const api = window.Tawk_API
+    try { api?.showWidget?.(); api?.maximize?.(); return !!api?.maximize } catch { return false }
+  }
+  if (ready) return Promise.resolve(open())
+  const loading = !!document.getElementById(SCRIPT_ID) || (!!window.Tawk_API && document.readyState !== 'complete')
+  if (!loading) return Promise.resolve(false)
+  return new Promise(resolve => {
+    const done = () => { clearTimeout(t); resolve(open()) }
+    const t = setTimeout(() => { waiting.delete(done); resolve(false) }, timeoutMs)
+    waiting.add(done)
+  })
+}
 
 // The official embed, run once per page load: the script's id guards against
 // a second copy after client navigation, remounts or hot reloads.
@@ -41,7 +65,7 @@ function loadTawk(onLoad: () => void) {
   const api: TawkApi = (window.Tawk_API = window.Tawk_API || {})
   window.Tawk_LoadStart = new Date()
   api.customStyle = { visibility: { desktop: { position: 'br', xOffset: 16, yOffset }, mobile: { position: 'br', xOffset: 16, yOffset } } }
-  api.onLoad = onLoad
+  api.onLoad = () => { markReady(); onLoad() }
   const s1 = document.createElement('script')
   const s0 = document.getElementsByTagName('script')[0]
   s1.id = SCRIPT_ID
@@ -65,12 +89,13 @@ export default function TawkWidget() {
 
   // Decided once per page load in the browser; later navigation reuses the
   // already-loaded widget, so moving between pages is never a new visit.
-  useEffect(() => { setAllowed(chatAllowed()) }, [])
+  useEffect(() => { setAllowed(chatAllowed({ includeStaff: true })) }, [])
 
   // Load after the page has finished loading, so it never delays rendering.
   useEffect(() => {
     if (!allowed || off || blockedPage) return
-    if (window.Tawk_API?.hideWidget) { setLoaded(true); return }
+    if (ready) { setLoaded(true); return }
+    window.Tawk_API = window.Tawk_API || {}
     const start = () => loadTawk(() => setLoaded(true))
     if (document.readyState === 'complete') { start(); return }
     window.addEventListener('load', start, { once: true })

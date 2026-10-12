@@ -11,6 +11,7 @@ import { LanguageSelector } from '@/components/LanguageSelector'
 import { ThemeSelector } from '@/components/ThemeSelector'
 import { FormError, Spinner } from '@/components/AuthShell'
 import { IconChart, IconCheck, IconHelp, IconInfo, IconMail } from '@/components/Icons'
+import { openTawkChat } from '@/components/TawkWidget'
 import {
   EmptyState, OPEN_STATUSES, SettingsRow, SettingsSection, StatusTag, SUPPORT_EMAIL, TxIcon, fmt, methodLabel, txDescription, txLabel,
   type Account, type Tx, type UserInfo,
@@ -219,12 +220,14 @@ declare global { interface Window { smartsupp?: (...args: unknown[]) => void } }
 export function SupportTab() {
   const { t } = useI18n()
   const [chatMissing, setChatMissing] = useState(false)
-  const openChat = () => {
+  const openChat = async () => {
     // The site's live chat (tawk.to; Smartsupp if that is ever restored).
-    const tawk = window.Tawk_API
-    if (tawk?.maximize) { try { tawk.showWidget?.(); tawk.maximize(); setChatMissing(false) } catch { setChatMissing(true) } }
-    else if (typeof window.smartsupp === 'function') { window.smartsupp('chat:open'); setChatMissing(false) }
-    else setChatMissing(true)
+    // tawk.to may still be starting: openTawkChat waits for it rather than
+    // reporting chat as unavailable.
+    setChatMissing(false)
+    if (await openTawkChat()) return
+    if (typeof window.smartsupp === 'function') { window.smartsupp('chat:open'); return }
+    setChatMissing(true)
   }
   // One list of support routes (rows, not cards). Email is the primary route
   // because it always works; live chat opens the site's single chat widget.
