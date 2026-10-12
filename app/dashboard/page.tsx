@@ -55,6 +55,7 @@ import { effectiveState } from '@/lib/marketStatus'
 import { isAccountCredit, txCategory, txSign, type TxCategory } from '@/lib/txCategory'
 import { hideChat } from '@/lib/chatAside'
 import { BankAccountPanel, BankAccountSheet, BankGlyph, useBankAccounts } from '@/components/dashboard/BankDestination'
+import { SupportButton } from '@/components/dashboard/SupportAction'
 import { BANK_STATUS_TEXT, bankMasked, bankTitle, countryName, ROUTE_NAMES, type SavedBankAccount } from '@/lib/bankRoutes'
 
 const BTC_ADDRESS = 'bc1qvpwmdln4nm6xa2k9q26l84pg4ud0uuqzk83053'
@@ -1373,8 +1374,8 @@ function DepositTab({ onSuccess, go, can }: { onSuccess: () => void; go: (id: st
     { value: 'bitcoin', ...ASSET_INFO.BTC, title: 'Bitcoin', sub: 'BTC · Bitcoin Network', group: 'crypto' },
     ...(opts || []).map(o => { const i = ASSET_INFO[o.asset] || { glyph: o.asset.slice(0, 1), name: o.asset, tone: 'bg-ink-700 text-fg' }
       return { value: optKey(o), glyph: i.glyph, tone: i.tone, title: i.name, sub: `${o.asset} · ${o.network}${o.standard && o.standard !== 'Native' ? ` · ${o.standard}` : o.asset === 'ETH' ? ' Network' : ''}`, group: 'crypto' as const } }),
-    { value: 'bank_transfer', glyph: '🏦', tone: 'bg-ink-700 text-fg-muted', title: t('dash.method.bank_transfer'), sub: 'Get bank details from your representative', group: 'other' },
-    { value: 'wire_transfer', glyph: '⇄', tone: 'bg-ink-700 text-fg-muted', title: t('dash.method.wire_transfer'), sub: 'Get wire details from your representative', group: 'other' },
+    { value: 'bank_transfer', glyph: '🏦', tone: 'bg-ink-700 text-fg-muted', title: t('dash.method.bank_transfer'), sub: 'Contact your representative or support', group: 'other' },
+    { value: 'wire_transfer', glyph: '⇄', tone: 'bg-ink-700 text-fg-muted', title: t('dash.method.wire_transfer'), sub: 'Contact your representative or support', group: 'other' },
     { value: 'other', glyph: '…', tone: 'bg-ink-700 text-fg-muted', title: t('dash.method.other'), sub: 'Describe it in the notes', group: 'other' },
   ]
   const current = choices.find(c => c.value === method) || choices[0]
@@ -1463,6 +1464,14 @@ function DepositTab({ onSuccess, go, can }: { onSuccess: () => void; go: (id: st
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-fg-faint shrink-0" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
             </button>
             {ethNotice && <p className="mt-2 text-[12px] text-amber-300" role="status">{ethNotice}</p>}
+            {/* The method sheet's options are buttons, so "support" cannot be a link
+                inside them; the action sits here once Bank or Wire transfer is chosen. */}
+            {(method === 'bank_transfer' || method === 'wire_transfer') && (
+              <p className="mt-2 text-[12.5px] text-fg-muted" data-method-support>
+                Your representative or Tarafab.XAi Support will give you the {method === 'wire_transfer' ? 'wire' : 'bank'} details.{' '}
+                <SupportButton className="text-accent underline underline-offset-2 hover:text-fg disabled:opacity-60" data-method-support-action>Contact support</SupportButton>
+              </p>
+            )}
           </div>
 
           {isEth && (
