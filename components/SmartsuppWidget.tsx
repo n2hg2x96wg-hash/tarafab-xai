@@ -19,7 +19,7 @@ const PRODUCTION_HOSTS = [BARE_HOST, `www.${BARE_HOST}`, 'tarafabxai.vercel.app'
 export const STAFF_FLAG = 'tarafab.staffDevice'
 const BOT_UA = /bot|crawl|spider|slurp|headless|lighthouse|pagespeed|preview|vercel|screenshot|monitor|uptime|pingdom|facebookexternalhit|embedly|whatsapp|telegram|discord|slack|curl|wget|python|axios|node-fetch/i
 
-function chatAllowed(): boolean {
+export function chatAllowed(): boolean {
   const host = window.location.hostname
   const isProd = PRODUCTION_HOSTS.includes(host) || (!host.endsWith('.vercel.app') && host !== 'localhost' && !/^\d+\.\d+\.\d+\.\d+$/.test(host))
   if (!isProd) return false
@@ -30,7 +30,7 @@ function chatAllowed(): boolean {
 
 // Password-recovery pages carry one-time tokens in the address; the chat
 // script (a third party that records the page address) is never loaded there.
-const isRecoveryPage = (p: string | null) => p === '/reset-password' || !!p?.startsWith('/auth/')
+export const isRecoveryPage = (p: string | null) => p === '/reset-password' || !!p?.startsWith('/auth/')
 
 // Client-facing live chat. Renders on the landing page, sign-in/up, and
 // dashboard — hidden under /admin, since support chat is for clients

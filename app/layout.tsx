@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { cookies } from 'next/headers'
-import SmartsuppWidget from '@/components/SmartsuppWidget'
+import TawkWidget from '@/components/TawkWidget'
 import SessionGuard from '@/components/SessionGuard'
 import { ToastProvider } from '@/components/Toast'
 import { I18nProvider } from '@/lib/i18n/I18nProvider'
@@ -50,7 +50,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <ToastProvider>
               {children}
             </ToastProvider>
-            <SmartsuppWidget />
+            <TawkWidget />
             <SessionGuard />
           </I18nProvider>
         </ThemeProvider>
