@@ -53,7 +53,7 @@ import { feedStatus } from '@/lib/marketStatus'
 import { useAssets } from '@/components/markets/assetStore'
 import { effectiveState } from '@/lib/marketStatus'
 import { isAccountCredit, txCategory, txSign, type TxCategory } from '@/lib/txCategory'
-import { hideChat, useHideChat } from '@/lib/chatAside'
+import { hideChat } from '@/lib/chatAside'
 
 const BTC_ADDRESS = 'bc1qvpwmdln4nm6xa2k9q26l84pg4ud0uuqzk83053'
 
@@ -401,8 +401,7 @@ export default function DashboardPage() {
     return () => window.removeEventListener('popstate', onPop)
   }, [sidebarOpen])
 
-  // The support chat bubble steps aside while the phone menu is open.
-  useHideChat(sidebarOpen)
+  // The support chat stays available while the phone menu is open.
 
   // Mobile drawer: Escape closes it and the page behind does not scroll.
   useEffect(() => {

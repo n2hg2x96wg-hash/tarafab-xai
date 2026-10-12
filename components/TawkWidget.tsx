@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { hiddenState, useFeatures } from '@/components/ui/features'
-import { startChatAvoid } from '@/lib/chatAvoid'
 import { chatAllowed, isRecoveryPage } from '@/components/SmartsuppWidget'
 
 // tawk.to live chat (replaces Smartsupp; the same rules decide where it runs,
@@ -80,9 +79,9 @@ export default function TawkWidget() {
   const pathname = usePathname()
   const [allowed, setAllowed] = useState(false)
   const [loaded, setLoaded] = useState(false)
-  // Body flags set elsewhere: a menu or dialog is open (dialog-open), or the
-  // bubble would cover marked content (chat-avoid, lib/chatAvoid).
-  const [stepAside, setStepAside] = useState(false)
+  // A dialog or sheet is open (body.dialog-open, lib/chatAside): the bubble
+  // steps aside so it never covers that layer's buttons.
+  const [dialogOpen, setDialogOpen] = useState(false)
   const feature = useFeatures()
   const off = hiddenState(feature('live_chat'))
   const blockedPage = !!pathname?.startsWith('/admin') || isRecoveryPage(pathname)
@@ -102,40 +101,25 @@ export default function TawkWidget() {
     return () => window.removeEventListener('load', start)
   }, [allowed, off, blockedPage])
 
-  useEffect(() => startChatAvoid(), [])
   useEffect(() => {
-    const read = () => setStepAside(document.body.classList.contains('dialog-open') || document.body.classList.contains('chat-avoid'))
+    const read = () => setDialogOpen(document.body.classList.contains('dialog-open'))
     read()
     const mo = new MutationObserver(read)
     mo.observe(document.body, { attributes: true, attributeFilter: ['class'] })
     return () => mo.disconnect()
   }, [])
 
-  // Homepage: the bubble stays hidden while the hero's Open an account /
-  // Sign in buttons are on screen (on short phones it would sit on them),
-  // and appears once the visitor scrolls past them. One-shot: after that it
-  // stays visible, so an open conversation is never hidden by scrolling.
-  const [heroCta, setHeroCta] = useState(false)
-  useEffect(() => {
-    if (pathname !== '/' || typeof IntersectionObserver === 'undefined') { setHeroCta(false); return }
-    const el = document.querySelector('[data-hero-cta]'); if (!el) return
-    let seenOnce = false
-    const io = new IntersectionObserver(e => {
-      if (e[0].isIntersecting) { seenOnce = true; setHeroCta(true) }
-      else if (seenOnce) { setHeroCta(false); io.disconnect() }
-    })
-    io.observe(el); return () => io.disconnect()
-  }, [pathname])
-
-  // Show or hide the loaded widget. An open conversation only steps aside
-  // when the feature is switched off or the page must not show it.
+  // Show or hide the loaded widget. It stays visible while the page scrolls
+  // and while the navigation menu is open; it steps aside only on pages that
+  // must not show it, when Live chat is switched off, and (unless a
+  // conversation is open) while a dialog is on screen.
   useEffect(() => {
     const api = window.Tawk_API
     if (!loaded || !api?.hideWidget || !api.showWidget) return
     const open = !!api.isChatMaximized?.()
-    const hide = off || blockedPage || (!open && (heroCta || stepAside))
+    const hide = off || blockedPage || (!open && dialogOpen)
     try { if (hide) api.hideWidget(); else api.showWidget() } catch { /* widget not ready */ }
-  }, [loaded, off, blockedPage, heroCta, stepAside])
+  }, [loaded, off, blockedPage, dialogOpen])
 
   return null
 }
