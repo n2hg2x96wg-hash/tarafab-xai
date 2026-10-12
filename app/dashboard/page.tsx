@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, useRef, useCallback, type ReactNode } from 'react'
+import { Fragment, useEffect, useMemo, useState, useRef, useCallback, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { ComponentType, SVGProps, KeyboardEvent as RKeyboardEvent, PointerEvent as RPointerEvent } from 'react'
@@ -471,7 +471,8 @@ export default function DashboardPage() {
     .filter(i => i.core || !hiddenNav.includes(i.id))
     .map(i => ({ id: i.id, label: labelOf(i), group: t(g.label), icon: i.icon })))
 
-  const displayName = user?.full_name || user?.email?.split('@')[0] || 'there'
+  // Greetings use the client's nickname when set; the legal name otherwise.
+  const displayName = user?.display_name || user?.full_name || user?.email?.split('@')[0] || 'there'
   const initials = initialsOf(displayName)
   const current = navItems.find(n => n.id === activeNav)
 
@@ -627,7 +628,7 @@ export default function DashboardPage() {
             {activeNav === 'priceHistory' && <PriceHistoryTab />}
             {activeNav === 'deposit' && <DepositTab onSuccess={fetchData} go={go} can={id => !hiddenNav.includes(id)} />}
             {activeNav === 'withdraw' && <WithdrawTab account={account} txs={txs} onSuccess={fetchData} />}
-            {activeNav === 'profile' && <ProfileTab user={user} account={account} />}
+            {activeNav === 'profile' && <ProfileTab user={user} account={account} onNickname={n => setUser(u => (u ? { ...u, display_name: n } : u))} />}
             {activeNav === 'wallet' && <WalletTab account={account} />}
           </ErrorBoundary>
         </main>
@@ -1370,8 +1371,8 @@ function DepositTab({ onSuccess, go, can }: { onSuccess: () => void; go: (id: st
     { value: 'bitcoin', ...ASSET_INFO.BTC, title: 'Bitcoin', sub: 'BTC · Bitcoin Network', group: 'crypto' },
     ...(opts || []).map(o => { const i = ASSET_INFO[o.asset] || { glyph: o.asset.slice(0, 1), name: o.asset, tone: 'bg-ink-700 text-fg' }
       return { value: optKey(o), glyph: i.glyph, tone: i.tone, title: i.name, sub: `${o.asset} · ${o.network}${o.standard && o.standard !== 'Native' ? ` · ${o.standard}` : o.asset === 'ETH' ? ' Network' : ''}`, group: 'crypto' as const } }),
-    { value: 'bank_transfer', glyph: '🏦', tone: 'bg-ink-700 text-fg-muted', title: t('dash.method.bank_transfer'), sub: 'Reviewed by our team', group: 'other' },
-    { value: 'wire_transfer', glyph: '⇄', tone: 'bg-ink-700 text-fg-muted', title: t('dash.method.wire_transfer'), sub: 'Reviewed by our team', group: 'other' },
+    { value: 'bank_transfer', glyph: '🏦', tone: 'bg-ink-700 text-fg-muted', title: t('dash.method.bank_transfer'), sub: 'Get bank details from your representative', group: 'other' },
+    { value: 'wire_transfer', glyph: '⇄', tone: 'bg-ink-700 text-fg-muted', title: t('dash.method.wire_transfer'), sub: 'Get wire details from your representative', group: 'other' },
     { value: 'other', glyph: '…', tone: 'bg-ink-700 text-fg-muted', title: t('dash.method.other'), sub: 'Describe it in the notes', group: 'other' },
   ]
   const current = choices.find(c => c.value === method) || choices[0]
@@ -1881,7 +1882,7 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
 }
 
 /* Profile */
-function ProfileTab({ user, account }: { user: UserInfo | null; account: Account | null }) {
+function ProfileTab({ user, account, onNickname }: { user: UserInfo | null; account: Account | null; onNickname: (name: string | null) => void }) {
   const { t, intl } = useI18n()
   const rows: [TKey, string][] = [
     ['common.fullName', user?.full_name || t('common.notSet')],
@@ -1894,11 +1895,73 @@ function ProfileTab({ user, account }: { user: UserInfo | null; account: Account
   return (
     <div className="max-w-lg space-y-6">
       <SettingsSection title={t('profile.details')} id="pf-details">
-        {rows.map(([label, value]) => <SettingsRow key={label} label={t(label)} value={<span className="break-words tabular-nums">{value}</span>} />)}
+        {rows.map(([label, value], i) => (
+          <Fragment key={label}>
+            <SettingsRow label={t(label)} value={<span className="break-words tabular-nums">{value}</span>} />
+            {/* The nickname sits under the legal name it never replaces. */}
+            {i === 0 && <NicknameRow value={user?.display_name ?? null} onSaved={onNickname} />}
+          </Fragment>
+        ))}
         <SettingsRow label={t('common.password')} sub={t('profile.passwordBody')}
           action={<Link href="/forgot-password" className="btn btn-sm btn-outline whitespace-nowrap">{t('profile.changePassword')}</Link>} />
       </SettingsSection>
     </div>
+  )
+}
+
+// Nickname / display name: the client's preferred name for greetings, kept
+// separate from the legal name (full_name), which only changes through
+// identity verification. Saved through /api/client/profile, which can only
+// write the caller's own nickname.
+const NICKNAME_MAX = 40
+function NicknameRow({ value, onSaved }: { value: string | null; onSaved: (name: string | null) => void }) {
+  const { t } = useI18n()
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const start = () => { setDraft(value || ''); setMsg(null); setEditing(true) }
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (saving) return
+    const name = draft.replace(/\s+/g, ' ').trim()
+    if (!name) { setMsg({ ok: false, text: t('profile.nicknameEmpty') }); return }
+    if (name.length > NICKNAME_MAX) { setMsg({ ok: false, text: t('profile.nicknameLong') }); return }
+    setSaving(true); setMsg(null)
+    try {
+      const j = await readJson<{ display_name: string | null }>(await authFetch('/api/client/profile', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ display_name: name }) }))
+      onSaved(j.display_name ?? name)
+      setEditing(false)
+      setMsg({ ok: true, text: t('profile.nicknameSaved') })
+    } catch (err) {
+      setMsg({ ok: false, text: errorText(err, t) })
+    } finally {
+      setSaving(false)
+    }
+  }
+  const note = msg && <p className={`mt-2 text-[12.5px] ${msg.ok ? 'text-emerald-400' : 'text-red-400'}`} role={msg.ok ? 'status' : 'alert'} data-nickname-msg>{msg.text}</p>
+  if (!editing) {
+    return (
+      <div data-nickname>
+        <SettingsRow label={t('profile.nickname')} sub={t('profile.nicknameBody')}
+          value={<span className="break-words" data-nickname-value>{value || t('common.notSet')}</span>}
+          action={<button type="button" onClick={start} className="btn btn-sm btn-outline whitespace-nowrap" data-nickname-edit>{t('profile.edit')}</button>} />
+        {note && <div className="px-4 -mt-2 pb-3">{note}</div>}
+      </div>
+    )
+  }
+  return (
+    <form onSubmit={save} className="px-4 py-3.5" data-nickname noValidate>
+      <label htmlFor="pf-nickname" className="text-[14px] text-fg-muted">{t('profile.nickname')}</label>
+      <input id="pf-nickname" value={draft} onChange={e => setDraft(e.target.value)} placeholder={t('profile.nicknamePlaceholder')}
+        maxLength={NICKNAME_MAX} autoComplete="nickname" autoFocus className="field mt-2" disabled={saving} aria-describedby="pf-nickname-help" />
+      <p id="pf-nickname-help" className="mt-1.5 text-[12.5px] text-fg-faint">{t('profile.nicknameBody')}</p>
+      {note}
+      <div className="mt-3 flex items-center gap-2">
+        <button type="submit" disabled={saving} className="btn btn-sm btn-solid" aria-busy={saving} data-nickname-save>{saving ? t('common.saving') : t('profile.save')}</button>
+        <button type="button" onClick={() => { setEditing(false); setMsg(null) }} disabled={saving} className="btn btn-sm btn-outline" data-nickname-cancel>{t('profile.cancel')}</button>
+      </div>
+    </form>
   )
 }
 
