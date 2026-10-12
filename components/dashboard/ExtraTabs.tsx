@@ -11,6 +11,7 @@ import { LanguageSelector } from '@/components/LanguageSelector'
 import { ThemeSelector } from '@/components/ThemeSelector'
 import { FormError, Spinner } from '@/components/AuthShell'
 import { IconChart, IconCheck, IconHelp, IconInfo, IconMail } from '@/components/Icons'
+import { openTawkChat } from '@/components/TawkWidget'
 import {
   EmptyState, OPEN_STATUSES, SettingsRow, SettingsSection, StatusTag, SUPPORT_EMAIL, TxIcon, fmt, methodLabel, txDescription, txLabel,
   type Account, type Tx, type UserInfo,
@@ -219,13 +220,17 @@ declare global { interface Window { smartsupp?: (...args: unknown[]) => void } }
 export function SupportTab() {
   const { t } = useI18n()
   const [chatMissing, setChatMissing] = useState(false)
-  const openChat = () => {
-    // The existing Smartsupp widget on client pages.
-    if (typeof window.smartsupp === 'function') { window.smartsupp('chat:open'); setChatMissing(false) }
-    else setChatMissing(true)
+  const openChat = async () => {
+    // The site's live chat (tawk.to; Smartsupp if that is ever restored).
+    // tawk.to may still be starting: openTawkChat waits for it rather than
+    // reporting chat as unavailable.
+    setChatMissing(false)
+    if (await openTawkChat()) return
+    if (typeof window.smartsupp === 'function') { window.smartsupp('chat:open'); return }
+    setChatMissing(true)
   }
   // One list of support routes (rows, not cards). Email is the primary route
-  // because it always works; live chat opens the existing single Smartsupp widget.
+  // because it always works; live chat opens the site's single chat widget.
   const row = 'w-full flex items-center gap-3.5 px-4 py-3.5 text-left transition-colors hover:bg-[rgb(var(--contrast)/.035)] focus-visible:outline-none focus-visible:bg-[rgb(var(--contrast)/.05)]'
   const tile = 'w-10 h-10 shrink-0 rounded-xl grid place-items-center'
   const chev = <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="shrink-0 text-fg-faint" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>

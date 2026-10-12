@@ -53,7 +53,7 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
         if (profile?.role !== 'admin') { router.replace('/dashboard'); return }
         setAdminName(profile?.full_name || 'Admin')
         // Staff device: the support chat should not count this browser as a
-        // new visitor when staff open public pages (see SmartsuppWidget).
+        // new visitor when staff open public pages (see TawkWidget).
         try { localStorage.setItem('tarafab.staffDevice', '1') } catch { /* storage blocked */ }
         setLoading(false)
       } catch {
