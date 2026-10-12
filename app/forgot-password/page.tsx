@@ -25,10 +25,14 @@ export default function ForgotPasswordPage() {
         const { error: err } = await createClient().auth.resetPasswordForEmail(email.trim(), {
           redirectTo: `${authReturnBase(window.location.origin)}/reset-password`,
         })
-        // Supabase answers "too many requests" only for addresses that have
-        // an account. Showing it would reveal which emails are registered,
-        // so it gets the same reply as a successful request.
-        if (err && err.status !== 429) { setError(err.message); return }
+        // Supabase answers "too many requests", or fails to send (its default
+        // email service refuses addresses outside the project team with
+        // "Email address not authorized"), only for addresses that have an
+        // account. Showing those would reveal which emails are registered,
+        // so they get the same reply as a successful request. Other errors
+        // (such as a malformed address) are still shown.
+        const hidden = err && (err.status === 429 || (err.status ?? 0) >= 500 || err.code === 'email_address_not_authorized' || /not authori[sz]ed/i.test(err.message))
+        if (err && !hidden) { setError(err.message); return }
         setSent(true)
       } catch {
         setError(t('errors.network'))
