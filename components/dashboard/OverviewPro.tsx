@@ -9,6 +9,7 @@ import { loadChart, useAssets } from '@/components/markets/useAssets'
 import { useEngineStatus } from '@/lib/engineStatus'
 import { AssetMark } from '@/components/dashboard/OverviewParts'
 import { IconRadar } from '@/components/Icons'
+import { CoinGeckoCredit } from '@/components/markets/CoinGeckoCredit'
 
 /* Premium Overview panels (Bitcoin market, automation status, watchlist).
    Every number on these panels comes from a server record or the shared
@@ -149,7 +150,7 @@ export function BtcMarketPanel({ onOpenMarkets }: { onOpenMarkets: () => void })
                 <span className={`text-[14px] font-medium tabular-nums ${pctTone(btc.changePct)}`}>{pctText(btc.changePct)} <span className="text-fg-faint font-normal">(24h)</span></span>
               </p>
             ) : null}
-          {usable && <p className="mt-1.5 text-[12px] text-fg-faint" data-btc-updated>{updatedText(t, btc.updatedAt)}{btc.source ? ` · ${btc.source}` : ''}</p>}
+          {usable && <p className="mt-1.5 text-[12px] text-fg-faint" data-btc-updated>{updatedText(t, btc.updatedAt)}{btc.source === 'CoinGecko' ? <> · <CoinGeckoCredit as="span" /></> : btc.source ? ` · ${btc.source}` : ''}</p>}
         </div>
         <div className="ovx-tf" role="group" aria-label="Chart range">
           {TFS.map(x => <button key={x} type="button" onClick={() => setTf(x)} aria-pressed={tf === x} className={`ovx-tf-btn ${tf === x ? 'is-on' : ''}`}>{x}</button>)}
@@ -242,7 +243,9 @@ export function AutomationStatusPanel({ onOpen }: { onOpen: () => void }) {
           <span className={`w-1.5 h-1.5 rounded-full ${on ? 'bg-emerald-400 cc-pulse' : amber ? 'bg-amber-400' : 'bg-fg-faint'}`} aria-hidden="true" />{label}
         </span>
       </div>
-      <p className="mt-2.5 text-[12.5px] leading-relaxed text-fg-muted">{t('ov2.autoNote')}</p>
+      <p className="mt-2.5 text-[12.5px] leading-relaxed text-fg-muted" data-auto-note>{t('ov2.autoNote')}</p>
+      {/* What it does not do, as a quieter second line. */}
+      <p className="mt-1 text-[11.5px] leading-relaxed text-fg-faint" data-auto-scope>{t('ov2.autoScope')}</p>
       <dl className="mt-3.5 grid grid-cols-3 gap-2">
         {tile('Active rules', active ?? (failed ? '—' : <span className="inline-block h-5 w-8 rounded skeleton align-middle" aria-hidden="true" />), 'your rules', 'active')}
         {tile('Triggered', met ?? (failed ? '—' : <span className="inline-block h-5 w-8 rounded skeleton align-middle" aria-hidden="true" />), 'notified', 'met')}

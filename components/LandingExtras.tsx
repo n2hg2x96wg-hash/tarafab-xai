@@ -8,6 +8,7 @@ import { useBtcQuote } from '@/components/markets/assetStore'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
 import { AnimatedPrice, freshnessText } from '@/components/MarketBits'
 import { timeAgoT } from '@/lib/i18n/format'
+import { CoinGeckoCredit } from '@/components/markets/CoinGeckoCredit'
 
 const usd = (n: number, d = 2) => `$${n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d })}`
 
@@ -238,6 +239,8 @@ export function PriceHistory({ compact = false }: { compact?: boolean } = {}) {
           {market.fetchedAt && <> · {freshnessText(t, market.status, market.fetchedAt)}</>}
           {market.status === 'stale' && <> · <button onClick={market.retry} className="underline underline-offset-2 hover:text-fg">{t('common.refresh')}</button></>}
         </span>
+        {/* Coinbase is the usual source; CoinGecko only when it was the fallback for this range. */}
+        {hist.history?.source === 'CoinGecko' && <CoinGeckoCredit as="span" />}
       </div>
     </div>
   )
@@ -400,78 +403,82 @@ export function NetworkFacts({ variant = 'cards' }: { variant?: 'cards' | 'rows'
   const eta = blocksLeft ? new Date(Date.now() + blocksLeft * 10 * 60_000) : undefined
 
   return (
-    <div className={variant === 'rows' ? 'grid sm:grid-cols-2 gap-px bg-[rgb(var(--contrast)/.07)] rounded-2xl overflow-hidden border border-[rgb(var(--contrast)/.07)]' : 'grid md:grid-cols-2 xl:grid-cols-4 gap-4'} data-network-facts={variant}>
-      <Reveal className="h-full">
-        <Card title={t('network.halving')}>
-          {!loaded.chain ? <Loading /> : blocksLeft === undefined ? <Unavailable /> : (
-            <>
-              <div className="fact-big text-3xl font-semibold text-fg tabular-nums">{blocksLeft.toLocaleString()}</div>
-              <div className="text-[13px] text-fg-muted mb-4">{t('network.blocksToGo', { date: eta!.toLocaleDateString(intl, { month: 'long', year: 'numeric' }) })}</div>
-              <Bar value={epochProgress} />
-              <div className="flex justify-between text-xs text-fg-faint mt-2 tabular-nums">
-                <span>{t('network.block', { n: h!.toLocaleString() })}</span><span>{nextHalving!.toLocaleString()}</span>
-              </div>
-              <p className="text-[13px] text-fg-muted mt-4">{t('network.reward', { reward: String(reward), next: String(reward! / 2) })}</p>
-            </>
-          )}
-        </Card>
-      </Reveal>
-
-      <Reveal delay={80} className="h-full">
-        <Card title={t('network.supply')}>
-          {!loaded.supply ? <Loading /> : !f.circulating ? <Unavailable /> : (
-            <>
-              <div className="fact-big text-3xl font-semibold text-fg tabular-nums">{(f.circulating / 1e6).toFixed(2)}M</div>
-              <div className="text-[13px] text-fg-muted mb-4">{t('network.mined', { pct: ((f.circulating / 21e6) * 100).toFixed(2) })}</div>
-              <Bar value={(f.circulating / 21e6) * 100} />
-              <p className="text-[13px] text-fg-muted mt-4">{t('network.left', { n: ((21e6 - f.circulating) / 1e6).toFixed(2) })}</p>
-            </>
-          )}
-        </Card>
-      </Reveal>
-
-      <Reveal delay={160} className="h-full">
-        <Card title={t('network.ath')}>
-          {!loaded.supply ? <Loading /> : !f.ath ? <Unavailable /> : (
-            <>
-              <div className="fact-big text-3xl font-semibold text-fg tabular-nums">{usd(f.ath, 0)}</div>
-              <div className="text-[13px] text-fg-muted mb-4">{f.athDate ? t('network.reached', { date: new Date(f.athDate).toLocaleDateString(intl, { month: 'long', day: 'numeric', year: 'numeric' }) }) : t('network.reachedUnknown')}</div>
-              {f.athChange !== undefined && (
-                <p className="text-[13px] text-fg-muted">
-                  {t(f.athChange >= 0 ? 'network.athAbove' : 'network.athBelow', { pct: Math.abs(f.athChange).toFixed(1) })}
-                </p>
-              )}
-            </>
-          )}
-        </Card>
-      </Reveal>
-
-      <Reveal delay={240} className="h-full">
-        <Card title={t('network.activity')}>
-          {!loaded.chain ? <Loading /> : f.mempoolCount === undefined && f.diffProgress === undefined ? <Unavailable /> : (
-            <dl className="space-y-4">
-              {f.mempoolCount !== undefined && (
-                <div>
-                  <dt className="text-[13px] text-fg-faint">{t('network.waiting')}</dt>
-                  <dd className="text-2xl font-semibold text-fg tabular-nums">{f.mempoolCount.toLocaleString()}</dd>
-                  {f.mempoolVsize !== undefined && <dd className="text-xs text-fg-faint">{t('network.blocksWorth', { n: Math.max(1, Math.round(f.mempoolVsize / 1e6)) })}</dd>}
+    <>
+      <div className={variant === 'rows' ? 'grid sm:grid-cols-2 gap-px bg-[rgb(var(--contrast)/.07)] rounded-2xl overflow-hidden border border-[rgb(var(--contrast)/.07)]' : 'grid md:grid-cols-2 xl:grid-cols-4 gap-4'} data-network-facts={variant}>
+        <Reveal className="h-full">
+          <Card title={t('network.halving')}>
+            {!loaded.chain ? <Loading /> : blocksLeft === undefined ? <Unavailable /> : (
+              <>
+                <div className="fact-big text-3xl font-semibold text-fg tabular-nums">{blocksLeft.toLocaleString()}</div>
+                <div className="text-[13px] text-fg-muted mb-4">{t('network.blocksToGo', { date: eta!.toLocaleDateString(intl, { month: 'long', year: 'numeric' }) })}</div>
+                <Bar value={epochProgress} />
+                <div className="flex justify-between text-xs text-fg-faint mt-2 tabular-nums">
+                  <span>{t('network.block', { n: h!.toLocaleString() })}</span><span>{nextHalving!.toLocaleString()}</span>
                 </div>
-              )}
-              {f.diffProgress !== undefined && (
-                <div>
-                  <dt className="text-[13px] text-fg-faint mb-2">{t('network.difficulty')}</dt>
-                  <dd><Bar value={f.diffProgress} /></dd>
-                  <dd className="text-xs text-fg-muted mt-2 tabular-nums">
-                    {t('network.blocksLeft', { n: f.diffRemaining?.toLocaleString() ?? '' })}
-                    {f.diffChange !== undefined && t('network.estimated', { pct: `${f.diffChange >= 0 ? '+' : ''}${f.diffChange.toFixed(2)}` })}
-                  </dd>
-                </div>
-              )}
-            </dl>
-          )}
-        </Card>
-      </Reveal>
-    </div>
+                <p className="text-[13px] text-fg-muted mt-4">{t('network.reward', { reward: String(reward), next: String(reward! / 2) })}</p>
+              </>
+            )}
+          </Card>
+        </Reveal>
+
+        <Reveal delay={80} className="h-full">
+          <Card title={t('network.supply')}>
+            {!loaded.supply ? <Loading /> : !f.circulating ? <Unavailable /> : (
+              <>
+                <div className="fact-big text-3xl font-semibold text-fg tabular-nums">{(f.circulating / 1e6).toFixed(2)}M</div>
+                <div className="text-[13px] text-fg-muted mb-4">{t('network.mined', { pct: ((f.circulating / 21e6) * 100).toFixed(2) })}</div>
+                <Bar value={(f.circulating / 21e6) * 100} />
+                <p className="text-[13px] text-fg-muted mt-4">{t('network.left', { n: ((21e6 - f.circulating) / 1e6).toFixed(2) })}</p>
+              </>
+            )}
+          </Card>
+        </Reveal>
+
+        <Reveal delay={160} className="h-full">
+          <Card title={t('network.ath')}>
+            {!loaded.supply ? <Loading /> : !f.ath ? <Unavailable /> : (
+              <>
+                <div className="fact-big text-3xl font-semibold text-fg tabular-nums">{usd(f.ath, 0)}</div>
+                <div className="text-[13px] text-fg-muted mb-4">{f.athDate ? t('network.reached', { date: new Date(f.athDate).toLocaleDateString(intl, { month: 'long', day: 'numeric', year: 'numeric' }) }) : t('network.reachedUnknown')}</div>
+                {f.athChange !== undefined && (
+                  <p className="text-[13px] text-fg-muted">
+                    {t(f.athChange >= 0 ? 'network.athAbove' : 'network.athBelow', { pct: Math.abs(f.athChange).toFixed(1) })}
+                  </p>
+                )}
+              </>
+            )}
+          </Card>
+        </Reveal>
+
+        <Reveal delay={240} className="h-full">
+          <Card title={t('network.activity')}>
+            {!loaded.chain ? <Loading /> : f.mempoolCount === undefined && f.diffProgress === undefined ? <Unavailable /> : (
+              <dl className="space-y-4">
+                {f.mempoolCount !== undefined && (
+                  <div>
+                    <dt className="text-[13px] text-fg-faint">{t('network.waiting')}</dt>
+                    <dd className="text-2xl font-semibold text-fg tabular-nums">{f.mempoolCount.toLocaleString()}</dd>
+                    {f.mempoolVsize !== undefined && <dd className="text-xs text-fg-faint">{t('network.blocksWorth', { n: Math.max(1, Math.round(f.mempoolVsize / 1e6)) })}</dd>}
+                  </div>
+                )}
+                {f.diffProgress !== undefined && (
+                  <div>
+                    <dt className="text-[13px] text-fg-faint mb-2">{t('network.difficulty')}</dt>
+                    <dd><Bar value={f.diffProgress} /></dd>
+                    <dd className="text-xs text-fg-muted mt-2 tabular-nums">
+                      {t('network.blocksLeft', { n: f.diffRemaining?.toLocaleString() ?? '' })}
+                      {f.diffChange !== undefined && t('network.estimated', { pct: `${f.diffChange >= 0 ? '+' : ''}${f.diffChange.toFixed(2)}` })}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            )}
+          </Card>
+        </Reveal>
+      </div>
+      {/* Supply and all-time high come from CoinGecko: its credit sits right under them. */}
+      {(f.circulating || f.ath) ? <CoinGeckoCredit className="mt-2" /> : null}
+    </>
   )
 }
 

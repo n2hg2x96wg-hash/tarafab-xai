@@ -13,6 +13,7 @@ import { loadChart, useAssets } from './useAssets'
 import { hiddenState, useFeatures } from '@/components/ui/features'
 import { effectiveState } from '@/lib/marketStatus'
 import { useHideChat } from '@/lib/chatAside'
+import { CoinGeckoCredit } from './CoinGeckoCredit'
 
 type Cat = 'all' | 'crypto' | 'stock' | 'index' | 'watchlist'
 const CATS: Cat[] = ['all', 'crypto', 'stock', 'index', 'watchlist']
@@ -178,17 +179,20 @@ export function AssetCenter({ onAutomate, openAsset, onOpened }: { onAutomate: (
                   <StatusBadge a={a} />
                   {a.automation && <button onClick={() => onAutomate(a.id)} className="text-[12px] text-brand-300 hover:text-brand-200">{t('center.automate')}</button>}
                 </div>
+                {/* CoinGecko's required credit, only on a card whose figures come from it. */}
+                {a.source === 'CoinGecko' && a.price != null && <CoinGeckoCredit className="-mt-1" />}
               </li>
             )
           })}
         </ul>
       )}
 
-      {/* Disclosure and the provider credit CoinGecko's terms require: one small
-          "Market data" toggle at the foot of the page, closed by default. */}
+      {/* The general disclosure: one small "Market data" toggle at the foot of
+          the page, closed by default. CoinGecko's required credit is not hidden
+          in here; it sits on the cards whose figures come from CoinGecko. */}
       <details className="group text-[11px] text-fg-faint" data-market-attribution>
         <summary className="cursor-pointer list-none inline-flex items-center gap-1 hover:text-fg-muted">ⓘ Market data</summary>
-        <p className="mt-1.5 max-w-xl leading-relaxed">{t('center.disclosure')} Crypto data provided by <a href="https://www.coingecko.com/en/api" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-fg-muted">CoinGecko</a>.</p>
+        <p className="mt-1.5 max-w-xl leading-relaxed">{t('center.disclosure')}</p>
       </details>
 
       {selected && <AssetDetail a={selected} watchOff={watchOff} chartsOff={chartsOff} watched={(watch || []).includes(selected.id)} onWatch={() => toggleWatch(selected.id)} onAutomate={() => { setOpen(null); onAutomate(selected.id) }} onClose={() => setOpen(null)} />}
@@ -239,6 +243,7 @@ function AssetDetail({ a, watched, onWatch, onAutomate, onClose, watchOff = fals
           <Change a={a} className="text-lg" />
           <StatusBadge a={a} />
         </div>
+        {a.source === 'CoinGecko' && a.price != null && <CoinGeckoCredit className="mt-1.5" />}
         {!chartsOff && <div className="mt-5">
           {a.chart && (
             <div className="seg mb-3" role="tablist" aria-label={t('detail.timeframe')}>
