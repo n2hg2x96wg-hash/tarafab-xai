@@ -74,7 +74,10 @@ export function PortfolioTab({ account, txs, hasMore, go }: { account: Account |
             ))}
           </dl>
           {/* Where these figures come from, so none of them reads as a calculation it is not. */}
-          <p className="mt-3 text-xs leading-relaxed text-fg-faint">{t('portfolio.sourceNote')}</p>
+          <p className="mt-3 pt-3 border-t border-ink-700 flex gap-2 text-[12.5px] leading-relaxed text-fg-muted" data-returns-note>
+            <IconInfo width={15} height={15} className="shrink-0 mt-[3px] text-fg-faint" aria-hidden="true" />
+            <span>{t('portfolio.sourceNote')}</span>
+          </p>
         </section>
         <section className="panel p-5 sm:p-6" aria-labelledby="pf-act">
           <h3 id="pf-act" className="text-[15px] font-semibold text-fg mb-3">{t('portfolio.activity')}</h3>
@@ -231,6 +234,9 @@ export function SupportTab() {
   }
   // One list of support routes (rows, not cards). Email is the primary route
   // because it always works; live chat opens the site's single chat widget.
+  // There is no "common questions" row: the FAQ lives on the public home page,
+  // and linking there took a signed-in client out of the dashboard onto the
+  // signed-out home page before it sent them back.
   const row = 'w-full flex items-center gap-3.5 px-4 py-3.5 text-left transition-colors hover:bg-[rgb(var(--contrast)/.035)] focus-visible:outline-none focus-visible:bg-[rgb(var(--contrast)/.05)]'
   const tile = 'w-10 h-10 shrink-0 rounded-xl grid place-items-center'
   const chev = <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="shrink-0 text-fg-faint" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
@@ -256,13 +262,6 @@ export function SupportTab() {
             </span>
             {chev}
           </button>
-        </li>
-        <li>
-          <Link href="/#faq" className={row} data-support="faq">
-            <span className={`${tile} bg-[rgb(var(--contrast)/.06)] text-fg-muted`}><IconInfo width={18} height={18} aria-hidden="true" /></span>
-            <span className="min-w-0 flex-1"><span className="block text-[15px] font-medium text-fg">{t('support.faq')}</span></span>
-            {chev}
-          </Link>
         </li>
       </ul>
     </div>

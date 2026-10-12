@@ -93,6 +93,9 @@ export default function LiveMarketBoard() {
   }, [])
   useClock(onScreen)
 
+  // The 24h line's provider counts too (Coinbase, or CoinGecko as its fallback).
+  // The history is cached per range, so this shares DayLine's request.
+  const dayLineSource = useBtcHistory('1').history?.source
   const { tiles, sources, newest, liveCount, anyStale } = useMemo(() => {
     const list = assets || []
     const crypto = list.filter(a => a.category === 'crypto')
@@ -102,12 +105,12 @@ export default function LiveMarketBoard() {
       .filter(a => a.price != null && a.state !== 'unavailable' && a.state !== 'error')
     const shownSources = new Set<string>()
     tiles.forEach(a => { if (a.source && a.price != null) shownSources.add(a.source) })
-    shownSources.add('CoinGecko') // fallback provider for BTC summary/history on this page
+    if (dayLineSource) shownSources.add(dayLineSource)
     // "Updated" is the newest provider time among the quotes shown here.
     const times = tiles.map(a => (a.updatedAt ? Date.parse(a.updatedAt) : NaN)).filter(t => Number.isFinite(t) && t <= now + 60_000)
     return { tiles, sources: Array.from(shownSources), newest: times.length ? Math.max(...times) : null, liveCount: tiles.filter(a => a.state === 'live').length,
       anyStale: tiles.some(a => a.state === 'stale') }
-  }, [assets, error, now])
+  }, [assets, error, now, dayLineSource])
 
   const state: 'loading' | 'error' | 'stale' | 'live' = assets === null ? (error ? 'error' : 'loading')
     // The last refresh failed: whatever is on screen is no longer current.

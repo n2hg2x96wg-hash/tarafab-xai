@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { compactUsd, useBtcHistory, useBtcSummary } from '@/components/useMarket'
+import { CoinGeckoCredit } from '@/components/markets/CoinGeckoCredit'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
 import { MarketStatusPill } from '@/components/LandingExtras'
 import { AnimatedPrice, freshnessText, useNow } from '@/components/MarketBits'
@@ -62,7 +63,7 @@ export function BitcoinMarketCard() {
       </dl>
 
       <div className="mt-auto pt-4 flex items-center justify-between gap-3 text-[12px] text-fg-faint">
-        <span aria-live="polite">{freshnessText(t, status, fetchedAt)}</span>
+        <span aria-live="polite">{freshnessText(t, status, fetchedAt)}{data?.source === 'CoinGecko' && <> · <CoinGeckoCredit as="span" /></>}</span>
         <button onClick={retry} disabled={status === 'loading'} className="inline-flex items-center min-h-9 px-2.5 -mr-2.5 rounded-md hover:text-fg hover:bg-ink-850 transition-colors shrink-0 disabled:opacity-50">
           {status === 'error' || status === 'stale' ? t('common.tryAgain') : t('common.refresh')}
         </button>
