@@ -112,6 +112,10 @@ export function txLabel(tx: Tx, t: T) {
   // Manual profit credits from our team (not an investment or trading result).
   if (c === 'profit_distribution') return t('dash.txType.profitDistribution')
   if (c === 'profit_allocation') return t('dash.txType.profitCredit')
+  // Manual profit debits: an entry recorded by our team, never presented as a
+  // withdrawal the client asked for.
+  if (c === 'profit_debit') return t('dash.txType.profitDebit')
+  if (c === 'profit_payout') return t('dash.txType.profitPayout')
   if (c === 'deposit') return t('dash.txType.deposit')
   if (c === 'account_debit') return t('dash.txType.accountDebit')
   if (c === 'reversal') return t('dash.txType.reversal')
@@ -134,6 +138,8 @@ const TX_DESC: Partial<Record<ReturnType<typeof txCategory>, TKey>> = {
   profit_adjustment: 'dash.txDesc.profitAdjustment',
   profit_distribution: 'dash.txDesc.profitDistribution',
   profit_allocation: 'dash.txDesc.profitCredit',
+  profit_debit: 'dash.txDesc.profitDebit',
+  profit_payout: 'dash.txDesc.profitPayout',
   reversal: 'dash.txDesc.reversal',
 }
 export function txDescription(tx: Tx, t: T): string | null {
@@ -172,7 +178,7 @@ export function TxIcon({ type, tx }: { type: string; tx?: Tx }) {
     : c === 'withdrawal' ? [IconArrowUp, 'text-fg-muted border-ink-700 bg-ink-800']
     : c === 'fee' ? [IconFile, 'text-amber-300 border-amber-500/25 bg-amber-500/[.06]']
     : c === 'investment' ? [IconPie, 'text-sky-300 border-sky-500/25 bg-sky-500/[.06]']
-    : c === 'account_debit' ? [IconWallet, 'text-rose-300 border-rose-500/25 bg-rose-500/[.06]']
+    : c === 'account_debit' || c === 'profit_debit' || c === 'profit_payout' ? [IconWallet, 'text-rose-300 border-rose-500/25 bg-rose-500/[.06]']
     : c === 'loyalty_reward' || c === 'promotional_credit' ? [IconCheck, 'text-violet-300 border-violet-500/25 bg-violet-500/[.07]']
     : c === 'profit_correction' || c === 'reconciliation' || c === 'profit_adjustment' ? [IconSliders, 'text-fg-muted border-ink-700 bg-ink-800']
     : c === 'reversal' ? [IconHistory, 'text-fg-muted border-ink-700 bg-ink-800']

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useI18n } from '@/lib/i18n/I18nProvider'
 import { statusLabel } from '@/lib/i18n/format'
-import { isAccountCredit, MANUAL_PROFIT_CREDIT_CATEGORIES, txCategory, txSign } from '@/lib/txCategory'
+import { isAccountCredit, MANUAL_PROFIT_CATEGORIES, txCategory, txSign } from '@/lib/txCategory'
 import { IconCheck, IconClose, IconCopy } from '@/components/Icons'
 import { StatusTag, fmt, methodLabel, signedAmount, txDescription, txLabel, type Tx } from '@/components/dashboard/shared'
 import { hideChat } from '@/lib/chatAside'
@@ -21,8 +21,8 @@ function receiptLines(tx: Tx, t: ReturnType<typeof useI18n>['t'], intl: string) 
     [t('rcpt.type'), label],
     [t('rcpt.status'), statusLabel(t, tx.status)],
     // created_at here is the transaction's effective date (lib/clientTx). A
-    // manual profit credit is dated by our team, so it says so, date only.
-    MANUAL_PROFIT_CREDIT_CATEGORIES.includes(txCategory(tx))
+    // manual profit credit or debit is dated by our team, so it says so, date only.
+    MANUAL_PROFIT_CATEGORIES.includes(txCategory(tx))
       ? [t('rcpt.effectiveDate'), new Date(tx.created_at).toLocaleDateString(intl, { dateStyle: 'medium' })]
       : [t('rcpt.dateTime'), new Date(tx.created_at).toLocaleString(intl, { dateStyle: 'medium', timeStyle: 'short' })],
   ]
