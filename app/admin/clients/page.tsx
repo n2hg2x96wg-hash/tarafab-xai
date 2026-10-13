@@ -6,11 +6,14 @@ import { createClient } from '@/lib/supabase/client'
 import AdminLayout from '@/components/AdminLayout'
 import { AdminLoadError } from '@/components/AdminLoadError'
 import CreateClientModal from '@/components/admin/CreateClientModal'
+import { formatPhone } from '@/lib/phone'
 
 type Client = {
   id: string
   email?: string | null
   full_name: string | null
+  // Contact number given at registration or added later (E.164); null for older accounts.
+  phone?: string | null
   role: string
   created_at: string
   accounts: {
@@ -59,7 +62,7 @@ export default function ClientsPage() {
       if (!ids.length) { setClients([]); setHasMore(false); setLoadError(''); setLoading(false); return }
     }
     let q = (supabase.from('profiles') as any)
-      .select('id, full_name, role, created_at, accounts(account_balance, available_balance, invested_balance, pending_balance, profit_balance)')
+      .select('id, full_name, phone, role, created_at, accounts(account_balance, available_balance, invested_balance, pending_balance, profit_balance)')
       .order('created_at', { ascending: false }).limit(PAGE + 1)
     if (filter !== 'all') q = q.eq('role', filter)
     if (ids) q = q.in('id', ids.slice(0, 500))
@@ -94,10 +97,13 @@ export default function ClientsPage() {
   const filtered = clients.filter(c => {
     const matchRole = filter === 'all' || c.role === filter
     const q = search.toLowerCase()
+    const qDigits = search.replace(/\D/g, '').replace(/^0+/, '')
     const matchSearch = !search ||
       (c.full_name?.toLowerCase() || '').includes(q) ||
       (c.email?.toLowerCase() || '').includes(q) ||
-      c.id.toLowerCase().includes(q)
+      c.id.toLowerCase().includes(q) ||
+      // Phone: digits, with or without the country code or a leading 0.
+      (qDigits.length >= 5 && (c.phone || '').includes(qDigits))
     return matchRole && matchSearch
   })
 
@@ -118,7 +124,7 @@ export default function ClientsPage() {
         <div className="p-4 sm:p-5 border-b border-white/[0.06] flex flex-col sm:flex-row gap-3">
           <input
             type="text"
-            placeholder="Search by name, email or ID…"
+            placeholder="Search by name, email, phone or ID…"
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="input-field text-xs py-2 flex-1"
@@ -149,7 +155,7 @@ export default function ClientsPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-white/[0.06]">
-                    {['Name / Email', 'Role', 'Account Balance', 'Profit', 'Invested', 'Pending', 'Joined', ''].map(h => (
+                    {['Name / Email', 'Phone', 'Role', 'Account Balance', 'Profit', 'Invested', 'Pending', 'Joined', ''].map(h => (
                       <th key={h} className="px-5 py-3 text-left text-xs text-slate-500 font-medium">{h}</th>
                     ))}
                   </tr>
@@ -174,6 +180,9 @@ export default function ClientsPage() {
                         ) : (
                           <p className="text-[10px] text-slate-600 mt-0.5 font-mono">{client.id.slice(0, 16)}…</p>
                         )}
+                      </td>
+                      <td className="px-5 py-4 text-xs whitespace-nowrap" data-client-phone>
+                        {client.phone ? <a href={`tel:${client.phone}`} className="text-slate-200 tabular-nums hover:text-white">{formatPhone(client.phone)}</a> : <span className="text-slate-600">Not provided</span>}
                       </td>
                       <td className="px-5 py-4">
                         <span className={`text-[10px] px-2 py-1 rounded-full font-medium border ${client.role === 'admin' ? 'bg-accent/15 text-accent border-accent/30' : 'bg-slate-800 text-slate-400 border-white/[0.06]'}`}>
@@ -225,6 +234,7 @@ export default function ClientsPage() {
                       ) : (
                         <p className="text-[10px] text-slate-600 font-mono truncate">{client.id.slice(0, 20)}…</p>
                       )}
+                      <p className="text-xs leading-snug tabular-nums" data-client-phone>{client.phone ? <a href={`tel:${client.phone}`} className="text-slate-300">{formatPhone(client.phone)}</a> : <span className="text-slate-600">Phone not provided</span>}</p>
                     </div>
                     <span className={`text-[10px] px-2 py-1 rounded-full font-medium border shrink-0 ${client.role === 'admin' ? 'bg-accent/15 text-accent border-accent/30' : 'bg-slate-800 text-slate-400 border-white/[0.06]'}`}>
                       {client.role}

@@ -18,6 +18,8 @@ import {
   type Account, type Tx, type UserInfo, PageIntro, SettingsRow, SettingsSection, signedAmount,
 } from '@/components/dashboard/shared'
 import { LanguageSelector } from '@/components/LanguageSelector'
+import { PhoneInput } from '@/components/PhoneInput'
+import { formatPhone, guessCountry, normalizePhone } from '@/lib/phone'
 import { ThemeSelector } from '@/components/ThemeSelector'
 import { useTheme } from '@/lib/theme/ThemeProvider'
 import {
@@ -631,7 +633,7 @@ export default function DashboardPage() {
             {activeNav === 'priceHistory' && <PriceHistoryTab />}
             {activeNav === 'deposit' && <DepositTab onSuccess={fetchData} go={go} can={id => !hiddenNav.includes(id)} />}
             {activeNav === 'withdraw' && <WithdrawTab account={account} txs={txs} onSuccess={fetchData} />}
-            {activeNav === 'profile' && <ProfileTab user={user} account={account} onNickname={n => setUser(u => (u ? { ...u, display_name: n } : u))} />}
+            {activeNav === 'profile' && <ProfileTab user={user} account={account} onNickname={n => setUser(u => (u ? { ...u, display_name: n } : u))} onPhone={(phone, phone_country) => setUser(u => (u ? { ...u, phone, phone_country } : u))} />}
             {activeNav === 'wallet' && <WalletTab account={account} />}
           </ErrorBoundary>
         </main>
@@ -1953,7 +1955,7 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
 }
 
 /* Profile */
-function ProfileTab({ user, account, onNickname }: { user: UserInfo | null; account: Account | null; onNickname: (name: string | null) => void }) {
+function ProfileTab({ user, account, onNickname, onPhone }: { user: UserInfo | null; account: Account | null; onNickname: (name: string | null) => void; onPhone: (phone: string, country: string) => void }) {
   const { t, intl } = useI18n()
   const rows: [TKey, string][] = [
     ['common.fullName', user?.full_name || t('common.notSet')],
@@ -1971,6 +1973,8 @@ function ProfileTab({ user, account, onNickname }: { user: UserInfo | null; acco
             <SettingsRow label={t(label)} value={<span className="break-words tabular-nums">{value}</span>} />
             {/* The nickname sits under the legal name it never replaces. */}
             {i === 0 && <NicknameRow value={user?.display_name ?? null} onSaved={onNickname} />}
+            {/* Contact number, under the email. */}
+            {i === 1 && <PhoneRow value={user?.phone ?? null} country={user?.phone_country ?? null} onSaved={onPhone} />}
           </Fragment>
         ))}
         <SettingsRow label={t('common.password')} sub={t('profile.passwordBody')}
@@ -2031,6 +2035,64 @@ function NicknameRow({ value, onSaved }: { value: string | null; onSaved: (name:
       <div className="mt-3 flex items-center gap-2">
         <button type="submit" disabled={saving} className="btn btn-sm btn-solid" aria-busy={saving} data-nickname-save>{saving ? t('common.saving') : t('profile.save')}</button>
         <button type="button" onClick={() => { setEditing(false); setMsg(null) }} disabled={saving} className="btn btn-sm btn-outline" data-nickname-cancel>{t('profile.cancel')}</button>
+      </div>
+    </form>
+  )
+}
+
+// Contact number: the client's own, saved through /api/client/profile, which
+// checks it and writes only the caller's profile (set_my_phone). It is
+// profile information for our team; no SMS or code is ever sent to it.
+function PhoneRow({ value, country, onSaved }: { value: string | null; country: string | null; onSaved: (phone: string, country: string) => void }) {
+  const { t } = useI18n()
+  const [editing, setEditing] = useState(false)
+  const [cc, setCc] = useState('')
+  const [draft, setDraft] = useState('')
+  const [err, setErr] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const message = (e: string) => t(e === 'missing' ? 'auth.errPhone' : e === 'country' ? 'auth.errPhoneCountry' : 'auth.errPhoneInvalid')
+  const start = () => {
+    setCc(country || guessCountry()); setDraft(value ? formatPhone(value).replace(/^\+\d+\s*/, '') : ''); setErr(''); setMsg(null); setEditing(true)
+  }
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (saving) return
+    const ph = normalizePhone(draft, cc)
+    if (!ph.ok) { setErr(message(ph.error)); return }
+    setSaving(true); setErr(''); setMsg(null)
+    try {
+      const j = await readJson<{ phone: string; phone_country: string }>(await authFetch('/api/client/profile', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: draft, phone_country: cc }) }))
+      onSaved(j.phone, j.phone_country)
+      setEditing(false)
+      setMsg({ ok: true, text: t('profile.phoneSaved') })
+    } catch (e2) {
+      setErr(errorText(e2, t))
+    } finally {
+      setSaving(false)
+    }
+  }
+  if (!editing) {
+    return (
+      <div data-phone-row>
+        <SettingsRow label={t('profile.phone')} sub={t('profile.phoneBody')}
+          value={<span className="break-words tabular-nums" data-phone-value>{value ? formatPhone(value) : t('profile.phoneNone')}</span>}
+          action={<button type="button" onClick={start} className="btn btn-sm btn-outline whitespace-nowrap" data-phone-edit>{value ? t('profile.edit') : t('profile.phoneAdd')}</button>} />
+        {msg && <p className="px-4 -mt-2 pb-3 text-[12.5px] text-emerald-400" role="status" data-phone-msg>{msg.text}</p>}
+      </div>
+    )
+  }
+  return (
+    <form onSubmit={save} className="px-4 py-3.5" data-phone-row noValidate>
+      <label htmlFor="pf-phone" className="text-[14px] text-fg-muted">{t('profile.phone')}</label>
+      <div className="mt-2">
+        <PhoneInput id="pf-phone" country={cc} onCountry={c => { setCc(c); setErr('') }} number={draft} onNumber={v => { setDraft(v); if (err) setErr('') }}
+          disabled={saving} error={err} describedBy="pf-phone-help" />
+      </div>
+      <p id="pf-phone-help" className="mt-1.5 text-[12.5px] text-fg-faint">{t('profile.phoneBody')}</p>
+      <div className="mt-3 flex items-center gap-2">
+        <button type="submit" disabled={saving} className="btn btn-sm btn-solid" aria-busy={saving} data-phone-save>{saving ? t('common.saving') : t('profile.save')}</button>
+        <button type="button" onClick={() => { setEditing(false); setErr('') }} disabled={saving} className="btn btn-sm btn-outline">{t('profile.cancel')}</button>
       </div>
     </form>
   )

@@ -1,11 +1,13 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
 import { createClient } from '@/lib/supabase/client'
 import { AuthShell, FormError, PasswordInput, Spinner, useSingleFlight } from '@/components/AuthShell'
+import { PhoneInput } from '@/components/PhoneInput'
+import { guessCountry, normalizePhone } from '@/lib/phone'
 
 function passwordStrength(pw: string): { score: number; label: TKey; color: string } {
   let score = 0
@@ -23,6 +25,10 @@ function passwordStrength(pw: string): { score: number; label: TKey; color: stri
 export default function SignUpPage() {
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
+  // Required contact number: country calling code + number (no SMS, no codes).
+  const [phoneCountry, setPhoneCountry] = useState('')
+  const [phone, setPhone] = useState('')
+  const [phoneError, setPhoneError] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -41,6 +47,10 @@ export default function SignUpPage() {
   const strength = passwordStrength(password)
   const mismatch = confirmPassword.length > 0 && confirmPassword !== password
   const once = useSingleFlight()
+  // Preselect the country from the browser language (en-NG → +234).
+  useEffect(() => { setPhoneCountry(c => c || guessCountry()) }, [])
+  const phoneMessage = (e: 'missing' | 'country' | 'invalid') =>
+    t(e === 'missing' ? 'auth.errPhone' : e === 'country' ? 'auth.errPhoneCountry' : 'auth.errPhoneInvalid')
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -48,6 +58,9 @@ export default function SignUpPage() {
       setError('')
 
       if (!fullName.trim()) { setError(t('auth.errName')); return }
+      const ph = normalizePhone(phone, phoneCountry)
+      if (!ph.ok) { setPhoneError(phoneMessage(ph.error)); document.getElementById('phone')?.focus(); return }
+      setPhoneError('')
       if (password.length < 8) { setError(t('auth.errLength')); return }
       if (password !== confirmPassword) { setError(t('auth.errMatch')); return }
       if (!ageOk || !riskOk) {
@@ -67,10 +80,12 @@ export default function SignUpPage() {
         const res = await fetch('/api/auth/signup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: cleanEmail, password, fullName: fullName.trim(), consent: { age: ageOk, risk: riskOk } }),
+          body: JSON.stringify({ email: cleanEmail, password, fullName: fullName.trim(), phone, phoneCountry, consent: { age: ageOk, risk: riskOk } }),
         })
         const data = await res.json()
         if (!res.ok) {
+          // The server checks the number with the same rules.
+          if (data.field === 'phone') { setPhoneError(phoneMessage(data.code === 'missing' || data.code === 'country' ? data.code : 'invalid')); return }
           const msg: string = data.error || t('auth.signUpFailed')
           setError(msg.toLowerCase().includes('already registered') ? t('auth.errExists') : msg)
           return
@@ -117,6 +132,14 @@ export default function SignUpPage() {
         <div>
           <label htmlFor="email" className="field-label">{t('common.email')}</label>
           <input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" className="field" disabled={loading} />
+        </div>
+
+        <div>
+          <label htmlFor="phone" className="field-label">{t('auth.phone')}</label>
+          <PhoneInput id="phone" country={phoneCountry} onCountry={c => { setPhoneCountry(c); setPhoneError('') }}
+            number={phone} onNumber={v => { setPhone(v); if (phoneError) setPhoneError('') }}
+            disabled={loading} error={phoneError} describedBy="phone-help" />
+          <p id="phone-help" className="text-xs text-fg-faint mt-2">{t('auth.phoneHelp')}</p>
         </div>
 
         <div>

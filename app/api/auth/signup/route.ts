@@ -5,6 +5,7 @@ import { getSupabaseEnv } from '@/lib/supabase/env'
 import { clientIp, rateLimited } from '@/lib/rateLimit'
 import { SIGNUP_CONSENT_VERSION } from '@/lib/consent'
 import { authReturnBase } from '@/lib/site'
+import { normalizePhone } from '@/lib/phone'
 
 export async function POST(request: NextRequest) {
   const { url, anonKey: key } = getSupabaseEnv()
@@ -23,6 +24,14 @@ export async function POST(request: NextRequest) {
     // Both statements must be explicitly accepted; nothing is inferred.
     if (body.consent?.age !== true || body.consent?.risk !== true) {
       return NextResponse.json({ error: 'Please confirm both statements to continue.' }, { status: 400 })
+    }
+    // Required contact number, checked here with the same rules as the form
+    // and stored normalised (E.164) with its country. Profile data only: no
+    // SMS is sent and it plays no part in signing in.
+    const phone = normalizePhone(typeof body.phone === 'string' ? body.phone : '', typeof body.phoneCountry === 'string' ? body.phoneCountry.toUpperCase() : '')
+    if (!phone.ok) {
+      const error = phone.error === 'missing' ? 'Enter your phone number.' : phone.error === 'country' ? 'Choose your country calling code.' : 'Enter a valid phone number for the selected country.'
+      return NextResponse.json({ error, field: 'phone', code: phone.error }, { status: 400 })
     }
 
     const safePassword = password.replace(/[^\x20-\x7E]/g, '')
@@ -44,7 +53,7 @@ export async function POST(request: NextRequest) {
       email,
       password: safePassword,
       // The confirmation link returns to sign-in on the official domain.
-      options: { data: { full_name: fullName || '', consent }, emailRedirectTo: `${authReturnBase(`http://${request.headers.get('host') || ''}`)}/sign-in` },
+      options: { data: { full_name: fullName || '', consent, phone_number: phone.e164, phone_country: phone.country }, emailRedirectTo: `${authReturnBase(`http://${request.headers.get('host') || ''}`)}/sign-in` },
     })
 
     if (error) return NextResponse.json({ error: error.status === 429 ? 'Too many attempts. Please wait a moment and try again.' : error.message }, { status: error.status === 429 ? 429 : 400 })
