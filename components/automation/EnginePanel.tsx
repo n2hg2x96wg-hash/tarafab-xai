@@ -17,7 +17,7 @@ import { hiddenState, useFeatures } from '@/components/ui/features'
 // trades, so the running state is labelled as monitoring.
 const LABEL: Record<EngineState, string> = { running: 'Monitoring active', paused: 'Paused', maintenance: 'Maintenance', degraded: 'Delayed', offline: 'Offline', unavailable: 'Unavailable' }
 const TONE: Record<EngineState, string> = { running: 'text-emerald-300 border-emerald-500/30 bg-emerald-500/[0.07]', paused: 'text-amber-300 border-amber-500/30 bg-amber-500/[0.07]', maintenance: 'text-sky-300 border-sky-500/30 bg-sky-500/[0.07]', degraded: 'text-amber-300 border-amber-500/30 bg-amber-500/[0.07]', offline: 'text-fg-muted border-ink-600 bg-ink-800/60', unavailable: 'text-fg-muted border-ink-600 bg-ink-800/60' }
-const EVENT_LABEL: Record<string, string> = { created: 'Rule created', triggered: 'Condition met · notification sent', resumed: 'Rule resumed', paused: 'Rule paused' }
+const EVENT_LABEL: Record<string, string> = { created: 'Rule created', triggered: 'Alert sent', resumed: 'Rule resumed', paused: 'Rule paused' }
 
 function ago(iso: string | null) {
   if (!iso) return '—'
