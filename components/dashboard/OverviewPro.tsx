@@ -187,7 +187,7 @@ export function BtcMarketPanel({ onOpenMarkets }: { onOpenMarkets: () => void })
 /* Automation status. The engine watches markets and notifies; it does not
    place trades, so the panel shows monitoring facts only: the engine's own
    verified state and last check, and this client's own rules and events. */
-const AUTO_EVENT: Record<string, string> = { created: 'Rule created', triggered: 'Condition met · notification sent', resumed: 'Rule resumed', paused: 'Rule paused' }
+const AUTO_EVENT: Record<string, string> = { created: 'Rule created', triggered: 'Alert sent', resumed: 'Rule resumed', paused: 'Rule paused' }
 function agoShort(iso: string | null | undefined) {
   if (!iso) return '—'
   const s = Math.max(0, Math.round((marketNow() - Date.parse(iso)) / 1000))
@@ -221,8 +221,8 @@ export function AutomationStatusPanel({ onOpen }: { onOpen: () => void }) {
   const active = data ? data.rules.filter(r => r.status === 'active').length : null
   const met = data ? data.rules.filter(r => r.status === 'triggered').length : null
   const stream: { key: string; label: string; at: string; tone: string }[] = []
-  if (status?.last_ok_at) stream.push({ key: 'c', label: `Automation check completed${status.last_evaluated != null ? ` · ${status.last_evaluated} rule${status.last_evaluated === 1 ? '' : 's'}` : ''}`, at: status.last_ok_at, tone: 'bg-emerald-400' })
-  if (status?.market_at) stream.push({ key: 'm', label: `Market monitored${assets.length ? ` · ${assets.slice(0, 2).join(', ')}` : ''}`, at: status.market_at, tone: 'bg-sky-400' })
+  if (status?.last_ok_at) stream.push({ key: 'c', label: `Rules checked${status.last_evaluated != null ? ` · ${status.last_evaluated}` : ''}`, at: status.last_ok_at, tone: 'bg-emerald-400' })
+  if (status?.market_at) stream.push({ key: 'm', label: `Prices updated${assets.length ? ` · ${assets.slice(0, 2).join(', ')}` : ''}`, at: status.market_at, tone: 'bg-sky-400' })
   for (const e of data?.events || []) stream.push({ key: `e${e.id}`, label: `${AUTO_EVENT[e.event] || e.event}${e.asset ? ` · ${e.asset}` : ''}`, at: e.created_at, tone: e.event === 'triggered' ? 'bg-amber-400' : 'bg-fg-faint' })
   stream.sort((a, b) => Date.parse(b.at) - Date.parse(a.at)); stream.splice(3)
   const tile = (k: string, v: ReactNode, sub: string, attr: string) => (
@@ -248,7 +248,7 @@ export function AutomationStatusPanel({ onOpen }: { onOpen: () => void }) {
       <p className="mt-1 text-[11.5px] leading-relaxed text-fg-faint" data-auto-scope>{t('ov2.autoScope')}</p>
       <dl className="mt-3.5 grid grid-cols-3 gap-2">
         {tile('Active rules', active ?? (failed ? '—' : <span className="inline-block h-5 w-8 rounded skeleton align-middle" aria-hidden="true" />), 'your rules', 'active')}
-        {tile('Triggered', met ?? (failed ? '—' : <span className="inline-block h-5 w-8 rounded skeleton align-middle" aria-hidden="true" />), 'notified', 'met')}
+        {tile('Alerts sent', met ?? (failed ? '—' : <span className="inline-block h-5 w-8 rounded skeleton align-middle" aria-hidden="true" />), 'to you', 'met')}
         {tile(t('ov2.autoLastCheck'), <span className="text-[15px] sm:text-[16px]">{agoShort(status?.last_ok_at)}</span>, status?.monitored_count ? `${status.monitored_count} market${status.monitored_count === 1 ? '' : 's'}` : '—', 'last')}
       </dl>
       {assets.length > 0 && (
@@ -259,7 +259,7 @@ export function AutomationStatusPanel({ onOpen }: { onOpen: () => void }) {
         </div>
       )}
       <div className="mt-3.5 pt-3 border-t border-[rgb(var(--contrast)/.06)] flex-1">
-        <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-fg-faint mb-2">XAI activity</p>
+        <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-fg-faint mb-2">Recent activity</p>
         {stream.length ? (
           <ol className="space-y-2" data-ov-activity>
             {stream.map(x => (
@@ -274,7 +274,7 @@ export function AutomationStatusPanel({ onOpen }: { onOpen: () => void }) {
       <div className="mt-3 flex items-center justify-between gap-3">
         <span className="inline-flex items-center gap-2 text-[12px] text-fg-muted min-w-0">
           <span className={`w-2 h-2 rounded-full shrink-0 ${connected ? (on ? 'bg-emerald-400' : 'bg-amber-400') : 'bg-fg-faint'}`} aria-hidden="true" />
-          <span className="truncate" data-ov-auto-service>{connected ? (on ? 'Connected · checks every minute' : 'Connected') : loading ? 'Connecting' : 'Not connected'}</span>
+          <span className="truncate" data-ov-auto-service>{connected ? (on ? 'Live · checks every minute' : 'Connected') : loading ? 'Connecting' : 'Not connected'}</span>
         </span>
         <button type="button" onClick={onOpen} className="inline-flex items-center gap-1.5 text-[13px] font-medium text-accent hover:brightness-110 min-h-9 shrink-0">View automation <span aria-hidden="true">→</span></button>
       </div>
