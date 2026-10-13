@@ -106,6 +106,9 @@ export function txLabel(tx: Tx, t: T) {
   if (c === 'promotional_credit') return `${t('dash.txType.profit')} · ${t('dash.txType.promotionalCredit')}`
   if (c === 'profit_correction') return t('dash.txType.profitCorrection')
   if (c === 'reconciliation') return t('dash.txType.reconciliation')
+  // Manual profit credits from our team (not an investment or trading result).
+  if (c === 'profit_distribution') return t('dash.txType.profitDistribution')
+  if (c === 'profit_allocation') return t('dash.txType.profitCredit')
   if (c === 'deposit') return t('dash.txType.deposit')
   if (c === 'account_debit') return t('dash.txType.accountDebit')
   if (c === 'reversal') return t('dash.txType.reversal')
@@ -126,6 +129,8 @@ const TX_DESC: Partial<Record<ReturnType<typeof txCategory>, TKey>> = {
   profit_correction: 'dash.txDesc.profitCorrection',
   reconciliation: 'dash.txDesc.reconciliation',
   profit_adjustment: 'dash.txDesc.profitAdjustment',
+  profit_distribution: 'dash.txDesc.profitDistribution',
+  profit_allocation: 'dash.txDesc.profitCredit',
   reversal: 'dash.txDesc.reversal',
 }
 export function txDescription(tx: Tx, t: T): string | null {
@@ -160,7 +165,7 @@ export function methodLabel(method: string, t: T) {
 export function TxIcon({ type, tx }: { type: string; tx?: Tx }) {
   const c = tx ? txCategory(tx) : txCategory({ type })
   const [I, tone] = c === 'deposit' ? [IconArrowDown, 'text-emerald-300 border-emerald-500/25 bg-emerald-500/[.07]']
-    : c === 'profit' ? [IconTrend, 'text-emerald-300 border-emerald-500/25 bg-emerald-500/[.07]']
+    : c === 'profit' || c === 'profit_distribution' || c === 'profit_allocation' ? [IconTrend, 'text-emerald-300 border-emerald-500/25 bg-emerald-500/[.07]']
     : c === 'withdrawal' ? [IconArrowUp, 'text-fg-muted border-ink-700 bg-ink-800']
     : c === 'fee' ? [IconFile, 'text-amber-300 border-amber-500/25 bg-amber-500/[.06]']
     : c === 'investment' ? [IconPie, 'text-sky-300 border-sky-500/25 bg-sky-500/[.06]']
