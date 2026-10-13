@@ -38,36 +38,65 @@ A gap between "Investment returns credited" and "Profit balance" is expected whe
 
 "Edit profit / return" (`admin_set_investment_profit`) is a separate, audited manual correction on an investment. It is also recorded as an investment-linked return.
 
-## Manual profit credits
+## Manual profit credits and debits
 
-Admin → Profit credits, or the "Profit Credit" tab on a client. Database function `admin_manual_profit_credit` (migration `202611190001_manual_profit_credit.sql`); API `POST /api/admin/profit-credit`.
+Admin → Profit credit & debit, or the "Profit Credit / Debit" tab on a client. One panel switches between credit and debit over the client's profit balance, requested withdrawals and the amount available to debit (`GET /api/admin/profit-balance` → `admin_profit_balance_snapshot`).
 
-The admin chooses one classification:
+- Credits: `admin_manual_profit_credit_v2` (migration `202611220001_profit_credit_debit.sql`); API `POST /api/admin/profit-credit`. The original `admin_manual_profit_credit` (migration `202611190001`) keeps its signature and calls v2, so it follows the same rules.
+- Debits: `admin_manual_profit_debit`; API `POST /api/admin/profit-debit`.
+
+**Credit classifications**
 
 | Classification | Ledger entry | Client label |
 |---|---|---|
 | Verified investment return | Goes through `admin_set_investment_profit` on the chosen investment: a `return` transaction tagged `investment_profit`, linked to that investment. Only the investment's recorded return changes; principal, rate, dates and status are not touched. | Profit · Investment return |
 | Documented profit distribution | One `adjustment` on `profit_balance`, source `profit_distribution`, reference `PRF-…` | Profit distribution |
-| Other authorized profit allocation | Same, source `profit_allocation` | Profit credit received |
+| Other authorized profit credit | Same, source `profit_allocation` | Profit Credit |
+| Correction of an earlier manual debit | Same, source `profit_correction`, linked to the debit (`reverses_transaction_id`); at most what is left of that debit | Profit Balance Correction |
 
-Loyalty rewards, promotional credits and corrections are not manual profit credits. They stay under Balance actions → Adjust profit balance.
+**Debit categories** (one `adjustment` on `profit_balance`, direction `debit`, reference `PDB-…`; only `profit_balance` changes)
+
+| Category | Source | Client label | Needs reference or evidence |
+|---|---|---|---|
+| Reversal of an earlier profit credit | `profit_correction`, linked to the credit; at most what is left of it; never an investment return (change those with Edit profit / return) | Profit Balance Correction | No |
+| Profit balance correction | `profit_correction` | Profit Balance Correction | No |
+| Profit paid out to the client | `profit_payout` | Profit Payout | Yes |
+| Authorized charge | `profit_debit` | Profit Debit | Yes |
+| Other authorized debit | `profit_debit` | Profit Debit | Yes |
+
+A debit is never labelled as a withdrawal the client requested. Client withdrawal requests stay under Withdrawals.
+
+**Available balance.** A debit may not exceed `profit_balance` minus the client's profit withdrawals still awaiting review (they stay reserved inside `profit_balance` until approved). The check runs with the account row locked, so two simultaneous debits cannot both pass.
 
 **Dates.**
-- `transactions.effective_at` is the effective date the client sees. Today's date posts at the posting time. An earlier date posts at noon on that date in the admin's time zone, and requires a written justification.
-- `transactions.created_at` is the actual posting time. It is never replaced.
-- Future dates, and dates before the account was opened, are refused.
+- `transactions.effective_at` is the effective date the client sees. Today posts at the posting time; an earlier date posts at noon on that date in the admin's time zone.
+- `transactions.created_at` and the record's `posted_at` are the actual posting time. They are never replaced.
+- Future dates are refused.
+- A historical (earlier) date needs a reason of at least 10 characters and a supporting reference or evidence file, and is flagged "Historical" for admins.
+- A date before the client's account was opened is neither refused outright nor allowed silently. The admin confirms a pre-opening exception and gives an accounting basis (at least 20 characters); otherwise the entry should be recorded against the correct account. The opening date is never changed. The entry is flagged "Pre-opening exception" and the audit log keeps the opening date.
 
-**Posting and records.** Each credit is one database transaction:
+**Duplicates.** A repeated request key returns the existing entry (`duplicate: true`) and posts nothing. An external reference can be used once per client across credits and debits.
+
+**Posting and records.** Each entry is one database transaction:
 1. Lock the account.
-2. Post the ledger entry.
-3. Update `profit_balance`.
-4. Write the admin record in `manual_profit_credits` (admin-only RLS). It holds the amount, classification, reason, justification, effective date, posting time, and profit balance before and after.
-5. Write an audit-log entry (`MANUAL_PROFIT_CREDIT`).
-6. Write one client notification, linked by `client_notifications.transaction_id`, which is unique.
+2. Validate.
+3. Post the ledger entry and update `profit_balance`.
+4. Write the admin record in `manual_profit_credits` or `manual_profit_debits` (admin-only RLS). It holds the amount, category, client-visible description, internal note, external reference, evidence path, historical reason, pre-opening basis, effective date, posting time, and profit balance before and after.
+5. Write an audit-log entry (`MANUAL_PROFIT_CREDIT` / `MANUAL_PROFIT_DEBIT`) with the admin as actor and status `posted`.
+6. Write one client notification ("Profit Credit Notification" / "Profit Balance Update"), linked by the unique `client_notifications.transaction_id`.
 
-**Idempotency.** A repeated request key returns the existing credit (`duplicate: true`) and posts nothing.
+Any failure rolls all of it back, so there is no partial update and no notification. Notifications and the client feed never include the administrator's name, email, ID or role.
 
-**Corrections.** Posted credits are not edited or deleted. Corrections go through the existing processes, such as a profit balance correction.
+**Evidence** files go to the private `historical-evidence` bucket. Only admins can upload or read them, through `/api/admin/historical-evidence`.
+
+**Corrections.** Posted entries are never edited or deleted. A wrong credit is reversed with a linked debit, and a wrong debit is corrected with a linked credit. Both stay on record.
+
+**Rollback plan.** The migration is additive: new columns with defaults, a new table, and new functions. To withdraw the feature without touching posted entries:
+1. Revoke execute on `admin_manual_profit_debit`, `admin_manual_profit_credit_v2` and `admin_profit_balance_snapshot` from `authenticated`.
+2. Restore the earlier body of `admin_manual_profit_credit` from `202611190001`.
+3. Redeploy the previous app version.
+
+Keep the records, columns and the extended `transactions_source_check` so the posted rows remain valid.
 
 ## Open item
 

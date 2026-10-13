@@ -3,13 +3,13 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import AdminLayout from '@/components/AdminLayout'
-import { ManualProfitCreditForm, ManualProfitCreditHistory } from '@/components/admin/ManualProfitCredit'
+import { ManualProfitHistory, ManualProfitPanel } from '@/components/admin/ManualProfitPanel'
 import { ClientSearch, useClientLookup, type FoundClient } from '@/components/admin/ClientSearch'
 
-// Admin: Manual Profit Credit. Find a client, record one profit credit with
-// its effective date, and review the credits already recorded. Admin access is
-// checked by the admin layout, again by the API route, and again by the
-// database function; the records table is readable by admins only.
+// Admin: Manual Profit Credit & Debit. Find a client, record one profit credit
+// or debit with its effective date, and review the entries already recorded.
+// Admin access is checked by the admin layout, again by the API route, and
+// again by the database function; the record tables are readable by admins only.
 export default function ProfitCreditsPage() {
   const params = useSearchParams()
   const [client, setClient] = useState<FoundClient | null>(null)
@@ -32,25 +32,24 @@ export default function ProfitCreditsPage() {
   return (
     <AdminLayout>
       <div className="max-w-5xl">
-        <h1 className="text-lg sm:text-xl font-semibold text-white tracking-tight">Manual profit credit</h1>
-        <p className="text-xs sm:text-sm text-slate-500 mt-1 mb-5 max-w-2xl">Record a profit credit for one client with the date it applies to. It is posted once to the client’s profit balance, recorded in their activity, notified to the client and kept in the audit log. No investment is created or changed.</p>
+        <h1 className="text-lg sm:text-xl font-semibold text-white tracking-tight">Manual profit credit &amp; debit</h1>
+        <p className="text-xs sm:text-sm text-slate-500 mt-1 mb-5 max-w-2xl">Record a profit credit or debit for one client with the date it applies to. Each entry is posted once to the client’s profit balance, recorded in their activity, notified to the client and kept in the audit log. No investment, deposit or other balance is changed.</p>
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-start">
           <section className="glass rounded-2xl p-4 sm:p-6 border border-white/[0.08]" aria-labelledby="mpc-new">
-            <h2 id="mpc-new" className="text-sm font-semibold text-white mb-3">New credit</h2>
+            <h2 id="mpc-new" className="text-sm font-semibold text-white mb-3">New entry</h2>
 
             <div className="mb-5"><ClientSearch client={client} onChange={setClient} inputId="mpc-search" /></div>
 
             {client && (
-              <ManualProfitCreditForm client={client} profitBalance={client.profit_balance}
-                onPosted={() => { setRefresh(n => n + 1); reloadBalance() }} />
+              <ManualProfitPanel client={client} profitBalance={client.profit_balance} onPosted={() => { setRefresh(n => n + 1); reloadBalance() }} />
             )}
           </section>
 
           <section className="glass rounded-2xl p-4 sm:p-6 border border-white/[0.08]" aria-labelledby="mpc-recent">
-            <h2 id="mpc-recent" className="text-sm font-semibold text-white">Recent manual credits</h2>
-            <p className="text-[11px] text-slate-500 mt-0.5 mb-2">Effective date and posting time are shown separately. Posted credits are not edited or deleted here.</p>
-            <ManualProfitCreditHistory refreshKey={refresh} />
+            <h2 id="mpc-recent" className="text-sm font-semibold text-white">Recent manual entries</h2>
+            <p className="text-[11px] text-slate-500 mt-0.5 mb-2">Effective date and posting time are shown separately. Posted entries are never edited or deleted; a mistake is corrected with a linked entry.</p>
+            <ManualProfitHistory refreshKey={refresh} />
           </section>
         </div>
       </div>

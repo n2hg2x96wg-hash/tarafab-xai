@@ -1,20 +1,27 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { authFetch, errorText, newRequestKey, readJson, RequestError } from '@/lib/authFetch'
+import {
+  AMOUNT, blankDate, blankSupport, ConfirmSheet, dateBody, dateRules, DateSummary, EffectiveDateFields, fmtDate, fmtDateTime, Row,
+  supportBody, SupportFields, SupportSummary, usd, validateDate, type DateState, type SupportState,
+} from '@/components/admin/ManualProfitFields'
+import type { ProfitSnapshot } from '@/components/admin/ManualProfitPanel'
+
+export { usd, fmtDate, fmtDateTime }
 
 // Admin: Manual Profit Credit. Records one profit credit for one client with
 // an effective date, without creating or changing any investment's terms.
-// The database function (admin_manual_profit_credit) checks admin rights,
-// validates every field, posts one ledger entry, updates the profit balance,
-// writes the admin record, the audit log and the client's notification in one
-// database transaction, and returns the existing credit for a repeated
-// request key. The checks below only give earlier, clearer messages.
+// The database function (admin_manual_profit_credit_v2) checks admin rights,
+// validates every field (historical and pre-opening rules, duplicate
+// references), posts one ledger entry, updates the profit balance, writes the
+// admin record, the audit log and the client's notification in one database
+// transaction, and returns the existing credit for a repeated request key.
+// The checks below only give earlier, clearer messages.
 
 export type CreditClient = { id: string; full_name: string | null; email?: string | null; created_at: string }
-export type Classification = 'investment_return' | 'profit_distribution' | 'profit_allocation'
+export type Classification = 'investment_return' | 'profit_distribution' | 'profit_allocation' | 'debit_reversal'
 
 export const CLASSIFICATIONS: { id: Classification; title: string; hint: string; client: string }[] = [
   {
@@ -28,9 +35,14 @@ export const CLASSIFICATIONS: { id: Classification; title: string; hint: string;
     client: 'Profit distribution',
   },
   {
-    id: 'profit_allocation', title: 'Other authorized profit allocation',
+    id: 'profit_allocation', title: 'Other authorized profit credit',
     hint: 'Another authorized profit credit. Not linked to an investment.',
-    client: 'Profit credit received',
+    client: 'Profit Credit',
+  },
+  {
+    id: 'debit_reversal', title: 'Correction of an earlier manual debit',
+    hint: 'Gives back all or part of a manual profit debit recorded in error. Linked to that debit.',
+    client: 'Profit Balance Correction',
   },
 ]
 
@@ -45,33 +57,25 @@ export type CreditResult = {
   classification: Classification
   effective_at: string
   posted_at: string
+  historical?: boolean
+  pre_opening_exception?: boolean
   profit_balance_before: number | null
   profit_balance_after: number | null
 }
 
-const pad = (n: number) => String(n).padStart(2, '0')
-const localToday = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` }
-const localDay = (iso: string) => { const d = new Date(iso); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` }
-export const usd = (n: number | null | undefined) => `$${Number(n ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-// A calendar date (YYYY-MM-DD) in words, without time-zone shifts.
-const longDate = (ymd: string) => new Date(`${ymd}T12:00:00`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-export const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-export const fmtDateTime = (iso: string) => new Date(iso).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
-const AMOUNT = /^\d{1,9}(\.\d{1,2})?$/
-
-export function ManualProfitCreditForm({ client, profitBalance, onPosted }: {
+export function ManualProfitCreditForm({ client, profitBalance, snapshot, onPosted }: {
   client: CreditClient
   profitBalance?: number | null
+  snapshot?: ProfitSnapshot | null
   onPosted?: (r: CreditResult) => void
 }) {
-  const today = localToday()
-  const opened = localDay(client.created_at) < '2020-01-01' ? '2020-01-01' : localDay(client.created_at)
   const [amount, setAmount] = useState('')
-  const [date, setDate] = useState(today)
+  const [d, setD] = useState<DateState>(blankDate)
+  const [s, setS] = useState<SupportState>(blankSupport)
   const [classification, setClassification] = useState<Classification | ''>('')
   const [investmentId, setInvestmentId] = useState('')
-  const [reason, setReason] = useState('')
-  const [backdate, setBackdate] = useState('')
+  const [reverses, setReverses] = useState('')
+  const [description, setDescription] = useState('')
   const [investments, setInvestments] = useState<Investment[] | null>(null)
   const [invError, setInvError] = useState('')
   const [confirming, setConfirming] = useState(false)
@@ -81,13 +85,14 @@ export function ManualProfitCreditForm({ client, profitBalance, onPosted }: {
   // One key per credit: an unchanged form retried after a network error keeps
   // its key and is posted once; any change to the form makes a new credit.
   const key = useRef(newRequestKey())
-  useEffect(() => { key.current = newRequestKey() }, [client.id, amount, date, classification, investmentId, reason, backdate])
+  useEffect(() => { key.current = newRequestKey() }, [client.id, amount, d, s, classification, investmentId, reverses, description])
 
+  const clear = () => {
+    setAmount(''); setD(blankDate()); setS(blankSupport()); setClassification(''); setInvestmentId(''); setReverses(''); setDescription('')
+    setError(''); setResult(null); setConfirming(false)
+  }
   // A different client starts a clean form.
-  useEffect(() => {
-    setAmount(''); setDate(localToday()); setClassification(''); setInvestmentId(''); setReason(''); setBackdate('')
-    setInvestments(null); setError(''); setResult(null); setConfirming(false)
-  }, [client.id])
+  useEffect(() => { clear(); setInvestments(null) }, [client.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // The client's investments that can carry a return.
   useEffect(() => {
@@ -106,19 +111,25 @@ export function ManualProfitCreditForm({ client, profitBalance, onPosted }: {
     return () => { live = false }
   }, [classification, client.id, investments])
 
-  const backdated = !!date && date < today
+  const balance = snapshot?.profit_balance ?? profitBalance ?? null
   const cls = CLASSIFICATIONS.find(c => c.id === classification)
   const inv = investments?.find(i => i.id === investmentId)
+  const debits = snapshot?.correctable_debits || []
+  const rev = debits.find(x => x.reference === reverses)
+  const n = Number(amount)
 
   const validate = () => {
-    if (!AMOUNT.test(amount.trim()) || Number(amount) <= 0) return 'Enter an amount greater than zero, with at most 2 decimal places.'
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return 'Choose an effective date.'
-    if (date > today) return 'The effective date cannot be in the future.'
-    if (date < opened) return 'The effective date cannot be before the client’s account was opened.'
+    if (!AMOUNT.test(amount.trim()) || n <= 0) return 'Enter an amount greater than zero, with at most 2 decimal places.'
     if (!classification) return 'Choose what this credit is.'
     if (classification === 'investment_return' && !investmentId) return 'Choose the investment this return belongs to.'
-    if (reason.trim().length < 5) return 'Enter a reason or reference (at least 5 characters).'
-    if (backdated && backdate.trim().length < 5) return 'Explain why the effective date is earlier than today (at least 5 characters).'
+    if (classification === 'debit_reversal') {
+      if (!rev) return 'Choose the debit this corrects.'
+      if (n > Number(rev.remaining)) return `Only ${usd(rev.remaining)} of that debit is left to correct.`
+      if (d.date < rev.effective_at.slice(0, 10)) return 'A correction cannot be dated before the entry it corrects.'
+    }
+    const dv = validateDate(d, client.created_at, s)
+    if (dv) return dv
+    if (description.trim().length < 5) return 'Enter a description (at least 5 characters).'
     return ''
   }
 
@@ -138,12 +149,12 @@ export function ManualProfitCreditForm({ client, profitBalance, onPosted }: {
         body: JSON.stringify({
           user_id: client.id,
           amount: amount.trim(),
-          effective_date: date,
           classification,
           investment_id: classification === 'investment_return' ? investmentId : null,
-          reason: reason.trim(),
-          backdate_reason: backdated ? backdate.trim() : null,
-          tz_offset_min: new Date().getTimezoneOffset(),
+          reverses_reference: classification === 'debit_reversal' ? reverses : null,
+          description: description.trim(),
+          ...dateBody(d, client.created_at),
+          ...supportBody(s),
         }),
       }))
       setResult(credit)
@@ -161,11 +172,6 @@ export function ManualProfitCreditForm({ client, profitBalance, onPosted }: {
     }
   }
 
-  const reset = () => {
-    setAmount(''); setDate(localToday()); setClassification(''); setInvestmentId(''); setReason(''); setBackdate('')
-    setError(''); setResult(null); setInvestments(null)
-  }
-
   if (result) {
     const c = CLASSIFICATIONS.find(x => x.id === result.classification)
     return (
@@ -177,11 +183,11 @@ export function ManualProfitCreditForm({ client, profitBalance, onPosted }: {
           <Row k="Client" v={client.full_name || 'Unnamed client'} />
           <Row k="Amount" v={`${usd(result.amount)} ${result.currency}`} />
           <Row k="Classification" v={c?.title} />
-          <Row k="Effective date" v={fmtDate(result.effective_at)} />
+          <Row k="Effective date" v={<>{fmtDate(result.effective_at)}{result.historical && <span className="block text-[11px] text-amber-300">Historical entry</span>}{result.pre_opening_exception && <span className="block text-[11px] text-amber-300">Pre-opening exception</span>}</>} />
           <Row k="Posted (server time)" v={fmtDateTime(result.posted_at)} />
           {result.profit_balance_before !== null && <Row k="Profit balance" v={<span className="tabular-nums">{usd(result.profit_balance_before)} → <span className="text-emerald-300">{usd(result.profit_balance_after)}</span></span>} />}
         </dl>
-        <button type="button" onClick={reset} className="mt-5 w-full sm:w-auto text-sm font-semibold text-slate-200 border border-white/[0.12] hover:bg-white/[0.04] px-5 py-3 rounded-xl">Record another credit</button>
+        <button type="button" onClick={clear} className="mt-5 w-full sm:w-auto text-sm font-semibold text-slate-200 border border-white/[0.12] hover:bg-white/[0.04] px-5 py-3 rounded-xl">Record another credit</button>
       </div>
     )
   }
@@ -197,43 +203,28 @@ export function ManualProfitCreditForm({ client, profitBalance, onPosted }: {
             <input id="mpc-amount" inputMode="decimal" autoComplete="off" value={amount} disabled={busy}
               onChange={e => setAmount(e.target.value.replace(/[^\d.]/g, ''))} placeholder="0.00" className="input-field text-sm pl-7 tabular-nums" />
           </div>
-          {profitBalance !== undefined && profitBalance !== null && AMOUNT.test(amount.trim()) && Number(amount) > 0 && (
-            <p className="text-xs text-slate-500 mt-1.5">Profit balance: <span className="text-white">{usd(profitBalance)}</span> → <span className="text-emerald-400 font-medium">{usd(profitBalance + Number(amount))}</span></p>
+          {balance !== null && AMOUNT.test(amount.trim()) && n > 0 && (
+            <p className="text-xs text-slate-500 mt-1.5">Profit balance: <span className="text-white">{usd(balance)}</span> → <span className="text-emerald-400 font-medium">{usd(balance + n)}</span></p>
           )}
         </div>
-
-        <div>
-          <label htmlFor="mpc-date" className="block text-xs font-medium text-slate-400 mb-1.5">Effective date</label>
-          <input id="mpc-date" type="date" value={date} min={opened} max={today} disabled={busy}
-            onChange={e => setDate(e.target.value)} className="input-field text-sm" />
-          <p className="text-[11px] text-slate-500 mt-1">The date the credit applies to; the client sees this date. The actual posting time is recorded separately and never replaced.</p>
-        </div>
-
-        {backdated && (
-          <div>
-            <label htmlFor="mpc-backdate" className="block text-xs font-medium text-amber-300 mb-1.5">Why is the effective date earlier than today?</label>
-            <textarea id="mpc-backdate" rows={2} maxLength={500} value={backdate} disabled={busy}
-              onChange={e => setBackdate(e.target.value)} placeholder="e.g. Distribution approved on this date, recorded late" className="input-field resize-none text-sm" />
-            <p className="text-[11px] text-slate-500 mt-1">Required for an earlier date. Kept in the audit log; not shown to the client.</p>
-          </div>
-        )}
 
         <fieldset>
           <legend className="block text-xs font-medium text-slate-400 mb-1.5">What is this credit?</legend>
           <div className="grid grid-cols-1 gap-2" role="radiogroup" aria-label="Credit classification">
             {CLASSIFICATIONS.map(c => {
               const on = classification === c.id
+              const off = c.id === 'debit_reversal' && !debits.length
               return (
-                <button key={c.id} type="button" role="radio" aria-checked={on} disabled={busy} data-mpc-class={c.id}
-                  onClick={() => { setClassification(c.id); if (c.id !== 'investment_return') setInvestmentId('') }}
-                  className={`text-left px-3.5 py-2.5 rounded-xl border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${on ? 'border-accent/60 bg-accent/[0.08]' : 'border-white/[0.08] hover:border-white/20'}`}>
+                <button key={c.id} type="button" role="radio" aria-checked={on} disabled={busy || off} data-mpc-class={c.id}
+                  onClick={() => { setClassification(c.id); if (c.id !== 'investment_return') setInvestmentId(''); if (c.id !== 'debit_reversal') setReverses('') }}
+                  className={`text-left px-3.5 py-2.5 rounded-xl border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-50 disabled:cursor-not-allowed ${on ? 'border-accent/60 bg-accent/[0.08]' : 'border-white/[0.08] hover:border-white/20'}`}>
                   <span className={`block text-[13px] font-semibold ${on ? 'text-white' : 'text-slate-300'}`}>{on ? '● ' : ''}{c.title}</span>
-                  <span className="block text-[11px] leading-snug text-slate-500 mt-0.5">{c.hint}</span>
+                  <span className="block text-[11px] leading-snug text-slate-500 mt-0.5">{off ? 'No manual debit of this client is left to correct.' : c.hint}</span>
                 </button>
               )
             })}
           </div>
-          <p className="text-[11px] text-slate-500 mt-2">Not for loyalty rewards, promotional credits or balance corrections: use <span className="text-slate-300">Balance actions → Adjust profit balance</span> for those.</p>
+          <p className="text-[11px] text-slate-500 mt-2">Not for loyalty rewards or promotional credits: use <span className="text-slate-300">Balance actions → Adjust profit balance</span> for those.</p>
         </fieldset>
 
         {classification === 'investment_return' && (
@@ -254,129 +245,57 @@ export function ManualProfitCreditForm({ client, profitBalance, onPosted }: {
           </div>
         )}
 
+        {classification === 'debit_reversal' && (
+          <div>
+            <label htmlFor="mpc-rev" className="block text-xs font-medium text-slate-400 mb-1.5">Debit being corrected</label>
+            <select id="mpc-rev" value={reverses} disabled={busy} onChange={e => setReverses(e.target.value)} className="input-field text-sm" data-mpc-reverses>
+              <option value="">Choose a manual debit</option>
+              {debits.map(x => (
+                <option key={x.reference} value={x.reference}>{x.reference} · {usd(x.amount)} · {fmtDate(x.effective_at)} · {usd(x.remaining)} left</option>
+              ))}
+            </select>
+            <p className="text-[11px] text-slate-500 mt-1">The debit stays on record; this credit is posted alongside it and linked to it.</p>
+          </div>
+        )}
+
+        <EffectiveDateFields prefix="mpc" value={d} onChange={setD} openedAt={client.created_at} busy={busy} kind="credit" />
+
         <div>
-          <label htmlFor="mpc-reason" className="block text-xs font-medium text-slate-400 mb-1.5">Reason or reference <span className="text-slate-500 font-normal">· {classification === 'investment_return' ? 'audit log and investment history' : 'shown to the client beneath the entry'}</span></label>
-          <textarea id="mpc-reason" rows={3} maxLength={500} value={reason} disabled={busy}
-            onChange={e => setReason(e.target.value)} placeholder="e.g. Q3 distribution, board approval ref. 2026-09" className="input-field resize-none text-sm" />
+          <label htmlFor="mpc-reason" className="block text-xs font-medium text-slate-400 mb-1.5">Description <span className="text-slate-500 font-normal">· {classification === 'investment_return' ? 'investment history and the client’s notification' : 'shown to the client beneath the entry and in the notification'}</span></label>
+          <textarea id="mpc-reason" rows={3} maxLength={500} value={description} disabled={busy}
+            onChange={e => setDescription(e.target.value)} placeholder="e.g. Q3 profit distribution" className="input-field resize-none text-sm" />
+          <p className="text-[11px] text-slate-500 mt-1">State what the credit is, accurately. Do not include internal details.</p>
         </div>
+
+        <SupportFields prefix="mpc" value={s} onChange={setS} busy={busy} required={dateRules(d, client.created_at).backdated} onError={setError} />
       </div>
 
-      <button type="button" onClick={review} disabled={busy || !amount || !classification || !reason.trim()} data-mpc-review
+      <button type="button" onClick={review} disabled={busy || !amount || !classification || !description.trim()} data-mpc-review
         className="w-full mt-6 py-3.5 text-sm font-semibold text-accent-ink bg-accent rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
         Review credit
       </button>
 
       {confirming && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:px-4" role="dialog" aria-modal="true" aria-labelledby="mpc-confirm-title">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => !busy && setConfirming(false)} />
-          <div className="relative z-10 glass w-full sm:max-w-md max-h-[92vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl border border-white/[0.1] p-5 sm:p-6" style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}>
-            <h3 id="mpc-confirm-title" className="text-base font-bold text-white">Confirm manual profit credit</h3>
-            <p className="text-xs text-slate-500 mt-1">This posts one credit to the client’s profit balance and notifies the client. A posted credit is not deleted; corrections go through the existing correction process.</p>
-            <dl className="mt-4 rounded-xl bg-white/[0.03] p-4 space-y-2 text-sm" data-mpc-confirm>
-              <Row k="Client" v={<>{client.full_name || 'Unnamed client'}{client.email && <span className="block text-[11px] text-slate-500 break-all">{client.email}</span>}</>} />
-              <Row k="Amount" v={<span className="tabular-nums">+{usd(Number(amount))}</span>} />
-              <Row k="Currency" v="USD" />
-              <Row k="Effective date" v={<>{longDate(date)}{backdated && <span className="block text-[11px] text-amber-300">Earlier than today</span>}</>} />
-              <Row k="Classification" v={cls?.title} />
-              {inv && <Row k="Investment" v={inv.reference || inv.id.slice(0, 8)} />}
-              <Row k="Reason" v={<span className="text-xs">{reason.trim()}</span>} />
-              {backdated && <Row k="Why earlier" v={<span className="text-xs">{backdate.trim()}</span>} />}
-              {profitBalance !== undefined && profitBalance !== null && <Row k="Profit balance" v={<span className="tabular-nums">{usd(profitBalance)} → <span className="text-emerald-400">{usd(profitBalance + Number(amount))}</span></span>} />}
-              <div className="pt-2 mt-1 border-t border-white/[0.06] space-y-1 text-xs">
-                <Row k="Client sees" v={classification === 'investment_return' ? cls?.client : `${cls?.client} — ${reason.trim()}`} />
-                <Row k="Posting time" v="Recorded by the server when you confirm" />
-              </div>
-            </dl>
-            <div className="flex gap-2 mt-5">
-              <button type="button" onClick={() => setConfirming(false)} disabled={busy} className="flex-1 text-sm text-slate-300 border border-white/[0.1] rounded-xl px-4 py-3">Cancel</button>
-              <button type="button" onClick={submit} disabled={busy} data-mpc-confirm-btn className="flex-1 text-sm font-semibold text-accent-ink bg-accent hover:bg-accent-hover rounded-xl px-4 py-3 disabled:opacity-60">{busy ? 'Posting…' : 'Confirm credit'}</button>
+        <ConfirmSheet id="mpc-confirm" title="Confirm manual profit credit" busy={busy} onCancel={() => setConfirming(false)} onConfirm={submit} confirmLabel="Confirm credit"
+          intro="This posts one credit to the client’s profit balance and notifies the client. A posted credit is never deleted or edited; a mistake is corrected with a linked debit.">
+          <dl className="mt-4 rounded-xl bg-white/[0.03] p-4 space-y-2 text-sm" data-mpc-confirm>
+            <Row k="Client" v={<>{client.full_name || 'Unnamed client'}{client.email && <span className="block text-[11px] text-slate-500 break-all">{client.email}</span>}</>} />
+            <Row k="Amount" v={<span className="tabular-nums">+{usd(n)} USD</span>} />
+            <Row k="Classification" v={cls?.title} />
+            {inv && <Row k="Investment" v={inv.reference || inv.id.slice(0, 8)} />}
+            {rev && <Row k="Corrects" v={<span className="font-mono text-xs">{rev.reference}</span>} />}
+            <DateSummary d={d} openedAt={client.created_at} />
+            <Row k="Description" v={<span className="text-xs">{description.trim()}</span>} />
+            <SupportSummary s={s} />
+            {balance !== null && <Row k="Profit balance" v={<span className="tabular-nums">{usd(balance)} → <span className="text-emerald-400">{usd(balance + n)}</span></span>} />}
+            <div className="pt-2 mt-1 border-t border-white/[0.06] space-y-1 text-xs">
+              <Row k="Client sees" v={classification === 'investment_return' ? cls?.client : `${cls?.client} — ${description.trim()}`} />
+              <Row k="Notification" v="Profit Credit Notification" />
+              <Row k="Posting time" v="Recorded by the server when you confirm" />
             </div>
-          </div>
-        </div>
+          </dl>
+        </ConfirmSheet>
       )}
     </div>
-  )
-}
-
-function Row({ k, v }: { k: string; v: React.ReactNode }) {
-  return (
-    <div className="flex justify-between gap-3">
-      <dt className="text-slate-400 shrink-0">{k}</dt>
-      <dd className="text-white text-right min-w-0 break-words">{v}</dd>
-    </div>
-  )
-}
-
-type HistoryRow = {
-  id: string
-  user_id: string
-  admin_id: string
-  amount: number
-  currency: string
-  classification: Classification
-  reason: string
-  backdate_reason: string | null
-  effective_at: string
-  posted_at: string
-  profit_balance_before: number | null
-  profit_balance_after: number | null
-  transactions: { reference: string | null } | null
-  client_investments: { reference: string | null } | null
-}
-
-// Recorded manual profit credits (admin only; the table is readable by
-// admins alone). Shows the effective date and the posting time separately.
-export function ManualProfitCreditHistory({ clientId, refreshKey = 0, limit = 25 }: { clientId?: string; refreshKey?: number; limit?: number }) {
-  const [rows, setRows] = useState<HistoryRow[] | null>(null)
-  const [names, setNames] = useState<Map<string, string>>(new Map())
-  const [error, setError] = useState('')
-
-  useEffect(() => {
-    let live = true
-    const sb = createClient()
-    let q = (sb.from('manual_profit_credits') as any)
-      .select('id, user_id, admin_id, amount, currency, classification, reason, backdate_reason, effective_at, posted_at, profit_balance_before, profit_balance_after, transactions(reference), client_investments(reference)')
-      .order('posted_at', { ascending: false }).limit(limit)
-    if (clientId) q = q.eq('user_id', clientId)
-    ;(q as Promise<{ data: HistoryRow[] | null; error: unknown }>).then(async ({ data, error: e }) => {
-      if (!live) return
-      if (e) { setError('Recorded credits could not be loaded.'); return }
-      setError('')
-      setRows(data || [])
-      const ids = Array.from(new Set((data || []).flatMap(r => [r.user_id, r.admin_id])))
-      if (!ids.length) return
-      const { data: ps } = await (sb.from('profiles') as any).select('id, full_name').in('id', ids) as { data: { id: string; full_name: string | null }[] | null }
-      if (live) setNames(new Map((ps || []).map(p => [p.id, p.full_name || 'Unnamed'])))
-    })
-    return () => { live = false }
-  }, [clientId, refreshKey, limit])
-
-  if (error) return <p role="alert" className="text-xs text-red-400">{error}</p>
-  if (!rows) return <p className="text-xs text-slate-500">Loading…</p>
-  if (!rows.length) return <p className="text-xs text-slate-500" data-mpc-history-empty>No manual profit credits recorded{clientId ? ' for this client' : ''} yet.</p>
-
-  return (
-    <ul className="divide-y divide-white/[0.06]" data-mpc-history>
-      {rows.map(r => (
-        <li key={r.id} className="py-3 text-sm" data-mpc-row>
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-white font-medium">{CLASSIFICATIONS.find(c => c.id === r.classification)?.title}</p>
-              <p className="text-[11px] text-slate-500 font-mono">{r.transactions?.reference || '—'}{r.client_investments?.reference ? ` · ${r.client_investments.reference}` : ''}</p>
-              {!clientId && <Link href={`/admin/clients/${r.user_id}`} className="text-[12px] text-accent hover:text-accent-hover">{names.get(r.user_id) || 'Client'}</Link>}
-            </div>
-            <p className="text-emerald-300 font-semibold tabular-nums shrink-0">+{usd(r.amount)} <span className="text-[10px] text-slate-500 font-normal">{r.currency}</span></p>
-          </div>
-          <dl className="mt-1.5 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-0.5 text-[11px]">
-            <div className="flex gap-1.5"><dt className="text-slate-500">Effective</dt><dd className="text-slate-200">{fmtDate(r.effective_at)}</dd></div>
-            <div className="flex gap-1.5"><dt className="text-slate-500">Posted</dt><dd className="text-slate-300">{fmtDateTime(r.posted_at)}</dd></div>
-            <div className="flex gap-1.5"><dt className="text-slate-500">By</dt><dd className="text-slate-300">{names.get(r.admin_id) || 'Admin'}</dd></div>
-            {r.profit_balance_before !== null && <div className="flex gap-1.5"><dt className="text-slate-500">Profit balance</dt><dd className="text-slate-300 tabular-nums">{usd(r.profit_balance_before)} → {usd(r.profit_balance_after)}</dd></div>}
-          </dl>
-          <p className="text-[11px] text-slate-400 mt-1 break-words">{r.reason}</p>
-          {r.backdate_reason && <p className="text-[11px] text-amber-300/80 mt-0.5 break-words">Earlier date: {r.backdate_reason}</p>}
-        </li>
-      ))}
-    </ul>
   )
 }

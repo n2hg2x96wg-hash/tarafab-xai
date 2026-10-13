@@ -54,7 +54,7 @@ import { MarketActivityTab, PriceHistoryTab } from '@/components/dashboard/Marke
 import { feedStatus } from '@/lib/marketStatus'
 import { useAssets } from '@/components/markets/assetStore'
 import { effectiveState } from '@/lib/marketStatus'
-import { isAccountCredit, MANUAL_PROFIT_CREDIT_CATEGORIES, txCategory, txSign, type TxCategory } from '@/lib/txCategory'
+import { isAccountCredit, MANUAL_PROFIT_CATEGORIES, txCategory, txSign, type TxCategory } from '@/lib/txCategory'
 import { hideChat } from '@/lib/chatAside'
 import { BankAccountPanel, BankAccountSheet, BankGlyph, useBankAccounts } from '@/components/dashboard/BankDestination'
 import { SupportButton } from '@/components/dashboard/SupportAction'
@@ -1054,7 +1054,7 @@ const TX_GROUPS: { id: string; label: TKey; cats: TxCategory[] }[] = [
   { id: 'deposits', label: 'txc.gDeposits', cats: ['deposit'] },
   { id: 'investments', label: 'txc.gInvestments', cats: ['investment'] },
   { id: 'withdrawals', label: 'txc.gWithdrawals', cats: ['withdrawal', 'account_debit'] },
-  { id: 'profit', label: 'txc.gProfit', cats: ['profit', 'profit_adjustment', 'loyalty_reward', 'promotional_credit', 'profit_distribution', 'profit_allocation'] },
+  { id: 'profit', label: 'txc.gProfit', cats: ['profit', 'profit_adjustment', 'loyalty_reward', 'promotional_credit', 'profit_distribution', 'profit_allocation', 'profit_debit', 'profit_payout'] },
   { id: 'fees', label: 'txc.gFees', cats: ['fee'] },
 ]
 
@@ -1174,7 +1174,7 @@ function TransactionsTab({ txs }: { txs: Tx[] }) {
                           {txDescription(tx, t) && <p className="text-[12px] leading-snug text-fg-muted whitespace-normal break-words" data-tx-desc>{txDescription(tx, t)}</p>}
                           <p className="text-[12px] text-fg-faint truncate">
                             {/* A manual profit credit carries an effective date, not a time of day. */}
-                            {MANUAL_PROFIT_CREDIT_CATEGORIES.includes(txCategory(tx))
+                            {MANUAL_PROFIT_CATEGORIES.includes(txCategory(tx))
                               ? (tx.reference ? <span className="font-mono">{tx.reference}</span> : null)
                               : <>{new Date(tx.created_at).toLocaleTimeString(intl, { hour: 'numeric', minute: '2-digit' })}{tx.reference ? <> · <span className="font-mono">{tx.reference}</span></> : null}</>}
                           </p>

@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import AdminLayout from '@/components/AdminLayout'
 import { ClientWallets } from '@/components/admin/ClientWallets'
-import { ManualProfitCreditForm, ManualProfitCreditHistory } from '@/components/admin/ManualProfitCredit'
+import { ManualProfitHistory, ManualProfitPanel } from '@/components/admin/ManualProfitPanel'
 import { HistoricalInvestmentForm, HistoricalInvestmentHistory } from '@/components/admin/HistoricalInvestment'
 import { parseEffective, toLocalInput } from '@/lib/effectiveDate'
 import { authFetch, errorText, newRequestKey, readJson, RequestError } from '@/lib/authFetch'
@@ -468,7 +468,7 @@ export default function ClientDetailPage() {
             onClick={() => setTab(t)}
             className={`flex-1 sm:flex-none whitespace-nowrap px-4 py-2.5 rounded-lg text-xs font-semibold transition-all ${tab === t ? 'bg-ink-800 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]' : 'text-slate-500 hover:text-slate-200'}`}
           >
-            {t === 'overview' ? 'Overview' : t === 'adjust' ? 'Balance Actions' : t === 'credit' ? 'Profit Credit' : t === 'historical' ? 'Historical Investment' : t === 'edit' ? 'Edit Details' : 'History'}
+            {t === 'overview' ? 'Overview' : t === 'adjust' ? 'Balance Actions' : t === 'credit' ? 'Profit Credit / Debit' : t === 'historical' ? 'Historical Investment' : t === 'edit' ? 'Edit Details' : 'History'}
           </button>
         ))}
       </div>
@@ -530,7 +530,7 @@ export default function ClientDetailPage() {
       {tab === 'adjust' && (
         <div className="glass rounded-2xl p-5 sm:p-6 border border-white/[0.08] max-w-lg">
           <h2 className="text-sm font-semibold text-white mb-1">Balance actions</h2>
-          <p className="text-xs text-slate-500 mb-5">Choose what you are doing; the entry is recorded and shown by that meaning. Every action is logged to the audit trail. To record an investment&rsquo;s return or a documented profit distribution with its effective date, use the <button type="button" onClick={() => setTab('credit')} className="text-accent hover:text-accent-hover underline-offset-2 hover:underline">Profit Credit</button> tab.</p>
+          <p className="text-xs text-slate-500 mb-5">Choose what you are doing; the entry is recorded and shown by that meaning. Every action is logged to the audit trail. To record an investment&rsquo;s return, a documented profit distribution or an authorized profit debit with its effective date, use the <button type="button" onClick={() => setTab('credit')} className="text-accent hover:text-accent-hover underline-offset-2 hover:underline">Profit Credit / Debit</button> tab.</p>
 
           {adjustSuccess && (
             <div className="mb-5 p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm flex items-center gap-2">
@@ -702,24 +702,23 @@ export default function ClientDetailPage() {
         </div>
       )}
 
-      {/* Manual profit credit tab */}
+      {/* Manual profit credit / debit tab */}
       {tab === 'credit' && (
         <div className="grid gap-5 lg:grid-cols-[minmax(0,32rem)_minmax(0,1fr)] items-start">
           <div className="glass rounded-2xl p-4 sm:p-6 border border-white/[0.08]">
-            <h2 className="text-sm font-semibold text-white mb-1">Manual profit credit</h2>
-            <p className="text-xs text-slate-500 mb-5">Record a profit credit with the date it applies to. Posted once to the profit balance, shown in the client&rsquo;s activity, notified to the client and kept in the audit log. No investment is created or changed.</p>
+            <h2 className="text-sm font-semibold text-white mb-1">Manual profit credit &amp; debit</h2>
+            <p className="text-xs text-slate-500 mb-5">Record a profit credit or debit with the date it applies to. Posted once to the profit balance, shown in the client&rsquo;s activity, notified to the client and kept in the audit log. No investment, deposit or other balance is changed.</p>
             {profile.role === 'customer' ? (
-              <ManualProfitCreditForm client={{ id: profile.id, full_name: profile.full_name, email, created_at: profile.created_at }}
-                profitBalance={account?.profit_balance ?? null}
-                onPosted={() => { setCreditRefresh(n => n + 1); load() }} />
+              <ManualProfitPanel client={{ id: profile.id, full_name: profile.full_name, email, created_at: profile.created_at }}
+                profitBalance={account?.profit_balance ?? null} onPosted={() => { setCreditRefresh(n => n + 1); load() }} />
             ) : (
-              <p className="text-sm text-slate-400">Profit credits can only be recorded for client accounts.</p>
+              <p className="text-sm text-slate-400">Profit credits and debits can only be recorded for client accounts.</p>
             )}
           </div>
           <div className="glass rounded-2xl p-4 sm:p-6 border border-white/[0.08]">
-            <h2 className="text-sm font-semibold text-white">Manual credits for this client</h2>
-            <p className="text-[11px] text-slate-500 mt-0.5 mb-2">Effective date and posting time are shown separately.</p>
-            <ManualProfitCreditHistory clientId={clientId} refreshKey={creditRefresh} />
+            <h2 className="text-sm font-semibold text-white">Manual entries for this client</h2>
+            <p className="text-[11px] text-slate-500 mt-0.5 mb-2">Effective date and posting time are shown separately. Posted entries are never edited or deleted.</p>
+            <ManualProfitHistory clientId={clientId} refreshKey={creditRefresh} />
           </div>
         </div>
       )}

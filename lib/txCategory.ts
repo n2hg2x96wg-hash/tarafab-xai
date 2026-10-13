@@ -22,8 +22,13 @@
 //   manual profit credits (admin_manual_profit_credit; not tied to an
 //   investment, never described as an investment or trading result):
 //     profit_distribution → Profit distribution
-//     profit_allocation   → Profit credit received
-//   each shown with the reason the admin entered for that transaction
+//     profit_allocation   → Profit Credit
+//   manual profit debits (admin_manual_profit_debit; never described as a
+//   withdrawal the client asked for):
+//     profit_debit  → Profit Debit (an authorized charge or other debit)
+//     profit_payout → Profit Payout (profit paid out to the client)
+//     (corrections and reversals post as profit_correction)
+//   each shown with the description the admin entered for that transaction
 //   balance_adjustment → Adjustment (an admin changed the invested / pending
 //                       balance; there is no more precise meaning)
 //
@@ -33,13 +38,15 @@
 // amount never decides the meaning.
 
 export type TxCategory = 'deposit' | 'account_debit' | 'profit' | 'profit_adjustment' | 'loyalty_reward' | 'promotional_credit'
-  | 'profit_correction' | 'reconciliation' | 'profit_distribution' | 'profit_allocation'
+  | 'profit_correction' | 'reconciliation' | 'profit_distribution' | 'profit_allocation' | 'profit_debit' | 'profit_payout'
   | 'investment' | 'withdrawal' | 'fee' | 'reversal' | 'adjustment' | 'transfer' | 'other'
 
 // Admin changes to the separate profit balance, by stated reason.
-export const PROFIT_BALANCE_CATEGORIES: TxCategory[] = ['loyalty_reward', 'promotional_credit', 'profit_correction', 'reconciliation', 'profit_adjustment', 'profit_distribution', 'profit_allocation']
-// Credits posted with the Manual Profit Credit operation (effective-dated).
-export const MANUAL_PROFIT_CREDIT_CATEGORIES: TxCategory[] = ['profit_distribution', 'profit_allocation']
+export const PROFIT_BALANCE_CATEGORIES: TxCategory[] = ['loyalty_reward', 'promotional_credit', 'profit_correction', 'reconciliation', 'profit_adjustment', 'profit_distribution', 'profit_allocation', 'profit_debit', 'profit_payout']
+// Entries dated by our team with an effective date (Manual Profit Credit /
+// Debit, and profit balance corrections and reversals): shown with the date
+// only, never a time of day (the posting time is kept separately, admin only).
+export const MANUAL_PROFIT_CATEGORIES: TxCategory[] = ['profit_distribution', 'profit_allocation', 'profit_debit', 'profit_payout', 'profit_correction']
 
 export type TxLike = { type: string; method?: string | null; direction?: string | null; source?: string | null }
 
@@ -54,6 +61,8 @@ export function txCategory(tx: TxLike): TxCategory {
     case 'reconciliation': return 'reconciliation'
     case 'profit_distribution': return 'profit_distribution'
     case 'profit_allocation': return 'profit_allocation'
+    case 'profit_debit': return 'profit_debit'
+    case 'profit_payout': return 'profit_payout'
     case 'investment_principal': return 'investment'
     case 'withdrawal': return 'withdrawal'
     case 'fee': return 'fee'
@@ -108,6 +117,8 @@ export function adminTxLabel(tx: TxLike): string {
     case 'reconciliation': return 'Account Reconciliation'
     case 'profit_distribution': return 'Profit Distribution · Manual'
     case 'profit_allocation': return 'Profit Credit · Manual'
+    case 'profit_debit': return 'Profit Debit · Manual'
+    case 'profit_payout': return 'Profit Payout · Manual'
     case 'investment': return 'Investment'
     case 'withdrawal': return 'Withdrawal'
     case 'fee': return tx.method === 'service_fee' ? 'Tarafab Service Fee' : 'Fee'
