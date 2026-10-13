@@ -12,7 +12,7 @@ import type { ComponentType, SVGProps } from 'react'
 import { PageIntro } from '@/components/dashboard/shared'
 import {
   Logo, IconArrowDown, IconArrowUp, IconBell, IconChart, IconCheck, IconFile, IconGrid, IconHistory, IconIdCard, IconInbox,
-  IconList, IconLock, IconMonitor, IconPie, IconRadar, IconSliders, IconSwap, IconUser, IconWallet,
+  IconList, IconLock, IconMonitor, IconPie, IconRadar, IconSliders, IconSwap, IconTrend, IconUser, IconWallet,
 } from '@/components/Icons'
 
 type Props = {
@@ -85,6 +85,7 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
     { label: 'admin.nav.withdrawals', icon: IconArrowUp, href: '/admin/transactions?type=withdrawal' },
     { label: 'admin.nav.verification', icon: IconIdCard, href: '/admin/verification' },
     { label: 'admin.nav.investments', icon: IconPie, href: '/admin/investments' },
+    { label: 'admin.nav.profitCredits', icon: IconTrend, href: '/admin/profit-credits' },
     { label: 'admin.nav.wallets', icon: IconWallet, href: '/admin/wallets' },
     { label: 'admin.nav.transfers', icon: IconSwap, href: '/admin/transfers' },
     { label: 'admin.nav.fees', icon: IconFile, href: '/admin/fees' },

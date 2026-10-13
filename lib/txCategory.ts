@@ -19,6 +19,10 @@
 //     profit_correction → Profit Balance Correction
 //     reconciliation → Account Reconciliation
 //     profit_adjustment → Profit (no category stated)
+//   manual profit credits (admin_manual_profit_credit; not tied to an
+//   investment, never described as an investment or trading result):
+//     profit_distribution → Profit distribution
+//     profit_allocation   → Profit credit received
 //   each shown with the reason the admin entered for that transaction
 //   balance_adjustment → Adjustment (an admin changed the invested / pending
 //                       balance; there is no more precise meaning)
@@ -29,10 +33,13 @@
 // amount never decides the meaning.
 
 export type TxCategory = 'deposit' | 'account_debit' | 'profit' | 'profit_adjustment' | 'loyalty_reward' | 'promotional_credit'
-  | 'profit_correction' | 'reconciliation' | 'investment' | 'withdrawal' | 'fee' | 'reversal' | 'adjustment' | 'transfer' | 'other'
+  | 'profit_correction' | 'reconciliation' | 'profit_distribution' | 'profit_allocation'
+  | 'investment' | 'withdrawal' | 'fee' | 'reversal' | 'adjustment' | 'transfer' | 'other'
 
 // Admin changes to the separate profit balance, by stated reason.
-export const PROFIT_BALANCE_CATEGORIES: TxCategory[] = ['loyalty_reward', 'promotional_credit', 'profit_correction', 'reconciliation', 'profit_adjustment']
+export const PROFIT_BALANCE_CATEGORIES: TxCategory[] = ['loyalty_reward', 'promotional_credit', 'profit_correction', 'reconciliation', 'profit_adjustment', 'profit_distribution', 'profit_allocation']
+// Credits posted with the Manual Profit Credit operation (effective-dated).
+export const MANUAL_PROFIT_CREDIT_CATEGORIES: TxCategory[] = ['profit_distribution', 'profit_allocation']
 
 export type TxLike = { type: string; method?: string | null; direction?: string | null; source?: string | null }
 
@@ -45,6 +52,8 @@ export function txCategory(tx: TxLike): TxCategory {
     case 'promotional_credit': return 'promotional_credit'
     case 'profit_correction': return 'profit_correction'
     case 'reconciliation': return 'reconciliation'
+    case 'profit_distribution': return 'profit_distribution'
+    case 'profit_allocation': return 'profit_allocation'
     case 'investment_principal': return 'investment'
     case 'withdrawal': return 'withdrawal'
     case 'fee': return 'fee'
@@ -97,6 +106,8 @@ export function adminTxLabel(tx: TxLike): string {
     case 'promotional_credit': return 'Profit · Promotional Credit'
     case 'profit_correction': return 'Profit Balance Correction'
     case 'reconciliation': return 'Account Reconciliation'
+    case 'profit_distribution': return 'Profit Distribution · Manual'
+    case 'profit_allocation': return 'Profit Credit · Manual'
     case 'investment': return 'Investment'
     case 'withdrawal': return 'Withdrawal'
     case 'fee': return tx.method === 'service_fee' ? 'Tarafab Service Fee' : 'Fee'
