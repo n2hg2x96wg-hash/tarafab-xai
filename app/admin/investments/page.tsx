@@ -24,6 +24,7 @@ type Version = {
 type Inv = {
   id: string; reference: string | null; user_id: string; product_id: string; product_version_id: string; principal: number; fee_amount: number; profit_amount?: number | null; return_type?: string; return_rate_pct?: number | null; expected_return?: number | null; expected_total?: number | null; currency: string; status: string
   start_date: string | null; maturity_date: string | null; completed_at: string | null; rejection_reason: string | null; reviewed_by: string | null; reviewed_at: string | null; terms_accepted_at?: string | null; created_at: string
+  is_historical?: boolean
 }
 type Audit = { id: string; action: string; entity: string; entity_id: string; details: Record<string, unknown>; created_at: string }
 
@@ -360,7 +361,9 @@ function InvestmentsTab() {
     ;(async () => {
       setLoading(true)
       let q = supabase.from('client_investments')
-        .select('id, reference, user_id, product_id, product_version_id, principal, fee_amount, profit_amount, return_type, return_rate_pct, expected_return, expected_total, currency, status, start_date, maturity_date, completed_at, rejection_reason, reviewed_by, reviewed_at, created_at', { count: 'exact' })
+        .select('id, reference, user_id, product_id, product_version_id, principal, fee_amount, profit_amount, return_type, return_rate_pct, expected_return, expected_total, currency, status, start_date, maturity_date, completed_at, rejection_reason, reviewed_by, reviewed_at, created_at, is_historical', { count: 'exact' })
+        // A voided historical record stays in Admin → Historical investments only.
+        .is('historical_voided_at', null)
         .order(sort.split('.')[0], { ascending: sort.endsWith('.asc') }).order('created_at', { ascending: false }).range(page * PAGE, page * PAGE + PAGE - 1)
       if (status) q = q.eq('status', status)
       const numOr = (v: string) => v.trim() !== '' && Number.isFinite(Number(v)) ? Number(v) : null
@@ -443,7 +446,7 @@ function InvestmentsTab() {
               <li key={r.id}>
                 <button onClick={() => setOpen(r)} className="panel p-4 w-full text-left">
                   <div className="flex justify-between gap-2"><span className="text-white truncate">{names[r.user_id] || r.user_id.slice(0, 8)}</span><span className={`text-[11px] px-2 py-0.5 rounded-full border capitalize shrink-0 ${STATUS_STYLE[r.status] || ''}`}>{label(r.status)}</span></div>
-                  <p className="text-xs text-slate-500 mt-1 font-mono">{r.reference || r.id.slice(0, 8)} · {code(r.product_id)}</p>
+                  <p className="text-xs text-slate-500 mt-1 font-mono">{r.reference || r.id.slice(0, 8)} · {code(r.product_id)}{r.is_historical && <span className="ml-1.5 font-sans text-[10px] px-1.5 py-0.5 rounded border border-sky-400/30 text-sky-300" data-hist-badge>Historical</span>}</p>
                   <p className="text-sm text-white tabular-nums mt-1">{money(r.principal)} <span className={`text-xs ${pClass(profitOf(r))}`}>{signedMoney(profitOf(r))}</span> <span className="text-xs text-slate-500">· {d(r.created_at)}</span></p>
                 </button>
               </li>
@@ -455,7 +458,7 @@ function InvestmentsTab() {
               <tbody>{rows.map(r => (
                 <tr key={r.id} className="border-b border-white/[0.04]">
                   <td className="px-4 py-3 text-white">{names[r.user_id] || r.user_id.slice(0, 8)}</td>
-                  <td className="px-4 py-3 font-mono text-xs text-slate-400">{r.reference || r.id.slice(0, 8)}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-slate-400">{r.reference || r.id.slice(0, 8)}{r.is_historical && <span className="ml-1.5 font-sans text-[10px] px-1.5 py-0.5 rounded border border-sky-400/30 text-sky-300" data-hist-badge>Historical</span>}</td>
                   <td className="px-4 py-3 text-slate-300">{code(r.product_id)}</td>
                   <td className="px-4 py-3 text-white tabular-nums">{money(r.principal)}</td>
                   <td className="px-4 py-3 text-slate-300 tabular-nums">{Number(r.expected_return || 0) > 0 ? money(Number(r.expected_return)) : '—'}</td>
@@ -583,9 +586,9 @@ function ReviewPanel({ inv, client, productCode, onClose, onDone }: { inv: Inv; 
           {running && row('Current value', money(Number(inv.principal) + profit))}
           {running && row('Return', <span className={pClass(profit)}>{pct(profit, Number(inv.principal))}</span>)}
           {Number(inv.fee_amount) > 0 && row(inv.status === 'pending_activation' ? 'Entry fee on approval' : 'Entry fee', money(inv.fee_amount))}
-          {row('Submitted', new Date(inv.created_at).toLocaleString())}
+          {inv.is_historical ? row('Recorded (historical entry)', new Date(inv.created_at).toLocaleString()) : row('Submitted', new Date(inv.created_at).toLocaleString())}
           {row('Status', <span className="capitalize">{label(inv.status)}</span>)}
-          {row('Terms accepted', 'Yes, at submission (required)')}
+          {row('Terms accepted', inv.is_historical ? 'Historical record (documented by an admin)' : 'Yes, at submission (required)')}
           {row('KYC status', <span className="capitalize">{info ? info.kyc : '…'}</span>)}
           {row('Account balance', info?.available == null ? '…' : money(info.available))}
           {row('Held for pending requests', info?.pending == null ? '…' : money(info.pending))}
@@ -612,7 +615,10 @@ function ReviewPanel({ inv, client, productCode, onClose, onDone }: { inv: Inv; 
             <button disabled={busy || !info} onClick={() => { if (confirm(`Approve ${inv.reference || 'this investment'} for ${money(inv.principal)}?`)) go({ action: 'review', decision: 'approve' }) }} className="btn btn-solid flex-1">{busy ? 'Working…' : 'Approve'}</button>
           </div>
         )}
-        {inv.status === 'active' && mode === '' && (
+        {inv.is_historical && mode === '' && (
+          <p className="text-xs text-sky-300/90 rounded-lg border border-sky-400/20 bg-sky-400/[0.05] p-3" data-hist-note>Historical record: its principal was never held in the invested balance, so it is not completed here. Change its status in <a href="/admin/historical-investments" className="underline underline-offset-2">Historical investments</a>; balance differences go through Reconciliation.</p>
+        )}
+        {inv.status === 'active' && !inv.is_historical && mode === '' && (
           <div className="space-y-2">
             {!completionEligible && <p className="text-xs text-amber-300">Completion is available on {new Date(inv.maturity_date!).toLocaleString()}.</p>}
             <button disabled={busy || !info?.ledgerLoaded || !completionEligible} onClick={() => setMode('complete')} className="btn btn-outline w-full">Review completion</button>

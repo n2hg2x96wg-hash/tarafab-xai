@@ -36,6 +36,8 @@ type Product = { id: string; code: string; status: string; current_version_id: s
 type Investment = {
   id: string; reference?: string | null; product_id: string; product_version_id: string; principal: number; fee_amount: number; profit_amount?: number | null; return_type?: string; return_rate_pct?: number | null; return_amount?: number | null; expected_return?: number | null; expected_total?: number | null; currency: string
   status: string; start_date: string | null; maturity_date: string | null; completed_at?: string | null; rejection_reason?: string | null; reviewed_at?: string | null; created_at: string
+  // Documented by an admin after the fact: a past investment, never a new one.
+  is_historical?: boolean
 }
 type Ev = { id: number; client_investment_id: string; from_status: string | null; to_status: string; reason: string | null; created_at: string }
 type LinkedTx = { client_investment_id: string; kind: string; tx: { id: string; type: string; amount: number; direction: 'credit' | 'debit' | null; status: string; reference: string | null; notes: string | null; created_at: string } | null }
@@ -321,6 +323,7 @@ export function InvestmentCenter({ go, focusId, onFocusDone, onAccountChanged }:
                   <button onClick={() => setOpenInv(i)} data-inv-status={i.status} className="inv-row w-full text-left px-4 sm:px-5 py-3.5 flex items-center justify-between gap-3 sm:gap-4 hover:bg-ink-850 transition-colors">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-fg truncate flex items-center gap-2">{i.status === 'active' && <span className="inv-live-dot" aria-hidden="true" />}<span className="truncate">{v?.name || t('inv.product')}</span></p>
+                      {i.is_historical && <p className="text-[11px] text-sky-300 truncate" data-inv-historical>{t('inv.f.historical')}</p>}
                       <p className="text-xs text-fg-faint truncate">
                         {i.reference ? `${i.reference} · ` : ''}
                         {['completed', 'matured', 'closed'].includes(i.status) && i.completed_at ? t('inv.f.completedOn', { date: date(i.completed_at) })
@@ -555,14 +558,16 @@ function InvestmentDetail({ inv, v, adjustments, events, txs, onClose, onChanged
   const tone = profit > 0 ? 'price-up' : profit < 0 ? 'price-down' : 'text-fg'
   const expRet = Number(inv.expected_return || 0), expTotal = Number(inv.expected_total || 0)
   const returnType = inv.return_type ?? v?.return_type
-  const hasProjection = returnType !== undefined && returnType !== 'none'
+  // A historical record shows only returns actually credited, never a projection.
+  const hasProjection = !inv.is_historical && returnType !== undefined && returnType !== 'none'
   const dt = (iso: string | null | undefined) => iso ? new Date(iso).toLocaleString(intl, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : t('inv.notSet')
   const date = (iso: string | null | undefined) => iso ? new Date(iso).toLocaleDateString(intl, { day: 'numeric', month: 'short', year: 'numeric' }) : t('inv.notSet')
   const rows: [TKey, React.ReactNode][] = [
     ['inv.reference', inv.reference || inv.id.slice(0, 8).toUpperCase()],
     ['inv.statusLabel', <StatusBadge key="s" status={inv.status} />],
-    ['inv.f.submitted', dt(inv.created_at)],
-    ['inv.start', date(inv.start_date)],
+    ...(inv.is_historical
+      ? [['inv.f.investedOn', date(inv.start_date)], ['inv.f.recordedOn', dt(inv.created_at)]] as [TKey, React.ReactNode][]
+      : [['inv.f.submitted', dt(inv.created_at)], ['inv.start', date(inv.start_date)]] as [TKey, React.ReactNode][]),
     ['inv.maturity', date(inv.maturity_date)],
     ['inv.duration', v ? durationText(v, t) : t('inv.notSet')],
     ['inv.f.kFee', money(Number(inv.fee_amount))],
@@ -573,7 +578,14 @@ function InvestmentDetail({ inv, v, adjustments, events, txs, onClose, onChanged
   type Item = { at: string; title: string; note?: string }
   const adjustmentReason = new Map(adjustments.map(a => [a.transaction_id, a.reason]))
   const timeline: Item[] = [
-    ...events.filter(e => e.from_status !== e.to_status).map(e => ({
+    // A historical record: invested on its own date, ended on its own date,
+    // and added to the records on the day it was entered.
+    ...(inv.is_historical ? [
+      ...(inv.start_date ? [{ at: inv.start_date, title: t('inv.f.investedEv') }] : []),
+      ...(inv.completed_at ? [{ at: inv.completed_at, title: t(`inv.status.${inv.status}` as TKey) }] : []),
+      { at: inv.created_at, title: t('inv.f.historicalEv') },
+    ] : []),
+    ...events.filter(e => e.from_status !== e.to_status && !inv.is_historical).map(e => ({
       at: e.created_at,
       title: e.to_status === 'active' ? t('inv.f.approvedEv') : e.to_status === 'pending_activation' ? t('inv.f.submitted') : t(`inv.status.${e.to_status}` as TKey),
       note: e.reason && e.to_status === 'rejected' ? e.reason : undefined,
@@ -602,6 +614,12 @@ function InvestmentDetail({ inv, v, adjustments, events, txs, onClose, onChanged
 
   return (
     <Sheet title={v?.name || t('inv.product')} onClose={onClose}>
+      {inv.is_historical && (
+        <div role="note" className="mb-4 rounded-xl border border-sky-400/30 bg-sky-400/[0.06] p-3 text-sm" data-inv-historical-note>
+          <p className="font-medium text-sky-200">{t('inv.f.historical')}</p>
+          <p className="mt-0.5 text-xs text-fg-muted">{t('inv.f.historicalNote', { date: date(inv.start_date), recorded: date(inv.created_at) })}</p>
+        </div>
+      )}
       {inv.status === 'rejected' && inv.rejection_reason && (
         <div role="note" className="mb-4 rounded-xl border border-danger-400/40 bg-danger-400/[0.07] p-3 text-sm text-danger-300">{t('inv.f.rejectionReason')}: {inv.rejection_reason}</div>
       )}
@@ -622,6 +640,7 @@ function InvestmentDetail({ inv, v, adjustments, events, txs, onClose, onChanged
           </div>
         )}
         {hasProjection && <p className="mt-2 text-xs text-fg-faint">{t('inv.f.projectedNote')}</p>}
+        {inv.is_historical && <p className="mt-2 text-xs text-fg-faint">{t('inv.f.historicalNoProjection')}</p>}
         {running && profit === 0 && adjustments.length === 0 && <p className="mt-2 text-xs text-fg-faint">{t('inv.f.noPerformance')}</p>}
       </section>
       <dl className="mt-4 divide-y divide-ink-700 text-sm">
@@ -718,24 +737,27 @@ export function ActiveInvestmentsCard({ go }: { go: (id: string) => void }) {
             const v = state.versions.get(i.product_version_id)
             const p = profitOf(i), principal = Number(i.principal)
             const tone = p > 0 ? 'price-up' : p < 0 ? 'price-down' : 'text-fg'
+            // No projected return for a historical record: only what was credited.
+            const exp = i.is_historical ? 0 : Number(i.expected_return || 0)
             return (
               <li key={i.id} className="px-5 py-3.5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-[14px] font-semibold text-fg truncate">{v?.name || t('inv.product')}</p>
+                    {i.is_historical && <p className="text-[11px] text-sky-300">{t('inv.f.historical')}</p>}
                     <p className="text-xs text-fg-faint">{v ? durationText(v, t) : ''} · {date(i.start_date)} → {date(i.maturity_date)}</p>
                   </div>
                   <StatusBadge status={i.status} />
                 </div>
                 <dl className="mt-2.5 grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2 text-sm">
-                  {([['inv.f.invested', money(principal), 'text-fg'], ['inv.f.returnTerms', returnTermsText(i, v, t), 'text-fg'], ['inv.f.expectedReturn', Number(i.expected_return || 0) > 0 ? money(Number(i.expected_return)) : '—', 'text-fg'], ['inv.f.expectedTotal', Number(i.expected_return || 0) > 0 ? money(Number(i.expected_total || 0)) : '—', 'text-fg']] as [TKey, string, string][]).map(([k, val, cls]) => (
+                  {([['inv.f.invested', money(principal), 'text-fg'], ['inv.f.returnTerms', returnTermsText(i, v, t), 'text-fg'], ['inv.f.expectedReturn', exp > 0 ? money(exp) : '—', 'text-fg'], ['inv.f.expectedTotal', exp > 0 ? money(Number(i.expected_total || 0)) : '—', 'text-fg']] as [TKey, string, string][]).map(([k, val, cls]) => (
                     <div key={k} className="min-w-0">
                       <dt className="text-[11px] text-fg-faint truncate">{t(k)}</dt>
                       <dd className={`font-semibold tabular-nums truncate ${cls}`}>{val}</dd>
                     </div>
                   ))}
                 </dl>
-                <p className="mt-2 text-xs text-fg-faint tabular-nums">{t('inv.f.credited')}: <span className={tone}>{signed(p)}</span>{Number(i.expected_return || 0) > 0 ? ` · ${t('inv.f.projectedNote')}` : ''}</p>
+                <p className="mt-2 text-xs text-fg-faint tabular-nums">{t('inv.f.credited')}: <span className={tone}>{signed(p)}</span>{exp > 0 ? ` · ${t('inv.f.projectedNote')}` : ''}</p>
               </li>
             )
           })}

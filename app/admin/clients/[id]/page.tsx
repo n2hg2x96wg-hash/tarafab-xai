@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import AdminLayout from '@/components/AdminLayout'
 import { ClientWallets } from '@/components/admin/ClientWallets'
 import { ManualProfitCreditForm, ManualProfitCreditHistory } from '@/components/admin/ManualProfitCredit'
+import { HistoricalInvestmentForm, HistoricalInvestmentHistory } from '@/components/admin/HistoricalInvestment'
 import { parseEffective, toLocalInput } from '@/lib/effectiveDate'
 import { authFetch, errorText, newRequestKey, readJson, RequestError } from '@/lib/authFetch'
 import { useI18n } from '@/lib/i18n/I18nProvider'
@@ -137,8 +138,9 @@ export default function ClientDetailPage() {
   const [loading, setLoading] = useState(true)
   const [email, setEmail] = useState<string | null>(null)
   const [emailCopied, setEmailCopied] = useState(false)
-  const [tab, setTab] = useState<'overview' | 'adjust' | 'credit' | 'edit' | 'history'>('overview')
+  const [tab, setTab] = useState<'overview' | 'adjust' | 'credit' | 'historical' | 'edit' | 'history'>('overview')
   const [creditRefresh, setCreditRefresh] = useState(0)
+  const [histRefresh, setHistRefresh] = useState(0)
   const [editForm, setEditForm] = useState({ full_name: '', account_status: 'active', verification_status: 'unverified' })
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState('')
@@ -454,13 +456,13 @@ export default function ClientDetailPage() {
 
       {/* Tabs */}
       <div className="flex gap-1 mb-5 bg-ink-950 p-1 rounded-xl border border-white/[0.07] w-full sm:w-fit overflow-x-auto">
-        {(['overview', 'adjust', 'credit', 'edit', 'history'] as const).map(t => (
+        {(['overview', 'adjust', 'credit', 'historical', 'edit', 'history'] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={`flex-1 sm:flex-none whitespace-nowrap px-4 py-2.5 rounded-lg text-xs font-semibold transition-all ${tab === t ? 'bg-ink-800 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]' : 'text-slate-500 hover:text-slate-200'}`}
           >
-            {t === 'overview' ? 'Overview' : t === 'adjust' ? 'Balance Actions' : t === 'credit' ? 'Profit Credit' : t === 'edit' ? 'Edit Details' : 'History'}
+            {t === 'overview' ? 'Overview' : t === 'adjust' ? 'Balance Actions' : t === 'credit' ? 'Profit Credit' : t === 'historical' ? 'Historical Investment' : t === 'edit' ? 'Edit Details' : 'History'}
           </button>
         ))}
       </div>
@@ -712,6 +714,27 @@ export default function ClientDetailPage() {
             <h2 className="text-sm font-semibold text-white">Manual credits for this client</h2>
             <p className="text-[11px] text-slate-500 mt-0.5 mb-2">Effective date and posting time are shown separately.</p>
             <ManualProfitCreditHistory clientId={clientId} refreshKey={creditRefresh} />
+          </div>
+        </div>
+      )}
+
+      {/* Record historical investment tab */}
+      {tab === 'historical' && (
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,32rem)_minmax(0,1fr)] items-start">
+          <div className="glass rounded-2xl p-4 sm:p-6 border border-white/[0.08]">
+            <h2 className="text-sm font-semibold text-white mb-1">Record historical investment</h2>
+            <p className="text-xs text-slate-500 mb-5">Document a genuine past investment missing from this client&rsquo;s history. No deposit, debit or credit is created and no balance changes.</p>
+            {profile.role === 'customer' ? (
+              <HistoricalInvestmentForm client={{ id: profile.id, full_name: profile.full_name, email, created_at: profile.created_at }}
+                onRecorded={() => setHistRefresh(n => n + 1)} />
+            ) : (
+              <p className="text-sm text-slate-400">Historical investments can only be recorded for client accounts.</p>
+            )}
+          </div>
+          <div className="glass rounded-2xl p-4 sm:p-6 border border-white/[0.08]">
+            <h2 className="text-sm font-semibold text-white">Historical investments for this client</h2>
+            <p className="text-[11px] text-slate-500 mt-0.5 mb-2">Investment date and record time are shown separately.</p>
+            <HistoricalInvestmentHistory clientId={clientId} refreshKey={histRefresh} />
           </div>
         </div>
       )}

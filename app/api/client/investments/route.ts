@@ -20,8 +20,9 @@ export async function GET(request: NextRequest) {
   const [products, investments, kyc, account, summary] = await Promise.all([
     supabase.from('investment_products').select('id, code, status, current_version_id').eq('status', 'active').order('created_at'),
     supabase.from('client_investments')
-      .select('id, reference, product_id, product_version_id, principal, fee_amount, profit_amount, return_type, return_rate_pct, return_amount, expected_return, expected_total, currency, status, start_date, maturity_date, completed_at, rejection_reason, reviewed_at, created_at')
-      .eq('user_id', auth.user.id).order('created_at', { ascending: false }).limit(100),
+      .select('id, reference, product_id, product_version_id, principal, fee_amount, profit_amount, return_type, return_rate_pct, return_amount, expected_return, expected_total, currency, status, start_date, maturity_date, completed_at, rejection_reason, reviewed_at, created_at, is_historical')
+      // A historical record an admin voided (entered in error) is not shown.
+      .eq('user_id', auth.user.id).is('historical_voided_at', null).order('created_at', { ascending: false }).limit(100),
     supabase.rpc('client_kyc_status'),
     // The one existing balance record; nothing here recalculates it.
     supabase.from('accounts').select('available_balance, pending_balance, invested_balance').eq('user_id', auth.user.id).maybeSingle(),
