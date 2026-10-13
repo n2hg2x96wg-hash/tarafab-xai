@@ -86,6 +86,7 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
     { label: 'admin.nav.verification', icon: IconIdCard, href: '/admin/verification' },
     { label: 'admin.nav.investments', icon: IconPie, href: '/admin/investments' },
     { label: 'admin.nav.profitCredits', icon: IconTrend, href: '/admin/profit-credits' },
+    { label: 'admin.nav.historicalInvestments', icon: IconHistory, href: '/admin/historical-investments' },
     { label: 'admin.nav.wallets', icon: IconWallet, href: '/admin/wallets' },
     { label: 'admin.nav.transfers', icon: IconSwap, href: '/admin/transfers' },
     { label: 'admin.nav.fees', icon: IconFile, href: '/admin/fees' },
