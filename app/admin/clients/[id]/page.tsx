@@ -12,6 +12,8 @@ import { HistoricalInvestmentForm, HistoricalInvestmentHistory } from '@/compone
 import { parseEffective, toLocalInput } from '@/lib/effectiveDate'
 import { authFetch, errorText, newRequestKey, readJson, RequestError } from '@/lib/authFetch'
 import { useI18n } from '@/lib/i18n/I18nProvider'
+import { PhoneInput } from '@/components/PhoneInput'
+import { formatPhone, normalizePhone } from '@/lib/phone'
 
 type Account = {
   id: string
@@ -34,6 +36,9 @@ type Profile = {
   account_status: string
   verification_status: string
   updated_at?: string
+  // Contact number (E.164) and country; null for accounts created before it was collected.
+  phone?: string | null
+  phone_country?: string | null
 }
 
 type Transaction = {
@@ -197,7 +202,7 @@ export default function ClientDetailPage() {
     if (initial) setLoading(true)
     const [p, a, t, e] = await Promise.all([
       (supabase.from('profiles') as any)
-        .select('id, full_name, role, created_at, account_status, verification_status, updated_at').eq('id', id).maybeSingle() as Promise<{ data: Profile | null; error: { message: string } | null }>,
+        .select('id, full_name, role, created_at, account_status, verification_status, updated_at, phone, phone_country').eq('id', id).maybeSingle() as Promise<{ data: Profile | null; error: { message: string } | null }>,
       (supabase.from('accounts') as any)
         .select('*').eq('user_id', id).maybeSingle() as Promise<{ data: Account | null; error: { message: string } | null }>,
       (supabase.from('transactions') as any)
@@ -425,6 +430,7 @@ export default function ClientDetailPage() {
                 </button>
               </div>
             )}
+            <ClientPhone profile={profile} onSaved={() => load()} />
             <div className="flex flex-wrap gap-1.5 mt-3">
               <span className={`inline-flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-md border capitalize ${profile.account_status === 'suspended' ? 'text-red-300 border-red-500/30 bg-red-500/[0.08]' : 'text-emerald-300 border-emerald-500/30 bg-emerald-500/[0.08]'}`}>
                 <span className={`w-1.5 h-1.5 rounded-full ${profile.account_status === 'suspended' ? 'bg-red-400' : 'bg-emerald-400'}`} />
@@ -1014,6 +1020,63 @@ function ClientFinancialProfile({ clientId }: { clientId: string }) {
         )}
         <p className="px-4 py-2.5 text-[11px] text-slate-500 border-t border-white/[0.06]">Profit / return is edited per investment in <Link href="/admin/investments" className="underline">Investment Center</Link>; every change is audited.</p>
       </div>
+    </div>
+  )
+}
+
+// The client's contact number: shown with the email, copied or called from
+// here, and changed only with a reason (admin_set_client_phone, audited).
+// It is never described as verified: no code is ever sent to it.
+function ClientPhone({ profile, onSaved }: { profile: Profile; onSaved: () => void }) {
+  const [editing, setEditing] = useState(false)
+  const [cc, setCc] = useState('')
+  const [num, setNum] = useState('')
+  const [reason, setReason] = useState('')
+  const [err, setErr] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const start = () => {
+    setCc(profile.phone_country || ''); setNum(profile.phone ? formatPhone(profile.phone).replace(/^\+\d+\s*/, '') : '')
+    setReason(''); setErr(''); setEditing(true)
+  }
+  const save = async (clear = false) => {
+    if (busy) return
+    if (!clear) {
+      const ph = normalizePhone(num, cc)
+      if (!ph.ok) { setErr(ph.error === 'missing' ? 'Enter the phone number.' : ph.error === 'country' ? 'Choose the country calling code.' : 'Enter a valid phone number for the selected country.'); return }
+    }
+    if (reason.trim().length < 3) { setErr('Enter a reason (at least 3 characters).'); return }
+    setBusy(true); setErr('')
+    try {
+      await readJson(await authFetch('/api/admin/client-phone', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: profile.id, phone: num, phone_country: cc, reason: reason.trim(), clear }) }))
+      setEditing(false); onSaved()
+    } catch (e) { setErr(errorText(e)) } finally { setBusy(false) }
+  }
+  return (
+    <div className="mt-1" data-admin-phone>
+      <div className="flex flex-wrap items-center gap-2 min-w-0">
+        {profile.phone ? (
+          <>
+            <a href={`tel:${profile.phone}`} className="text-sm text-slate-300 tabular-nums hover:text-white" data-admin-phone-value>{formatPhone(profile.phone)}</a>
+            <button type="button" onClick={() => navigator.clipboard.writeText(profile.phone!).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800) }).catch(() => {})}
+              className="text-[10px] text-slate-300 border border-white/[0.12] rounded-md px-2 py-0.5 hover:bg-white/[0.05] shrink-0">{copied ? 'Copied' : 'Copy'}</button>
+          </>
+        ) : <span className="text-sm text-slate-500" data-admin-phone-value>Phone not provided</span>}
+        {!editing && <button type="button" onClick={start} className="text-[10px] text-slate-400 underline underline-offset-2 hover:text-white" data-admin-phone-edit>{profile.phone ? 'Edit' : 'Add phone'}</button>}
+      </div>
+      {editing && (
+        <div className="mt-2 rounded-xl border border-white/[0.08] bg-white/[0.02] p-3 space-y-2 max-w-md" data-admin-phone-form>
+          <PhoneInput id="admin-phone" country={cc} onCountry={c => { setCc(c); setErr('') }} number={num} onNumber={v => { setNum(v); setErr('') }} disabled={busy} />
+          <input value={reason} onChange={e => setReason(e.target.value)} maxLength={500} placeholder="Reason (required, kept in the audit log)" aria-label="Reason" className="input-field text-sm" disabled={busy} />
+          {err && <p role="alert" className="text-xs text-red-400">{err}</p>}
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => save(false)} disabled={busy} className="text-xs font-semibold text-accent-ink bg-accent rounded-lg px-3 py-2 disabled:opacity-60">{busy ? 'Saving…' : 'Save phone'}</button>
+            {profile.phone && <button type="button" onClick={() => save(true)} disabled={busy} className="text-xs text-red-300 border border-red-500/30 rounded-lg px-3 py-2">Remove</button>}
+            <button type="button" onClick={() => { setEditing(false); setErr('') }} disabled={busy} className="text-xs text-slate-300 border border-white/[0.1] rounded-lg px-3 py-2">Cancel</button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

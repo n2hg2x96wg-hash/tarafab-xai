@@ -29,6 +29,9 @@ export interface UserInfo {
   full_name: string | null
   // Client-chosen nickname for greetings; never used as the legal name.
   display_name?: string | null
+  // The client's own contact number (E.164) and its country; never verified.
+  phone?: string | null
+  phone_country?: string | null
   role: string
   email_confirmed?: boolean
   created_at?: string
