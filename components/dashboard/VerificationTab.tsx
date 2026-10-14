@@ -146,6 +146,17 @@ export function VerificationTab({ onStatusChange }: { onStatusChange?: (status: 
 
       <KycStepper status={hasSubmission ? status : 'unverified'} />
 
+      {status === 'verified' ? (
+        // Approved: a clean confirmation. The submission date stays in the
+        // verification record and the admin views; it is not repeated here.
+        <div className="kyc-verified rounded-2xl border border-emerald-500/30 bg-emerald-500/[0.07] px-5 py-6 sm:py-7 text-center" data-kyc-status data-kyc-verified>
+          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border-2 border-emerald-400/70 bg-emerald-500/10 text-emerald-300 shadow-[0_0_28px_rgba(16,185,129,.25)]" aria-hidden="true">
+            <IconCheck width={26} height={26} />
+          </span>
+          <p className="mt-3 text-lg sm:text-xl font-semibold text-emerald-300">{t('kyc.status.verified')}</p>
+          <p className="mt-1 text-[14px] text-fg-muted">{t('kyc.body.verified')}</p>
+        </div>
+      ) : (
       <div className={`rounded-2xl p-4 border ${TONE[status] || TONE.unverified}`} data-kyc-status>
         <div className="flex items-start gap-3">
           <span className="shrink-0 mt-0.5">
@@ -172,6 +183,7 @@ export function VerificationTab({ onStatusChange }: { onStatusChange?: (status: 
           </div>
         </div>
       </div>
+      )}
 
       {loadError && <FormError message={loadError} />}
 

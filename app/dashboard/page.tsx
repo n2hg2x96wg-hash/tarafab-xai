@@ -2075,7 +2075,7 @@ function PhoneRow({ value, country, onSaved }: { value: string | null; country: 
   if (!editing) {
     return (
       <div data-phone-row>
-        <SettingsRow label={t('profile.phone')} sub={t('profile.phoneBody')}
+        <SettingsRow label={t('profile.phone')}
           value={<span className="break-words tabular-nums" data-phone-value>{value ? formatPhone(value) : t('profile.phoneNone')}</span>}
           action={<button type="button" onClick={start} className="btn btn-sm btn-outline whitespace-nowrap" data-phone-edit>{value ? t('profile.edit') : t('profile.phoneAdd')}</button>} />
         {msg && <p className="px-4 -mt-2 pb-3 text-[12.5px] text-emerald-400" role="status" data-phone-msg>{msg.text}</p>}
@@ -2087,9 +2087,8 @@ function PhoneRow({ value, country, onSaved }: { value: string | null; country: 
       <label htmlFor="pf-phone" className="text-[14px] text-fg-muted">{t('profile.phone')}</label>
       <div className="mt-2">
         <PhoneInput id="pf-phone" country={cc} onCountry={c => { setCc(c); setErr('') }} number={draft} onNumber={v => { setDraft(v); if (err) setErr('') }}
-          disabled={saving} error={err} describedBy="pf-phone-help" />
+          disabled={saving} error={err} />
       </div>
-      <p id="pf-phone-help" className="mt-1.5 text-[12.5px] text-fg-faint">{t('profile.phoneBody')}</p>
       <div className="mt-3 flex items-center gap-2">
         <button type="submit" disabled={saving} className="btn btn-sm btn-solid" aria-busy={saving} data-phone-save>{saving ? t('common.saving') : t('profile.save')}</button>
         <button type="button" onClick={() => { setEditing(false); setErr('') }} disabled={saving} className="btn btn-sm btn-outline">{t('profile.cancel')}</button>

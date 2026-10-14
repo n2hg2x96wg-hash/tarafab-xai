@@ -30,6 +30,10 @@ export default function SignUpPage() {
   const [phone, setPhone] = useState('')
   const [phoneError, setPhoneError] = useState('')
   const [password, setPassword] = useState('')
+  // Bot checks (invisible to people): a field only automated scripts fill in,
+  // and how long the form has been open when it is sent.
+  const [extra, setExtra] = useState('')
+  const openedAt = useRef(Date.now())
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   // Two separate statements, both unticked until the person ticks them.
@@ -80,7 +84,7 @@ export default function SignUpPage() {
         const res = await fetch('/api/auth/signup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: cleanEmail, password, fullName: fullName.trim(), phone, phoneCountry, consent: { age: ageOk, risk: riskOk } }),
+          body: JSON.stringify({ email: cleanEmail, password, fullName: fullName.trim(), phone, phoneCountry, consent: { age: ageOk, risk: riskOk }, extra, formMs: Date.now() - openedAt.current }),
         })
         const data = await res.json()
         if (!res.ok) {
@@ -123,6 +127,10 @@ export default function SignUpPage() {
     >
       <form onSubmit={handleSubmit} className="space-y-5" noValidate>
         {error && <FormError message={error} />}
+        <div aria-hidden="true" className="absolute -left-[10000px] top-auto w-px h-px overflow-hidden">
+          <label htmlFor="su-extra">Leave this field empty</label>
+          <input id="su-extra" name="company_website_extra" type="text" tabIndex={-1} autoComplete="off" value={extra} onChange={e => setExtra(e.target.value)} />
+        </div>
 
         <div>
           <label htmlFor="name" className="field-label">{t('common.fullName')}</label>

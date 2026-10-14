@@ -323,7 +323,6 @@ export function InvestmentCenter({ go, focusId, onFocusDone, onAccountChanged }:
                   <button onClick={() => setOpenInv(i)} data-inv-status={i.status} className="inv-row w-full text-left px-4 sm:px-5 py-3.5 flex items-center justify-between gap-3 sm:gap-4 hover:bg-ink-850 transition-colors">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-fg truncate flex items-center gap-2">{i.status === 'active' && <span className="inv-live-dot" aria-hidden="true" />}<span className="truncate">{v?.name || t('inv.product')}</span></p>
-                      {i.is_historical && <p className="text-[11px] text-sky-300 truncate" data-inv-historical>{t('inv.f.historical')}</p>}
                       <p className="text-xs text-fg-faint truncate">
                         {i.reference ? `${i.reference} · ` : ''}
                         {['completed', 'matured', 'closed'].includes(i.status) && i.completed_at ? t('inv.f.completedOn', { date: date(i.completed_at) })
@@ -565,8 +564,10 @@ function InvestmentDetail({ inv, v, adjustments, events, txs, onClose, onChanged
   const rows: [TKey, React.ReactNode][] = [
     ['inv.reference', inv.reference || inv.id.slice(0, 8).toUpperCase()],
     ['inv.statusLabel', <StatusBadge key="s" status={inv.status} />],
+    // A record entered for a past investment shows the investment's own date
+    // only; when and how it was entered stays in the admin audit trail.
     ...(inv.is_historical
-      ? [['inv.f.investedOn', date(inv.start_date)], ['inv.f.recordedOn', dt(inv.created_at)]] as [TKey, React.ReactNode][]
+      ? [['inv.f.investedOn', date(inv.start_date)]] as [TKey, React.ReactNode][]
       : [['inv.f.submitted', dt(inv.created_at)], ['inv.start', date(inv.start_date)]] as [TKey, React.ReactNode][]),
     ['inv.maturity', date(inv.maturity_date)],
     ['inv.duration', v ? durationText(v, t) : t('inv.notSet')],
@@ -575,15 +576,14 @@ function InvestmentDetail({ inv, v, adjustments, events, txs, onClose, onChanged
   if (inv.completed_at) rows.push(['inv.f.ended', date(inv.completed_at)])
 
   // The ledger is the source for actual Profit entries in the timeline.
-  type Item = { at: string; title: string; note?: string }
+  type Item = { at: string; title: string; note?: string; dateOnly?: boolean }
   const adjustmentReason = new Map(adjustments.map(a => [a.transaction_id, a.reason]))
   const timeline: Item[] = [
-    // A historical record: invested on its own date, ended on its own date,
-    // and added to the records on the day it was entered.
+    // A past investment: invested on its own date and ended on its own date
+    // (dates only; the record's entry time is not part of the client's view).
     ...(inv.is_historical ? [
-      ...(inv.start_date ? [{ at: inv.start_date, title: t('inv.f.investedEv') }] : []),
-      ...(inv.completed_at ? [{ at: inv.completed_at, title: t(`inv.status.${inv.status}` as TKey) }] : []),
-      { at: inv.created_at, title: t('inv.f.historicalEv') },
+      ...(inv.start_date ? [{ at: inv.start_date, title: t('inv.f.investedEv'), dateOnly: true }] : []),
+      ...(inv.completed_at ? [{ at: inv.completed_at, title: t(`inv.status.${inv.status}` as TKey), dateOnly: true }] : []),
     ] : []),
     ...events.filter(e => e.from_status !== e.to_status && !inv.is_historical).map(e => ({
       at: e.created_at,
@@ -614,12 +614,6 @@ function InvestmentDetail({ inv, v, adjustments, events, txs, onClose, onChanged
 
   return (
     <Sheet title={v?.name || t('inv.product')} onClose={onClose}>
-      {inv.is_historical && (
-        <div role="note" className="mb-4 rounded-xl border border-sky-400/30 bg-sky-400/[0.06] p-3 text-sm" data-inv-historical-note>
-          <p className="font-medium text-sky-200">{t('inv.f.historical')}</p>
-          <p className="mt-0.5 text-xs text-fg-muted">{t('inv.f.historicalNote', { date: date(inv.start_date), recorded: date(inv.created_at) })}</p>
-        </div>
-      )}
       {inv.status === 'rejected' && inv.rejection_reason && (
         <div role="note" className="mb-4 rounded-xl border border-danger-400/40 bg-danger-400/[0.07] p-3 text-sm text-danger-300">{t('inv.f.rejectionReason')}: {inv.rejection_reason}</div>
       )}
@@ -654,7 +648,7 @@ function InvestmentDetail({ inv, v, adjustments, events, txs, onClose, onChanged
               <li key={i} className="relative text-sm">
                 <span className="absolute -left-[21px] top-1.5 w-2.5 h-2.5 rounded-full bg-accent/80 ring-4 ring-ink-900" aria-hidden="true" />
                 <p className="text-fg">{e.title}</p>
-                <p className="text-xs text-fg-faint">{dt(e.at)}{e.note ? ` · ${e.note}` : ''}</p>
+                <p className="text-xs text-fg-faint">{e.dateOnly ? date(e.at) : dt(e.at)}{e.note ? ` · ${e.note}` : ''}</p>
               </li>
             ))}
           </ol>
@@ -744,7 +738,6 @@ export function ActiveInvestmentsCard({ go }: { go: (id: string) => void }) {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-[14px] font-semibold text-fg truncate">{v?.name || t('inv.product')}</p>
-                    {i.is_historical && <p className="text-[11px] text-sky-300">{t('inv.f.historical')}</p>}
                     <p className="text-xs text-fg-faint">{v ? durationText(v, t) : ''} · {date(i.start_date)} → {date(i.maturity_date)}</p>
                   </div>
                   <StatusBadge status={i.status} />

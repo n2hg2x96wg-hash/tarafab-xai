@@ -243,9 +243,10 @@ export function AutomationStatusPanel({ onOpen }: { onOpen: () => void }) {
           <span className={`w-1.5 h-1.5 rounded-full ${on ? 'bg-emerald-400 cc-pulse' : amber ? 'bg-amber-400' : 'bg-fg-faint'}`} aria-hidden="true" />{label}
         </span>
       </div>
-      <p className="mt-2.5 text-[12.5px] leading-relaxed text-fg-muted" data-auto-note>{t('ov2.autoNote')}</p>
-      {/* What it does not do, as a quieter second line. */}
-      <p className="mt-1 text-[11.5px] leading-relaxed text-fg-faint" data-auto-scope>{t('ov2.autoScope')}</p>
+      {/* What the engine does, in plain words: it monitors and evaluates rules
+          and alerts; it does not place trades. */}
+      <p className="mt-3 text-[15px] sm:text-[16px] leading-snug font-semibold text-accent" data-auto-headline>{t('ov2.autoHeadline')}</p>
+      <p className="mt-1.5 text-[12.5px] leading-relaxed text-fg-muted" data-auto-note>{t('ov2.autoBody')}</p>
       <dl className="mt-3.5 grid grid-cols-3 gap-2">
         {tile('Active rules', active ?? (failed ? '—' : <span className="inline-block h-5 w-8 rounded skeleton align-middle" aria-hidden="true" />), 'your rules', 'active')}
         {tile('Alerts sent', met ?? (failed ? '—' : <span className="inline-block h-5 w-8 rounded skeleton align-middle" aria-hidden="true" />), 'to you', 'met')}
@@ -276,8 +277,13 @@ export function AutomationStatusPanel({ onOpen }: { onOpen: () => void }) {
           <span className={`w-2 h-2 rounded-full shrink-0 ${connected ? (on ? 'bg-emerald-400' : 'bg-amber-400') : 'bg-fg-faint'}`} aria-hidden="true" />
           <span className="truncate" data-ov-auto-service>{connected ? (on ? 'Live · checks every minute' : 'Connected') : loading ? 'Connecting' : 'Not connected'}</span>
         </span>
-        <button type="button" onClick={onOpen} className="inline-flex items-center gap-1.5 text-[13px] font-medium text-accent hover:brightness-110 min-h-9 shrink-0">View automation <span aria-hidden="true">→</span></button>
       </div>
+      <button type="button" onClick={onOpen} className="btn btn-solid w-full mt-3.5 justify-center gap-2" data-auto-open>{t('ov2.autoView')} <span aria-hidden="true">→</span></button>
+      {/* Risk statement: accurate and present, but not the headline. */}
+      <p className="mt-3 flex items-start gap-2 text-[11.5px] leading-relaxed text-fg-faint" data-auto-risk>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="mt-px shrink-0" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 8h.01M11 12h1v4h1" /></svg>
+        <span>{t('ov2.autoRisk')}</span>
+      </p>
     </section>
   )
 }

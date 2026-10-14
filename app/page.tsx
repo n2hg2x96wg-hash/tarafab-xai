@@ -10,6 +10,7 @@ import { useBtcQuote } from '@/components/markets/assetStore'
 import { IconArrowDown, IconChart, IconCheck, IconGrid, IconList, IconLock, IconSwap, IconUser, Logo } from '@/components/Icons'
 import { FaqSection, HeroFloatPanels, Reveal, TrustBar } from '@/components/LandingExtras'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
+import { HowItWorks } from '@/components/landing/HowItWorks'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import LazyOnView from '@/components/markets/LazyOnView'
 import HashSettle from '@/components/landing/HashSettle'
@@ -214,6 +215,11 @@ export default function LandingPage() {
               <ErrorBoundary label={t('market.bitcoinMarket')}><HeroScene quote={btc} compact /></ErrorBoundary>
             </div>
           </div>
+        </div>
+        {/* Discover how it works: a 60-second walkthrough, below the main
+            buttons; the video loads only when the visitor opens it. */}
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pb-12 lg:pb-16 -mt-4 sm:-mt-6 lg:-mt-8">
+          <HowItWorks />
         </div>
       </section>
 

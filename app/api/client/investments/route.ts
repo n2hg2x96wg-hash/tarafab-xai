@@ -63,6 +63,9 @@ export async function GET(request: NextRequest) {
   const investmentsWithLedgerProfit = invs.map(inv => ({
     ...inv,
     profit_amount: profitByInvestment.get(inv.id) || 0,
+    // A record entered for a past investment is dated by the investment itself;
+    // when an administrator entered it stays in the admin audit trail.
+    created_at: inv.is_historical && inv.start_date ? inv.start_date : inv.created_at,
   }))
 
   // Timeline and linked ledger rows for the client's own investments.
