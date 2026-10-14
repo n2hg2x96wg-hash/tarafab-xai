@@ -6,6 +6,7 @@ import { clientIp, rateLimited } from '@/lib/rateLimit'
 import { SIGNUP_CONSENT_VERSION } from '@/lib/consent'
 import { authReturnBase } from '@/lib/site'
 import { normalizePhone } from '@/lib/phone'
+import { recordSecurityEvent } from '@/lib/securityEvents'
 
 export async function POST(request: NextRequest) {
   const { url, anonKey: key } = getSupabaseEnv()
@@ -19,6 +20,15 @@ export async function POST(request: NextRequest) {
     const email = String(body.email || '').replace(/[^\x20-\x7E]/g, '')
     const password = String(body.password || '')
     const fullName = String(body.fullName || '').trim()
+    // Bot checks: a hidden field that people never see was filled in, or the
+    // form was sent faster than a person can complete it. Requests from older
+    // pages without these fields are treated as before.
+    const extra = typeof body.extra === 'string' ? body.extra.trim() : ''
+    const formMs = typeof body.formMs === 'number' && Number.isFinite(body.formMs) ? body.formMs : null
+    if (extra || (formMs !== null && formMs < 1200)) {
+      await recordSecurityEvent('signup_bot_blocked', null, clientIp(request), { reason: extra ? 'hidden_field' : 'too_fast', form_ms: formMs })
+      return NextResponse.json({ error: 'We could not complete your registration. Please try again.' }, { status: 400 })
+    }
     if (!email || !password) return NextResponse.json({ error: 'Email and password required' }, { status: 400 })
     if (password.length < 8) return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 })
     // Both statements must be explicitly accepted; nothing is inferred.

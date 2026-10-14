@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useEngineStatus, type EngineState } from '@/lib/engineStatus'
 import { authFetch, readJson } from '@/lib/authFetch'
 import { hiddenState, useFeatures } from '@/components/ui/features'
+import { useI18n } from '@/lib/i18n/I18nProvider'
 
 // The automation engine panel (client Investments page only — private to
 // signed-in clients; the public site never renders it).
@@ -29,6 +30,7 @@ type Auto = { id: string; status: string; asset_id: string; last_evaluated_at?: 
 type Ev = { id: number | string; event: string; created_at: string; automation_id: string }
 
 export function EnginePanel({ className = '' }: { variant?: 'client'; className?: string }) {
+  const { t } = useI18n()
   const { status, state, loading, refreshed, nextAt, presentation: p } = useEngineStatus()
   const feature = useFeatures()
   const ref = useRef<HTMLDivElement>(null)
@@ -88,7 +90,10 @@ export function EnginePanel({ className = '' }: { variant?: 'client'; className?
         </div>
       </div>
 
-      <dl className="mt-4 grid grid-cols-2 gap-3 text-[12.5px]">
+      <p className="mt-4 text-[16px] leading-snug font-semibold text-accent" data-engine-headline>{t('ov2.autoHeadline')}</p>
+      <p className="mt-1.5 text-[12.5px] text-fg-muted leading-relaxed">{t('ov2.autoBody')}</p>
+
+      <dl className="mt-4 grid grid-cols-2 gap-3 text-[12.5px] rounded-xl border border-ink-700 bg-ink-900/40 p-3">
         <div className="min-w-0"><dt className="text-[11px] text-fg-faint">Last check</dt><dd className="text-fg tabular-nums">{status ? ago(status.last_ok_at) : '—'}</dd></div>
         <div className="min-w-0"><dt className="text-[11px] text-fg-faint">Next check</dt><dd className="text-fg tabular-nums" data-next-check>{nextAt == null ? '—' : nextAt - Date.now() <= 5_000 ? 'Due now' : `in ~${Math.ceil((nextAt - Date.now()) / 1000)}s`}</dd></div>
         <div className="min-w-0"><dt className="text-[11px] text-fg-faint">Monitoring</dt><dd className="text-fg truncate" title={status?.monitored.join(', ')}>{status && status.monitored_count ? `${status.monitored.slice(0, 3).join(' · ')}${status.monitored_count > 3 ? ` +${status.monitored_count - 3}` : ''}` : p.asset_labels}</dd></div>
@@ -112,8 +117,9 @@ export function EnginePanel({ className = '' }: { variant?: 'client'; className?
         {mine && mine !== 'error' && !mine.rules.length && <p className="mt-2 text-[12px] text-fg-faint">You have no rules yet — create one in Automation to have it evaluated each minute.</p>}
       </div>
 
-      <p className="mt-4 text-[12px] text-fg-muted leading-relaxed">{p.description}</p>
-      <p className="mt-2 text-[11px] text-fg-faint leading-relaxed">Automation does not guarantee investment returns. Market and investment outcomes can vary.</p>
+      {/* The administrator's operational note (Engine presentation settings). */}
+      {p.description && <p className="mt-4 text-[12px] text-fg-muted leading-relaxed" data-engine-note>{p.description}</p>}
+      <p className="mt-3 pt-3 border-t border-ink-700 text-[11px] text-fg-faint leading-relaxed" data-engine-risk>{t('ov2.autoRisk')}</p>
     </section>
   )
 }

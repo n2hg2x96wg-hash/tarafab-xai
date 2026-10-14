@@ -1,0 +1,34 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+*{box-sizing:border-box;margin:0}html,body{width:1280px;height:720px;overflow:hidden;background:#07080b;font-family:Inter,sans-serif;color:#f2f4f7}
+.bg{position:absolute;inset:0;background:radial-gradient(900px 520px at 72% 58%,rgba(247,147,26,.22),transparent 60%),radial-gradient(700px 400px at 10% 10%,rgba(255,190,90,.07),transparent 60%),#07080b}
+.grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:64px 64px;mask-image:radial-gradient(ellipse at 60% 60%,#000 30%,transparent 75%)}
+.coin{position:relative;border-radius:50%;display:grid;place-items:center;overflow:hidden;background:radial-gradient(circle at 34% 28%,#ffecb0 0%,#fdb94a 34%,#f3951c 58%,#c76c0c 82%,#9a4f07 100%);box-shadow:inset 0 0 0 3px rgba(255,238,190,.6),inset 0 -8px 12px rgba(110,52,0,.45),0 18px 60px -10px rgba(247,147,26,.7)}
+.coin::before{content:'';position:absolute;inset:8%;border-radius:50%;border:2px solid rgba(255,242,205,.45)}
+.coin svg{position:relative;width:100%;height:100%}
+.coin::after{content:'';position:absolute;top:-40%;bottom:-40%;left:-70%;width:45%;transform:rotate(20deg);background:linear-gradient(90deg,transparent,rgba(255,255,255,.75),transparent);animation:shine 2.4s ease-in-out .9s 1 both}
+@keyframes shine{0%{left:-70%}100%{left:130%}}
+.word{font-weight:600;letter-spacing:-.03em}.word span{color:#9aa3b2}
+.gold{background:linear-gradient(90deg,#ffd27a,#f7931a 55%,#ffb347);-webkit-background-clip:text;background-clip:text;color:transparent}
+@keyframes up{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes pop{from{opacity:0;transform:scale(.6) rotate(-20deg)}to{opacity:1;transform:none}}
+.chart path.l{stroke-dasharray:2400;stroke-dashoffset:2400;animation:draw 3.2s cubic-bezier(.4,0,.2,1) .3s forwards}
+.chart path.a{opacity:0;animation:fade 1.6s ease 1.8s forwards}
+.bars rect{transform-origin:bottom;transform-box:fill-box;animation:grow 1.1s cubic-bezier(.2,.8,.2,1) both}
+@keyframes grow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+.tag{display:inline-flex;gap:18px;font-size:15px;letter-spacing:.32em;text-transform:uppercase;color:#f7b155}
+.chip{position:absolute;display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:14px;border:1px solid rgba(247,147,26,.28);background:rgba(16,17,22,.72);backdrop-filter:blur(6px);font-size:14px;color:#c9ced8;opacity:0;animation:up .8s ease forwards}
+.chip b{color:#f2f4f7;font-weight:600}.dot{width:8px;height:8px;border-radius:50%;background:#34d399;box-shadow:0 0 10px #34d399}
+.foot{position:absolute;left:0;right:0;bottom:26px;text-align:center;font-size:13px;color:#7d8594}
+</style></head><body><div class="bg"></div><div class="grid"></div><svg class="chart" style="opacity:.55" width="1280" height="720" style="position:absolute;inset:0" viewBox="0 0 1280 720"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7931a" stop-opacity=".35"/><stop offset="1" stop-color="#f7931a" stop-opacity="0"/></linearGradient></defs>
+<path class="a" d="M0 610 C120 600 180 560 260 572 S400 520 470 530 S600 470 690 488 S820 420 900 430 S1040 360 1120 372 S1220 330 1280 320 L1280 720 L0 720Z" fill="url(#g)"/>
+<path class="l" d="M0 610 C120 600 180 560 260 572 S400 520 470 530 S600 470 690 488 S820 420 900 430 S1040 360 1120 372 S1220 330 1280 320" fill="none" stroke="#f7a43a" stroke-width="2.5"/></svg>
+<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;text-align:center">
+ <div style="display:flex;align-items:center;gap:20px;animation:up .9s ease .2s both"><div style="width:84px;height:84px"><div class="coin" style="width:84px;height:84px"><svg viewBox="0 0 32 32"><g transform="translate(16 16.2) rotate(14) scale(0.034) translate(-47 -18)" fill-rule="evenodd"><path transform="translate(26 30)" fill="#8f4a06" fill-opacity=".55" d="M-92,-196 h36 v-46 h40 v46 h30 v-46 h40 v50 c78,10 122,48 122,104 c0,44 -26,74 -66,86 c56,12 90,50 90,104 c0,78 -60,124 -160,128 v48 h-40 v-48 h-30 v48 h-40 v-48 h-36 z M-24,-130 v96 h76 c40,0 64,-18 64,-48 c0,-30 -24,-48 -64,-48 z M-24,30 v104 h88 c46,0 72,-20 72,-52 c0,-32 -26,-52 -72,-52 z"/><path fill="#fff7e2" d="M-92,-196 h36 v-46 h40 v46 h30 v-46 h40 v50 c78,10 122,48 122,104 c0,44 -26,74 -66,86 c56,12 90,50 90,104 c0,78 -60,124 -160,128 v48 h-40 v-48 h-30 v48 h-40 v-48 h-36 z M-24,-130 v96 h76 c40,0 64,-18 64,-48 c0,-30 -24,-48 -64,-48 z M-24,30 v104 h88 c46,0 72,-20 72,-52 c0,-32 -26,-52 -72,-52 z"/></g></svg></div></div><div class="word" style="font-size:62px">Tarafab<span>.XAi</span></div></div>
+ <div style="font-size:40px;font-weight:600;letter-spacing:-.02em;line-height:1.15;animation:up .9s ease .9s both">Explore opportunities.<br><span class="gold">Stay informed.</span></div>
+ <div style="font-size:19px;color:#aab1bd;max-width:760px;line-height:1.5;animation:fade 1s ease 1.8s both">Review investment products, follow market activity and manage your account in one place.</div>
+ <div style="display:flex;gap:14px;margin-top:8px;animation:up .9s ease 2.6s both"><span style="padding:14px 28px;border-radius:14px;background:#f7931a;color:#140c02;font-weight:600;font-size:18px">Open an account</span><span style="padding:14px 28px;border-radius:14px;border:1px solid rgba(255,255,255,.18);font-size:18px">tarafabxai.xyz</span></div>
+</div>
+<div class="foot" style="animation:fade 1s ease 3.2s both">Investing involves risk. Returns are not guaranteed. Demo screens use sample data.</div>
+</body></html>
