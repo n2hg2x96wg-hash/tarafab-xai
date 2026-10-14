@@ -28,7 +28,6 @@ type Option = Omit<WalletInfo, 'provider'> & { provider?: Eip1193; sdk?: SdkKind
 type Session = { wallet: Option & { provider: Eip1193 }; address: string; chainId: number }
 type Holding = { symbol: string; amount: string | null; error?: string; token?: boolean }
 type ChainBal = { wallet_id: string; chain_id: number; address: string; native: Holding; tokens: Holding[]; at: string }
-const EXPLORER: Record<number, string> = { 1: 'https://etherscan.io', 8453: 'https://basescan.org', 42161: 'https://arbiscan.io', 10: 'https://optimistic.etherscan.io', 137: 'https://polygonscan.com', 56: 'https://bscscan.com' }
 type Bal = { state: 'idle' | 'loading' | 'ok' | 'error'; amount?: string; symbol?: string; at?: number }
 
 // Wallet Center. External, non-custodial wallets the client links by signing
@@ -377,10 +376,13 @@ export function WalletTab({ account }: { account: Account | null }) {
                     {verified(w) ? <span className="tag text-sky-400 border-sky-500/30">{t('wallet.statusVerified')}</span> : <span className="tag text-fg-faint border-ink-600">{t('wallet.statusNotVerified')}</span>}
                   </div>
                 </div>
-                <button onClick={() => copy(w.address)} className="mt-2 font-mono text-[12px] text-fg-muted hover:text-fg break-all text-left inline-flex items-center gap-1.5" title={t('common.copy')} aria-label={t('wallet.copyAddress')}>
-                  {w.address} <IconCopy width={12} height={12} />
-                </button>
-                {copied === w.address && <span className="ml-2 text-[11px] text-emerald-400">{t('common.copied')}</span>}
+                {/* Address with a copy control; no link out of Tarafab.XAi. */}
+                <div className="mt-3 flex items-center gap-2 rounded-lg border border-ink-700 bg-ink-900/40 pl-3 pr-1 py-1" data-wallet-address>
+                  <span className="min-w-0 flex-1 font-mono text-[13px] text-fg-muted break-all">{w.address}</span>
+                  <button onClick={() => copy(w.address)} className="shrink-0 min-h-10 min-w-10 px-2.5 rounded-md inline-flex items-center justify-center gap-1.5 text-[13px] text-fg-muted hover:text-fg hover:bg-[rgb(var(--contrast)/.06)]" title={t('common.copy')} aria-label={t('wallet.copyAddress')} data-copy-address>
+                    <IconCopy width={15} height={15} />{copied === w.address && <span className="text-emerald-400" role="status">{t('common.copied')}</span>}
+                  </button>
+                </div>
                 {/* The summary above already shows the primary wallet's balance. */}
                 {(w.id !== primary?.id || (session && !sessionLinked)) && (
                   <div className="mt-3 pt-3 border-t border-ink-700/60">
@@ -388,10 +390,9 @@ export function WalletTab({ account }: { account: Account | null }) {
                     <Holdings w={w} />
                   </div>
                 )}
-                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px]">
-                  {EXPLORER[w.chain_id] && <a href={`${EXPLORER[w.chain_id]}/address/${w.address}`} target="_blank" rel="noopener noreferrer" className="text-fg-muted hover:text-fg">{t('wallet.viewOnExplorer')}</a>}
+                <div className="mt-3 pt-3 border-t border-ink-700/60 flex items-center justify-between gap-3 text-[13.5px]">
                   <span className="text-fg-faint">{t('wallet.linkedOn')} {date(w.linked_at)}</span>
-                  <button onClick={() => setUnlinking(w)} className="ml-auto text-red-400 hover:text-red-300">{t('wallet.disconnect')}</button>
+                  <button onClick={() => setUnlinking(w)} className="min-h-10 px-3 -mr-1 rounded-md text-red-400 hover:text-red-300 hover:bg-red-500/[0.08]" data-wallet-disconnect>{t('wallet.disconnect')}</button>
                 </div>
               </li>
             ))}

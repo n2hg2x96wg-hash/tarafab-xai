@@ -127,3 +127,19 @@ This documents a genuine past investment that is missing from a client's history
 **Corrections.** Change status (normal transition rules), link an existing return, mark review complete, or void. Voiding keeps every row; the investment disappears from the client's history and totals, and the returns it linked are released so they can be linked to the corrected record.
 
 **Client view.** Investment Center shows the entry labelled "Historical investment recorded" with the investment date and the date it was added to the records, only credited returns (no projection), and a timeline of invested, ended and recorded.
+
+## Admin dashboard reconciliation (October 2026)
+
+The admin dashboard figures were checked against the ledger using read-only, aggregate queries over client accounts only. No transaction was added, changed, reposted or deleted.
+
+| Dashboard figure | Source | Result |
+|---|---|---|
+| Profit balances ($1,121,114.53) | `sum(accounts.profit_balance)` | **Reconciles exactly.** Profit-balance credits less debits ($1,923,913.53), minus completed profit withdrawals ($802,799.00). |
+| Client account balances (available) | `sum(accounts.available_balance)` | **Reconciles exactly.** Admin credits to available ($873,047.99) − admin debits ($41,976.99) − fees ($130.94) − investment principal in ($50,700.00) + principal returned (`principal_out`, $50,259.00). |
+| Invested principal | `sum(principal)` of active investments = `sum(accounts.invested_balance)` | **Reconciles** ($297.00): $50,700.00 in − $144.00 fees − $50,259.00 returned. |
+| Withdrawals completed | completed `withdrawal` transactions | **Consistent.** 5 completed, all from the profit balance, $802,799.00 gross ($700.00 in fees). |
+| Deposits completed ($0) | completed `deposit` transactions | **Misleading.** It is not a calculation error, but it was the confirmed discrepancy. Every completed money-in entry so far is an admin account credit (`adjustment`, source `admin_funding`): 39 credits, $1,199,687.99. The old card counted only client `deposit` transactions. |
+
+**Change (migration `202611230001_admin_overview_credits.sql`).** `admin_overview()` now also returns `credits`: the count and total of completed admin account credits, split by target balance. The dashboard shows "Client deposits completed" and "Account credits (admin)" side by side, and the client page shows an "Account credits (admin)" figure. The change is read-only and additive, and every existing key keeps its definition.
+
+**Still open (product decision).** $326,640.00 of the admin credits, and $152,639.75 of admin debits, were posted to the legacy `account_balance` column rather than the spendable balance (see "Open item" above). The dashboard reports that legacy share under the credits card.

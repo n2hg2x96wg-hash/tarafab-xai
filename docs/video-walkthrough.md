@@ -9,8 +9,8 @@ A 60-second introduction on the public landing page, under the hero buttons.
 
 | File | Format | Size |
 |---|---|---|
-| `how-it-works.mp4` | H.264 High / AAC, 1280×720, 30 fps, 60.2 s | about 4.5 MB |
-| `how-it-works.webm` | VP9 / Opus fallback, for browsers without H.264 | about 2.7 MB |
+| `how-it-works.mp4` | H.264 High / AAC, 1280×720, 30 fps, 60.0 s | about 3.7 MB |
+| `how-it-works.webm` | VP9 / Opus fallback, for browsers without H.264 | about 2.5 MB |
 | `how-it-works-poster.webp` | Poster for the player | about 17 KB |
 | `how-it-works-thumb.webp` | Card thumbnail | about 11 KB |
 | `how-it-works.en.vtt` | English captions | |
@@ -19,7 +19,7 @@ A 60-second introduction on the public landing page, under the hero buttons.
 
 - **Loading:** nothing loads until the visitor opens the player. The card shows only a small thumbnail.
 - **Playback:** it starts from the visitor's tap and never by itself. Native controls provide play/pause, seeking, volume, captions and fullscreen, including on iOS Safari (`playsInline`).
-- **Chapters:** five chapter buttons seek to each scene.
+- **Chapters:** six chapter buttons seek to each scene.
 - **Opening and closing:**
   - Escape, the close button or a tap outside closes the player.
   - Page scrolling is locked only while it's open, and the scroll position is kept.
@@ -30,15 +30,20 @@ A 60-second introduction on the public landing page, under the hero buttons.
 
 ## Scenes (narration, as recorded)
 
+Revision 2 focuses on investing. The total length is 60.0 s.
+
 | Time | Scene | Narration |
 |---|---|---|
-| 0:00–0:06 | Brand introduction (logo, chart, tagline) | "Welcome to Tarafab.XAi, where market insights meet intelligent automation." |
-| 0:05–0:15 | Real client dashboard | "Your dashboard brings your balances, recent activity, and available investment products together, so you can review your account in one place." |
-| 0:14–0:33 | Investment Center → product terms → amount and confirmation step (never submitted) | "Browse the investment products, and open one to review its limits, duration, fees, and stated terms. Confirm only when you understand them. Projected terms and profits actually credited are always shown separately, and you can follow every investment from your dashboard." |
-| 0:32–0:49 | XAI Automation Engine card → Automation Center | "The XAI Automation Engine monitors your selected markets, and evaluates the rules you configure every minute. Each check and alert is recorded, so you can follow market activity and stay informed. It monitors and alerts. It does not place trades." |
-| 0:48–1:00 | Closing frame | "Explore investment opportunities, follow market activity, and stay informed throughout your investment journey. Understand the risks, and discover Tarafab.XAi." |
+| 0:00–0:06 | The investment opportunity (brand frame) | "Every investment journey begins with a decision. Welcome to Tarafab.XAi." |
+| 0:06–0:18 | Choose an investment: Investment Plans, then a plan's details | "Explore the available investment opportunities, compare their terms, and choose a plan that aligns with your financial goals." |
+| 0:18–0:31 | Place an investment: Amount, Review, Confirm, then the result | "Enter the amount you want to invest, review the period and every detail, and confirm only when you are comfortable with the terms." |
+| 0:31–0:43 | Track your progress: My investments, then an investment's details | "Follow your investments through your personal dashboard, monitor their progress, and review returns as they are actually credited." |
+| 0:43–0:50 | Market monitoring: XAI Automation Engine | "With market monitoring tools in one place, you can stay informed as you work toward your goals." |
+| 0:50–1:00 | Get started: closing frame | "Your investment journey starts with Tarafab.XAi. Explore the opportunities. Understand the terms. Plan for your future." |
 
-The closing frame reads: "Investing involves risk. Returns are not guaranteed. Demo screens use sample data."
+In the confirm step, the demo submission is answered locally with the status a real request receives: "Pending review", reference DEMO-INV-02. Nothing is sent to the server or created.
+
+The demo products carry illustrative terms and are labelled as not an offer. The tracked demo investment shows $0.00 credited.
 
 ## How it was produced (and how to regenerate it)
 

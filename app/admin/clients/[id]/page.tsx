@@ -968,21 +968,23 @@ export default function ClientDetailPage() {
 function ClientFinancialProfile({ clientId }: { clientId: string }) {
   const supabase = createClient()
   type Inv = { id: string; reference: string | null; status: string; principal: number; profit_amount: number | null; created_at: string; maturity_date: string | null; investment_products: { code: string } | null }
-  const [data, setData] = useState<{ kyc: string; invs: Inv[]; deposits: number; withdrawals: number } | null>(null)
+  const [data, setData] = useState<{ kyc: string; invs: Inv[]; deposits: number; credits: number; withdrawals: number } | null>(null)
   const [error, setError] = useState(false)
   useEffect(() => {
     let alive = true
     ;(async () => {
-      const [k, i, d, w] = await Promise.all([
+      const [k, i, d, w, c] = await Promise.all([
         supabase.from('kyc_submissions').select('status').eq('user_id', clientId).order('submitted_at', { ascending: false }).limit(1),
         (supabase.from('client_investments') as any).select('id, reference, status, principal, profit_amount, created_at, maturity_date, investment_products(code)').eq('user_id', clientId).order('created_at', { ascending: false }).limit(50),
         (supabase.from('transactions') as any).select('amount').eq('user_id', clientId).eq('type', 'deposit').eq('status', 'completed').limit(1000),
         (supabase.from('transactions') as any).select('amount').eq('user_id', clientId).eq('type', 'withdrawal').eq('status', 'completed').limit(1000),
+        // Admin account credits: a separate money-in source from client deposits.
+        (supabase.from('transactions') as any).select('amount').eq('user_id', clientId).eq('source', 'admin_funding').eq('status', 'completed').limit(1000),
       ])
       if (!alive) return
       if (i.error) { setError(true); return }
       const sum = (r: { data: { amount: number }[] | null }) => (r.data || []).reduce((s, x) => s + Number(x.amount), 0)
-      setData({ kyc: (k.data?.[0] as { status?: string } | undefined)?.status || 'not submitted', invs: i.data || [], deposits: sum(d), withdrawals: sum(w) })
+      setData({ kyc: (k.data?.[0] as { status?: string } | undefined)?.status || 'not submitted', invs: i.data || [], deposits: sum(d), credits: sum(c), withdrawals: sum(w) })
     })()
     return () => { alive = false }
   }, [supabase, clientId])
@@ -994,8 +996,8 @@ function ClientFinancialProfile({ clientId }: { clientId: string }) {
   const completed = data.invs.filter(x => x.status === 'completed' || x.status === 'matured').length
   return (
     <div className="mt-5 space-y-4">
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        {[['KYC status', data.kyc.replace(/_/g, ' ')], ['Active investments', String(active)], ['Completed investments', String(completed)], ['Deposits (completed)', usd(data.deposits)], ['Withdrawals (completed)', usd(data.withdrawals)]].map(([l, v]) => (
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        {[['KYC status', data.kyc.replace(/_/g, ' ')], ['Active investments', String(active)], ['Completed investments', String(completed)], ['Deposits (completed)', usd(data.deposits)], ['Account credits (admin)', usd(data.credits)], ['Withdrawals (completed)', usd(data.withdrawals)]].map(([l, v]) => (
           <div key={l} className="rounded-xl p-3 border border-white/[0.07] bg-white/[0.02] min-w-0">
             <p className="text-[10px] uppercase tracking-wider text-slate-500">{l}</p>
             <p className="text-sm font-semibold text-white capitalize truncate mt-1">{v}</p>

@@ -2018,7 +2018,7 @@ function NicknameRow({ value, onSaved }: { value: string | null; onSaved: (name:
   if (!editing) {
     return (
       <div data-nickname>
-        <SettingsRow label={t('profile.nickname')} sub={t('profile.nicknameBody')}
+        <SettingsRow label={t('profile.nickname')}
           value={<span className="break-words" data-nickname-value>{value || t('common.notSet')}</span>}
           action={<button type="button" onClick={start} className="btn btn-sm btn-outline whitespace-nowrap" data-nickname-edit>{t('profile.edit')}</button>} />
         {note && <div className="px-4 -mt-2 pb-3">{note}</div>}
@@ -2029,8 +2029,7 @@ function NicknameRow({ value, onSaved }: { value: string | null; onSaved: (name:
     <form onSubmit={save} className="px-4 py-3.5" data-nickname noValidate>
       <label htmlFor="pf-nickname" className="text-[14px] text-fg-muted">{t('profile.nickname')}</label>
       <input id="pf-nickname" value={draft} onChange={e => setDraft(e.target.value)} placeholder={t('profile.nicknamePlaceholder')}
-        maxLength={NICKNAME_MAX} autoComplete="nickname" autoFocus className="field mt-2" disabled={saving} aria-describedby="pf-nickname-help" />
-      <p id="pf-nickname-help" className="mt-1.5 text-[12.5px] text-fg-faint">{t('profile.nicknameBody')}</p>
+        maxLength={NICKNAME_MAX} autoComplete="nickname" autoFocus className="field mt-2" disabled={saving} />
       {note}
       <div className="mt-3 flex items-center gap-2">
         <button type="submit" disabled={saving} className="btn btn-sm btn-solid" aria-busy={saving} data-nickname-save>{saving ? t('common.saving') : t('profile.save')}</button>

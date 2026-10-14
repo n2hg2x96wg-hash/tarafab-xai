@@ -59,6 +59,9 @@ async function setup(browser) {
   await ctx.route('**/api/automation/status', r => r.fulfill({ json: ST }))
   await ctx.route('**/api/client/**', r => {
     const url = r.request().url().split('?')[0]
+    // Demo submission: answered locally with the status a real request gets
+    // (pending review). Nothing is sent to the server or created anywhere.
+    if (r.request().method() === 'POST' && url.endsWith('/investments')) return r.fulfill({ json: { investment: { id: 'demo-new', reference: 'DEMO-INV-02', status: 'pending_activation', principal: 995 } } })
     if (r.request().method() !== 'GET') return r.fulfill({ status: 403, json: { error: 'Demo account: read-only.' } })
     if (url.endsWith('/account')) return r.fulfill({ json: { user: { id: ME.id, email: ME.email, full_name: ME.name, role: 'customer' }, account: ACC, investments: SUM } })
     if (url.endsWith('/transactions')) return r.fulfill({ json: { transactions: TXS } })
@@ -137,53 +140,57 @@ if (require.main === module) (async () => {
     await record(p, 's1', D.s1 * 1000, async () => {})
   }
   const { page } = await setup(browser)
-  // Scene 2: the client dashboard.
+  const top = () => page.evaluate(() => document.scrollingElement.scrollTop = 0)
+  // Scene 2: choose an investment (plans and plan details).
   if (want('s2')) {
-    await page.goto(BASE + '/dashboard'); await page.waitForTimeout(4500)
-    await overlay(page, '<small>Explore the platform</small>Your dashboard')
+    await page.goto(BASE + '/dashboard#portfolio'); await page.waitForTimeout(4000); await top(); await page.waitForTimeout(300)
+    await overlay(page, '<small>Choose an investment</small>Investment plans')
     await record(page, 's2', D.s2 * 1000, async () => {
       await page.waitForTimeout(2600)
-      await smoothScroll(page, null, 520, 3800); await page.waitForTimeout(800); await smoothScroll(page, null, 0, 1600)
+      await page.mouse.move(400, 300, { steps: 12 }); await page.waitForTimeout(500)
+      await overlay(page, '<small>Choose an investment</small>Review the terms', 28)
+      await moveClick(page, page.locator('[data-plan-details]').first()); await page.waitForTimeout(2600)
+      const sheet = await page.evaluate(() => { const d = [...document.querySelectorAll('[role=dialog] *')].find(e => e.scrollHeight > e.clientHeight + 40 && ['auto', 'scroll'].includes(getComputedStyle(e).overflowY)); if (d) { d.id = d.id || 'sheet-scroll'; return '#' + d.id } return null })
+      if (sheet) await smoothScroll(page, sheet, 330, 3000)
     })
   }
-  // Scene 3: products, terms and the confirmation step (never submitted).
+  // Scene 3: place an investment (amount, review, confirm; demo result).
   if (want('s3')) {
-    await page.goto(BASE + '/dashboard#portfolio'); await page.waitForTimeout(4000)
-    await page.evaluate(() => document.scrollingElement.scrollTop = 0); await page.waitForTimeout(400)
-    await overlay(page, '<small>Choosing an investment</small>Review the terms first')
+    await overlay(page, '<small>Place an investment</small>Amount · Review · Confirm', 28)
     await record(page, 's3', D.s3 * 1000, async () => {
-      await page.waitForTimeout(1800)
-      await smoothScroll(page, null, 160, 900); await page.waitForTimeout(500)
-      await overlay(page, '<small>Choosing an investment</small>Review the terms first', 28)
-      await moveClick(page, page.getByRole('button', { name: 'View details' }).first())
-      await page.waitForTimeout(3000)
-      const sheet = await page.evaluate(() => { const d = [...document.querySelectorAll('[role=dialog], [role=dialog] *')].find(e => e.scrollHeight > e.clientHeight + 40 && ['auto', 'scroll'].includes(getComputedStyle(e).overflowY)); if (d) { d.id = d.id || 'sheet-scroll'; return '#' + d.id } return null })
-      if (sheet) { await smoothScroll(page, sheet, 360, 2400); await page.waitForTimeout(900) }
-      await moveClick(page, page.locator('[role=dialog] button.btn-solid').last()); await page.waitForTimeout(900)
-      const amt = page.locator('[role=dialog] input[inputmode=decimal]'); await amt.click(); await page.keyboard.type('1000', { delay: 140 }); await page.waitForTimeout(1200)
-      await overlay(page, '<small>Before you confirm</small>Understand the terms', 28)
-      const box = page.locator('[role=dialog] input[type=checkbox]'); await box.scrollIntoViewIfNeeded(); await page.waitForTimeout(800); await moveClick(page, box)
-      await page.waitForTimeout(1500)
+      await moveClick(page, page.locator('[data-plan-start]')); await page.waitForTimeout(700)
+      const amt = page.locator('[data-invest-amount]'); await amt.click(); await page.keyboard.type('1000', { delay: 90 }); await page.waitForTimeout(600)
+      await moveClick(page, page.locator('[data-invest-continue]')); await page.waitForTimeout(1300)
+      const sheet = await page.evaluate(() => { const d = [...document.querySelectorAll('[role=dialog] *')].find(e => e.scrollHeight > e.clientHeight + 40 && ['auto', 'scroll'].includes(getComputedStyle(e).overflowY)); if (d) { d.id = d.id || 'sheet-scroll2'; return '#' + d.id } return null })
+      if (sheet) { await smoothScroll(page, sheet, 9999, 2000); await page.waitForTimeout(300) }
+      await moveClick(page, page.locator('[data-invest-accept]')); await page.waitForTimeout(400)
+      await moveClick(page, page.locator('[data-invest-confirm]')); await page.waitForSelector('[data-invest-result]', { timeout: 5000 })
+      await page.evaluate(() => { const d = document.querySelector('#sheet-scroll2'); if (d) d.scrollTop = 0 })
     })
   }
-  // Scene 4: market monitoring and the automation engine.
+  // Scene 4: track progress (My investments and an investment's details).
   if (want('s4')) {
-    await page.goto(BASE + '/dashboard'); await page.waitForTimeout(4000)
-    const card = page.locator('[data-ov-automation]').first(); await card.scrollIntoViewIfNeeded().catch(() => {})
-    await page.evaluate(() => { const c = document.querySelector('[data-ov-automation]'); if (c) c.scrollIntoView({ block: 'center' }) }); await page.waitForTimeout(800)
-    await overlay(page, '<small>Market monitoring</small>XAI Automation Engine')
+    await page.goto(BASE + '/dashboard'); await page.waitForTimeout(1500); await page.goto(BASE + '/dashboard#portfolio'); await page.reload(); await page.waitForTimeout(3800)
+    await page.evaluate(() => { const el = document.getElementById('inv-mine-section'); if (el) document.scrollingElement.scrollTop = el.getBoundingClientRect().top + scrollY - 80 }); await page.waitForTimeout(400)
+    await overlay(page, '<small>Track your investments</small>Progress and credited returns')
     await record(page, 's4', D.s4 * 1000, async () => {
-      await page.waitForTimeout(5200)
-      await moveClick(page, page.locator('[data-auto-open]').first()); await page.waitForTimeout(1400)
-      await overlay(page, '<small>Your rules</small>Monitored every minute')
-      await page.waitForTimeout(3500)
-      await smoothScroll(page, null, 380, 2800)
+      await page.waitForTimeout(3600)
+      await moveClick(page, page.locator('[data-inv-open]').first()); await page.waitForTimeout(2800)
+      const sheet = await page.evaluate(() => { const d = [...document.querySelectorAll('[role=dialog] *')].find(e => e.scrollHeight > e.clientHeight + 40 && ['auto', 'scroll'].includes(getComputedStyle(e).overflowY)); if (d) { d.id = d.id || 'sheet-scroll3'; return '#' + d.id } return null })
+      if (sheet) await smoothScroll(page, sheet, 360, 2600)
     })
   }
+  // Scene 5: market monitoring (XAI Automation Engine).
   if (want('s5')) {
+    await page.goto(BASE + '/dashboard'); await page.waitForTimeout(3800)
+    await page.evaluate(() => { const c = document.querySelector('[data-ov-automation]'); if (c) c.scrollIntoView({ block: 'center' }) }); await page.waitForTimeout(700)
+    await overlay(page, '<small>Market monitoring</small>XAI Automation Engine')
+    await record(page, 's5', D.s5 * 1000, async () => { await page.waitForTimeout(3000); await smoothScroll(page, null, (await page.evaluate(() => scrollY)) + 160, 2200) })
+  }
+  if (want('s6')) {
     const p = await (await browser.newContext({ viewport: { width: 1280, height: 720 } })).newPage()
     await p.goto('file://' + path.join(__dirname, 'outro.html'))
-    await record(p, 's5', D.s5 * 1000, async () => {})
+    await record(p, 's6', D.s6 * 1000, async () => {})
   }
   await browser.close()
 })()
