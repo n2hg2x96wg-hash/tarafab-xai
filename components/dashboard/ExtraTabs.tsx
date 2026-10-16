@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useI18n } from '@/lib/i18n/I18nProvider'
 import { LanguageSelector } from '@/components/LanguageSelector'
 import { ThemeSelector } from '@/components/ThemeSelector'
+import { TextSizeSelector } from '@/components/TextSizeSelector'
 import { FormError, Spinner } from '@/components/AuthShell'
 import { IconChart, IconCheck, IconHelp, IconInfo, IconMail } from '@/components/Icons'
 import { openTawkChat } from '@/components/TawkWidget'
@@ -217,6 +218,7 @@ export function PreferencesTab() {
       <div className="dep-surface !p-0 overflow-hidden divide-y divide-[rgb(var(--contrast)/.07)]" data-prefs>
         <div className="p-4"><ThemeSelector variant="list" /></div>
         <div className="p-4"><LanguageSelector variant="list" /></div>
+        <div className="p-4"><TextSizeSelector /></div>
       </div>
       <div className="flex gap-3 px-1">
         <IconInfo width={16} height={16} className="shrink-0 mt-0.5 text-fg-faint" aria-hidden="true" />

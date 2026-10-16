@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { authFetch, errorText, newRequestKey, readJson } from '@/lib/authFetch'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
-import { IconChart, IconClose, IconPie, IconShield, IconTrend } from '@/components/Icons'
-import { fmt, PageIntro } from '@/components/dashboard/shared'
+import { IconChart, IconCheck, IconClose, IconPie, IconShield, IconTrend } from '@/components/Icons'
+import { fmt } from '@/components/dashboard/shared'
 import { projection } from '@/lib/returns'
 import { EnginePanel } from '@/components/automation/EnginePanel'
 import { parseInvestmentSummary, type InvestmentSummary } from '@/lib/investmentSummary'
@@ -64,9 +64,12 @@ export const profitOf = (i: { profit_amount?: number | null }) => Number(i.profi
 export const signed = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}$${fmt(Math.abs(n))}`
 export const pctOf = (profit: number, principal: number) => principal > 0 ? `${profit > 0 ? '+' : profit < 0 ? '−' : ''}${Math.abs((profit / principal) * 100).toFixed(2)}%` : '—'
 const UNIT_KEY = { days: 'inv.f.dDays', weeks: 'inv.f.dWeeks', months: 'inv.f.dMonths', years: 'inv.f.dYears' } as const
+// Singular forms, so a 1-week plan reads "1 week" (not "1 weeks").
+const UNIT_ONE = { days: 'inv.f.dDay', weeks: 'inv.f.dWeek', months: 'inv.f.dMonth', years: 'inv.f.dYear' } as const
 type T = ReturnType<typeof useI18n>['t']
 const durationText = (v: Version, t: T) =>
-  v.duration_value && v.duration_unit ? t(UNIT_KEY[v.duration_unit], { n: v.duration_value }) : v.term_days ? t('inv.days', { n: v.term_days }) : t('inv.openEnded')
+  v.duration_value && v.duration_unit ? t((Number(v.duration_value) === 1 ? UNIT_ONE : UNIT_KEY)[v.duration_unit], { n: v.duration_value })
+  : v.term_days ? t(Number(v.term_days) === 1 ? 'inv.day' : 'inv.days', { n: v.term_days }) : t('inv.openEnded')
 const feeText = (v: Version, t: T) => Number(v.entry_fee_pct) ? `${(Number(v.entry_fee_pct) * 100).toFixed(2)}%` : t('inv.noFee')
 
 // Return terms of one investment, from the snapshot taken when it was made.
@@ -167,6 +170,7 @@ export function InvestmentCenter({ go, focusId, onFocusDone, onAccountChanged }:
   const [data, setData] = useState<Data | null>(null)
   const [error, setError] = useState('')
   const [open, setOpen] = useState<Version | null>(null)
+  const [startAt, setStartAt] = useState<'details' | 'amount'>('details')
   const [openInv, setOpenInv] = useState<Investment | null>(null)
 
   const load = useCallback(async () => {
@@ -248,107 +252,73 @@ export function InvestmentCenter({ go, focusId, onFocusDone, onAccountChanged }:
   ]
 
   return (
-    <div className="space-y-6">
-      <section aria-labelledby="inv-title">
-        <PageIntro className="mb-3" id="inv-title" title={t('inv.title')} sub={t('inv.subtitle')} icon={<IconPie width={20} height={20} />}
-          actions={data.balance ? <p className="text-sm text-fg-muted">{t('inv.f.available')}: <span className="text-fg font-semibold tabular-nums">{money(data.balance.available)}</span></p> : undefined} />
-        {/* Figures as a quiet stat list (hairline above each) rather than six cards.
-            The explanation of each figure stays available as its tooltip; a warning note still shows. */}
-        <dl className="panel px-4 py-3.5 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-x-4 gap-y-3" data-inv-stats>
-          {stats.map(s => (
-            <div key={s.label} className="min-w-0" title={t(s.hint)}>
-              <dt className="text-[11.5px] leading-tight text-fg-faint">{t(s.label)}</dt>
-              <dd className={`mt-0.5 font-semibold tabular-nums break-words ${s.value.length > 14 ? 'text-[13px] leading-snug' : 'text-[16px]'} ${s.muted ? 'text-fg-muted' : 'text-fg'}`}>{s.value}</dd>
-              {s.note && <p className="mt-0.5 text-[11px] leading-snug text-amber-300" data-note="">{s.note}</p>}
-            </div>
-          ))}
-        </dl>
-      </section>
-
-      {/* Available plans */}
-      <section id="inv-products" className="scroll-mt-20" aria-labelledby="inv-products-title">
-        <h3 id="inv-products-title" className="dep-h mb-3">{t('inv.f.plans')}</h3>
+    <div className="space-y-7 inv2">
+      {/* The Invest tab opens straight on the plans: a plain heading, the
+          available balance, and the products configured by the team. */}
+      <section aria-labelledby="inv-title" data-inv-plans>
+        <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2 mb-4">
+          <h2 id="inv-title" className="text-[22px] sm:text-[26px] leading-tight font-semibold tracking-[-0.02em] text-fg">{t('inv.n.plansTitle')}</h2>
+          {data.balance && (
+            <p className="inline-flex items-center gap-2 rounded-full border border-ink-700 bg-ink-900/60 px-3.5 py-1.5 text-[13.5px] text-fg-muted" data-inv-available>
+              {t('inv.n.available')} <span className="text-fg font-semibold tabular-nums">{money(data.balance.available)}</span>
+            </p>
+          )}
+        </div>
         {offers.length === 0 ? (
           <div className="panel px-4 py-4 flex items-center gap-3">
             <span className="shrink-0 w-9 h-9 rounded-lg border border-ink-700 flex items-center justify-center text-fg-faint"><IconChart width={17} height={17} /></span>
-            <p className="text-[14px] text-fg-muted">{t('inv.f.noPlans')}</p>
+            <p className="text-[15px] text-fg-muted">{t('inv.f.noPlans')}</p>
           </div>
         ) : (
-          <div className="grid sm:grid-cols-2 gap-3">
-            {offers.map(v => (
-              <article key={v.id} className="panel panel-lift p-5 flex flex-col">
-                <div className="flex items-start justify-between gap-3">
-                  <h4 className="text-base font-semibold text-fg">{v.name}</h4>
-                  <span className={`shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full border ${RISK_TONE[v.risk_level]}`}>{t(`inv.risk.${v.risk_level}` as TKey)}</span>
-                </div>
-                <p className="text-sm text-fg-muted mt-1 line-clamp-2">{v.description}</p>
-                <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                  <dt className="text-fg-faint">{t('inv.minimum')}</dt><dd className="text-fg text-right tabular-nums">{money(Number(v.min_amount))}</dd>
-                  <dt className="text-fg-faint">{t('inv.duration')}</dt><dd className="text-fg text-right">{durationText(v, t)}</dd>
-                  <dt className="text-fg-faint">{t('inv.fee')}</dt><dd className="text-fg text-right tabular-nums">{feeText(v, t)}</dd>
-                </dl>
-                <button onClick={() => setOpen(v)} className="btn btn-solid btn-sm mt-5 self-start">{t('inv.viewDetails')}</button>
-              </article>
-            ))}
+          <div className="grid md:grid-cols-2 gap-4" id="inv-products">
+            {offers.map(v => <PlanCard key={v.id} v={v} onDetails={() => { setStartAt('details'); setOpen(v) }} onInvest={() => { setStartAt('amount'); setOpen(v) }} />)}
           </div>
         )}
       </section>
 
       {/* My investments: every status, nothing hidden or deleted */}
-      <section className="panel overflow-hidden" aria-labelledby="inv-mine">
-        <div className="px-5 py-4 border-b border-ink-700 flex items-center justify-between gap-3">
-          <h3 id="inv-mine" className="dep-h">{t('inv.f.myInvestments')}</h3>
-          {hasInvestments && active.length === 0 && <span className="text-xs text-fg-faint">{t('inv.f.noActive')}</span>}
-        </div>
-        {hasInvestments && (
-          <div className="px-5 pt-3 flex gap-1.5 overflow-x-auto" role="tablist" aria-label={t('inv.f.myInvestments')}>
-            {FILTERS.map(([id, label]) => {
-              const n = invs.filter(x => matches(id, x.status)).length
-              return (
-                <button key={id} role="tab" aria-selected={filter === id} onClick={() => setFilter(id)}
-                  className={`shrink-0 min-h-9 px-3 rounded-full border text-[12.5px] transition-colors ${filter === id ? 'border-accent/50 bg-accent/10 text-fg' : 'border-ink-700 text-fg-muted hover:text-fg'}`}>
-                  {t(label)} <span className="tabular-nums text-fg-faint">{n}</span>
-                </button>
-              )
-            })}
-          </div>
-        )}
-        {hasInvestments && shown.length === 0 && <p className="px-5 py-8 text-center text-sm text-fg-muted">{t('inv.f.noneInFilter')}</p>}
-        {hasInvestments ? (
-          <ul className="divide-y divide-ink-700">
-            {shown.map(i => {
-              const v = versionById.get(i.product_version_id)
-              return (
-                <li key={i.id}>
-                  <button onClick={() => setOpenInv(i)} data-inv-status={i.status} className="inv-row w-full text-left px-4 sm:px-5 py-3.5 flex items-center justify-between gap-3 sm:gap-4 hover:bg-ink-850 transition-colors">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-fg truncate flex items-center gap-2">{i.status === 'active' && <span className="inv-live-dot" aria-hidden="true" />}<span className="truncate">{v?.name || t('inv.product')}</span></p>
-                      <p className="text-xs text-fg-faint truncate">
-                        {i.reference ? `${i.reference} · ` : ''}
-                        {['completed', 'matured', 'closed'].includes(i.status) && i.completed_at ? t('inv.f.completedOn', { date: date(i.completed_at) })
-                          : i.status === 'active' || i.status === 'completed' ? t('inv.startsEnds', { start: date(i.start_date), end: date(i.maturity_date) }) : `${t('inv.f.submitted')} ${date(i.created_at)}`}
-                      </p>
-                      {i.status === 'rejected' && i.rejection_reason && <p className="text-xs text-danger-300 mt-0.5 line-clamp-2">{t('inv.f.rejectionReason')}: {i.rejection_reason}</p>}
-                    </div>
-                    <div className="text-right shrink-0 space-y-1">
-                      <p className="text-sm font-semibold text-fg tabular-nums">{money(Number(i.principal) + (['active', 'completed', 'matured'].includes(i.status) ? profitOf(i) : 0))}</p>
-                      {['active', 'completed', 'matured'].includes(i.status) && <p className={`text-[11px] tabular-nums ${profitOf(i) > 0 ? 'price-up' : profitOf(i) < 0 ? 'price-down' : 'text-fg-faint'}`}>{signed(profitOf(i))} · {pctOf(profitOf(i), Number(i.principal))}</p>}
-                      <StatusBadge status={i.status} />
-                    </div>
-                    {/* Opens the investment's details. */}
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="shrink-0 -mr-1 text-fg-faint" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+      <section className="scroll-mt-20" id="inv-mine-section" aria-labelledby="inv-mine">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <h2 id="inv-mine" className="text-[18px] sm:text-[20px] font-semibold tracking-[-0.01em] text-fg">{t('inv.f.myInvestments')}</h2>
+          {hasInvestments && (
+            <div className="flex gap-1.5 overflow-x-auto max-w-full" role="tablist" aria-label={t('inv.f.myInvestments')}>
+              {FILTERS.map(([id, label]) => {
+                const n = invs.filter(x => matches(id, x.status)).length
+                return (
+                  <button key={id} role="tab" aria-selected={filter === id} onClick={() => setFilter(id)}
+                    className={`shrink-0 min-h-10 px-3.5 rounded-full border text-[13.5px] transition-colors ${filter === id ? 'border-accent/60 bg-accent/10 text-fg' : 'border-ink-700 text-fg-muted hover:text-fg'}`}>
+                    {t(label)} <span className="tabular-nums text-fg-faint">{n}</span>
                   </button>
-                </li>
-              )
-            })}
+                )
+              })}
+            </div>
+          )}
+        </div>
+        {hasInvestments && shown.length === 0 && <p className="panel px-5 py-8 text-center text-[15px] text-fg-muted">{t('inv.f.noneInFilter')}</p>}
+        {hasInvestments ? (
+          <ul className="grid md:grid-cols-2 gap-4">
+            {shown.map(i => <li key={i.id} className="min-w-0"><TrackCard inv={i} v={versionById.get(i.product_version_id)} onOpen={() => setOpenInv(i)} /></li>)}
           </ul>
         ) : (
-          <div className="px-4 py-4 flex flex-wrap items-center gap-3">
+          <div className="panel px-4 py-4 flex flex-wrap items-center gap-3">
             <span className="shrink-0 w-9 h-9 rounded-lg border border-ink-700 flex items-center justify-center text-fg-faint"><IconPie width={17} height={17} /></span>
-            <p className="text-[14px] text-fg-muted flex-1 min-w-0">{t('inv.f.noInvestments')}</p>
-            {offers.length > 0 && <a href="#inv-products" className="btn btn-outline btn-sm">{t('inv.explore')}</a>}
+            <p className="text-[15px] text-fg-muted flex-1 min-w-0">{t('inv.f.noInvestments')}</p>
           </div>
         )}
+      </section>
+
+      {/* Summary figures, from the shared server summary. */}
+      <section aria-labelledby="inv-summary">
+        <h2 id="inv-summary" className="text-[18px] sm:text-[20px] font-semibold tracking-[-0.01em] text-fg mb-3">{t('inv.n.summary')}</h2>
+        <dl className="panel px-4 py-4 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-x-4 gap-y-4" data-inv-stats>
+          {stats.map(s => (
+            <div key={s.label} className="min-w-0" title={t(s.hint)}>
+              <dt className="text-[12.5px] leading-tight text-fg-faint">{t(s.label)}</dt>
+              <dd className={`mt-1 font-semibold tabular-nums break-words ${s.value.length > 14 ? 'text-[14px] leading-snug' : 'text-[17px]'} ${s.muted ? 'text-fg-muted' : 'text-fg'}`}>{s.value}</dd>
+              {s.note && <p className="mt-0.5 text-[12px] leading-snug text-amber-300" data-note="">{s.note}</p>}
+            </div>
+          ))}
+        </dl>
       </section>
 
       {/* Performance: active state from the investment records; history only
@@ -363,7 +333,8 @@ export function InvestmentCenter({ go, focusId, onFocusDone, onAccountChanged }:
         <EnginePanel variant="client" />
       </div>
 
-      {open && <ProductDetail v={open} kycVerified={data.kyc_verified} balance={data.balance} onClose={() => setOpen(null)} onSubmitted={() => { load(); onAccountChanged?.() }} go={go} />}
+      {open && <ProductDetail v={open} start={startAt} kycVerified={data.kyc_verified} balance={data.balance} onClose={() => setOpen(null)} onSubmitted={() => { load(); onAccountChanged?.() }}
+        onViewMine={() => { setOpen(null); setFilter('all'); requestAnimationFrame(() => document.getElementById('inv-mine-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })) }} go={go} />}
       {openInv && (
         <InvestmentDetail inv={openInv} v={versionById.get(openInv.product_version_id)}
           adjustments={data.adjustments.filter(a => a.investment_id === openInv.id)}
@@ -399,70 +370,187 @@ function Sheet({ title, onClose, children }: { title: string; onClose: () => voi
   )
 }
 
-function ProductDetail({ v, kycVerified, balance, onClose, onSubmitted, go }: { v: Version; kycVerified: boolean; balance: Balance | null; onClose: () => void; onSubmitted: () => void; go: (id: string) => void }) {
+// ---- Plan cards, details and the three-step investment flow ----
+
+// Small line icons for the plan rows (gold, decorative only).
+const I = {
+  crown: <path d="M4 17h16M5 17 3.5 8l5 3.5L12 5l3.5 6.5 5-3.5L19 17" />,
+  ret: <><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5v9M14.6 9.6c-.5-.8-1.5-1.3-2.6-1.3-1.5 0-2.6.8-2.6 1.9 0 2.7 5.3 1.4 5.3 4 0 1.1-1.2 2-2.7 2-1.2 0-2.2-.5-2.7-1.4" /></>,
+  clock: <><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></>,
+  min: <><path d="M4 7.5h16v9H4z" /><path d="M8 12h8" /></>,
+  max: <><path d="M4 7.5h16v9H4z" /><path d="M8 12h8M12 8v8" /></>,
+  fee: <><path d="M7 17 17 7" /><circle cx="8" cy="8" r="2" /><circle cx="16" cy="16" r="2" /></>,
+  cal: <><rect x="4" y="5.5" width="16" height="14" rx="2" /><path d="M8 3.5v4M16 3.5v4M4 10h16" /></>,
+}
+function RowIcon({ d }: { d: React.ReactNode }) {
+  return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-accent" aria-hidden="true">{d}</svg>
+}
+function PlanBadge({ size = 44 }: { size?: number }) {
+  return (
+    <span className="inv2-badge shrink-0" style={{ width: size, height: size }} aria-hidden="true">
+      <svg width={size * 0.5} height={size * 0.5} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{I.crown}</svg>
+    </span>
+  )
+}
+// The product's stated return, exactly as configured (never a multiple or a promise).
+const statedReturn = (v: Version, t: T) =>
+  v.return_type === 'fixed_rate' && v.return_rate_pct != null ? { big: `${Number(v.return_rate_pct).toLocaleString('en-US', { maximumFractionDigits: 2 })}%`, sub: t('inv.n.forTerm') }
+  : v.return_type === 'fixed_amount' && v.return_amount != null ? { big: money(Number(v.return_amount)), sub: t('inv.n.forTerm') }
+  : { big: t('inv.noStatedReturn'), sub: '' }
+const riskText = (v: Version, t: T) => t(`inv.risk.${v.risk_level}` as TKey)
+
+function PlanCard({ v, onDetails, onInvest }: { v: Version; onDetails: () => void; onInvest: () => void }) {
   const { t } = useI18n()
-  const [step, setStep] = useState<'details' | 'invest' | 'done'>('details')
+  const ret = statedReturn(v, t)
+  const rows: [React.ReactNode, string, string][] = [
+    [I.clock, t('inv.duration'), durationText(v, t)],
+    [I.min, t('inv.minimum'), money(Number(v.min_amount))],
+    [I.max, t('inv.f.maximum'), v.max_amount ? money(Number(v.max_amount)) : t('inv.f.noMaximum')],
+    [I.fee, t('inv.fee'), feeText(v, t)],
+  ]
+  return (
+    <article className="inv2-card panel flex flex-col min-w-0" aria-labelledby={`plan-${v.id}`} data-plan={v.id}>
+      <div className="flex items-start gap-3.5">
+        <PlanBadge />
+        <div className="min-w-0 flex-1">
+          <h3 id={`plan-${v.id}`} className="text-[18px] leading-snug font-semibold text-fg">{v.name}</h3>
+          {v.description && <p className="mt-0.5 text-[14px] leading-snug text-fg-muted line-clamp-2">{v.description}</p>}
+          <span className={`mt-2 inline-flex text-[12.5px] font-medium px-2.5 py-0.5 rounded-full border ${RISK_TONE[v.risk_level]}`} data-plan-risk>{riskText(v, t)}</span>
+        </div>
+      </div>
+      <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-accent/25 bg-accent/[0.06] px-4 py-3" data-plan-return>
+        <span className="flex items-center gap-2.5 text-[14px] text-fg-muted"><RowIcon d={I.ret} />{t('inv.statedReturn')}</span>
+        <span className="text-right"><span className="block text-[22px] leading-none font-semibold text-accent tabular-nums">{ret.big}</span>{ret.sub && <span className="block text-[12px] text-fg-faint mt-1">{ret.sub}</span>}</span>
+      </div>
+      <dl className="mt-2 divide-y divide-ink-700">
+        {rows.map(([icon, k, val]) => (
+          <div key={k} className="flex items-center justify-between gap-3 py-3">
+            <dt className="flex items-center gap-2.5 text-[14px] text-fg-muted"><RowIcon d={icon} />{k}</dt>
+            <dd className="text-[15px] text-fg text-right tabular-nums">{val}</dd>
+          </div>
+        ))}
+      </dl>
+      <div className="mt-auto pt-4 grid grid-cols-2 gap-2.5">
+        <button type="button" onClick={onDetails} className="btn btn-outline min-h-12" data-plan-details>{t('inv.viewDetails')}</button>
+        <button type="button" onClick={onInvest} className="btn btn-solid min-h-12" data-plan-invest>{t('inv.n.investNow')}</button>
+      </div>
+    </article>
+  )
+}
+
+function Stepper({ step }: { step: 0 | 1 | 2 | 3 }) {
+  const { t } = useI18n()
+  const labels: TKey[] = ['inv.n.stepAmount', 'inv.n.stepReview', 'inv.n.stepConfirm']
+  return (
+    <ol className="inv2-steps" aria-label={t('inv.n.steps')}>
+      {labels.map((l, i) => (
+        <li key={l} className={i < step ? 'is-done' : i === step ? 'is-now' : ''} aria-current={i === step ? 'step' : undefined}>
+          <span className="inv2-step-dot" aria-hidden="true">{i < step ? <IconCheck width={15} height={15} /> : i + 1}</span>
+          <span className="inv2-step-label">{t(l)}{i < step ? <span className="sr-only"> ({t('inv.n.stepDone')})</span> : null}</span>
+        </li>
+      ))}
+    </ol>
+  )
+}
+
+function ProductSummary({ v }: { v: Version }) {
+  const { t } = useI18n()
+  const ret = statedReturn(v, t)
+  return (
+    <div className="rounded-2xl border border-ink-700 bg-ink-900/50 p-4">
+      <div className="flex items-center gap-3">
+        <PlanBadge size={40} />
+        <div className="min-w-0"><p className="text-[16px] font-semibold text-fg truncate">{v.name}</p><p className="text-[13px] text-fg-faint">{riskText(v, t)}</p></div>
+      </div>
+      <dl className="mt-3 divide-y divide-ink-700 text-[14px]">
+        <div className="flex justify-between gap-4 py-2.5"><dt className="text-fg-muted">{t('inv.statedReturn')}</dt><dd className="text-accent font-semibold text-right tabular-nums">{ret.big}{ret.sub ? ` ${ret.sub}` : ''}</dd></div>
+        <div className="flex justify-between gap-4 py-2.5"><dt className="text-fg-muted">{t('inv.duration')}</dt><dd className="text-fg text-right">{durationText(v, t)}</dd></div>
+      </dl>
+    </div>
+  )
+}
+
+function ProductDetail({ v, start, kycVerified, balance, onClose, onSubmitted, onViewMine, go }: { v: Version; start: 'details' | 'amount'; kycVerified: boolean; balance: Balance | null; onClose: () => void; onSubmitted: () => void; onViewMine: () => void; go: (id: string) => void }) {
+  const { t } = useI18n()
   const kycRequired = v.eligibility?.kyc_required !== false
   const eligible = !kycRequired || kycVerified
-  const rows: [TKey, string][] = [
-    ['inv.range', v.max_amount ? `${money(Number(v.min_amount))} – ${money(Number(v.max_amount))}` : t('inv.fromAmount', { amount: money(Number(v.min_amount)) })],
-    ['inv.currency', v.currency],
-    ['inv.duration', durationText(v, t)],
-    ['inv.fee', feeText(v, t)],
-    ['inv.statedReturn', v.return_type === 'fixed_rate' && v.return_rate_pct !== null ? t('inv.fixedRate', { rate: Number(v.return_rate_pct).toFixed(2) }) : v.return_type === 'fixed_amount' && v.return_amount != null ? t('inv.f.fixedAmount', { amount: money(Number(v.return_amount)) }) : t('inv.noStatedReturn')],
-    ['inv.riskLabel', t(`inv.risk.${v.risk_level}` as TKey)],
-    ['inv.termsVersion', t('inv.versionN', { n: v.version })],
+  // Without eligibility the flow cannot start: the details explain why.
+  const [step, setStep] = useState<'details' | 'invest'>(start === 'amount' && eligible ? 'invest' : 'details')
+  const ret = statedReturn(v, t)
+  const rows: [React.ReactNode, TKey, string][] = [
+    [I.min, 'inv.range', v.max_amount ? `${money(Number(v.min_amount))} – ${money(Number(v.max_amount))}` : t('inv.fromAmount', { amount: money(Number(v.min_amount)) })],
+    [I.clock, 'inv.duration', durationText(v, t)],
+    [I.cal, 'inv.n.maturity', t('inv.n.maturityAfter', { duration: durationText(v, t) })],
+    [I.ret, 'inv.statedReturn', `${ret.big}${ret.sub ? ` ${ret.sub}` : ''}`],
+    [I.fee, 'inv.fee', feeText(v, t)],
+    [I.max, 'inv.currency', v.currency],
   ]
-  if (step === 'invest') return <Sheet title={t('inv.f.investIn', { name: v.name })} onClose={onClose}><InvestForm v={v} balance={balance} onBack={() => setStep('details')} onDone={() => { setStep('done'); onSubmitted() }} /></Sheet>
-  if (step === 'done') {
-    return (
-      <Sheet title={v.name} onClose={onClose}>
-        <div className="text-center py-6" role="status">
-          <span className="mx-auto mb-3 w-12 h-12 rounded-full border border-success-500/30 bg-success-500/[0.07] flex items-center justify-center text-success-300"><IconShield width={22} height={22} /></span>
-          <p className="text-lg font-semibold text-fg">{t('inv.f.submittedTitle')}</p>
-          <p className="text-sm text-fg-muted mt-2 max-w-sm mx-auto">{t('inv.f.submittedBody')}</p>
-          <button onClick={onClose} className="btn btn-solid mt-6">{t('inv.f.done')}</button>
-        </div>
-      </Sheet>
-    )
-  }
+  if (step === 'invest') return <Sheet title={t('inv.f.investIn', { name: v.name })} onClose={onClose}><InvestFlow v={v} balance={balance} onBack={() => setStep('details')} onSubmitted={onSubmitted} onClose={onClose} onViewMine={onViewMine} /></Sheet>
   return (
-    <Sheet title={v.name} onClose={onClose}>
-      <p className="text-sm text-fg-muted leading-relaxed whitespace-pre-line">{v.description}</p>
-      <dl className="mt-5 divide-y divide-ink-700 text-sm">
-        {rows.map(([k, val]) => <div key={k} className="flex justify-between gap-4 py-2.5"><dt className="text-fg-faint">{t(k)}</dt><dd className="text-fg text-right">{val}</dd></div>)}
+    <Sheet title={t('inv.n.planDetails')} onClose={onClose}>
+      <div className="flex items-start gap-3.5">
+        <PlanBadge size={52} />
+        <div className="min-w-0">
+          <p className="text-[20px] leading-snug font-semibold text-fg">{v.name}</p>
+          <p className="mt-1 flex flex-wrap gap-2 text-[12.5px]">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-success-500/30 bg-success-500/[0.07] px-2.5 py-0.5 text-success-300">{t('inv.n.available2')}</span>
+            <span className={`rounded-full border px-2.5 py-0.5 ${RISK_TONE[v.risk_level]}`}>{riskText(v, t)}</span>
+          </p>
+        </div>
+      </div>
+      {v.description && <p className="mt-4 text-[15px] text-fg-muted leading-relaxed whitespace-pre-line">{v.description}</p>}
+      <dl className="mt-4 rounded-2xl border border-ink-700 divide-y divide-ink-700 px-4" data-plan-terms>
+        {rows.map(([icon, k, val]) => (
+          <div key={k} className="flex items-center justify-between gap-4 py-3">
+            <dt className="flex items-center gap-2.5 text-[14px] text-fg-muted"><RowIcon d={icon} />{t(k)}</dt>
+            <dd className={`text-[15px] text-right ${k === 'inv.statedReturn' ? 'text-accent font-semibold' : 'text-fg'}`}>{val}</dd>
+          </div>
+        ))}
       </dl>
-      {v.return_type !== 'none' && <p className="mt-2 text-xs text-fg-faint">{t('inv.f.projectedOnProduct')}</p>}
+      {v.return_type !== 'none' && <p className="mt-2 text-[13px] text-fg-faint">{t('inv.f.projectedOnProduct')}</p>}
 
-      <h3 className="mt-6 text-sm font-semibold text-fg flex items-center gap-2"><IconAlert />{t('inv.riskDisclosure')}</h3>
-      <p className="mt-2 text-sm text-fg-muted leading-relaxed whitespace-pre-line">{v.risk_disclosure}</p>
-      <h3 className="mt-5 text-sm font-semibold text-fg">{t('inv.terms')}</h3>
-      <p className="mt-2 text-sm text-fg-muted leading-relaxed whitespace-pre-line">{v.terms_text}</p>
-      <h3 className="mt-5 text-sm font-semibold text-fg">{t('inv.f.cancellation')}</h3>
-      <p className="mt-2 text-sm text-fg-muted leading-relaxed whitespace-pre-line">{v.cancellation_allowed && v.cancellation_terms ? v.cancellation_terms : t('inv.f.cancellationNotAllowed')}</p>
+      <h3 className="mt-6 text-[15px] font-semibold text-fg">{t('inv.n.howTitle')}</h3>
+      <ol className="mt-2 space-y-2 text-[14px] text-fg-muted">
+        {(['inv.n.how1', 'inv.n.how2', 'inv.n.how3'] as TKey[]).map((k, i) => (
+          <li key={k} className="flex gap-3"><span className="inv2-how-n" aria-hidden="true">{i + 1}</span><span className="pt-0.5">{t(k)}</span></li>
+        ))}
+      </ol>
 
-      <div className="mt-6 rounded-xl border border-ink-700 p-4 space-y-3">
-        <p className="flex items-start gap-2 text-sm">
+      <div className="mt-5 rounded-xl border border-ink-700 p-4">
+        <p className="flex items-start gap-2 text-[14px]">
           <IconShield width={16} height={16} className={`shrink-0 mt-0.5 ${eligible ? 'text-success-400' : 'text-warning-400'}`} aria-hidden="true" />
           <span className="text-fg-muted">{!kycRequired ? t('inv.eligibleNoKyc') : kycVerified ? t('inv.eligibleKyc') : t('inv.needsKyc')}</span>
         </p>
-        {!eligible && <button onClick={() => { onClose(); go('verification') }} className="btn btn-outline btn-sm">{t('overview.kycStart')}</button>}
+        {!eligible && <button onClick={() => { onClose(); go('verification') }} className="btn btn-outline btn-sm mt-3">{t('overview.kycStart')}</button>}
       </div>
+
+      <details className="mt-4 text-[14px] rounded-xl border border-ink-700 px-4">
+        <summary className="cursor-pointer text-fg py-3 font-medium">{t('inv.riskDisclosure')} · {t('inv.terms')} · {t('inv.f.cancellation')}</summary>
+        <p className="text-fg-muted leading-relaxed whitespace-pre-line">{v.risk_disclosure}</p>
+        <p className="mt-3 text-fg-muted leading-relaxed whitespace-pre-line">{v.terms_text}</p>
+        <p className="mt-3 mb-3 text-fg-muted leading-relaxed whitespace-pre-line">{v.cancellation_allowed && v.cancellation_terms ? v.cancellation_terms : t('inv.f.cancellationNotAllowed')}</p>
+      </details>
+
       <div className="sticky bottom-0 -mx-5 sm:-mx-6 mt-6 px-5 sm:px-6 py-3 glass-bar border-t border-ink-700">
-        <button disabled={!eligible} onClick={() => setStep('invest')} className="btn btn-solid w-full">{eligible ? t('inv.f.invest') : t('inv.f.kycFirst')}</button>
+        <button disabled={!eligible} onClick={() => setStep('invest')} className="btn btn-solid w-full min-h-12 text-[16px]" data-plan-start>{eligible ? t('inv.n.investNow') : t('inv.f.kycFirst')}</button>
       </div>
     </Sheet>
   )
 }
 
-// Amount entry and confirmation. The checks here only help the client; the
-// database function repeats every one of them against the real balance.
-function InvestForm({ v, balance, onBack, onDone }: { v: Version; balance: Balance | null; onBack: () => void; onDone: () => void }) {
+type Submitted = { id?: string; reference?: string | null; status?: string; principal?: number | string; amount?: number | string }
+
+// Amount → Review → Confirm. The checks here only help the client; the
+// database function repeats every one of them against the real balance. The
+// result screen shows what the server actually recorded.
+function InvestFlow({ v, balance, onBack, onSubmitted, onClose, onViewMine }: { v: Version; balance: Balance | null; onBack: () => void; onSubmitted: () => void; onClose: () => void; onViewMine: () => void }) {
   const { t } = useI18n()
+  const [phase, setPhase] = useState<'amount' | 'review' | 'done'>('amount')
   const [amount, setAmount] = useState('')
   const [accept, setAccept] = useState(false)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+  const [result, setResult] = useState<Submitted | null>(null)
   // One key per attempt: a double tap or network retry reuses it, so the
   // server returns the same request instead of creating a second one.
   const key = useRef(newRequestKey())
@@ -471,14 +559,16 @@ function InvestForm({ v, balance, onBack, onDone }: { v: Version; balance: Balan
   const fee = valid ? Math.round(n * Number(v.entry_fee_pct) * 100) / 100 : 0
   // Same formula the database uses; the stored figure always comes from the server.
   const proj = valid ? projection(amount.trim(), v.entry_fee_pct, { type: v.return_type, ratePct: v.return_rate_pct, amount: v.return_amount }) : null
-  const projRet = proj?.profit ?? 0
   const available = balance?.available ?? null
+  const min = Number(v.min_amount), max = v.max_amount !== null ? Number(v.max_amount) : null
   const problem =
     !amount ? '' :
     !valid ? t('inv.f.errAmount') :
-    n < Number(v.min_amount) ? t('inv.f.errMin', { amount: money(Number(v.min_amount)) }) :
-    v.max_amount !== null && n > Number(v.max_amount) ? t('inv.f.errMax', { amount: money(Number(v.max_amount)) }) :
+    n < min ? t('inv.f.errMin', { amount: money(min) }) :
+    max !== null && n > max ? t('inv.f.errMax', { amount: money(max) }) :
     available !== null && n > available ? t('inv.f.errBalance') : ''
+  // Quick amounts: only values the product and the balance allow.
+  const quick = Array.from(new Set([min, 500, 1000, 5000, 10000, 25000].filter(x => x >= min && (max === null || x <= max) && (available === null || x <= available)))).slice(0, 4)
 
   const submit = async () => {
     if (busy) return
@@ -486,58 +576,166 @@ function InvestForm({ v, balance, onBack, onDone }: { v: Version; balance: Balan
     if (!valid || problem) return
     setBusy(true); setErr('')
     try {
-      await readJson(await authFetch('/api/client/investments', {
+      const r = await readJson<{ investment?: Submitted }>(await authFetch('/api/client/investments', {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key.current },
         body: JSON.stringify({ action: 'submit', version_id: v.id, amount: amount.trim(), accept_terms: true, idempotency_key: key.current }),
       }))
-      onDone()
+      setResult(r.investment && typeof r.investment === 'object' ? r.investment : {})
+      setPhase('done')
+      onSubmitted()
     } catch (e) {
       setErr(errorText(e))
       key.current = newRequestKey()
     } finally { setBusy(false) }
   }
-  const row = (k: TKey, val: string, strong = false, note?: string) => (
-    <div className="py-2.5">
-      <div className="flex justify-between gap-4"><dt className="text-fg-faint">{t(k)}</dt><dd className={`text-right tabular-nums ${strong ? 'text-fg font-semibold' : 'text-fg'}`}>{val}</dd></div>
-      {note && <p className="mt-0.5 text-[11px] text-fg-faint">{note}</p>}
+  const row = (k: TKey, val: string, strong = false, note?: string, accent = false) => (
+    <div className="py-3">
+      <div className="flex justify-between gap-4"><dt className="text-fg-muted">{t(k)}</dt><dd className={`text-right tabular-nums ${accent ? 'text-accent font-semibold' : strong ? 'text-fg font-semibold' : 'text-fg'}`}>{val}</dd></div>
+      {note && <p className="mt-1 text-[12.5px] text-fg-faint">{note}</p>}
     </div>
   )
+  if (phase === 'done') {
+    const st = result?.status || 'pending_activation'
+    const activeNow = st === 'active'
+    return (
+      <div className="text-center" role="status" data-invest-result={st}>
+        <Stepper step={3} />
+        <span className={`inv2-done-ring mx-auto mt-6 ${activeNow ? '' : 'is-pending'}`} aria-hidden="true"><IconCheck width={34} height={34} /></span>
+        <p className="mt-4 text-[22px] leading-snug font-semibold text-fg">{activeNow ? t('inv.n.doneActive') : t('inv.f.submittedTitle')}</p>
+        <p className="mt-2 text-[15px] text-fg-muted max-w-sm mx-auto">{activeNow ? t('inv.n.doneActiveBody') : t('inv.f.submittedBody')}</p>
+        <dl className="mt-5 text-left rounded-2xl border border-ink-700 divide-y divide-ink-700 px-4 text-[14px]">
+          {row('inv.product', v.name)}
+          {row('inv.f.investmentAmount', money(n), true)}
+          {row('inv.duration', durationText(v, t))}
+          {row('inv.statusLabel', t(`inv.status.${st}` as TKey))}
+          {result?.reference ? row('inv.reference', String(result.reference)) : null}
+        </dl>
+        <div className="mt-5 grid gap-2.5">
+          <button onClick={onViewMine} className="btn btn-solid w-full min-h-12" data-invest-view-mine>{t('inv.n.viewMine')}</button>
+          <button onClick={onClose} className="btn btn-outline w-full min-h-12">{t('inv.f.done')}</button>
+        </div>
+      </div>
+    )
+  }
+
+  if (phase === 'review') {
+    return (
+      <div className="space-y-5" data-invest-step="review">
+        <Stepper step={1} />
+        <h3 className="text-[19px] font-semibold text-fg">{t('inv.n.reviewTitle')}</h3>
+        <ProductSummary v={v} />
+        <dl className="divide-y divide-ink-700 text-[14px] rounded-2xl border border-ink-700 px-4" data-invest-review>
+          {row('inv.f.available', available === null ? '—' : money(available))}
+          {row('inv.f.investmentAmount', money(n), true)}
+          {row('inv.f.kFee', `${Number(v.entry_fee_pct) ? '−' : ''}${money(fee)}`, false, Number(v.entry_fee_pct) ? `${feeText(v, t)} · ${t('inv.f.feeNote')}` : undefined)}
+          {row('inv.f.principalAfter', money(Math.round((n - fee) * 100) / 100), true)}
+          {v.return_type !== 'none' && proj ? row('inv.n.projected', `${money(proj.profit)} · ${t('inv.n.projectedTotal', { total: money(proj.total) })}`, false, t('inv.f.projectedOnProduct')) : null}
+          {row('inv.duration', durationText(v, t))}
+          {row('inv.n.starts', t('inv.n.startsWhen'))}
+          {row('inv.n.maturity', t('inv.n.maturityAfter', { duration: durationText(v, t) }))}
+          {row('inv.f.remainingAvailable', available === null ? '—' : money(Math.max(0, Math.round((available - n) * 100) / 100)), false, t('inv.f.remainingNote'))}
+        </dl>
+        <p className="flex items-start gap-2.5 rounded-xl border border-sky-400/30 bg-sky-400/[0.06] px-4 py-3 text-[14px] text-sky-100" role="note">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="shrink-0 mt-px text-sky-300" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 8h.01M11 12h1v5h1" /></svg>
+          {t('inv.n.reviewNote')}
+        </p>
+        <label className="flex items-start gap-3 text-[14.5px] text-fg-muted cursor-pointer min-h-11">
+          <input type="checkbox" className="mt-0.5 w-5 h-5 shrink-0 accent-[rgb(var(--accent))]" checked={accept} onChange={e => { setAccept(e.target.checked); setErr('') }} data-invest-accept />
+          <span>{t('inv.f.accept', { n: v.version })}</span>
+        </label>
+        {err && <p role="alert" className="text-[14px] text-danger-300">{err}</p>}
+        <div className="grid gap-2.5">
+          <button onClick={submit} disabled={busy || !accept} aria-busy={busy} className="btn btn-solid w-full min-h-12 text-[16px]" data-invest-confirm>{busy ? t('inv.f.submitting') : t('inv.f.confirm')}</button>
+          <button onClick={() => { setPhase('amount'); setErr('') }} disabled={busy} className="btn btn-outline w-full min-h-12">{t('inv.f.back')}</button>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5" data-invest-step="amount">
+      <Stepper step={0} />
       <label className="block">
-        <span className="block text-sm text-fg-muted mb-1.5">{t('inv.f.investmentAmount')} (USD)</span>
-        <input className="input-field text-lg tabular-nums" inputMode="decimal" autoFocus value={amount} onChange={e => { setAmount(e.target.value.replace(',', '.')); setErr('') }} placeholder={String(Number(v.min_amount))} aria-invalid={!!problem} />
-        <span className="block text-xs text-fg-faint mt-1.5">{v.max_amount ? t('inv.f.limitsRange', { min: money(Number(v.min_amount)), max: money(Number(v.max_amount)) }) : t('inv.f.limitsMin', { min: money(Number(v.min_amount)) })}</span>
-        {problem && <span role="alert" className="block text-xs text-danger-300 mt-1">{problem}</span>}
+        <span className="block text-[19px] font-semibold text-fg mb-3">{t('inv.n.enterAmount')}</span>
+        <span className={`inv2-amount ${problem ? 'is-invalid' : ''}`}>
+          <span className="text-fg-faint text-[22px]" aria-hidden="true">$</span>
+          <input className="min-w-0 flex-1 bg-transparent outline-none text-[26px] font-semibold tabular-nums text-fg" inputMode="decimal" autoFocus value={amount}
+            onChange={e => { setAmount(e.target.value.replace(',', '.').replace(/[^\d.]/g, '')); setErr('') }} placeholder={String(min)} aria-invalid={!!problem}
+            aria-describedby="inv-amount-help" data-invest-amount />
+          {amount && <button type="button" onClick={() => setAmount('')} className="shrink-0 w-9 h-9 rounded-full grid place-items-center text-fg-faint hover:text-fg" aria-label={t('inv.n.clear')}><IconClose width={16} height={16} /></button>}
+        </span>
       </label>
-      {/* Order follows the money: what is available, what is committed, the
-          fee, the principal that is invested, and what stays available. */}
-      <dl className="divide-y divide-ink-700 text-sm rounded-xl border border-ink-700 px-4">
-        {row('inv.product', `${v.name} · ${t('inv.versionN', { n: v.version })}`)}
-        {row('inv.f.available', available === null ? '—' : money(available), false, t('inv.f.availableNote'))}
-        {row('inv.f.investmentAmount', valid ? money(n) : '—')}
-        {row('inv.f.kFee', valid ? `${Number(v.entry_fee_pct) ? '−' : ''}${money(fee)}` : '—', false, Number(v.entry_fee_pct) ? `${feeText(v, t)} · ${t('inv.f.feeNote')}` : undefined)}
-        {row('inv.f.principalAfter', valid ? money(Math.round((n - fee) * 100) / 100) : '—', true)}
-        {row('inv.duration', durationText(v, t))}
-      </dl>
-      {v.return_type !== 'none' && valid && (
-        <p className="text-xs text-fg-muted rounded-xl border border-ink-700 px-4 py-2.5">{t('inv.f.expectedForAmount', { ret: money(projRet), total: money(proj?.total ?? 0) })} · {t('inv.f.projectedOnProduct')}</p>
+      {quick.length > 0 && (
+        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${quick.length}, minmax(0, 1fr))` }} role="group" aria-label={t('inv.n.quick')}>
+          {quick.map(q => (
+            <button key={q} type="button" onClick={() => { setAmount(String(q)); setErr('') }} aria-pressed={n === q}
+              className={`min-h-11 rounded-xl border text-[14px] tabular-nums transition-colors ${n === q ? 'border-accent/70 bg-accent/10 text-fg' : 'border-ink-700 text-fg-muted hover:text-fg'}`}>{money(q).replace('.00', '')}</button>
+          ))}
+        </div>
       )}
-      <div className="rounded-xl border border-ink-700 bg-ink-900/50 px-4 py-3">
-        <div className="flex justify-between gap-4 text-sm"><span className="text-fg-muted">{t('inv.f.remainingAvailable')}</span><span className="text-fg font-semibold tabular-nums">{available === null || !valid ? '—' : money(Math.max(0, Math.round((available - n) * 100) / 100))}</span></div>
-        <p className="mt-1.5 text-xs text-fg-faint leading-relaxed">{t('inv.f.remainingNote')}</p>
-      </div>
-      <label className="flex items-start gap-3 text-sm text-fg-muted cursor-pointer">
-        <input type="checkbox" className="mt-0.5 w-4 h-4 shrink-0" checked={accept} onChange={e => { setAccept(e.target.checked); setErr('') }} />
-        <span>{t('inv.f.accept', { n: v.version })}</span>
-      </label>
-      {err && <p role="alert" className="text-sm text-danger-300">{err}</p>}
-      <div className="flex gap-3">
-        <button onClick={onBack} disabled={busy} className="btn btn-outline flex-1">{t('inv.f.back')}</button>
-        <button onClick={submit} disabled={busy || !valid || !!problem || !accept} aria-busy={busy} className="btn btn-solid flex-1">{busy ? t('inv.f.submitting') : t('inv.f.confirm')}</button>
+      <p id="inv-amount-help" className="text-[13px] text-fg-faint">
+        {max !== null ? t('inv.f.limitsRange', { min: money(min), max: money(max) }) : t('inv.f.limitsMin', { min: money(min) })}
+        {available !== null && <> · {t('inv.n.available')}: <span className="text-fg tabular-nums">{money(available)}</span></>}
+      </p>
+      {problem && <p role="alert" className="text-[14px] text-danger-300">{problem}</p>}
+      <ProductSummary v={v} />
+      <div className="grid gap-2.5">
+        <button onClick={() => setPhase('review')} disabled={!valid || !!problem} className="btn btn-solid w-full min-h-12 text-[16px]" data-invest-continue>{t('inv.n.continue')}</button>
+        <button onClick={onBack} className="btn btn-outline w-full min-h-12">{t('inv.n.backToPlan')}</button>
       </div>
     </div>
+  )
+}
+
+// One investment in "My investments". Progress is shown only for an active
+// investment with recorded start and maturity dates, and is computed from
+// those dates (never from the record's entry time).
+function TrackCard({ inv, v, onOpen }: { inv: Investment; v?: Version; onOpen: () => void }) {
+  const { t, intl } = useI18n()
+  const date = (iso: string | null | undefined) => iso ? new Date(iso).toLocaleDateString(intl, { day: 'numeric', month: 'short', year: 'numeric' }) : t('inv.notSet')
+  const running = ['active', 'completed', 'matured'].includes(inv.status)
+  const profit = running ? profitOf(inv) : 0
+  let progress: { pct: number; day: number; total: number; reached: boolean } | null = null
+  if (inv.status === 'active' && inv.start_date && inv.maturity_date) {
+    const s = Date.parse(inv.start_date), e = Date.parse(inv.maturity_date), now = Date.now()
+    if (Number.isFinite(s) && Number.isFinite(e) && e > s) {
+      const total = Math.max(1, Math.round((e - s) / 864e5))
+      const day = Math.min(total, Math.max(0, Math.floor((now - s) / 864e5)))
+      progress = { pct: Math.min(100, Math.max(0, ((now - s) / (e - s)) * 100)), day, total, reached: now >= e }
+    }
+  }
+  const when = inv.start_date && (running || inv.is_historical) ? t('inv.n.investedOn', { date: date(inv.start_date) }) : t('inv.n.requestedOn', { date: date(inv.created_at) })
+  return (
+    <article className="inv2-card panel min-w-0" data-inv-status={inv.status} aria-labelledby={`inv-${inv.id}`}>
+      <div className="flex items-start gap-3.5">
+        <PlanBadge size={42} />
+        <div className="min-w-0 flex-1">
+          <h3 id={`inv-${inv.id}`} className="text-[17px] leading-snug font-semibold text-fg truncate">{v?.name || t('inv.product')}</h3>
+          <p className="text-[13px] text-fg-faint truncate">{when}</p>
+        </div>
+        <StatusBadge status={inv.status} />
+      </div>
+      <dl className="mt-4 grid grid-cols-2 gap-3">
+        <div className="min-w-0"><dt className="text-[12.5px] text-fg-faint">{t('inv.f.kPrincipal')}</dt><dd className="text-[19px] font-semibold text-fg tabular-nums truncate">{money(Number(inv.principal))}</dd></div>
+        <div className="min-w-0 text-right"><dt className="text-[12.5px] text-fg-faint">{t('inv.f.credited')}</dt><dd className={`text-[19px] font-semibold tabular-nums truncate ${profit > 0 ? 'price-up' : profit < 0 ? 'price-down' : 'text-fg'}`}>{running ? signed(profit) : '—'}</dd></div>
+      </dl>
+      {progress && (
+        <div className="mt-4" data-inv-progress>
+          <div className="flex justify-between gap-3 text-[13px]">
+            <span className="text-fg-muted">{progress.reached ? t('inv.n.maturityReached') : t('inv.n.dayOf', { n: progress.day, total: progress.total })}</span>
+            <span className="text-fg tabular-nums">{Math.round(progress.pct)}%</span>
+          </div>
+          <div className="inv2-bar mt-1.5" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress.pct)} aria-label={t('inv.n.termProgress')}><span style={{ width: `${progress.pct}%` }} /></div>
+        </div>
+      )}
+      <dl className="mt-3 divide-y divide-ink-700 text-[14px]">
+        {inv.maturity_date && <div className="flex justify-between gap-4 py-2.5"><dt className="text-fg-muted">{t('inv.maturity')}</dt><dd className="text-fg tabular-nums">{date(inv.maturity_date)}</dd></div>}
+        {inv.completed_at && ['completed', 'matured', 'closed'].includes(inv.status) && <div className="flex justify-between gap-4 py-2.5"><dt className="text-fg-muted">{t('inv.f.ended')}</dt><dd className="text-fg tabular-nums">{date(inv.completed_at)}</dd></div>}
+        {inv.reference && <div className="flex justify-between gap-4 py-2.5"><dt className="text-fg-muted">{t('inv.reference')}</dt><dd className="text-fg font-mono text-[13px] truncate">{inv.reference}</dd></div>}
+      </dl>
+      {inv.status === 'rejected' && inv.rejection_reason && <p className="mt-2 text-[13px] text-danger-300 line-clamp-2">{t('inv.f.rejectionReason')}: {inv.rejection_reason}</p>}
+      <button type="button" onClick={onOpen} className="btn btn-outline w-full min-h-12 mt-4 border-accent/50 text-accent hover:bg-accent/10" data-inv-open>{t('inv.viewDetails')} <span aria-hidden="true">→</span></button>
+    </article>
   )
 }
 

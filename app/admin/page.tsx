@@ -24,6 +24,8 @@ type Overview = {
   clients: { total: number; active: number; suspended: number; inactive: number; pending_verifications: number; new_7d: number }
   balances: { account: number; available: number; invested: number; profit: number; pending: number }
   deposits: { completed_count: number; completed_usd: number; pending: number }
+  // Admin account credits (source admin_funding), reported separately from client deposits.
+  credits?: { completed_count: number; completed_usd: number; to_available_usd: number; to_legacy_usd: number }
   withdrawals: { completed_count: number; completed_usd: number; pending: number }
   investments: { active_count: number; active_principal: number; awaiting_activation: number; completed_count: number; completed_principal: number; products_open: number }
   pending: { investments: number; deposits: number; withdrawals: number; verifications: number; transfers_review: number; payments_review: number }
@@ -49,9 +51,9 @@ const DOT: Record<Tone, string> = { ok: 'bg-emerald-400', warn: 'bg-amber-400', 
 function Kpi({ label, value, sub, href }: { label: string; value: string | null; sub: React.ReactNode; href?: string }) {
   const body = (
     <>
-      <p className="text-slate-400 text-xs">{label}</p>
-      {value == null ? <div className="h-7 w-24 mt-2 rounded skeleton-sheen" /> : <p className="text-[17px] sm:text-xl lg:text-2xl font-bold text-white mt-1.5 tabular-nums [overflow-wrap:anywhere]">{value}</p>}
-      <p className="text-slate-500 text-[11px] mt-1">{sub}</p>
+      <p className="text-slate-300 text-[13px] font-medium">{label}</p>
+      {value == null ? <div className="h-7 w-24 mt-2 rounded skeleton-sheen" /> : <p className="text-[19px] sm:text-xl lg:text-2xl font-bold text-white mt-1.5 tabular-nums [overflow-wrap:anywhere]">{value}</p>}
+      <p className="text-slate-400 text-[12.5px] leading-snug mt-1">{sub}</p>
     </>
   )
   const cls = 'glass rounded-2xl p-4 sm:p-5 border border-white/[0.08] block min-w-0'
@@ -61,7 +63,7 @@ function Kpi({ label, value, sub, href }: { label: string; value: string | null;
 function Panel({ title, action, children, className = '' }: { title: string; action?: React.ReactNode; children: React.ReactNode; className?: string }) {
   return (
     <section className={`glass rounded-2xl border border-white/[0.08] p-4 sm:p-5 min-w-0 ${className}`}>
-      <div className="flex items-center justify-between gap-3 mb-3"><h2 className="text-sm font-semibold text-white">{title}</h2>{action}</div>
+      <div className="flex items-center justify-between gap-3 mb-3"><h2 className="text-[15px] font-semibold text-white">{title}</h2>{action}</div>
       {children}
     </section>
   )
@@ -166,21 +168,26 @@ export default function AdminPage() {
       {loadError && <AdminLoadError message={loadError} onRetry={() => setReload(n => n + 1)} />}
       {ovError && <AdminLoadError message={ov ? 'The overview could not be refreshed. The figures shown are from the last successful load.' : 'The overview could not be loaded.'} onRetry={() => setReload(n => n + 1)} />}
 
-      <div className="flex items-center justify-between gap-3 mb-3 text-[11px] text-slate-500">
+      <div className="flex items-center justify-between gap-3 mb-3 text-[12.5px] text-slate-400">
         <span>{ov ? `Updated ${new Date(ov.at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}` : 'Loading overview…'}</span>
-        <button onClick={() => setReload(n => n + 1)} disabled={refreshing} className="px-2.5 py-1 rounded-lg border border-white/10 text-slate-300 hover:text-white hover:bg-white/5 disabled:opacity-50">{refreshing ? 'Refreshing…' : 'Refresh'}</button>
+        <button onClick={() => setReload(n => n + 1)} disabled={refreshing} className="min-h-10 px-3.5 rounded-lg border border-white/10 text-[13px] text-slate-200 hover:text-white hover:bg-white/5 disabled:opacity-50">{refreshing ? 'Refreshing…' : 'Refresh'}</button>
       </div>
 
-      {/* Key figures */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
+      {/* Key figures. Client deposits and admin account credits are separate
+          money-in sources and are shown side by side, never merged. */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4" data-adm-kpis>
         <Kpi label="Total clients" href="/admin/clients" value={v(o => String(o.clients.total))}
-          sub={ov ? <>{ov.clients.active} active · {ov.clients.inactive} inactive{ov.clients.new_7d ? ` · ${ov.clients.new_7d} new this week` : ''}</> : ' '} />
+          sub={ov ? <>{ov.clients.active} active · {ov.clients.inactive} inactive{ov.clients.new_7d ? ` · ${ov.clients.new_7d} new this week` : ''}</> : ' '} />
         <Kpi label="Client account balances" value={v(o => usd(o.balances.available))}
-          sub={ov ? <>spendable · {usd(ov.balances.pending)} pending</> : ' '} />
-        <Kpi label="Deposits completed" href="/admin/transactions?type=deposit" value={v(o => usd(o.deposits.completed_usd))}
-          sub={ov ? <>{ov.deposits.completed_count} completed · {ov.deposits.pending} pending</> : ' '} />
+          sub={ov ? <>spendable · {usd(ov.balances.pending)} pending</> : ' '} />
+        <Kpi label="Profit balances" value={v(o => usd(o.balances.profit))}
+          sub={ov ? <>invested {usd(ov.balances.invested)}</> : ' '} />
+        <Kpi label="Client deposits completed" href="/admin/transactions?type=deposit" value={v(o => usd(o.deposits.completed_usd))}
+          sub={ov ? <>{ov.deposits.completed_count} completed · {ov.deposits.pending} pending</> : ' '} />
+        <Kpi label="Account credits (admin)" href="/admin/transactions" value={v(o => o.credits ? usd(o.credits.completed_usd) : 'Unavailable')}
+          sub={ov?.credits ? <>{ov.credits.completed_count} credits{ov.credits.to_legacy_usd ? ` · ${usd(ov.credits.to_legacy_usd)} to the legacy balance` : ''}</> : ' '} />
         <Kpi label="Withdrawals completed" href="/admin/transactions?type=withdrawal" value={v(o => usd(o.withdrawals.completed_usd))}
-          sub={ov ? <>{ov.withdrawals.completed_count} completed · {ov.withdrawals.pending} pending</> : ' '} />
+          sub={ov ? <>{ov.withdrawals.completed_count} completed · {ov.withdrawals.pending} pending</> : ' '} />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-4 mb-4">
@@ -197,14 +204,14 @@ export default function AdminPage() {
           ) : <div className="h-32 rounded-lg skeleton-sheen" />}
         </Panel>
 
-        <Panel title="Needs attention" action={ov ? <span className={`text-[11px] px-2 py-0.5 rounded-full border ${pendingTotal ? 'border-amber-500/30 text-amber-300' : 'border-emerald-500/30 text-emerald-300'}`}>{pendingTotal ? `${pendingTotal} waiting` : 'All clear'}</span> : null}>
+        <Panel className="order-first lg:order-none" title="Needs attention" action={ov ? <span className={`text-[11px] px-2 py-0.5 rounded-full border ${pendingTotal ? 'border-amber-500/30 text-amber-300' : 'border-emerald-500/30 text-emerald-300'}`}>{pendingTotal ? `${pendingTotal} waiting` : 'All clear'}</span> : null}>
           {ov ? (
             <ul className="divide-y divide-white/[0.05] -my-1">
               {pendingItems.map(p => (
                 <li key={p.label}>
-                  <Link href={p.href} className="flex items-center justify-between gap-3 py-2 text-[13px] text-slate-300 hover:text-white">
+                  <Link href={p.href} className="flex items-center justify-between gap-3 min-h-11 py-2 text-[14px] text-slate-200 hover:text-white">
                     <span className="min-w-0 truncate">{p.label}</span>
-                    <span className={`tabular-nums text-xs px-2 py-0.5 rounded-md ${p.n ? 'bg-amber-500/15 text-amber-300' : 'text-slate-600'}`}>{p.n}</span>
+                    <span className={`tabular-nums text-[13px] px-2.5 py-0.5 rounded-md ${p.n ? 'bg-amber-500/15 text-amber-300' : 'text-slate-500'}`}>{p.n}</span>
                   </Link>
                 </li>
               ))}
@@ -220,8 +227,8 @@ export default function AdminPage() {
                   <Link href={s.href} className="flex gap-2.5 group">
                     <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${DOT[s.tone]}`} aria-hidden="true" />
                     <span className="min-w-0">
-                      <span className="block text-[13px] text-slate-200 group-hover:text-white">{s.label}<span className="sr-only"> — {s.tone === 'ok' ? 'OK' : s.tone === 'warn' ? 'needs attention' : 'idle'}</span></span>
-                      <span className="block text-[11px] text-slate-500">{s.detail}</span>
+                      <span className="block text-[14px] text-slate-200 group-hover:text-white">{s.label}<span className="sr-only"> — {s.tone === 'ok' ? 'OK' : s.tone === 'warn' ? 'needs attention' : 'idle'}</span></span>
+                      <span className="block text-[12.5px] text-slate-400">{s.detail}</span>
                     </span>
                   </Link>
                 </li>
@@ -272,7 +279,8 @@ export default function AdminPage() {
               placeholder="Search…"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="input-field text-xs py-2 w-full sm:w-48"
+              aria-label="Search clients"
+              className="input-field text-[14px] py-2 w-full sm:w-56"
             />
             <Link href="/admin/clients" className="text-xs text-accent hover:text-accent-hover whitespace-nowrap transition-colors">
               View all →
@@ -338,13 +346,13 @@ export default function AdminPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-white truncate">{client.full_name || 'Unnamed'}</p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-[13px] text-slate-400">
                       {client.accounts ? `$${(client.accounts.available_balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : 'No account'}
                     </p>
                   </div>
                   <Link
                     href={`/admin/clients/${client.id}`}
-                    className="text-xs text-accent border border-accent/30 px-3 py-1.5 rounded-lg hover:bg-accent/10 transition-colors shrink-0"
+                    className="text-[13px] text-accent border border-accent/30 px-3.5 min-h-10 inline-flex items-center rounded-lg hover:bg-accent/10 transition-colors shrink-0"
                   >
                     Manage
                   </Link>

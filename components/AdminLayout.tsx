@@ -76,30 +76,60 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
     router.push('/admin/login')
   }
 
-  // Same menu as before; each entry now has a line icon (as in the client app).
-  const navItems: { label: TKey; icon: ComponentType<SVGProps<SVGSVGElement>>; href: string }[] = [
-    { label: 'admin.nav.dashboard', icon: IconGrid, href: '/admin' },
-    { label: 'admin.nav.clients', icon: IconUser, href: '/admin/clients' },
-    { label: 'admin.nav.transactions', icon: IconList, href: '/admin/transactions' },
-    { label: 'admin.nav.deposits', icon: IconArrowDown, href: '/admin/transactions?type=deposit' },
-    { label: 'admin.nav.withdrawals', icon: IconArrowUp, href: '/admin/transactions?type=withdrawal' },
-    { label: 'admin.nav.verification', icon: IconIdCard, href: '/admin/verification' },
-    { label: 'admin.nav.investments', icon: IconPie, href: '/admin/investments' },
-    { label: 'admin.nav.profitCredits', icon: IconTrend, href: '/admin/profit-credits' },
-    { label: 'admin.nav.historicalInvestments', icon: IconHistory, href: '/admin/historical-investments' },
-    { label: 'admin.nav.wallets', icon: IconWallet, href: '/admin/wallets' },
-    { label: 'admin.nav.transfers', icon: IconSwap, href: '/admin/transfers' },
-    { label: 'admin.nav.fees', icon: IconFile, href: '/admin/fees' },
-    { label: 'admin.nav.reconciliation', icon: IconCheck, href: '/admin/reconciliation' },
-    { label: 'admin.nav.assets', icon: IconChart, href: '/admin/assets' },
-    { label: 'admin.nav.automations', icon: IconRadar, href: '/admin/automations' },
-    { label: 'admin.nav.premium', icon: IconLock, href: '/admin/premium' },
-    { label: 'admin.nav.payments', icon: IconInbox, href: '/admin/payments' },
-    { label: 'admin.nav.features', icon: IconMonitor, href: '/admin/features' },
-    { label: 'admin.nav.notifications', icon: IconBell, href: '/admin/notifications' },
-    { label: 'admin.nav.auditLogs', icon: IconHistory, href: '/admin/audit-logs' },
-    { label: 'admin.nav.settings', icon: IconSliders, href: '/admin/settings' },
+  // Same destinations as before, grouped by what the administrator is doing.
+  type NavItem = { label: TKey; icon: ComponentType<SVGProps<SVGSVGElement>>; href: string }
+  const navGroups: { label: TKey; items: NavItem[] }[] = [
+    { label: 'admin.navGroup.overview', items: [
+      { label: 'admin.nav.dashboard', icon: IconGrid, href: '/admin' },
+    ] },
+    { label: 'admin.navGroup.clients', items: [
+      { label: 'admin.nav.clients', icon: IconUser, href: '/admin/clients' },
+      { label: 'admin.nav.verification', icon: IconIdCard, href: '/admin/verification' },
+      { label: 'admin.nav.wallets', icon: IconWallet, href: '/admin/wallets' },
+      { label: 'admin.nav.notifications', icon: IconBell, href: '/admin/notifications' },
+    ] },
+    { label: 'admin.navGroup.money', items: [
+      { label: 'admin.nav.deposits', icon: IconArrowDown, href: '/admin/transactions?type=deposit' },
+      { label: 'admin.nav.withdrawals', icon: IconArrowUp, href: '/admin/transactions?type=withdrawal' },
+      { label: 'admin.nav.transactions', icon: IconList, href: '/admin/transactions' },
+      { label: 'admin.nav.profitCredits', icon: IconTrend, href: '/admin/profit-credits' },
+      { label: 'admin.nav.transfers', icon: IconSwap, href: '/admin/transfers' },
+      { label: 'admin.nav.fees', icon: IconFile, href: '/admin/fees' },
+      { label: 'admin.nav.reconciliation', icon: IconCheck, href: '/admin/reconciliation' },
+    ] },
+    { label: 'admin.navGroup.investments', items: [
+      { label: 'admin.nav.investments', icon: IconPie, href: '/admin/investments' },
+      { label: 'admin.nav.historicalInvestments', icon: IconHistory, href: '/admin/historical-investments' },
+    ] },
+    { label: 'admin.navGroup.platform', items: [
+      { label: 'admin.nav.assets', icon: IconChart, href: '/admin/assets' },
+      { label: 'admin.nav.automations', icon: IconRadar, href: '/admin/automations' },
+      { label: 'admin.nav.premium', icon: IconLock, href: '/admin/premium' },
+      { label: 'admin.nav.payments', icon: IconInbox, href: '/admin/payments' },
+      { label: 'admin.nav.features', icon: IconMonitor, href: '/admin/features' },
+    ] },
+    { label: 'admin.navGroup.records', items: [
+      { label: 'admin.nav.auditLogs', icon: IconHistory, href: '/admin/audit-logs' },
+      { label: 'admin.nav.settings', icon: IconSliders, href: '/admin/settings' },
+    ] },
   ]
+  const navItems = navGroups.flatMap(g => g.items)
+  // Phone bottom bar: the most used destinations, plus the full menu.
+  const quickNav: { label: TKey; icon: ComponentType<SVGProps<SVGSVGElement>>; href: string }[] = [
+    { label: 'admin.navShort.dashboard', icon: IconGrid, href: '/admin' },
+    { label: 'admin.navShort.clients', icon: IconUser, href: '/admin/clients' },
+    { label: 'admin.navShort.deposits', icon: IconArrowDown, href: '/admin/transactions?type=deposit' },
+    { label: 'admin.navShort.withdrawals', icon: IconArrowUp, href: '/admin/transactions?type=withdrawal' },
+    { label: 'admin.navShort.profit', icon: IconTrend, href: '/admin/profit-credits' },
+  ]
+  const isActiveHref = (href: string) => {
+    const [path, query] = href.split('?')
+    const type = search.get('type')
+    return href === '/admin' ? pathname === '/admin'
+      : query ? pathname === path && `type=${type}` === query
+      : path === '/admin/transactions' ? pathname === path && !type
+      : pathname.startsWith(path)
+  }
 
   // Section icon for the page banner: the menu entry for this page.
   const current = navItems.find(i => i.href === '/admin' ? pathname === '/admin' : pathname.startsWith(i.href.split('?')[0]))
@@ -131,27 +161,29 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
         <span className="adm-badge ml-auto shrink-0">{t('admin.badge')}</span>
       </div>
 
-      <nav className="flex flex-col gap-0.5 p-3 flex-1 min-h-0 overflow-y-auto overscroll-contain">
-        {navItems.map(item => {
-          const [path, query] = item.href.split('?')
-          const type = search.get('type')
-          const isActive = item.href === '/admin' ? pathname === '/admin'
-            : query ? pathname === path && `type=${type}` === query
-            : path === '/admin/transactions' ? pathname === path && !type
-            : pathname.startsWith(path)
-          return (
-            <Link
-              key={item.label}
-              href={item.href}
-              onClick={() => setSidebarOpen(false)}
-              aria-current={isActive ? 'page' : undefined}
-              className={`cc-navbtn relative flex items-center gap-3 px-3 min-h-10 py-1.5 rounded-lg text-[14px] transition-colors ${isActive ? 'nav-item-on font-medium' : 'nav-item'}`}
-            >
-              <span className="cc-navicon" aria-hidden="true"><item.icon width={16} height={16} /></span>
-              <span className="truncate">{t(item.label)}</span>
-            </Link>
-          )
-        })}
+      <nav className="flex flex-col p-3 flex-1 min-h-0 overflow-y-auto overscroll-contain" aria-label={t('admin.panel')}>
+        {navGroups.map(g => (
+          <div key={g.label} className="mb-3 last:mb-0">
+            <p className="px-3 pt-1 pb-1.5 text-[11.5px] font-semibold uppercase tracking-[0.12em] text-slate-500">{t(g.label)}</p>
+            <div className="flex flex-col gap-0.5">
+              {g.items.map(item => {
+                const isActive = isActiveHref(item.href)
+                return (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    onClick={() => setSidebarOpen(false)}
+                    aria-current={isActive ? 'page' : undefined}
+                    className={`cc-navbtn relative flex items-center gap-3 px-3 min-h-11 py-1.5 rounded-lg text-[15px] lg:text-[14px] transition-colors ${isActive ? 'nav-item-on font-medium' : 'nav-item'}`}
+                  >
+                    <span className="cc-navicon" aria-hidden="true"><item.icon width={17} height={17} /></span>
+                    <span className="truncate">{t(item.label)}</span>
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
       <div className="shrink-0 border-t border-white/[0.06] p-4" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
@@ -198,7 +230,7 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
         <div className="flex items-center justify-end px-4 pt-4">
           <button
             onClick={() => setSidebarOpen(false)}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.05] transition-colors"
+            className="w-11 h-11 flex items-center justify-center rounded-lg text-slate-300 hover:text-white hover:bg-white/[0.05] transition-colors text-lg"
             aria-label={t('common.closeMenu')}
           >
             ✕
@@ -213,7 +245,7 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
         <header className="lg:hidden sticky top-0 z-30 glass-bar flex items-center gap-3 px-4 h-16 border-b border-white/[0.06]">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-white/[0.05] transition-colors"
+            className="w-11 h-11 flex items-center justify-center rounded-xl text-slate-300 hover:text-white hover:bg-white/[0.05] transition-colors"
             aria-label={t('common.openMenu')}
           >
             <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
@@ -229,7 +261,7 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
           </button>
         </header>
 
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-auto">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-auto pb-[calc(84px+env(safe-area-inset-bottom))] lg:pb-8">
           <div className="max-w-6xl mx-auto">
             {(title || subtitle) && (
               <PageIntro className="mb-6" title={title || ''} sub={subtitle} icon={current ? <current.icon width={20} height={20} /> : undefined} />
@@ -237,6 +269,24 @@ export default function AdminLayout({ children, title, subtitle }: Props) {
             <ErrorBoundary label={t('admin.panel')}>{children}</ErrorBoundary>
           </div>
         </main>
+
+        {/* Phone: the most used sections one tap away, plus the full menu. */}
+        <nav className="lg:hidden fixed inset-x-0 bottom-0 z-30 glass-bar border-t border-white/[0.08] grid grid-cols-6" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }} aria-label={t('admin.navShort.quick')} data-adm-quicknav>
+          {quickNav.map(q => {
+            const on = isActiveHref(q.href)
+            return (
+              <Link key={q.href} href={q.href} aria-current={on ? 'page' : undefined}
+                className={`flex flex-col items-center justify-center gap-1 min-h-[60px] px-1 text-[11.5px] leading-tight text-center ${on ? 'text-accent font-semibold' : 'text-slate-300'}`}>
+                <q.icon width={20} height={20} aria-hidden="true" />
+                <span className="max-w-full break-words line-clamp-2">{t(q.label)}</span>
+              </Link>
+            )
+          })}
+          <button type="button" onClick={() => setSidebarOpen(true)} className="flex flex-col items-center justify-center gap-1 min-h-[60px] px-1 text-[11.5px] text-slate-300" aria-label={t('common.openMenu')}>
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><rect y="3" width="20" height="2" rx="1"/><rect y="9" width="20" height="2" rx="1"/><rect y="15" width="20" height="2" rx="1"/></svg>
+            <span>{t('admin.navShort.menu')}</span>
+          </button>
+        </nav>
       </div>
     </div>
   )

@@ -1,6 +1,6 @@
 import json, os, subprocess, re, soundfile as sf
 FF = os.environ.get('FFMPEG', 'ffmpeg')
-D = json.load(open('durations.json')); IDS = ['s1', 's2', 's3', 's4', 's5']; X = 0.5
+D = json.load(open('durations.json')); IDS = ['s1', 's2', 's3', 's4', 's5', 's6']; X = 0.5
 def run(a): subprocess.run([FF, '-hide_banner', '-loglevel', 'error', '-y'] + a, check=True)
 os.makedirs('out', exist_ok=True)
 import sys
@@ -25,7 +25,7 @@ for i in range(1, len(IDS)):
     fc.append(f"{last}[{i}:v]xfade=transition=fade:duration={X}:offset={starts[i]:.3f}[v{i}]"); last = f'[v{i}]'
 fc.append(f"{last}fade=t=in:st=0:d=0.4,fade=t=out:st={total - 0.6:.3f}:d=0.6[vout]")
 # Voice-over: each scene's narration starts shortly after the scene does.
-lead = [0.6, 0.5, 0.5, 0.5, 0.5]; vo_in = []
+lead = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5]; vo_in = []
 for i, s in enumerate(IDS):
     vo_in += ['-i', f'vo_{s}.wav']
 n = len(IDS)

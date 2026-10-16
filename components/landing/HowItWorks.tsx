@@ -23,10 +23,11 @@ const CAPTIONS = '/media/how-it-works.en.vtt'
 // Chapter start times match the recorded timeline (scene starts).
 const CHAPTERS: { at: number; label: TKey }[] = [
   { at: 0, label: 'hiw.ch1' },
-  { at: 5.5, label: 'hiw.ch2' },
-  { at: 14.6, label: 'hiw.ch3' },
-  { at: 32.3, label: 'hiw.ch4' },
-  { at: 48.8, label: 'hiw.ch5' },
+  { at: 6, label: 'hiw.ch2' },
+  { at: 18, label: 'hiw.ch3' },
+  { at: 31, label: 'hiw.ch4' },
+  { at: 43, label: 'hiw.ch5' },
+  { at: 50.5, label: 'hiw.ch6' },
 ]
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
 

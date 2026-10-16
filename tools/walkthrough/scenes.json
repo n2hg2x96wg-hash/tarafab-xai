@@ -1,7 +1,8 @@
 [
- {"id":"s1","text":"Welcome to Tarafab X A I, where market insights meet intelligent automation."},
- {"id":"s2","text":"Your dashboard brings your balances, recent activity, and available investment products together, so you can review your account in one place."},
- {"id":"s3","text":"Browse the investment products, and open one to review its limits, duration, fees, and stated terms. Confirm only when you understand them. Projected terms and profits actually credited are always shown separately, and you can follow every investment from your dashboard."},
- {"id":"s4","text":"The X A I Automation Engine monitors your selected markets, and evaluates the rules you configure every minute. Each check and alert is recorded, so you can follow market activity and stay informed. It monitors and alerts. It does not place trades."},
- {"id":"s5","text":"Explore investment opportunities, follow market activity, and stay informed throughout your investment journey. Understand the risks, and discover Tarafab X A I."}
+ {"id":"s1","text":"Every investment journey begins with a decision. Welcome to Tarafab X A I."},
+ {"id":"s2","text":"Explore the available investment opportunities, compare their terms, and choose a plan that aligns with your financial goals."},
+ {"id":"s3","text":"Enter the amount you want to invest, review the period and every detail, and confirm only when you are comfortable with the terms."},
+ {"id":"s4","text":"Follow your investments through your personal dashboard, monitor their progress, and review returns as they are actually credited."},
+ {"id":"s5","text":"With market monitoring tools in one place, you can stay informed as you work toward your goals."},
+ {"id":"s6","text":"Your investment journey starts with Tarafab X A I. Explore the opportunities. Understand the terms. Plan for your future."}
 ]

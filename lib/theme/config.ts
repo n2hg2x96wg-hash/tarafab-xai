@@ -15,4 +15,5 @@ export function isThemePreference(v: unknown): v is ThemePreference {
 export const themeInitScript = `(function(){try{var k='${THEME_STORAGE_KEY}',p=null;try{p=localStorage.getItem(k)}catch(e){}
 if(p!=='light'&&p!=='dark'&&p!=='system'){var m=document.cookie.match(/(?:^|; )${THEME_COOKIE}=(light|dark|system)/);p=m?m[1]:'dark'}
 var r=p==='system'?(window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):p;
-document.documentElement.setAttribute('data-theme',r)}catch(e){}})()`
+document.documentElement.setAttribute('data-theme',r);
+var z=null;try{z=localStorage.getItem('tf_text_size')}catch(e){}if(z==='large')document.documentElement.setAttribute('data-text','large')}catch(e){}})()`
