@@ -58,7 +58,7 @@ export interface Tx {
   updated_at?: string
 }
 
-export const SUPPORT_EMAIL = 'tarafab.support@gmail.com'
+export { SUPPORT_EMAIL } from '@/lib/support'
 export const OPEN_STATUSES = ['pending_review', 'pending', 'requested', 'under_review']
 
 const STATUS_STYLE: Record<string, string> = {

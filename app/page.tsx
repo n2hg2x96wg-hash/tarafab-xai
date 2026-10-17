@@ -12,6 +12,7 @@ import { FaqSection, HeroFloatPanels, Reveal, TrustBar } from '@/components/Land
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
 import { HowItWorks } from '@/components/landing/HowItWorks'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { SUPPORT_EMAIL } from '@/lib/support'
 import LazyOnView from '@/components/markets/LazyOnView'
 import HashSettle from '@/components/landing/HashSettle'
 import HeroScene from '@/components/landing/HeroScene'
@@ -360,6 +361,9 @@ export default function LandingPage() {
                     ? <a href={href} className="text-fg-muted hover:text-fg transition-colors">{t(label)}</a>
                     : <Link href={href} className="text-fg-muted hover:text-fg transition-colors">{t(label)}</Link>}</li>
                 ))}
+                {title === 'landing.footer.support' && (
+                  <li><a href={`mailto:${SUPPORT_EMAIL}`} className="text-fg-muted hover:text-fg transition-colors break-all" data-support-email>{SUPPORT_EMAIL}</a></li>
+                )}
               </ul>
             </nav>
           ))}

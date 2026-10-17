@@ -13,7 +13,7 @@ for sid in ([] if ONLY_CAPS else IDS):
             end = (fr[i + 1]['t'] - t0) if i + 1 < len(fr) else (t1 - t0)
             f.write(f"file '{os.path.abspath(x['file'])}'\nduration {max(0.001, end - start):.4f}\n")
         f.write(f"file '{os.path.abspath(fr[-1]['file'])}'\n")
-    run(['-f', 'concat', '-safe', '0', '-i', f'frames/{sid}/list.txt', '-vf', 'fps=30,scale=1280:720:flags=lanczos,format=yuv420p', '-t', str(D[sid]), '-c:v', 'libx264', '-crf', '10', '-preset', 'veryfast', f'out/{sid}.mp4'])
+    run(['-f', 'concat', '-safe', '0', '-i', f'frames/{sid}/list.txt', '-vf', 'fps=30,scale=1280:720:flags=lanczos,format=yuv420p,tpad=stop_mode=clone:stop_duration=3', '-t', str(D[sid]), '-c:v', 'libx264', '-crf', '10', '-preset', 'veryfast', f'out/{sid}.mp4'])
 # Crossfaded timeline.
 starts = [0.0]; off = 0.0
 for sid in IDS[:-1]:
