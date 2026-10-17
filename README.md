@@ -292,7 +292,7 @@ operational monitoring remain an explicit production step.
 
 ## Support
 
-For issues or questions, please contact: support@tarafab.com
+For issues or questions, please contact: support@tarafabxai.xyz
 
 ## License
 

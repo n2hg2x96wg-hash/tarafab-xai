@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import { useI18n } from '@/lib/i18n/I18nProvider'
 import type { TKey } from '@/lib/i18n/I18nProvider'
 
-// "Discover how Tarafab.XAi works": a 60-second walkthrough of the real
+// "Discover how Tarafab.XAi works": a one-minute walkthrough of the real
 // application, recorded with an isolated demo account and sample data (no
 // client data). Nothing loads until the visitor asks for it: the card shows a
 // small poster, and the video element mounts when the player opens. Native
@@ -23,11 +23,11 @@ const CAPTIONS = '/media/how-it-works.en.vtt'
 // Chapter start times match the recorded timeline (scene starts).
 const CHAPTERS: { at: number; label: TKey }[] = [
   { at: 0, label: 'hiw.ch1' },
-  { at: 6, label: 'hiw.ch2' },
-  { at: 18, label: 'hiw.ch3' },
-  { at: 31, label: 'hiw.ch4' },
-  { at: 43, label: 'hiw.ch5' },
-  { at: 50.5, label: 'hiw.ch6' },
+  { at: 8, label: 'hiw.ch2' },
+  { at: 19.5, label: 'hiw.ch3' },
+  { at: 32, label: 'hiw.ch4' },
+  { at: 45, label: 'hiw.ch5' },
+  { at: 53, label: 'hiw.ch6' },
 ]
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
 

@@ -1,6 +1,6 @@
 # "How Tarafab.XAi Works" video walkthrough
 
-A 60-second introduction on the public landing page, under the hero buttons.
+A one-minute (61.5 s) introduction on the public landing page, under the hero buttons.
 
 ## Where it lives
 
@@ -9,7 +9,7 @@ A 60-second introduction on the public landing page, under the hero buttons.
 
 | File | Format | Size |
 |---|---|---|
-| `how-it-works.mp4` | H.264 High / AAC, 1280×720, 30 fps, 60.0 s | about 3.7 MB |
+| `how-it-works.mp4` | H.264 High / AAC, 1280×720, 30 fps, 61.5 s | about 3.8 MB |
 | `how-it-works.webm` | VP9 / Opus fallback, for browsers without H.264 | about 2.5 MB |
 | `how-it-works-poster.webp` | Poster for the player | about 17 KB |
 | `how-it-works-thumb.webp` | Card thumbnail | about 11 KB |
@@ -30,16 +30,16 @@ A 60-second introduction on the public landing page, under the hero buttons.
 
 ## Scenes (narration, as recorded)
 
-Revision 2 focuses on investing. The total length is 60.0 s.
+Revision 3 focuses on investing and follows the requested chapter plan (0:00 / 0:08 / 0:20 / 0:33 / 0:46 / 0:54) to within a second. The total length is 61.5 s: the closing narration needs about 8 s, so the last chapter is slightly longer than the 6 s planned.
 
 | Time | Scene | Narration |
 |---|---|---|
-| 0:00–0:06 | The investment opportunity (brand frame) | "Every investment journey begins with a decision. Welcome to Tarafab.XAi." |
-| 0:06–0:18 | Choose an investment: Investment Plans, then a plan's details | "Explore the available investment opportunities, compare their terms, and choose a plan that aligns with your financial goals." |
-| 0:18–0:31 | Place an investment: Amount, Review, Confirm, then the result | "Enter the amount you want to invest, review the period and every detail, and confirm only when you are comfortable with the terms." |
-| 0:31–0:43 | Track your progress: My investments, then an investment's details | "Follow your investments through your personal dashboard, monitor their progress, and review returns as they are actually credited." |
-| 0:43–0:50 | Market monitoring: XAI Automation Engine | "With market monitoring tools in one place, you can stay informed as you work toward your goals." |
-| 0:50–1:00 | Get started: closing frame | "Your investment journey starts with Tarafab.XAi. Explore the opportunities. Understand the terms. Plan for your future." |
+| 0:00–0:08 | The investment opportunity (brand frame) | "Every investment journey begins with a decision. Welcome to Tarafab.XAi." |
+| 0:08–0:19.5 | Choose an investment: Investment Plans, then a plan's details | "At Tarafab.XAi, explore the available investment opportunities, compare their terms, and choose a plan that aligns with your financial goals." |
+| 0:19.5–0:32 | Place an investment: Amount, Review, Confirm, then the result | "Review the amount you want to invest, understand the investment period, and confirm the details before getting started." |
+| 0:32–0:45 | Track your progress: My investments, then an investment's details | "Follow your investments through your personal dashboard, monitor their progress, and review returns as they are actually credited." |
+| 0:45–0:53 | Market monitoring: XAI Automation Engine | "With portfolio information and market monitoring tools in one place, you can stay informed as you work toward your financial goals." |
+| 0:53–1:01.5 | Get started: closing frame | "Your investment journey starts with Tarafab.XAi. Explore the opportunities. Understand the terms. Plan for your future." |
 
 In the confirm step, the demo submission is answered locally with the status a real request receives: "Pending review", reference DEMO-INV-02. Nothing is sent to the server or created.
 
@@ -65,7 +65,7 @@ Everything is in `tools/walkthrough/`.
 2. Run `node rec.js`.
 3. Run `python3 build.py`. Set `FFMPEG` and `PLAYWRIGHT_MODULE` if they aren't on the path.
 4. Copy `out/*` into `public/media/` and re-encode the WebM.
-5. If scene lengths change, update the chapter times in `HowItWorks.tsx`.
+5. Scene lengths are in `durations.json`; a scene longer than its recording holds its last frame. If they change, update the chapter times in `HowItWorks.tsx`.
 
 ## Still for a person to decide
 

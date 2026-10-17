@@ -77,17 +77,12 @@ export function PortfolioTab({ account, txs, hasMore, go }: { account: Account |
           <h3 id="pf-bal" className="text-[15px] font-semibold text-fg mb-3">{t('portfolio.balances')}</h3>
           <dl className="divide-y divide-ink-700">
             {balances.map(([label, value, hint], i) => (
-              <div key={label} className="flex items-center justify-between gap-4 py-3">
-                <dt className={`text-sm min-w-0 ${i === 0 ? 'text-fg font-medium' : 'text-fg-muted'}`}>{label}{hint && <span className="block text-[12px] leading-snug text-fg-faint mt-0.5" data-balance-hint>{hint}</span>}</dt>
-                <dd className={`tabular-nums whitespace-nowrap shrink-0 ${i === 0 ? 'text-lg font-semibold text-fg' : 'text-sm text-fg'}`}>{value != null ? money(value) : <span className="text-fg-faint text-[12px]">{t('dash.unavailable')}</span>}</dd>
+              <div key={label} className="flex items-center justify-between gap-4 py-3.5" data-balance-row>
+                <dt className={`text-[14px] min-w-0 ${i === 0 ? 'text-fg font-medium' : 'text-fg-muted'}`}>{label}{hint && <span className="block text-[12px] leading-snug text-fg-faint mt-0.5" data-balance-hint>{hint}</span>}</dt>
+                <dd className={`tabular-nums whitespace-nowrap shrink-0 ${i === 0 ? 'text-xl font-semibold text-fg' : 'text-[15px] font-medium text-fg'}`}>{value != null ? money(value) : <span className="text-fg-faint text-[12px]">{t('dash.unavailable')}</span>}</dd>
               </div>
             ))}
           </dl>
-          {/* Where these figures come from, so none of them reads as a calculation it is not. */}
-          <p className="mt-3 pt-3 border-t border-ink-700 flex gap-2 text-[12.5px] leading-relaxed text-fg-muted" data-returns-note>
-            <IconInfo width={15} height={15} className="shrink-0 mt-[3px] text-fg-faint" aria-hidden="true" />
-            <span>{t('portfolio.sourceNote')}</span>
-          </p>
         </section>
         <section className="panel p-5 sm:p-6" aria-labelledby="pf-act">
           <h3 id="pf-act" className="text-[15px] font-semibold text-fg mb-3">{t('portfolio.activity')}</h3>

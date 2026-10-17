@@ -1956,12 +1956,11 @@ function WithdrawTab({ account, txs, onSuccess }: { account: Account | null; txs
 
 /* Profile */
 function ProfileTab({ user, account, onNickname, onPhone }: { user: UserInfo | null; account: Account | null; onNickname: (name: string | null) => void; onPhone: (phone: string, country: string) => void }) {
-  const { t, intl } = useI18n()
+  const { t } = useI18n()
   const rows: [TKey, string][] = [
     ['common.fullName', user?.full_name || t('common.notSet')],
     ['common.email', user?.email || t('common.notSet')],
     ['profile.emailConfirmed', user?.email_confirmed === undefined ? t('common.unknown') : user.email_confirmed ? t('common.yes') : t('common.no')],
-    ['profile.memberSince', user?.created_at ? new Date(user.created_at).toLocaleDateString(intl, { month: 'long', day: 'numeric', year: 'numeric' }) : t('common.unknown')],
     ['dash.accountBalance', `$${fmt(account?.available_balance ?? 0)}`],
     ['withdraw.profitBalance', `$${fmt(account?.profit_balance ?? 0)}`],
   ]
