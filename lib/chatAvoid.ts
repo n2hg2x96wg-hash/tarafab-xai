@@ -1,11 +1,11 @@
 'use client'
 
-// Keeps the floating support bubble (tawk.to) off content that matters.
+// Keeps the floating support bubble (Smartsupp) off content that matters.
 // Anything marked data-chat-avoid (forms, the dashboard's quick actions, the
 // landing page's automation demonstration) hides the collapsed bubble while
 // it sits under the bubble's spot, and the bubble returns as soon as it
 // scrolls away. An open conversation is never hidden. The spot matches the
-// widget's own offsets (see TawkWidget): 16px from the right, and 76px
+// widget's own offsets (see SmartsuppWidget): 16px from the right, and 76px
 // plus the safe area from the bottom below 1024px (20px above).
 export function startChatAvoid(): () => void {
   if (typeof window === 'undefined') return () => {}

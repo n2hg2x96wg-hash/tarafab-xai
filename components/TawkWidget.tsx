@@ -5,7 +5,9 @@ import { usePathname } from 'next/navigation'
 import { hiddenState, useFeatures } from '@/components/ui/features'
 import { chatAllowed, isRecoveryPage } from '@/components/SmartsuppWidget'
 
-// tawk.to live chat (replaces Smartsupp; the same rules decide where it runs,
+// tawk.to live chat: NOT RENDERED. The site uses Smartsupp (app/layout.tsx);
+// this file is kept so tawk.to can be restored by swapping the layout back.
+// tawk.to live chat (the same rules decide where it runs,
 // see SmartsuppWidget, except that staff devices also get it): production site
 // only, not for bots,
 // never loaded on /admin or the password-recovery pages (their addresses carry
