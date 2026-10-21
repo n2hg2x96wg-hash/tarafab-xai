@@ -34,6 +34,32 @@ export function chatAllowed({ includeStaff = false }: { includeStaff?: boolean }
 // script (a third party that records the page address) is never loaded there.
 export const isRecoveryPage = (p: string | null) => p === '/reset-password' || !!p?.startsWith('/auth/')
 
+declare global { interface Window { smartsupp?: (...args: unknown[]) => void } }
+
+// Whether the widget has decided to run on this page (set by the component).
+let chatExpected = false
+
+// Opens the chat window (Help & Support). The loader's command queue exists as
+// soon as the embed has run, before the widget finishes downloading, so this
+// waits briefly for it; resolves false when chat is not running on this page
+// (switched off, a bot, a staff device, or a page that never loads it).
+export function openSmartsuppChat(timeoutMs = 6000): Promise<boolean> {
+  const open = () => {
+    const ss = window.smartsupp
+    if (typeof ss !== 'function') return false
+    ss('chat:show'); ss('chat:open'); return true
+  }
+  if (open()) return Promise.resolve(true)
+  if (!chatExpected) return Promise.resolve(false)
+  return new Promise(resolve => {
+    const started = Date.now()
+    const t = setInterval(() => {
+      if (open()) { clearInterval(t); resolve(true) }
+      else if (Date.now() - started > timeoutMs) { clearInterval(t); resolve(false) }
+    }, 200)
+  })
+}
+
 // Client-facing live chat. Renders on the landing page, sign-in/up, and
 // dashboard — hidden under /admin, since support chat is for clients
 // reaching out, not for the admin's own panel.
@@ -43,12 +69,24 @@ export default function SmartsuppWidget() {
   // Decided once per page load in the browser; later navigation reuses the
   // already-loaded widget, so moving between pages is never a new visit.
   useEffect(() => { setAllowed(chatAllowed()) }, [])
+  // Load one second after the page has finished loading. Not 'lazyOnload':
+  // that waits for the browser to be idle, which the homepage's animated
+  // hero can postpone indefinitely on slower devices.
+  const [loadNow, setLoadNow] = useState(false)
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout> | undefined
+    const start = () => { t = setTimeout(() => setLoadNow(true), 1000) }
+    if (document.readyState === 'complete') start()
+    else window.addEventListener('load', start, { once: true })
+    return () => { window.removeEventListener('load', start); if (t) clearTimeout(t) }
+  }, [])
   // Steps the bubble aside while it would cover marked content (see lib/chatAvoid).
   useEffect(() => startChatAvoid(), [])
   // Admin → Feature Control Center → Live chat. Not loaded while OFF; if it
   // is switched OFF after loading, the bubble is hidden without a reload.
   const feature = useFeatures()
   const off = hiddenState(feature('live_chat'))
+  const blockedPage = !!pathname?.startsWith('/admin') || isRecoveryPage(pathname)
   // Homepage: the bubble stays hidden while the hero's Open an account /
   // Sign in buttons are on screen (on short phones it would sit on them),
   // and appears once the visitor scrolls past them. One-shot: after that it
@@ -67,7 +105,8 @@ export default function SmartsuppWidget() {
   useEffect(() => {
     if (!allowed) return
     // The loader runs lazily: wait (briefly) for Smartsupp's command queue.
-    const cmd = off || heroCta ? 'chat:hide' : 'chat:show'
+    // Also hidden if the visitor moves to /admin or a recovery page after it loaded.
+    const cmd = off || heroCta || blockedPage ? 'chat:hide' : 'chat:show'
     let tries = 0
     const apply = () => {
       const ss = (window as unknown as { smartsupp?: (...a: unknown[]) => void }).smartsupp
@@ -77,12 +116,14 @@ export default function SmartsuppWidget() {
     if (apply()) return
     const t = setInterval(() => { if (apply() || ++tries > 60) clearInterval(t) }, 250)
     return () => clearInterval(t)
-  }, [off, heroCta, allowed])
-  if (pathname?.startsWith('/admin') || isRecoveryPage(pathname) || !allowed || off) return null
+  }, [off, heroCta, allowed, blockedPage])
+  chatExpected = allowed && !off && !blockedPage
+  if (blockedPage || !allowed || off || !loadNow) return null
 
   return (
     <>
-      <Script id="smartsupp-loader" strategy="lazyOnload">
+      {/* The id makes next/script add it once per page load, however often this re-renders. */}
+      <Script id="smartsupp-loader" strategy="afterInteractive">
         {`
           var _smartsupp = _smartsupp || {};
           _smartsupp.key = '7609b94f32c953ff2d48e555ce2d1f77f817d98e';

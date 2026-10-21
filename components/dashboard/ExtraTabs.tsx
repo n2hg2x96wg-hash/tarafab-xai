@@ -12,7 +12,7 @@ import { ThemeSelector } from '@/components/ThemeSelector'
 import { TextSizeSelector } from '@/components/TextSizeSelector'
 import { FormError, Spinner } from '@/components/AuthShell'
 import { IconChart, IconCheck, IconHelp, IconInfo, IconMail } from '@/components/Icons'
-import { openTawkChat } from '@/components/TawkWidget'
+import { openSmartsuppChat } from '@/components/SmartsuppWidget'
 import {
   EmptyState, OPEN_STATUSES, SettingsRow, SettingsSection, StatusTag, SUPPORT_EMAIL, TxIcon, fmt, methodLabel, txDescription, txLabel,
   type Account, type Tx, type UserInfo,
@@ -224,18 +224,14 @@ export function PreferencesTab() {
 }
 
 /* Help & support */
-declare global { interface Window { smartsupp?: (...args: unknown[]) => void } }
-
 export function SupportTab() {
   const { t } = useI18n()
   const [chatMissing, setChatMissing] = useState(false)
   const openChat = async () => {
-    // The site's live chat (tawk.to; Smartsupp if that is ever restored).
-    // tawk.to may still be starting: openTawkChat waits for it rather than
-    // reporting chat as unavailable.
+    // The site's live chat (Smartsupp). It may still be starting:
+    // openSmartsuppChat waits for it rather than reporting chat as unavailable.
     setChatMissing(false)
-    if (await openTawkChat()) return
-    if (typeof window.smartsupp === 'function') { window.smartsupp('chat:open'); return }
+    if (await openSmartsuppChat()) return
     setChatMissing(true)
   }
   // One list of support routes (rows, not cards). Email is the primary route

@@ -1,16 +1,15 @@
 'use client'
 
 import { useState, type ReactNode } from 'react'
-import { openTawkChat } from '@/components/TawkWidget'
+import { openSmartsuppChat } from '@/components/SmartsuppWidget'
 
-// Opens the site's existing support channel: the tawk.to live chat already
+// Opens the site's existing support channel: the Smartsupp live chat already
 // loaded by the root layout (no second widget is created here). Where chat
 // is not running (switched off in Feature controls, a bot, or not loaded
 // yet), the dashboard's Help & Support page opens instead; it lists the
 // configured support email and the chat button.
 export async function openSupport(): Promise<'chat' | 'page'> {
-  if (await openTawkChat(6000)) return 'chat'
-  if (typeof window.smartsupp === 'function') { window.smartsupp('chat:open'); return 'chat' }
+  if (await openSmartsuppChat(6000)) return 'chat'
   window.location.hash = 'support'
   return 'page'
 }
