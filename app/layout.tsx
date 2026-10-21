@@ -28,12 +28,13 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // The saved language is read on the server so the first render is already
   // in that language (no flash of English).
-  const saved = cookies().get(LOCALE_COOKIE)?.value
+  const cookieStore = await cookies()
+  const saved = cookieStore.get(LOCALE_COOKIE)?.value
   const locale = isLocale(saved) ? saved : DEFAULT_LOCALE
-  const savedTheme = cookies().get(THEME_COOKIE)?.value
+  const savedTheme = cookieStore.get(THEME_COOKIE)?.value
   const themePref = isThemePreference(savedTheme) ? savedTheme : 'dark'
   // Light/dark is known on the server; "system" is settled by the head script
   // before paint. suppressHydrationWarning: that script may change data-theme.

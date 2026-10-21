@@ -27,7 +27,7 @@ async function copyText(text: string) {
 
 function CopyButton({ url }: { url: string }) {
   const [state, setState] = useState<'idle' | 'copied' | 'failed'>('idle')
-  const timer = useRef<ReturnType<typeof setTimeout>>()
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   useEffect(() => () => clearTimeout(timer.current), [])
   return (
     <button type="button" data-url={url} onClick={async () => { const ok = await copyText(url); setState(ok ? 'copied' : 'failed'); clearTimeout(timer.current); timer.current = setTimeout(() => setState('idle'), 2000) }}
