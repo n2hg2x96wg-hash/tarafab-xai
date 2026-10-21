@@ -57,9 +57,8 @@ const capabilities: { icon: typeof IconChart; title: TKey; body: TKey }[] = [
 // clients use in the dashboard.
 const PUBLIC_CAPS: TKey[] = ['landing.cap.portfolioTitle', 'landing.cap.depositTitle', 'landing.cap.historyTitle', 'landing.cap.securityTitle']
 
-const safeguards: TKey[] = [
-  'landing.safeguards.g1', 'landing.safeguards.g2', 'landing.safeguards.g3', 'landing.safeguards.g4', 'landing.safeguards.g5',
-]
+// Practical steps customers can take to protect their own account.
+const securityTips = [1, 2, 3, 4, 5, 6, 7, 8].map(n => ({ n, title: `landing.securityTips.t${n}Title` as TKey, body: `landing.securityTips.t${n}Body` as TKey }))
 
 const loadIntelligence = () => import('@/components/markets/LandingMarkets')
 const loadPricing = () => import('@/components/premium/LandingPricing')
@@ -313,11 +312,17 @@ export default function LandingPage() {
             <h2 className="lp-h2 !mt-0">{t('landing.securityTitle')}</h2>
             <p className="lp-lead">{t('landing.securityBody')}</p>
           </Reveal>
-          <Reveal delay={100}><ul className="divide-y divide-ink-700 border-y border-ink-700">
-            {safeguards.map(item => (
-              <li key={item} className="flex gap-3 py-3.5">
-                <IconCheck className="shrink-0 mt-0.5 text-accent" />
-                <span className="text-[15px] text-fg-muted leading-relaxed">{t(item)}</span>
+          <Reveal delay={100}><ul className="divide-y divide-ink-700 border-y border-ink-700" data-security-tips>
+            {securityTips.map(tip => (
+              <li key={tip.n} className="flex gap-3 py-4">
+                <IconCheck className="shrink-0 mt-1 text-accent" aria-hidden="true" />
+                <div className="min-w-0">
+                  <h3 className="text-[16px] font-semibold text-fg leading-snug">{t(tip.title)}</h3>
+                  <p className="mt-1 text-[15px] text-fg-muted leading-relaxed">{t(tip.body)}</p>
+                  {tip.n === 8 && (
+                    <a href={`mailto:${SUPPORT_EMAIL}`} className="mt-1.5 inline-block text-[15px] text-accent hover:text-accent-hover underline-offset-4 hover:underline break-all" data-security-support>{SUPPORT_EMAIL}</a>
+                  )}
+                </div>
               </li>
             ))}
           </ul></Reveal>
