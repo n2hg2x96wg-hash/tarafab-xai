@@ -7,6 +7,7 @@ import { SIGNUP_CONSENT_VERSION } from '@/lib/consent'
 import { authReturnBase } from '@/lib/site'
 import { normalizePhone } from '@/lib/phone'
 import { recordSecurityEvent } from '@/lib/securityEvents'
+import { limitAnon } from '@/lib/anonRateLimit'
 
 export async function POST(request: NextRequest) {
   const { url, anonKey: key } = getSupabaseEnv()
@@ -31,6 +32,10 @@ export async function POST(request: NextRequest) {
     }
     if (!email || !password) return NextResponse.json({ error: 'Email and password required' }, { status: 400 })
     if (password.length < 8) return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 })
+    // Longer passwords are silently cut at 72 bytes by the password hash.
+    if (password.length > 72) return NextResponse.json({ error: 'Password must be at most 72 characters' }, { status: 400 })
+    // Shared across server instances: account creation per IP address.
+    { const limited = await limitAnon([{ scope: 'signup_ip', value: clientIp(request), limit: 10, windowS: 3600 }]); if (limited) return limited }
     // Both statements must be explicitly accepted; nothing is inferred.
     if (body.consent?.age !== true || body.consent?.risk !== true) {
       return NextResponse.json({ error: 'Please confirm both statements to continue.' }, { status: 400 })

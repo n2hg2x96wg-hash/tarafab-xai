@@ -194,7 +194,7 @@ export default function SignUpPage() {
 // unchanged), and a missing tick shows its own message under the text.
 function ConsentBox({ id, inputRef, checked, onChange, disabled, text, error }: {
   id: string
-  inputRef: React.RefObject<HTMLInputElement>
+  inputRef: React.RefObject<HTMLInputElement | null>
   checked: boolean
   onChange: (v: boolean) => void
   disabled?: boolean

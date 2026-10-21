@@ -16,9 +16,12 @@ dist-ssr
 .next/
 out/
 
-# Env files
-.env.local
-.env.*.local
+# Env files (the placeholder .env.example stays tracked)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
 
 # Editor directories and files
 .vscode/*

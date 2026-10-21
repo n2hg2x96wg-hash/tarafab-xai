@@ -4,6 +4,7 @@ import { noStoreFetch } from '@/lib/supabase/noStore'
 import { getSupabaseEnv } from '@/lib/supabase/env'
 import { clientIp, rateLimited } from '@/lib/rateLimit'
 import { recordSecurityEvent } from '@/lib/securityEvents'
+import { limitAnon } from '@/lib/anonRateLimit'
 
 export async function POST(request: NextRequest) {
   const { url, anonKey: key } = getSupabaseEnv()
@@ -23,6 +24,16 @@ export async function POST(request: NextRequest) {
     }
     const limited = rateLimited(`signin:${clientIp(request)}:${email.toLowerCase()}`, 10, 5 * 60_000)
     if (limited) return limited
+    if (email.length > 254 || password.length > 128) return NextResponse.json({ error: 'Invalid email or password' }, { status: 400 })
+    // Shared across server instances: guesses against one account (from any
+    // address) and attempts from one address (across accounts).
+    {
+      const shared = await limitAnon([
+        { scope: 'signin_email', value: email, limit: 15, windowS: 900 },
+        { scope: 'signin_ip', value: clientIp(request), limit: 40, windowS: 900 },
+      ])
+      if (shared) return shared
+    }
 
     const supabase = createClient(url, key, { global: { fetch: noStoreFetch } })
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })

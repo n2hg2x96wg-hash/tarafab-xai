@@ -10,7 +10,7 @@ import type { Place, Variant } from './bitcoinScene'
 export default function BitcoinGrowth3D({ variant, place, scrollRef, className = '', fallback }: {
   variant: Variant
   place: (w: number, h: number) => Place
-  scrollRef?: RefObject<HTMLElement>
+  scrollRef?: RefObject<HTMLElement | null>
   className?: string
   fallback?: ReactNode
 }) {

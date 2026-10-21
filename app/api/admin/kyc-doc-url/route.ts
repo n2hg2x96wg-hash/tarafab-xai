@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
   { const denied = await requireAdmin(supabase, request); if (denied) return denied }
 
   const path = request.nextUrl.searchParams.get('path') || ''
-  if (!/^[0-9a-f-]{36}\/[\w.-]+$/i.test(path)) return NextResponse.json({ error: 'Invalid document path' }, { status: 400 })
+  if (!/^[0-9a-f-]{36}\/[\w-]+(\.[A-Za-z0-9]+)?$/i.test(path)) return NextResponse.json({ error: 'Invalid document path' }, { status: 400 })
 
   const { data: isAdmin, error: roleErr } = await supabase.rpc('is_admin')
   if (roleErr) return dbError(roleErr)

@@ -6,8 +6,10 @@ import { NextRequest, NextResponse } from 'next/server'
 // protect money movements, and Supabase Auth applies its own limits too.
 const buckets = new Map<string, { count: number; resetAt: number }>()
 
+// x-real-ip is set by the hosting platform (Vercel) and cannot be supplied by
+// the visitor; x-forwarded-for is the fallback for other hosts.
 export function clientIp(request: NextRequest) {
-  return (request.headers.get('x-forwarded-for') || '').split(',')[0].trim() || request.ip || 'unknown'
+  return (request.headers.get('x-real-ip') || '').trim() || (request.headers.get('x-forwarded-for') || '').split(',')[0].trim() || 'unknown'
 }
 
 export function rateLimited(key: string, limit: number, windowMs: number): NextResponse | null {
