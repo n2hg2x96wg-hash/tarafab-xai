@@ -33,10 +33,10 @@ export default function ProfitCreditsPage() {
     <AdminLayout>
       <div className="max-w-5xl">
         <h1 className="text-lg sm:text-xl font-semibold text-white tracking-tight">Manual profit credit &amp; debit</h1>
-        <p className="text-xs sm:text-sm text-slate-500 mt-1 mb-5 max-w-2xl">Record a profit credit or debit for one client with the date it applies to. Each entry is posted once to the client’s profit balance, recorded in their activity, notified to the client and kept in the audit log. No investment, deposit or other balance is changed.</p>
+        <p className="text-xs sm:text-sm text-slate-500 mt-1 mb-5 max-w-2xl">Posted once to the client’s profit balance, shown in their activity and kept in the audit log.</p>
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-start">
-          <section className="glass rounded-2xl p-4 sm:p-6 border border-white/[0.08]" aria-labelledby="mpc-new">
+          <section className="glass rounded-2xl p-3.5 sm:p-5 border border-white/[0.08]" aria-labelledby="mpc-new">
             <h2 id="mpc-new" className="text-sm font-semibold text-white mb-3">New entry</h2>
 
             <div className="mb-5"><ClientSearch client={client} onChange={setClient} inputId="mpc-search" /></div>
@@ -46,9 +46,9 @@ export default function ProfitCreditsPage() {
             )}
           </section>
 
-          <section className="glass rounded-2xl p-4 sm:p-6 border border-white/[0.08]" aria-labelledby="mpc-recent">
+          <section className="glass rounded-2xl p-3.5 sm:p-5 border border-white/[0.08]" aria-labelledby="mpc-recent">
             <h2 id="mpc-recent" className="text-sm font-semibold text-white">Recent manual entries</h2>
-            <p className="text-[11px] text-slate-500 mt-0.5 mb-2">Effective date and posting time are shown separately. Posted entries are never edited or deleted; a mistake is corrected with a linked entry.</p>
+            <p className="text-[11px] text-slate-500 mt-0.5 mb-2">Posted entries are never edited; correct a mistake with a linked entry.</p>
             <ManualProfitHistory refreshKey={refresh} />
           </section>
         </div>

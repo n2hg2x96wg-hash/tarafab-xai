@@ -69,7 +69,7 @@ export function EffectiveDateFields({ prefix, value, onChange, openedAt, busy, k
         <label htmlFor={`${prefix}-date`} className="block text-xs font-medium text-slate-400 mb-1.5">Effective date</label>
         <input id={`${prefix}-date`} type="date" value={value.date} min="2000-01-01" max={r.today} disabled={busy}
           onChange={e => set('date')(e.target.value)} className="input-field text-sm" data-mp-date />
-        <p className="text-[11px] text-slate-500 mt-1">The date the {kind} applies to; the client sees this date. The actual posting time is recorded by the server and never replaced.</p>
+        <p className="text-[11px] text-slate-500 mt-1">Shown to the client. The posting time is recorded separately.</p>
         {r.backdated && <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/[0.08] px-2 py-0.5 text-[11px] font-semibold text-amber-300" data-mp-historical>Historical entry · dated before today</p>}
       </div>
 
@@ -78,7 +78,7 @@ export function EffectiveDateFields({ prefix, value, onChange, openedAt, busy, k
           <label htmlFor={`${prefix}-backdate`} className="block text-xs font-medium text-amber-300 mb-1.5">Why does this {kind} apply to an earlier date?</label>
           <textarea id={`${prefix}-backdate`} rows={2} maxLength={500} value={value.backdate} disabled={busy}
             onChange={e => set('backdate')(e.target.value)} placeholder="e.g. Approved on this date, recorded late after month-end review" className="input-field resize-none text-sm" />
-          <p className="text-[11px] text-slate-500 mt-1">Required for a historical entry (at least 10 characters), together with a supporting reference or evidence file below. Kept in the audit log; not shown to the client.</p>
+          <p className="text-[11px] text-slate-500 mt-1">At least 10 characters, plus a reference or evidence file. Audit log only.</p>
         </div>
       )}
 
@@ -114,13 +114,22 @@ export function SupportFields({ prefix, value, onChange, busy, required, onError
       onChange({ ...value, evidence: { path, name: file.name } })
     } catch (e) { onError(errorText(e)) } finally { setUploading(false) }
   }
+  const filled = !!(value.reference.trim() || value.evidence || value.note.trim())
+  const [opened, setOpened] = useState(false)
+  const open = required || filled || opened
   return (
-    <div className="space-y-3">
+    <details open={open} onToggle={e => { const o = (e.currentTarget as HTMLDetailsElement).open; if (o !== open) setOpened(o) }}
+      className="rounded-xl border border-white/[0.08] px-3.5 py-2.5" data-mp-more>
+      <summary className="cursor-pointer select-none text-xs font-medium text-slate-300 min-h-8 flex items-center justify-between gap-2">
+        <span>Additional details <span className="text-slate-500 font-normal">· {required ? 'reference or evidence required' : 'reference, evidence, internal note'}</span></span>
+        <span className="text-slate-500" aria-hidden="true">{open ? '−' : '+'}</span>
+      </summary>
+    <div className="space-y-3 pt-2.5">
       <div>
         <label htmlFor={`${prefix}-ref`} className="block text-xs font-medium text-slate-400 mb-1.5">Transaction or accounting reference <span className="text-slate-500 font-normal">· {required ? 'required (or attach evidence)' : 'optional'}</span></label>
         <input id={`${prefix}-ref`} value={value.reference} maxLength={120} disabled={busy} autoComplete="off"
           onChange={e => set('reference')(e.target.value)} placeholder="e.g. JRNL-2026-0412 or board approval ref." className="input-field text-sm" data-mp-ref />
-        <p className="text-[11px] text-slate-500 mt-1">Used once per client: a reference already recorded is refused, so the same entry is not posted twice. Admin only.</p>
+        <p className="text-[11px] text-slate-500 mt-1">Each reference can be used once per client. Admin only.</p>
       </div>
       <div>
         <span className="block text-xs font-medium text-slate-400 mb-1.5">Supporting evidence</span>
@@ -145,6 +154,7 @@ export function SupportFields({ prefix, value, onChange, busy, required, onError
           onChange={e => set('note')(e.target.value)} placeholder="Anything other administrators should know" className="input-field resize-none text-sm" />
       </div>
     </div>
+    </details>
   )
 }
 

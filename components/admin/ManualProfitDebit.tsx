@@ -209,13 +209,13 @@ export function ManualProfitDebitForm({ client, snapshot, snapshotError, onPoste
                   onClick={() => { setCategory(c.id); if (c.id !== 'credit_reversal') setReverses('') }}
                   className={`text-left px-3.5 py-2.5 rounded-xl border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-50 disabled:cursor-not-allowed ${on ? 'border-accent/60 bg-accent/[0.08]' : 'border-white/[0.08] hover:border-white/20'}`}>
                   <span className={`block text-[13px] font-semibold ${on ? 'text-white' : 'text-slate-300'}`}>{on ? '● ' : ''}{c.title}</span>
-                  <span className="block text-[11px] leading-snug text-slate-500 mt-0.5">{off ? 'No profit credit of this client is left to reverse.' : c.hint}</span>
-                  <span className="block text-[10.5px] text-slate-500 mt-1">Client sees: <span className="text-slate-300">{c.client}</span>{c.needsSupport ? ' · reference or evidence required' : ''}</span>
+                  {(on || off) && <span className="block text-[11px] leading-snug text-slate-500 mt-0.5">{off ? 'No profit credit of this client is left to reverse.' : c.hint}</span>}
+                  {on && <span className="block text-[10.5px] text-slate-500 mt-1">Client sees: <span className="text-slate-300">{c.client}</span>{c.needsSupport ? ' · reference or evidence required' : ''}</span>}
                 </button>
               )
             })}
           </div>
-          <p className="text-[11px] text-slate-500 mt-2">Investment returns are changed with <span className="text-slate-300">Edit profit / return</span> on the investment, not here.</p>
+          <p className="text-[11px] text-slate-500 mt-2">Investment returns: use <span className="text-slate-300">Edit profit / return</span> on the investment.</p>
         </fieldset>
 
         {category === 'credit_reversal' && (
@@ -227,24 +227,23 @@ export function ManualProfitDebitForm({ client, snapshot, snapshotError, onPoste
                 <option key={x.reference} value={x.reference}>{x.reference} · {SOURCE_LABEL[x.source || ''] || 'Credit'} · {usd(x.amount)} · {fmtDate(x.effective_at)} · {usd(x.remaining)} left</option>
               ))}
             </select>
-            <p className="text-[11px] text-slate-500 mt-1">The credit stays on record; this debit is posted alongside it and linked to it.</p>
           </div>
         )}
 
         <EffectiveDateFields prefix="mpd" value={d} onChange={setD} openedAt={client.created_at} busy={busy} kind="debit" />
 
         <div>
-          <label htmlFor="mpd-desc" className="block text-xs font-medium text-slate-400 mb-1.5">Description <span className="text-slate-500 font-normal">· shown to the client beneath the entry and in the notification</span></label>
-          <textarea id="mpd-desc" rows={3} maxLength={500} value={description} disabled={busy}
+          <label htmlFor="mpd-desc" className="block text-xs font-medium text-slate-400 mb-1.5">Description <span className="text-slate-500 font-normal">· shown to the client</span></label>
+          <textarea id="mpd-desc" rows={2} maxLength={500} value={description} disabled={busy}
             onChange={e => setDescription(e.target.value)} placeholder="e.g. Reversal of duplicate distribution credited on 3 Sep" className="input-field resize-none text-sm" />
-          <p className="text-[11px] text-slate-500 mt-1">State accurately what the debit is. Do not describe it as a withdrawal the client requested unless they did.</p>
+          <p className="text-[11px] text-slate-500 mt-1">Do not call it a withdrawal unless the client requested one.</p>
         </div>
 
         <SupportFields prefix="mpd" value={s} onChange={setS} busy={busy} required={needsSupport} onError={setError} />
       </div>
 
       <button type="button" onClick={review} disabled={busy || !snapshot || !amount || !category || !description.trim()} data-mpd-review
-        className="w-full mt-6 py-3.5 text-sm font-semibold text-accent-ink bg-accent rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+        className="w-full mt-5 py-3 text-sm font-semibold text-accent-ink bg-accent rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
         Review debit
       </button>
 

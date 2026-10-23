@@ -362,18 +362,17 @@ export function HistoricalInvestmentForm({ client, onRecorded }: { client: HistC
               </label>
             )}
           </div>
-          <p className="text-[11px] text-slate-500 mt-1">Stored privately; only administrators can open it.</p>
         </div>
 
         <div>
           <label htmlFor="hi-reason" className="block text-xs font-medium text-slate-400 mb-1.5">Reason for the historical entry</label>
-          <textarea id="hi-reason" rows={3} maxLength={1000} value={f.reason} disabled={busy} onChange={e => set('reason')(e.target.value)}
+          <textarea id="hi-reason" rows={2} maxLength={1000} value={f.reason} disabled={busy} onChange={e => set('reason')(e.target.value)}
             placeholder="e.g. Verified historical investment missing from application records." className="input-field resize-none text-sm" />
         </div>
       </div>
 
       <button type="button" onClick={review} disabled={busy || uploading} data-hi-review
-        className="w-full mt-6 py-3.5 text-sm font-semibold text-accent-ink bg-accent rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+        className="w-full mt-5 py-3 text-sm font-semibold text-accent-ink bg-accent rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
         {busy ? 'Checking records…' : 'Check and review'}
       </button>
       <p className="mt-2 text-[11px] text-slate-500 text-center">Recording never moves money. To reconcile balances, use <Link href="/admin/reconciliation" className="underline underline-offset-2">Reconciliation</Link>.</p>
