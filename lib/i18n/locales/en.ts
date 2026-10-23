@@ -478,6 +478,7 @@ const en = {
       profit: 'Investment return',
       accountDebit: 'Deducted from your account balance',
       adminFee: 'Charged to your account balance',
+      cardFee: 'Card application fee',
       loyaltyReward: 'Issued reward · not an investment return',
       promotionalCredit: 'Promotional credit · not an investment return',
       profitCorrection: 'Correction to your recorded profit balance',
@@ -974,6 +975,7 @@ const en = {
     },
     nav: {
       profitCredits: "Profit credit & debit",
+      cards: "Cards",
       historicalInvestments: "Historical investments",
       payments: "Payments",
       features: "Feature states",
@@ -1259,6 +1261,9 @@ const en = {
   },
   wallet: {
     nav: "Wallet",
+  },
+  cards: {
+    nav: "Cards",
   },
   automations: {
     nav: "Automation",

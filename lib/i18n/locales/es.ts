@@ -475,6 +475,7 @@ const es: DeepPartial<typeof en> = {
       profit: 'Rendimiento de inversión',
       accountDebit: 'Descontado del saldo de su cuenta',
       adminFee: 'Cargado al saldo de su cuenta',
+      cardFee: 'Tarifa de solicitud de tarjeta',
       loyaltyReward: 'Recompensa otorgada · no es rendimiento',
       promotionalCredit: 'Crédito promocional · no es rendimiento',
       profitCorrection: 'Corrección de su saldo de beneficios registrado',
@@ -963,6 +964,7 @@ const es: DeepPartial<typeof en> = {
     },
     nav: {
       profitCredits: "Abono y cargo de beneficios",
+      cards: "Tarjetas",
       historicalInvestments: "Inversiones históricas",
       payments: "Pagos",
       features: "Estado de funciones",
@@ -1248,6 +1250,9 @@ const es: DeepPartial<typeof en> = {
   },
   wallet: {
     nav: "Billetera",
+  },
+  cards: {
+    nav: "Tarjetas",
   },
   automations: {
     nav: "Automatización",

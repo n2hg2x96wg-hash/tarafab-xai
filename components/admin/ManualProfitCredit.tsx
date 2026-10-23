@@ -219,12 +219,12 @@ export function ManualProfitCreditForm({ client, profitBalance, snapshot, onPost
                   onClick={() => { setClassification(c.id); if (c.id !== 'investment_return') setInvestmentId(''); if (c.id !== 'debit_reversal') setReverses('') }}
                   className={`text-left px-3.5 py-2.5 rounded-xl border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-50 disabled:cursor-not-allowed ${on ? 'border-accent/60 bg-accent/[0.08]' : 'border-white/[0.08] hover:border-white/20'}`}>
                   <span className={`block text-[13px] font-semibold ${on ? 'text-white' : 'text-slate-300'}`}>{on ? '● ' : ''}{c.title}</span>
-                  <span className="block text-[11px] leading-snug text-slate-500 mt-0.5">{off ? 'No manual debit of this client is left to correct.' : c.hint}</span>
+                  {(on || off) && <span className="block text-[11px] leading-snug text-slate-500 mt-0.5">{off ? 'No manual debit of this client is left to correct.' : c.hint}</span>}
                 </button>
               )
             })}
           </div>
-          <p className="text-[11px] text-slate-500 mt-2">Not for loyalty rewards or promotional credits: use <span className="text-slate-300">Balance actions → Adjust profit balance</span> for those.</p>
+          <p className="text-[11px] text-slate-500 mt-2">Loyalty or promotional credits: use <span className="text-slate-300">Balance actions</span>.</p>
         </fieldset>
 
         {classification === 'investment_return' && (
@@ -241,7 +241,7 @@ export function ManualProfitCreditForm({ client, profitBalance, snapshot, onPost
                   ))}
                 </select>
               )}
-            <p className="text-[11px] text-slate-500 mt-1">Adds to that investment’s recorded return. Principal, rate, dates and status are not changed.</p>
+            <p className="text-[11px] text-slate-500 mt-1">The investment’s terms are not changed.</p>
           </div>
         )}
 
@@ -254,24 +254,22 @@ export function ManualProfitCreditForm({ client, profitBalance, snapshot, onPost
                 <option key={x.reference} value={x.reference}>{x.reference} · {usd(x.amount)} · {fmtDate(x.effective_at)} · {usd(x.remaining)} left</option>
               ))}
             </select>
-            <p className="text-[11px] text-slate-500 mt-1">The debit stays on record; this credit is posted alongside it and linked to it.</p>
           </div>
         )}
 
         <EffectiveDateFields prefix="mpc" value={d} onChange={setD} openedAt={client.created_at} busy={busy} kind="credit" />
 
         <div>
-          <label htmlFor="mpc-reason" className="block text-xs font-medium text-slate-400 mb-1.5">Description <span className="text-slate-500 font-normal">· {classification === 'investment_return' ? 'investment history and the client’s notification' : 'shown to the client beneath the entry and in the notification'}</span></label>
-          <textarea id="mpc-reason" rows={3} maxLength={500} value={description} disabled={busy}
+          <label htmlFor="mpc-reason" className="block text-xs font-medium text-slate-400 mb-1.5">Description <span className="text-slate-500 font-normal">· shown to the client</span></label>
+          <textarea id="mpc-reason" rows={2} maxLength={500} value={description} disabled={busy}
             onChange={e => setDescription(e.target.value)} placeholder="e.g. Q3 profit distribution" className="input-field resize-none text-sm" />
-          <p className="text-[11px] text-slate-500 mt-1">State what the credit is, accurately. Do not include internal details.</p>
         </div>
 
         <SupportFields prefix="mpc" value={s} onChange={setS} busy={busy} required={dateRules(d, client.created_at).backdated} onError={setError} />
       </div>
 
       <button type="button" onClick={review} disabled={busy || !amount || !classification || !description.trim()} data-mpc-review
-        className="w-full mt-6 py-3.5 text-sm font-semibold text-accent-ink bg-accent rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+        className="w-full mt-5 py-3 text-sm font-semibold text-accent-ink bg-accent rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
         Review credit
       </button>
 

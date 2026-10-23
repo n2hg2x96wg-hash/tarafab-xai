@@ -25,9 +25,10 @@ import { useTheme } from '@/lib/theme/ThemeProvider'
 import {
   IconAlert, IconArrowDown, IconArrowUp, IconChart, IconCheck, IconClose, IconCopy, IconGrid,
   IconEye, IconEyeOff, IconInfo, IconList, IconLogOut, IconMail, IconMenu, IconUser, Logo,
-  IconBell, IconHelp, IconHistory, IconIdCard, IconInbox, IconLock, IconOutbox, IconRadar, IconPie, IconShield, IconSliders, IconSwap, IconTrend, IconWallet,
+  IconBell, IconHelp, IconHistory, IconIdCard, IconInbox, IconLock, IconOutbox, IconRadar, IconPie, IconShield, IconSliders, IconSwap, IconTrend, IconWallet, IconCard,
 } from '@/components/Icons'
 import { WalletTab } from '@/components/dashboard/WalletTab'
+import { CardsTab } from '@/components/dashboard/CardsTab'
 import { AssetCenter } from '@/components/markets/AssetCenter'
 import { AutomationCenter } from '@/components/markets/AutomationCenter'
 import { FeeRows, PremiumCenter, PremiumGateHost, useServiceFee, usePt } from '@/components/premium/Premium'
@@ -107,6 +108,7 @@ const NAV_GROUPS: { label: TKey; items: (NavItem & { core?: boolean })[] }[] = [
     { icon: IconArrowDown, label: 'dash.nav.deposit', id: 'deposit' },
     { icon: IconArrowUp, label: 'dash.nav.withdraw', id: 'withdraw' },
     { icon: IconWallet, label: 'wallet.nav', id: 'wallet' },
+    { icon: IconCard, label: 'cards.nav', id: 'cards' },
     { icon: IconList, label: 'dash.nav.transactions', id: 'transactions' },
     { icon: IconInbox, label: 'nav2.depositHistory', id: 'depositHistory' },
     { icon: IconOutbox, label: 'nav2.withdrawalHistory', id: 'withdrawalHistory' },
@@ -635,6 +637,7 @@ export default function DashboardPage() {
             {activeNav === 'withdraw' && <WithdrawTab account={account} txs={txs} onSuccess={fetchData} />}
             {activeNav === 'profile' && <ProfileTab user={user} account={account} onNickname={n => setUser(u => (u ? { ...u, display_name: n } : u))} onPhone={(phone, phone_country) => setUser(u => (u ? { ...u, phone, phone_country } : u))} />}
             {activeNav === 'wallet' && <WalletTab account={account} />}
+            {activeNav === 'cards' && <CardsTab go={go} onAccountChanged={fetchData} />}
           </ErrorBoundary>
         </main>
       </div>

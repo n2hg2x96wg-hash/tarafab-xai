@@ -475,6 +475,7 @@ const fr: DeepPartial<typeof en> = {
       profit: 'Rendement d\'investissement',
       accountDebit: 'Déduit du solde de votre compte',
       adminFee: 'Prélevé sur le solde de votre compte',
+      cardFee: 'Frais de demande de carte',
       loyaltyReward: 'Récompense accordée · pas un rendement',
       promotionalCredit: 'Crédit promotionnel · pas un rendement',
       profitCorrection: 'Correction de votre solde de profits enregistré',
@@ -963,6 +964,7 @@ const fr: DeepPartial<typeof en> = {
     },
     nav: {
       profitCredits: "Crédit et débit de bénéfices",
+      cards: "Cartes",
       historicalInvestments: "Investissements historiques",
       payments: "Paiements",
       features: "États des fonctionnalités",
@@ -1248,6 +1250,9 @@ const fr: DeepPartial<typeof en> = {
   },
   wallet: {
     nav: "Portefeuille",
+  },
+  cards: {
+    nav: "Cartes",
   },
   automations: {
     nav: "Automatisation",
