@@ -47,7 +47,6 @@ export const IconTrend = (p: P) => <Base {...p}><path d="m3 17 6-6 4 4 8-8" /><p
 export const IconInbox = (p: P) => <Base {...p}><path d="M22 13h-6l-2 3h-4l-2-3H2" /><path d="M5.5 6.5 2 13v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.5" /><path d="M12 2v8M9 7l3 3 3-3" /></Base>
 export const IconOutbox = (p: P) => <Base {...p}><path d="M22 13h-6l-2 3h-4l-2-3H2" /><path d="M5.5 6.5 2 13v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.5" /><path d="M12 10V2M9 5l3-3 3 3" /></Base>
 // Identity card (KYC verification).
-export const IconCard = (p: P) => <Base {...p}><rect x="2" y="5" width="20" height="14" rx="2.5" /><path d="M2 10h20M6 15h4" /></Base>
 export const IconIdCard = (p: P) => <Base {...p}><rect x="2" y="5" width="20" height="14" rx="2" /><circle cx="8.5" cy="11" r="2" /><path d="M5.5 16c.6-1.5 1.8-2.2 3-2.2s2.4.7 3 2.2M14 10h4M14 14h3" /></Base>
 // Radar (market monitoring / automation rules).
 export const IconRadar = (p: P) => <Base {...p}><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><path d="M12 12 18.5 5.5" /><circle cx="12" cy="12" r="1" /></Base>

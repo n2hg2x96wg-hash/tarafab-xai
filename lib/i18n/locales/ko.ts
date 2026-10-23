@@ -478,7 +478,6 @@ const ko: DeepPartial<typeof en> = {
       profit: '투자 수익',
       accountDebit: '계좌 잔액에서 차감됨',
       adminFee: '계좌 잔액에 청구됨',
-      cardFee: '카드 신청 수수료',
       loyaltyReward: '지급된 리워드 · 투자 수익 아님',
       promotionalCredit: '프로모션 크레딧 · 투자 수익 아님',
       profitCorrection: '기록된 수익 잔액 정정',
@@ -967,7 +966,6 @@ const ko: DeepPartial<typeof en> = {
     },
     nav: {
       profitCredits: "수익 입금 및 차감",
-      cards: "카드",
       historicalInvestments: "과거 투자 기록",
       payments: "결제",
       features: "기능 상태",
@@ -1253,9 +1251,6 @@ const ko: DeepPartial<typeof en> = {
   },
   wallet: {
     nav: "지갑",
-  },
-  cards: {
-    nav: "카드",
   },
   automations: {
     nav: "자동화",

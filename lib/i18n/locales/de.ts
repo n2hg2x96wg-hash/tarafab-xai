@@ -475,7 +475,6 @@ const de: DeepPartial<typeof en> = {
       profit: 'Anlageertrag',
       accountDebit: 'Von Ihrem Kontoguthaben abgezogen',
       adminFee: 'Ihrem Kontoguthaben belastet',
-      cardFee: 'Gebühr für den Kartenantrag',
       loyaltyReward: 'Gewährte Prämie · kein Anlageertrag',
       promotionalCredit: 'Aktionsgutschrift · kein Anlageertrag',
       profitCorrection: 'Korrektur Ihres erfassten Gewinnguthabens',
@@ -964,7 +963,6 @@ const de: DeepPartial<typeof en> = {
     },
     nav: {
       profitCredits: "Gewinngutschrift & -belastung",
-      cards: "Karten",
       historicalInvestments: "Historische Investitionen",
       payments: "Zahlungen",
       features: "Funktionsstatus",
@@ -1250,9 +1248,6 @@ const de: DeepPartial<typeof en> = {
   },
   wallet: {
     nav: "Wallet",
-  },
-  cards: {
-    nav: "Karten",
   },
   automations: {
     nav: "Automatisierung",

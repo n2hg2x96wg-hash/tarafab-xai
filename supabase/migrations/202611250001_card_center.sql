@@ -12,6 +12,10 @@
 -- Changing an application's status never moves money.
 --
 -- Rollback: drop the functions and tables below (no other object depends on them).
+--
+-- Status: applied to the database, but no client or admin screen uses it yet
+-- (the Card Center UI was held back from release). Applications are closed
+-- and no fee is set, so these objects are dormant.
 
 create table if not exists public.card_designs (
   id text primary key check (id ~ '^[a-z0-9_-]{2,32}$'),

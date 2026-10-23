@@ -152,8 +152,6 @@ export function txDescription(tx: Tx, t: T): string | null {
     if (r) return r
     return c === 'profit_adjustment' ? t('dash.txDesc.reasonNotRecorded') : t(TX_DESC[c]!)
   }
-  // The Card Center's application fee (reference CRD-…), paid by the client.
-  if (c === 'fee' && tx.method === 'available_balance' && /^CRD-/.test(tx.reference || '')) return t('dash.txDesc.cardFee')
   if (c === 'fee' && tx.method === 'available_balance') return t('dash.txDesc.adminFee')
   const k = TX_DESC[c]
   return k ? t(k) : null
