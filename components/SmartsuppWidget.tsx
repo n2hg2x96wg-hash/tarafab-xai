@@ -60,18 +60,11 @@ export function openSmartsuppChat(timeoutMs = 6000): Promise<boolean> {
   })
 }
 
-// Client-facing live chat. Renders on the landing page, sign-in/up, and
-// dashboard — hidden under /admin, since support chat is for clients
-// reaching out, not for the admin's own panel.
-export default function SmartsuppWidget() {
-  const pathname = usePathname()
-  const [allowed, setAllowed] = useState(false)
-  // Decided once per page load in the browser; later navigation reuses the
-  // already-loaded widget, so moving between pages is never a new visit.
-  useEffect(() => { setAllowed(chatAllowed()) }, [])
-  // Load one second after the page has finished loading. Not 'lazyOnload':
-  // that waits for the browser to be idle, which the homepage's animated
-  // hero can postpone indefinitely on slower devices.
+// True one second after the page has finished loading: when the chat
+// scripts start. Not 'lazyOnload': that waits for the browser to be idle,
+// which the homepage's animated hero can postpone indefinitely on slower
+// devices.
+export function useAfterPageLoad() {
   const [loadNow, setLoadNow] = useState(false)
   useEffect(() => {
     let t: ReturnType<typeof setTimeout> | undefined
@@ -80,17 +73,14 @@ export default function SmartsuppWidget() {
     else window.addEventListener('load', start, { once: true })
     return () => { window.removeEventListener('load', start); if (t) clearTimeout(t) }
   }, [])
-  // Steps the bubble aside while it would cover marked content (see lib/chatAvoid).
-  useEffect(() => startChatAvoid(), [])
-  // Admin → Feature Control Center → Live chat. Not loaded while OFF; if it
-  // is switched OFF after loading, the bubble is hidden without a reload.
-  const feature = useFeatures()
-  const off = hiddenState(feature('live_chat'))
-  const blockedPage = !!pathname?.startsWith('/admin') || isRecoveryPage(pathname)
-  // Homepage: the bubble stays hidden while the hero's Open an account /
-  // Sign in buttons are on screen (on short phones it would sit on them),
-  // and appears once the visitor scrolls past them. One-shot: after that it
-  // stays visible, so an open conversation is never hidden by scrolling.
+  return loadNow
+}
+
+// Homepage: a support bubble stays hidden while the hero's Open an account /
+// Sign in buttons are on screen (on short phones it would sit on them), and
+// appears once the visitor scrolls past them. One-shot: after that it stays
+// visible, so an open conversation is never hidden by scrolling.
+export function useHeroCtaVisible(pathname: string | null) {
   const [heroCta, setHeroCta] = useState(false)
   useEffect(() => {
     if (pathname !== '/' || typeof IntersectionObserver === 'undefined') { setHeroCta(false); return }
@@ -102,6 +92,27 @@ export default function SmartsuppWidget() {
     })
     io.observe(el); return () => io.disconnect()
   }, [pathname])
+  return heroCta
+}
+
+// Client-facing live chat. Renders on the landing page, sign-in/up, and
+// dashboard — hidden under /admin, since support chat is for clients
+// reaching out, not for the admin's own panel.
+export default function SmartsuppWidget() {
+  const pathname = usePathname()
+  const [allowed, setAllowed] = useState(false)
+  // Decided once per page load in the browser; later navigation reuses the
+  // already-loaded widget, so moving between pages is never a new visit.
+  useEffect(() => { setAllowed(chatAllowed()) }, [])
+  const loadNow = useAfterPageLoad()
+  // Steps the bubble aside while it would cover marked content (see lib/chatAvoid).
+  useEffect(() => startChatAvoid(), [])
+  // Admin → Feature Control Center → Customer support → Smartsupp. Not loaded while OFF; if it
+  // is switched OFF after loading, the bubble is hidden without a reload.
+  const feature = useFeatures()
+  const off = hiddenState(feature('live_chat'))
+  const blockedPage = !!pathname?.startsWith('/admin') || isRecoveryPage(pathname)
+  const heroCta = useHeroCtaVisible(pathname)
   useEffect(() => {
     if (!allowed) return
     // The loader runs lazily: wait (briefly) for Smartsupp's command queue.

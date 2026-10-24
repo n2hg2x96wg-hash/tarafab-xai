@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { cookies } from 'next/headers'
 import SmartsuppWidget from '@/components/SmartsuppWidget'
+import ChatwayWidget from '@/components/ChatwayWidget'
 import SessionGuard from '@/components/SessionGuard'
 import { ToastProvider } from '@/components/Toast'
 import { I18nProvider } from '@/lib/i18n/I18nProvider'
@@ -52,6 +53,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               {children}
             </ToastProvider>
             <SmartsuppWidget />
+            <ChatwayWidget />
             <SessionGuard />
           </I18nProvider>
         </ThemeProvider>
