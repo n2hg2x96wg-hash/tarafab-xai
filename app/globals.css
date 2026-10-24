@@ -1344,6 +1344,19 @@ button.ovx-row:focus-visible { outline: none; box-shadow: inset 0 0 0 2px rgb(va
 /* Support bubble steps aside while it would cover marked content (lib/chatAvoid). */
 #chat-application { transition: opacity .18s ease, visibility .18s; }
 body.chat-avoid #chat-application { opacity: 0 !important; visibility: hidden !important; pointer-events: none !important; }
+/* Chatway (components/ChatwayWidget): the same spot as Smartsupp — 16px from
+   the side, above the dashboard's bottom bar below 1024px — on the right when
+   it is the only chat, bottom-left when Smartsupp is also ON (html.cw-left),
+   so the two bubbles never overlap. The widget sets its own inline position;
+   these override it. An open Chatway window keeps Chatway's own layout. */
+.chatway--trigger-container { right: 16px !important; left: auto !important; bottom: 20px !important; transition: opacity .18s ease, visibility .18s; }
+@media (max-width: 1023px) { .chatway--trigger-container { bottom: calc(76px + env(safe-area-inset-bottom)) !important; } }
+html.cw-left .chatway--trigger-container { left: 16px !important; right: auto !important; }
+@media (min-width: 601px) { html.cw-left .chatway--frame-container { left: 16px !important; right: auto !important; } }
+html.cw-hide .chatway--container { display: none !important; }
+html:not(.cw-left) body.chat-avoid .chatway--trigger-container,
+html.cw-left body.chat-avoid-left .chatway--trigger-container,
+body.dialog-open .chatway--trigger-container { opacity: 0 !important; visibility: hidden !important; pointer-events: none !important; }
 /* Landing page: one button shape (matching the signed-in app and auth). */
 .lp .btn { border-radius: 12px; }
 .lp .btn-sm { border-radius: 10px; }

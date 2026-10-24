@@ -13,6 +13,7 @@ import { TextSizeSelector } from '@/components/TextSizeSelector'
 import { FormError, Spinner } from '@/components/AuthShell'
 import { IconChart, IconCheck, IconHelp, IconInfo, IconMail } from '@/components/Icons'
 import { openSmartsuppChat } from '@/components/SmartsuppWidget'
+import { openChatwayChat } from '@/components/ChatwayWidget'
 import {
   EmptyState, OPEN_STATUSES, SettingsRow, SettingsSection, StatusTag, SUPPORT_EMAIL, TxIcon, fmt, methodLabel, txDescription, txLabel,
   type Account, type Tx, type UserInfo,
@@ -228,10 +229,11 @@ export function SupportTab() {
   const { t } = useI18n()
   const [chatMissing, setChatMissing] = useState(false)
   const openChat = async () => {
-    // The site's live chat (Smartsupp). It may still be starting:
-    // openSmartsuppChat waits for it rather than reporting chat as unavailable.
+    // The site's live chat: Smartsupp, or Chatway when only Chatway is ON.
+    // It may still be starting: both wait for it rather than reporting chat
+    // as unavailable.
     setChatMissing(false)
-    if (await openSmartsuppChat()) return
+    if (await openSmartsuppChat() || await openChatwayChat()) return
     setChatMissing(true)
   }
   // One list of support routes (rows, not cards). Email is the primary route

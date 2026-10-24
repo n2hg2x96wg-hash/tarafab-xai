@@ -91,6 +91,15 @@ export default function AdminPage() {
 
   const [loadError, setLoadError] = useState('')
   const [reload, setReload] = useState(0)
+  // Support chat switches (Feature Control Center → Customer support).
+  const [chat, setChat] = useState<Record<string, string> | null>(null)
+  useEffect(() => {
+    let alive = true
+    ;(supabase.from('feature_flags') as any).select('key, state').in('key', ['live_chat', 'chatway']).then(({ data, error }: { data: { key: string; state: string }[] | null; error: unknown }) => {
+      if (alive && !error) setChat(Object.fromEntries((data || []).map(r => [r.key, r.state])))
+    })
+    return () => { alive = false }
+  }, [supabase, reload])
 
   // Debounced: one query after typing pauses, not one per keystroke.
   useEffect(() => { const t = setTimeout(() => setTerm(search.trim()), 300); return () => clearTimeout(t) }, [search])
@@ -160,6 +169,13 @@ export default function AdminPage() {
         tone: s.gateway_key ? 'ok' : 'warn',
         detail: s.gateway_key ? 'Server key configured' : 'Server key not set — Premium checkout is unavailable' },
       { label: 'Audit trail', href: '/admin/audit-logs', tone: 'ok', detail: `${s.audit_24h} events in the last 24 hours` },
+      ...(chat ? [(() => {
+        // Same rule as the site: anything but disabled / unavailable / admin only loads the widget.
+        const on = (st?: string) => !['disabled', 'unavailable', 'admin_only'].includes(st || 'enabled')
+        const ss = on(chat.live_chat), cw = on(chat.chatway)
+        return { label: 'Customer support chat', href: '/admin/features#support', tone: (ss || cw ? 'ok' : 'idle') as Tone,
+          detail: `Smartsupp ${ss ? 'ON' : 'OFF'} · Chatway ${cw ? 'ON' : 'OFF'}` }
+      })()] : []),
     ]
   })() : []
 

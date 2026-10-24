@@ -7,7 +7,7 @@ import type { FeatureKey, FeatureState } from '@/lib/features'
 // The state always comes from the server (never stored in localStorage or
 // sessionStorage) and is re-checked when the tab regains focus and every
 // minute while visible, so an admin change reaches open sessions without a
-// reload. Until the first answer arrives, Premium and Live chat are treated as hidden (it
+// reload. Until the first answer arrives, Premium and both live chats are treated as hidden (it
 // must never flash on when switched off); other modules stay visible so a
 // network blip never hides core features.
 let cache: { v: Partial<Record<FeatureKey, FeatureState>>; at: number; ok: boolean; p?: Promise<void> } = { v: {}, at: 0, ok: false }
@@ -22,7 +22,7 @@ async function load() {
 }
 export function refreshFeatures() { cache.p = load(); return cache.p }
 
-const STRICT: FeatureKey[] = ['premium', 'live_chat']
+const STRICT: FeatureKey[] = ['premium', 'live_chat', 'chatway']
 let wired = false
 function wire() {
   if (wired || typeof window === 'undefined') return

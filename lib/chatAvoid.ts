@@ -1,12 +1,14 @@
 'use client'
 
-// Keeps the floating support bubble (Smartsupp) off content that matters.
+// Keeps the floating support bubbles (Smartsupp, Chatway) off content that matters.
 // Anything marked data-chat-avoid (forms, the dashboard's quick actions, the
 // landing page's automation demonstration) hides the collapsed bubble while
 // it sits under the bubble's spot, and the bubble returns as soon as it
 // scrolls away. An open conversation is never hidden. The spot matches the
 // widget's own offsets (see SmartsuppWidget): 16px from the right, and 76px
-// plus the safe area from the bottom below 1024px (20px above).
+// plus the safe area from the bottom below 1024px (20px above). When Chatway
+// sits in the mirrored bottom-left spot (html.cw-left), that spot is checked
+// too and toggles body.chat-avoid-left.
 export function startChatAvoid(): () => void {
   if (typeof window === 'undefined') return () => {}
   let sa = 0
@@ -19,15 +21,23 @@ export function startChatAvoid(): () => void {
   const check = () => {
     raf = 0
     const W = window.innerWidth, H = window.innerHeight, off = W < 1024 ? 76 + sa : 20
-    const z = { left: W - 16 - 64 - 12, right: W, top: H - off - 64 - 12, bottom: H - off + 12 }
+    const top = H - off - 64 - 12, bottom = H - off + 12
+    const zr = { left: W - 16 - 64 - 12, right: W, top, bottom }
+    const zl = { left: 0, right: 16 + 64 + 12, top, bottom }
     const chat = document.getElementById('chat-application')
     const open = (!!chat && chat.getBoundingClientRect().height > 200) || !!window.Tawk_API?.isChatMaximized?.()
-    let hit = false
+      || !!document.querySelector('.chatway--container.widget--open')
+    const left = document.documentElement.classList.contains('cw-left')
+    let hit = false, hitLeft = false
     if (!open) for (const el of Array.from(document.querySelectorAll<HTMLElement>('[data-chat-avoid]'))) {
       const r = el.getBoundingClientRect()
-      if (r.width && r.height && r.left < z.right && z.left < r.right && r.top < z.bottom && z.top < r.bottom) { hit = true; break }
+      if (!r.width || !r.height || !(r.top < bottom && top < r.bottom)) continue
+      if (r.left < zr.right && zr.left < r.right) hit = true
+      if (left && r.left < zl.right && zl.left < r.right) hitLeft = true
+      if (hit && (hitLeft || !left)) break
     }
     document.body.classList.toggle('chat-avoid', hit)
+    document.body.classList.toggle('chat-avoid-left', hitLeft)
   }
   const req = () => { if (!raf) raf = requestAnimationFrame(check) }
   window.addEventListener('scroll', req, { passive: true })
@@ -38,6 +48,6 @@ export function startChatAvoid(): () => void {
   return () => {
     window.removeEventListener('scroll', req); window.removeEventListener('resize', req); window.clearInterval(timer)
     if (raf) cancelAnimationFrame(raf)
-    document.body.classList.remove('chat-avoid')
+    document.body.classList.remove('chat-avoid', 'chat-avoid-left')
   }
 }

@@ -35,8 +35,15 @@ const CONTROLS: { key: string; label: string; hint: string }[] = [
   { key: 'verification', label: 'Verification', hint: 'KYC section' },
   { key: 'announcements', label: 'Announcements', hint: 'Notifications and team announcements' },
   { key: 'support', label: 'Support / contact', hint: 'Support section' },
-  { key: 'live_chat', label: 'Live chat', hint: 'Smartsupp chat bubble for clients and visitors' },
   { key: 'wallet_transfer', label: 'Transfer to Tarafab', hint: 'External wallet transfers' },
+]
+// Customer support chat: each widget has its own switch. OFF = its script is
+// never loaded on the public site or dashboard (and is removed from pages
+// already open within about a minute). Both ON: Smartsupp bottom-right,
+// Chatway bottom-left, so they never overlap.
+const SUPPORT: { key: string; label: string; hint: string }[] = [
+  { key: 'live_chat', label: 'Smartsupp live chat', hint: 'Smartsupp chat bubble · bottom-right' },
+  { key: 'chatway', label: 'Chatway live chat', hint: 'Chatway chat bubble · bottom-right, or bottom-left when Smartsupp is also ON' },
 ]
 const isOn = (state: string | undefined) => !state || !['disabled', 'unavailable', 'admin_only'].includes(state)
 
@@ -84,6 +91,44 @@ export default function AdminFeaturesPage() {
   return (
     <AdminLayout title="Feature Control Center" subtitle="What clients can see and use — enforced by the server and database">
       {error && <AdminLoadError message={error} onRetry={() => setReload(n => n + 1)} />}
+      <section id="support" className="glass rounded-2xl border border-white/[0.08] p-4 mb-5 scroll-mt-20" aria-labelledby="fc-support" data-support-channels>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 id="fc-support" className="text-sm font-semibold text-white">Customer support</h2>
+          {rows && (() => {
+            const live = SUPPORT.filter(c => isOn(rows.find(f => f.key === c.key)?.state))
+            return (
+              <p className={`text-xs font-medium ${live.length ? 'text-emerald-400' : 'text-amber-300'}`} data-support-summary role="status">
+                {live.length ? `Live on the website: ${live.map(c => c.label.replace(' live chat', '')).join(' and ')}` : 'No live chat on the website — clients can still email support'}
+              </p>
+            )
+          })()}
+        </div>
+        <p className="mt-1 mb-3 text-xs text-slate-400">Turn each chat widget ON or OFF independently. OFF means its script is not loaded at all for visitors and clients. Chat never appears on admin pages.</p>
+        {!rows ? <p className="text-xs text-slate-500">Loading…</p> : (
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {SUPPORT.map(c => {
+              const row = rows.find(f => f.key === c.key)
+              const on = isOn(row?.state)
+              return (
+                <li key={c.key} className={`flex items-center gap-3 rounded-xl border px-3 py-3 ${on ? 'border-emerald-400/25 bg-emerald-400/[0.04]' : 'border-white/[0.06] bg-white/[0.02]'}`}>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-white flex flex-wrap items-center gap-x-2">{c.label}
+                      <span className={`inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide ${on ? 'text-emerald-400' : 'text-red-300/80'}`} data-flag-status={c.key}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${on ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,.8)]' : 'bg-red-400/70'}`} aria-hidden="true" />{on ? 'Live' : 'Off'}</span></p>
+                    <p className="text-[11px] text-slate-500">{c.hint}</p>
+                    {row && <p className="text-[10.5px] text-slate-600 truncate">Changed {fmtWhen(row.updated_at)}{row.updated_by ? ` by ${who[row.updated_by] || 'an admin'}` : ''}</p>}
+                  </div>
+                  <button role="switch" aria-checked={on} aria-label={`${c.label}: ${on ? 'ON' : 'OFF'}`} disabled={!row} onClick={() => { setFormErr(''); setTog({ key: c.key, label: c.label, on: !on, reason: '' }) }}
+                    className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors disabled:opacity-40 ${on ? 'bg-emerald-500/80' : 'bg-slate-600/60'}`}>
+                    <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${on ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                  <span className={`w-8 text-[11px] font-semibold ${on ? 'text-emerald-400' : 'text-slate-500'}`}>{on ? 'ON' : 'OFF'}</span>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </section>
       <section className="glass rounded-2xl border border-white/[0.08] p-4 mb-5" aria-labelledby="fc-title">
         <h2 id="fc-title" className="text-sm font-semibold text-white">Client Dashboard Feature Controls</h2>
         <p className="mt-1 mb-3 text-xs text-slate-400">ON = visible to clients. OFF = hidden from clients and refused by the server. Switching OFF never deletes data; switching back ON restores it immediately.</p>
@@ -119,7 +164,7 @@ export default function AdminFeaturesPage() {
         {!history ? <p className="text-xs text-slate-500">Loading…</p> : !history.length ? <p className="text-xs text-slate-500">No changes recorded yet.</p> : (
           <ol className="divide-y divide-white/[0.06]" data-flag-history>
             {history.map(h => {
-              const label = CONTROLS.find(c => c.key === h.entity_id)?.label || h.entity_id
+              const label = [...SUPPORT, ...CONTROLS].find(c => c.key === h.entity_id)?.label || h.entity_id
               const b = h.details?.before?.state, a = h.details?.after?.state
               return (
                 <li key={h.id} className="py-2 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-xs">
@@ -135,7 +180,9 @@ export default function AdminFeaturesPage() {
       </section>
       {tog && (
         <AdminModal title={`${tog.on ? 'Show' : 'Hide'} ${tog.label} ${tog.on ? 'to' : 'from'} clients`} saveLabel={tog.on ? 'Turn ON' : 'Turn OFF'} busy={busy} err={formErr} onClose={() => setTog(null)} onSave={saveToggle}>
-          <p className="text-xs text-slate-400">{tog.on ? 'Clients will see and can use this feature again, with all its existing data.' : 'Clients will no longer see this feature, and the server will refuse its actions. No data is deleted.'}</p>
+          <p className="text-xs text-slate-400">{SUPPORT.some(c => c.key === tog.key)
+            ? (tog.on ? 'The chat widget will load for visitors and clients on the website and dashboard (not on admin pages). Conversations stay in your chat provider account.' : 'The chat widget will no longer load on the website or dashboard. Your chat provider account and its conversations are not affected.')
+            : (tog.on ? 'Clients will see and can use this feature again, with all its existing data.' : 'Clients will no longer see this feature, and the server will refuse its actions. No data is deleted.')}</p>
           <Field label="Reason (audit log)"><input className="w-full rounded-lg bg-white/[0.04] border border-white/[0.1] px-3 py-2 text-sm text-white" value={tog.reason} onChange={e => setTog({ ...tog, reason: e.target.value })} /></Field>
         </AdminModal>
       )}
