@@ -27,10 +27,15 @@ export async function limitAnon(checks: Check[]): Promise<NextResponse | null> {
     const blocked = results.findIndex(r => r.data === false)
     for (const r of results) if (r.error) console.error('anon rate check failed:', r.error.message)
     if (blocked >= 0) {
-      const wait = Math.ceil(checks[blocked].windowS / 60)
+      // anon_rate_check counts in fixed windows aligned to the clock
+      // (floor(now / window) * window), so the block lifts exactly when the
+      // current window ends; +1s covers clock differences with the database.
+      const w = checks[blocked].windowS
+      const retryAfter = w - (Math.floor(Date.now() / 1000) % w) + 1
+      const wait = Math.ceil(retryAfter / 60)
       return NextResponse.json(
-        { error: `Too many attempts. Please wait ${wait} minutes and try again.` },
-        { status: 429, headers: { 'Retry-After': String(checks[blocked].windowS) } },
+        { error: `Too many attempts. Please wait ${wait} minute${wait === 1 ? '' : 's'} and try again.`, code: 'RATE_LIMITED', retryAfter },
+        { status: 429, headers: { 'Retry-After': String(retryAfter) } },
       )
     }
   } catch (e) { console.error('anon rate check failed:', e instanceof Error ? e.message : e) }

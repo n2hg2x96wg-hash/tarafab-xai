@@ -5,12 +5,13 @@ import Link from 'next/link'
 import { useI18n } from '@/lib/i18n/I18nProvider'
 import { createClient } from '@/lib/supabase/client'
 import { authReturnBase } from '@/lib/site'
-import { AuthShell, FormError, Spinner, useSingleFlight } from '@/components/AuthShell'
+import { AuthShell, FieldError, FormError, IconMail, Notice, Spinner, isEmail, useSingleFlight } from '@/components/AuthShell'
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [emailErr, setEmailErr] = useState('')
   const [sent, setSent] = useState(false)
   const { t } = useI18n()
 
@@ -20,6 +21,7 @@ export default function ForgotPasswordPage() {
     e.preventDefault()
     return once(async () => {
       setError('')
+      if (!email.trim() || !isEmail(email)) { setEmailErr(t(!email.trim() ? 'authx.errEmail' : 'authx.errEmailFormat')); document.getElementById('email')?.focus(); return }
       setLoading(true)
       try {
         const { error: err } = await createClient().auth.resetPasswordForEmail(email.trim(), {
@@ -45,7 +47,7 @@ export default function ForgotPasswordPage() {
   if (sent) {
     return (
       <AuthShell title={t('auth.checkEmail')} subtitle={t('auth.resetSent', { email: email.trim() })}>
-        <p className="text-[15px] text-fg-muted leading-relaxed">{t('auth.resetSentBody')}</p>
+        <Notice tone="info" icon={IconMail} data-reset-sent>{t('auth.resetSentBody')}</Notice>
         <Link href="/sign-in" className="btn btn-outline w-full mt-6">{t('auth.backToSignIn')}</Link>
       </AuthShell>
     )
@@ -55,15 +57,17 @@ export default function ForgotPasswordPage() {
     <AuthShell
       title={t('auth.resetTitle')}
       subtitle={t('auth.resetSubtitle')}
-      footer={<Link href="/sign-in" className="text-fg underline underline-offset-4 hover:text-accent">{t('auth.backToSignIn')}</Link>}
+      footer={<Link href="/sign-in" className="auth-footer-link">{t('auth.backToSignIn')}</Link>}
     >
       <form onSubmit={handleSubmit} className="space-y-5" noValidate>
         {error && <FormError message={error} />}
         <div>
           <label htmlFor="email" className="field-label">{t('common.email')}</label>
-          <input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" className="field" disabled={loading} />
+          <input id="email" type="email" inputMode="email" value={email} onChange={e => { setEmail(e.target.value); setEmailErr('') }} required autoComplete="email"
+            className={`field ${emailErr ? 'field-error' : ''}`} disabled={loading} aria-invalid={emailErr ? true : undefined} aria-describedby={emailErr ? 'email-error' : undefined} />
+          {emailErr && <FieldError id="email-error" message={emailErr} />}
         </div>
-        <button type="submit" disabled={loading || !email.trim()} className="btn btn-solid w-full" aria-busy={loading}>
+        <button type="submit" disabled={loading} className="btn btn-solid w-full" aria-busy={loading}>
           {loading ? <><Spinner />{t('common.sending')}</> : t('auth.sendLink')}
         </button>
       </form>
