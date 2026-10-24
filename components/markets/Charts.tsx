@@ -42,14 +42,14 @@ export function Sparkline({ points, up, className = '' }: { points: [number, num
   )
 }
 
-export function AreaChart({ points, up, format, label, overlays = [] }: { points: [number, number][]; up: boolean | null; format: (n: number) => string; label: string; overlays?: Overlay[] }) {
+export function AreaChart({ points, up, format, label, overlays = [], color, dateFormat }: { points: [number, number][]; up: boolean | null; format: (n: number) => string; label: string; overlays?: Overlay[]; color?: string; dateFormat?: (ms: number) => string }) {
   const id = useId()
   const W = 600, H = 220
   const { line, area, xy, sx, sy } = useMemo(() => path(points, W, H, 8), [points])
   const lines = useMemo(() => overlays.map(o => ({ ...o, d: o.values.map((v, i) => (v == null ? '' : `${o.values[i - 1] == null ? 'M' : 'L'}${sx(points[i][0]).toFixed(1)},${sy(v).toFixed(1)}`)).join('') })), [overlays, points, sx, sy])
   const [hover, setHover] = useState<number | null>(null)
   if (!line) return null
-  const c = up == null ? 'rgb(var(--fg-muted))' : up ? 'rgb(var(--success-400))' : 'rgb(var(--danger-400))'
+  const c = color || (up == null ? 'rgb(var(--fg-muted))' : up ? 'rgb(var(--success-400))' : 'rgb(var(--danger-400))')
   const onMove = (e: React.PointerEvent<SVGSVGElement>) => {
     const r = e.currentTarget.getBoundingClientRect(); const x = ((e.clientX - r.left) / r.width) * W
     let best = 0; for (let i = 1; i < xy.length; i++) if (Math.abs(xy[i][0] - x) < Math.abs(xy[best][0] - x)) best = i
@@ -73,7 +73,7 @@ export function AreaChart({ points, up, format, label, overlays = [] }: { points
       )}
       {h && (
         <div className="pointer-events-none absolute top-2 left-2 rounded-md border border-ink-700 bg-ink-900/90 px-2 py-1 text-[12px] tabular-nums text-fg">
-          {format(h[1])} <span className="text-fg-faint">· {new Date(h[0]).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+          {format(h[1])} <span className="text-fg-faint">· {dateFormat ? dateFormat(h[0]) : new Date(h[0]).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
         </div>
       )}
     </div>

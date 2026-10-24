@@ -1568,3 +1568,72 @@ html[data-text="large"] .text-\[14\.5px\] { font-size: 16.5px; }
 html[data-text="large"] .text-\[15px\] { font-size: 17px; }
 html[data-text="large"] .text-xs { font-size: 14px; line-height: 1.45; }
 html[data-text="large"] .text-sm { font-size: 16px; line-height: 1.5; }
+
+/* ---------------------------------------------------------------------------
+   Client dashboard: violet atmosphere (html.dash-violet; tokens in
+   app/tokens.css). Lighting is a fixed, non-interactive layer behind the
+   content, so it never affects scrolling, clicks or focus. Bitcoin's own
+   orange (coin marks, BTC market panel) and Premium gold keep their meaning.
+   ------------------------------------------------------------------------ */
+html.dash-violet .cc-app { position: relative; isolation: isolate; }
+html.dash-violet .cc-app::before { content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(55% 38% at 72% -6%, rgb(var(--accent) / .17), transparent 72%),
+    radial-gradient(38% 30% at 18% 0%, rgb(var(--accent-hover) / .06), transparent 70%),
+    radial-gradient(45% 35% at 100% 100%, rgb(var(--accent) / .06), transparent 70%); }
+html.dash-violet[data-theme="light"] .cc-app::before { opacity: .55; }
+
+/* Available balance: the focal card, with a soft violet light and an edge glow. */
+html.dash-violet .ovx-stat-available {
+  border-color: rgb(var(--accent-hover) / .32);
+  background:
+    radial-gradient(110% 120% at 100% 0%, rgb(var(--accent) / .30), transparent 58%),
+    radial-gradient(80% 90% at 0% 100%, rgb(var(--accent-hover) / .09), transparent 62%),
+    linear-gradient(180deg, rgb(var(--contrast) / .05), rgb(var(--contrast) / .01)), rgb(var(--ink-900));
+  box-shadow: inset 0 1px 0 rgb(var(--contrast) / .08), 0 0 0 1px rgb(var(--accent) / .10), 0 26px 60px -30px rgb(var(--accent) / .7); }
+html.dash-violet .ovx-stat-available::after { content: ''; position: absolute; left: 14%; right: 14%; top: -1px; height: 1px; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgb(var(--accent-hover) / .95), transparent); box-shadow: 0 0 12px 1px rgb(var(--accent-hover) / .55); }
+html.dash-violet[data-theme="light"] .ovx-stat-available { box-shadow: inset 0 1px 0 rgb(255 255 255 / .6), 0 18px 40px -26px rgb(var(--accent) / .45); }
+
+/* Cards: quiet dark surfaces with a faint violet top light; a gentle lift on
+   hover where a mouse is used. */
+html.dash-violet .cc-app .panel, html.dash-violet .ovx-stat:not(.ovx-stat-available) {
+  background: radial-gradient(120% 60% at 50% -20%, rgb(var(--accent) / .05), transparent 60%), linear-gradient(180deg, rgb(var(--contrast) / .04), rgb(var(--contrast) / .01) 45%, transparent), rgb(var(--ink-900) / .94); }
+@media (hover: hover) and (min-width: 1024px) and (prefers-reduced-motion: no-preference) {
+  html.dash-violet .ovx-stat, html.dash-violet .ovx-card { transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease; }
+  html.dash-violet .ovx-stat:hover, html.dash-violet .ovx-card:hover { transform: translateY(-2px); border-color: rgb(var(--accent-hover) / .2); }
+}
+
+/* Returns history chart */
+.ovx-ret-chart svg.w-full { height: 190px; }
+@media (min-width: 640px) { .ovx-ret-chart svg.w-full { height: 220px; } }
+.ovx-ret-empty-icon { width: 38px; height: 38px; flex-shrink: 0; border-radius: 12px; display: grid; place-items: center; color: rgb(var(--accent-text)); background: rgb(var(--accent) / .12); box-shadow: inset 0 0 0 1px rgb(var(--accent) / .28); }
+
+/* Sidebar: the current section glows violet. */
+html.dash-violet .cc-drawer .nav-item-on { background: linear-gradient(90deg, rgb(var(--accent) / .24), rgb(var(--accent) / .06) 70%, transparent); box-shadow: inset 0 0 0 1px rgb(var(--accent-hover) / .3), 0 8px 24px -14px rgb(var(--accent) / .8); }
+html.dash-violet .cc-drawer .nav-item-on .cc-navicon { color: rgb(var(--fg)); background: linear-gradient(180deg, rgb(var(--accent-hover)), rgb(var(--accent))); box-shadow: 0 4px 14px -4px rgb(var(--accent) / .8); }
+
+/* Section banners and the investment flow used Bitcoin orange as their
+   accent; on the dashboard they follow the violet palette. */
+html.dash-violet .ovx-hero {
+  --ink-950: 8 7 12; --ink-900: 21 17 30; --ink-850: 26 21 37; --ink-800: 32 26 46; --ink-700: 43 35 60; --ink-600: 58 47 80;
+  --fg: 248 247 251; --fg-muted: 180 171 192; --fg-faint: 140 131 155; --accent-text: 186 120 255;
+  background: radial-gradient(70% 120% at 0% 100%, rgb(139 25 245 / .16), transparent 60%), #0b0912; border-color: rgb(179 106 255 / .14); }
+html.dash-violet .sx-hero-backdrop, html.dash-violet .ovx-hero-art { filter: hue-rotate(235deg) saturate(1.15); }
+html.dash-violet .sx-hero-icon, html.dash-violet .ovx-hero-icon { color: rgb(196 150 255);
+  background: linear-gradient(180deg, rgb(139 25 245 / .3), rgb(139 25 245 / .1)); box-shadow: inset 0 0 0 1px rgb(179 106 255 / .4), 0 10px 24px -12px rgb(139 25 245 / .7); }
+html.dash-violet .inv2-badge { color: rgb(var(--accent-text)); background: linear-gradient(145deg, rgb(var(--accent-hover) / .24), rgb(var(--accent) / .08)); box-shadow: inset 0 0 0 1px rgb(var(--accent-hover) / .45), 0 6px 20px -10px rgb(var(--accent) / .6); }
+html.dash-violet .inv2-steps li.is-now .inv2-step-dot, html.dash-violet .inv2-steps li.is-done .inv2-step-dot { color: #fff; background: radial-gradient(circle at 35% 30%, rgb(var(--accent-hover)), rgb(var(--accent)) 70%); box-shadow: 0 0 0 4px rgb(var(--accent) / .2); }
+html.dash-violet .inv2-bar > span { background: linear-gradient(90deg, rgb(var(--accent)), rgb(var(--accent-hover))); }
+html.dash-violet .inv2-done-ring { color: rgb(var(--accent-hover)); background: radial-gradient(circle, rgb(var(--accent) / .22), transparent 70%); box-shadow: inset 0 0 0 3px rgb(var(--accent-hover) / .85), 0 0 40px rgb(var(--accent) / .4); }
+html.dash-violet .inv2-done-ring.is-pending { color: #fcd34d; box-shadow: inset 0 0 0 3px rgb(252 211 77 / .6), 0 0 28px rgb(252 211 77 / .2); }
+
+/* Entrance: cards rise in once; nothing animates for reduced-motion users. */
+@media (prefers-reduced-motion: no-preference) {
+  html.dash-violet .ovx > * { animation: dvRise .45s cubic-bezier(.2,.7,.2,1) backwards; }
+  html.dash-violet .ovx > *:nth-child(2) { animation-delay: .04s; }
+  html.dash-violet .ovx > *:nth-child(3) { animation-delay: .08s; }
+  html.dash-violet .ovx > *:nth-child(4) { animation-delay: .12s; }
+  html.dash-violet .ovx > *:nth-child(n+5) { animation-delay: .16s; }
+}
+@keyframes dvRise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }

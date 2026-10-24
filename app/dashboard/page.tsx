@@ -44,7 +44,9 @@ import { ReceiptField } from '@/components/dashboard/ReceiptField'
 import { isAllowedUpload, MAX_UPLOAD_BYTES, prepareUpload } from '@/lib/uploadFile'
 import { VerificationTab } from '@/components/dashboard/VerificationTab'
 import { useToast } from '@/components/Toast'
-import { InvestmentCenter } from '@/components/dashboard/InvestmentCenter'
+import { InvestmentCenter, InvestmentsMini } from '@/components/dashboard/InvestmentCenter'
+import { ReturnsChart } from '@/components/dashboard/ReturnsChart'
+import { fmtMoney, useDisplayPricing } from '@/components/premium/Pricing'
 import { HeroChips, NextSteps, OverviewHero } from '@/components/dashboard/OverviewParts'
 import { AutomationStatusPanel, BtcMarketPanel, WatchlistPanel, useClockText } from '@/components/dashboard/OverviewPro'
 import { ConfirmModal } from '@/components/ConfirmModal'
@@ -314,7 +316,11 @@ export default function DashboardPage() {
     // Lets the stylesheet lift the support chat bubble above the phone
     // bottom bar while the dashboard is open.
     document.body.classList.add('has-bottom-nav')
-    return () => document.body.classList.remove('has-bottom-nav')
+    // The client dashboard's violet palette (app/tokens.css). On <html> so
+    // sheets and dialogs rendered outside the shell share it; the public site
+    // and admin keep their own colours.
+    document.documentElement.classList.add('dash-violet')
+    return () => { document.body.classList.remove('has-bottom-nav'); document.documentElement.classList.remove('dash-violet') }
   }, [])
   const toggleCollapsed = () => setCollapsed(c => {
     try { localStorage.setItem('tarafab.sidebarCollapsed', c ? '0' : '1') } catch { /* ignore */ }
@@ -614,7 +620,7 @@ export default function DashboardPage() {
           {/* Pages without their own title get the shared intro (menu label + one line). */}
           {current && INTRO_SUB[activeNav] !== undefined && <PageIntro title={labelOf(current)} sub={INTRO_SUB[activeNav] ? t(INTRO_SUB[activeNav] as TKey) : undefined} icon={<current.icon width={20} height={20} />} />}
           <ErrorBoundary key={activeNav} label={current ? labelOf(current) : undefined}>
-            {activeNav === 'overview' && <OverviewTab onOpenAsset={id => { setMarketAsset(id); go('markets') }} whatsNew={whatsNewNode} name={displayName} account={account} txs={txs} go={go} can={id => !hiddenNav.includes(id)} labelOf={labelOf} />}
+            {activeNav === 'overview' && <OverviewTab onOpenAsset={id => { setMarketAsset(id); go('markets') }} whatsNew={whatsNewNode} name={displayName} account={account} txs={txs} hasMore={hasMore} go={go} can={id => !hiddenNav.includes(id)} labelOf={labelOf} />}
             {activeNav === 'markets' && <div className="space-y-6"><AssetCenter openAsset={marketAsset} onOpened={() => setMarketAsset(null)} onAutomate={id => { setAutoAsset(id); go('automations') }} /><MarketsTab /></div>}
             {soon(activeNav) && <StateView state="unavailable" title={pt('ft.soon')} body={pt('ft.comingSoon')} />}
             {activeNav === 'automations' && !soon('automations') && !hiddenNav.includes('automations') && <AutomationCenter presetAsset={autoAsset} onPresetUsed={() => setAutoAsset(null)} />}
@@ -796,7 +802,7 @@ function KycChip({ go }: { go: (id: string) => void }) {
    ($1.23M, truncated, never rounded up); tapping it shows the exact amount,
    which is also in its tooltip and read out by screen readers. Amounts can
    be hidden on screen (display only, remembered on this device). */
-type Figure = { key: string; label: TKey; value: number | null; text?: string; sub: ReactNode; state?: string; icon: Icon; tone: string; onOpen?: () => void }
+type Figure = { key: string; label: TKey; value: number | null; text?: string; sub: ReactNode; extra?: ReactNode; state?: string; icon: Icon; tone: string; onOpen?: () => void }
 function OverviewFigure({ f, main, loading, hidden, onToggleHidden, className = '' }: { f: Figure; main: boolean; loading: boolean; hidden: boolean; onToggleHidden?: () => void; className?: string }) {
   const { t } = useI18n()
   const [exact, setExact] = useState(false)
@@ -836,6 +842,7 @@ function OverviewFigure({ f, main, loading, hidden, onToggleHidden, className = 
         ) : figure}
       </dd>
       {f.sub && <dd className="mt-2 text-[11.5px] sm:text-[12px] leading-snug text-fg-faint line-clamp-2 break-words" data-profit-state={f.key === 'profit' ? f.state : undefined} data-pending-state={f.key === 'pending' ? f.state : undefined}>{f.sub}</dd>}
+      {f.extra && <dd className="mt-1.5 text-[11.5px] sm:text-[12px] leading-snug text-fg-faint tabular-nums break-words">{f.extra}</dd>}
       {f.onOpen && <button type="button" onClick={f.onOpen} className="absolute inset-0 rounded-[inherit] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60" aria-label={`${t(f.label)}: ${t('common.viewAll')}`} data-figure-open={f.key} />}
     </div>
   )
@@ -853,7 +860,7 @@ function useHiddenAmounts() {
 /* Overview: the account's own figures, the Bitcoin market, the automation
    service's own status, the client's watchlist, recent activity and quick
    actions. Every figure is a server value; nothing here is estimated. */
-function OverviewTab({ name, account, txs, go, can, labelOf, whatsNew, onOpenAsset }: { onOpenAsset?: (id: string) => void; whatsNew?: ReactNode; name: string; account: Account | null; txs: Tx[]; go: (id: string) => void; can: (id: string) => boolean; labelOf: (item: { id: string; label: TKey }) => string }) {
+function OverviewTab({ name, account, txs, hasMore = false, go, can, labelOf, whatsNew, onOpenAsset }: { onOpenAsset?: (id: string) => void; whatsNew?: ReactNode; name: string; account: Account | null; txs: Tx[]; hasMore?: boolean; go: (id: string) => void; can: (id: string) => boolean; labelOf: (item: { id: string; label: TKey }) => string }) {
   const feature = useFeatures()
   const recentTxs = txs.slice(0, 4)
   const pendingCount = account?.pending_transaction_count ?? txs.filter(x => x.status.startsWith('pending')).length
@@ -879,8 +886,17 @@ function OverviewTab({ name, account, txs, go, can, labelOf, whatsNew, onOpenAss
   // when investments are offered), and pending activity.
   const profit = account ? Number(account.profit_balance ?? 0) : null
   const pending = account ? Number(account.pending_balance ?? 0) : null
+  // Local-currency equivalent of the available balance: display only, from
+  // the site's verified USD rates (/api/fx) and the visitor's display
+  // currency. Shown only when a reliable rate exists; never for USD.
+  const pricing = useDisplayPricing()
+  const available = account ? Number(account.available_balance ?? 0) : null
+  const fxRate = pricing.currency !== 'USD' ? pricing.rates?.[pricing.currency] : undefined
+  const localEq = available != null && fxRate && fxRate > 0
+    ? <span data-local-eq={pricing.currency}>{t('ov2.localEq', { amount: hidden ? '••••' : fmtMoney(available * fxRate, pricing.currency), rate: fmtMoney(fxRate, pricing.currency) })}</span>
+    : null
   const figures: Figure[] = [
-    { key: 'available', label: 'ov2.available', value: account ? Number(account.available_balance ?? 0) : null, sub: t('ov2.availableSub'), icon: IconWallet, tone: 'is-accent' },
+    { key: 'available', label: 'ov2.available', value: available, sub: t('ov2.availableSub'), extra: localEq, icon: IconWallet, tone: 'is-accent' },
     { key: 'profit', label: 'dash.profitReturn', value: profit, icon: IconTrend, tone: 'is-green',
       sub: profit != null && profit > 0 ? <span className="text-success-300/90">{t('ov2.profitSub')}</span> : t('ov2.profitNone'), state: profit != null && profit > 0 ? 'positive' : 'none' },
     ...(showInv ? [{ key: 'investments', label: 'inv.f.activeTitle' as TKey, icon: IconPie, tone: 'is-blue', onOpen: () => go('portfolio'),
@@ -956,6 +972,13 @@ function OverviewTab({ name, account, txs, go, can, labelOf, whatsNew, onOpenAss
             className={i === 0 ? `min-[360px]:col-span-2 ${secondary === 3 ? 'sm:col-span-3' : ''} xl:col-span-1` : secondary === 3 && i === figures.length - 1 ? 'min-[360px]:max-sm:col-span-2' : ''} />
         ))}
       </dl>
+
+      {/* Returns history (recorded profit only) beside the client's active
+          investments; stacked on phones and tablets. */}
+      <div className={`ovx-pair grid items-start gap-4 ${showInv ? 'xl:grid-cols-[1.55fr_1fr]' : ''}`} data-ov-pair>
+        <ErrorBoundary label={t('ov2.retTitle')}><ReturnsChart txs={txs} hasMore={hasMore} hidden={hidden} /></ErrorBoundary>
+        {showInv && <InvestmentsMini go={go} />}
+      </div>
 
       {/* Phones: one column in priority order (quick actions first). Large
           screens: the Bitcoin market beside the automation status, then the
