@@ -50,7 +50,7 @@ const SECTIONS: { id: string; title: string; body: React.ReactNode }[] = [
   },
   {
     id: 'how-we-share', title: '3. How We Share Information', body: <>
-      <p>We may share relevant information when necessary with service providers that help operate the website, such as hosting, authentication, database, customer support, payment processing, identity verification, or security providers, where those services are used.</p>
+      <p>We may share relevant information when necessary with service providers that help operate the website, such as hosting, authentication, database, customer support, identity verification, or security providers, where those services are used.</p>
       <p>We may also disclose information when required by applicable law, in response to valid legal requests, or when reasonably necessary to investigate fraud, protect users, or safeguard our legal rights.</p>
       <p>We do not intend to use your personal information for purposes unrelated to operating, maintaining, or protecting the platform without an appropriate basis.</p>
       <p>We do not sell personal information. Any sharing of information should be limited to what is reasonably necessary for the relevant purpose.</p>
@@ -87,7 +87,7 @@ const SECTIONS: { id: string; title: string; body: React.ReactNode }[] = [
   },
   {
     id: 'third-parties', title: '8. Third-Party Services', body: <>
-      <p>Some features may rely on third-party services, including hosting, authentication, customer support, payment processing, or verification providers.</p>
+      <p>Some features may rely on third-party services, including hosting, authentication, customer support, or verification providers.</p>
       <p>When you interact with those services, their own privacy policies and terms may also apply. We encourage you to review the relevant policies before providing information directly to a third party.</p>
       <p>Tarafab.XAi cannot guarantee the privacy or security practices of external services that it does not control.</p>
     </>,
