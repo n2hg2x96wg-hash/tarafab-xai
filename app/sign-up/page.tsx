@@ -123,7 +123,8 @@ export default function SignUpPage() {
     <AuthShell
       title={t('common.openAccount')}
       subtitle={t('auth.signUpSubtitle')}
-      footer={<>{t('auth.haveAccount')} <Link href="/sign-in" className="text-fg underline underline-offset-4 hover:text-accent">{t('common.signIn')}</Link></>}
+      footer={<>{t('auth.haveAccount')} <Link href="/sign-in" className="text-fg underline underline-offset-4 hover:text-accent">{t('common.signIn')}</Link>
+        <span className="block mt-2"><Link href="/privacy" className="text-fg-muted underline underline-offset-4 hover:text-fg" data-privacy-link>{t('landing.footer.privacy')}</Link></span></>}
     >
       <form onSubmit={handleSubmit} className="space-y-5" noValidate>
         {error && <FormError message={error} />}

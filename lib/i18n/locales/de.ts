@@ -128,6 +128,7 @@ const de: DeepPartial<typeof en> = {
       noQuote: 'Kein aktueller Kurs',
     },
     footer: {
+      privacy: "Datenschutzerklärung",
       tagline: "Portfolio- und Anlageplattform für digitale Vermögenswerte.",
       platform: "Plattform",
       account: "Konto",

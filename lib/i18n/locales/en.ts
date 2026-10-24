@@ -129,6 +129,7 @@ const en = {
       noQuote: 'No current quote',
     },
     footer: {
+      privacy: "Privacy Policy",
       tagline: "Digital-asset portfolio and investment platform.",
       platform: "Platform",
       account: "Account",

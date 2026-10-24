@@ -1568,3 +1568,20 @@ html[data-text="large"] .text-\[14\.5px\] { font-size: 16.5px; }
 html[data-text="large"] .text-\[15px\] { font-size: 17px; }
 html[data-text="large"] .text-xs { font-size: 14px; line-height: 1.45; }
 html[data-text="large"] .text-sm { font-size: 16px; line-height: 1.5; }
+
+/* Legal pages (Privacy Policy): comfortable reading width and rhythm. */
+.legal { font-size: 15.5px; line-height: 1.7; color: rgb(var(--fg-muted)); }
+.legal p + p { margin-top: 12px; }
+.legal section { margin-top: 36px; }
+.legal h2 { font-size: 19px; line-height: 1.35; font-weight: 600; letter-spacing: -.01em; color: rgb(var(--fg)); margin-bottom: 12px; }
+.legal ul { list-style: disc; padding-left: 1.25rem; margin: 10px 0 12px; }
+.legal ul li + li { margin-top: 6px; }
+.legal dl { margin: 12px 0; }
+.legal dt { font-weight: 600; color: rgb(var(--fg)); margin-top: 14px; }
+.legal dd { margin-top: 2px; }
+.legal-toc { margin-top: 28px; padding: 16px 18px; border-radius: 14px; border: 1px solid rgb(var(--contrast) / .08); background: rgb(var(--contrast) / .025); }
+.legal-toc-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .14em; color: rgb(var(--fg-faint)); margin-bottom: 8px; }
+.legal-toc ol { list-style: decimal; padding-left: 1.25rem; display: grid; gap: 4px; }
+@media (min-width: 640px) { .legal-toc ol { grid-template-columns: 1fr 1fr; column-gap: 24px; } }
+.legal-toc a { color: rgb(var(--fg-muted)); }
+.legal-toc a:hover { color: rgb(var(--fg)); text-decoration: underline; text-underline-offset: 4px; }

@@ -128,6 +128,7 @@ const pt: DeepPartial<typeof en> = {
       noQuote: 'Sem cotação atual',
     },
     footer: {
+      privacy: "Política de privacidade",
       tagline: "Plataforma de portfólio e investimento em ativos digitais.",
       platform: "Plataforma",
       account: "Conta",

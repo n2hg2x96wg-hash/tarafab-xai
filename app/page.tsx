@@ -356,7 +356,7 @@ export default function LandingPage() {
           {([
             ['landing.footer.platform', [['#platform', 'nav.platform'], ['#how-it-works', 'nav.howItWorks'], ['#markets', 'nav.markets'], ['/investments', 'landing.footer.investments'], ['#security', 'nav.security']]],
             ['landing.footer.account', [['/sign-in', 'common.signIn'], ['/sign-up', 'common.openAccount'], ['/forgot-password', 'nav.resetPassword'], ['#how-deposits-work', 'nav.howDeposits']]],
-            ['landing.footer.support', [['#faq', 'nav.faq'], ['/dashboard#support', 'landing.footer.help']]],
+            ['landing.footer.support', [['#faq', 'nav.faq'], ['/dashboard#support', 'landing.footer.help'], ['/privacy', 'landing.footer.privacy']]],
           ] as [TKey, [string, TKey][]][]).map(([title, links]) => (
             <nav key={title} aria-label={t(title)}>
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-fg-faint mb-3">{t(title)}</p>

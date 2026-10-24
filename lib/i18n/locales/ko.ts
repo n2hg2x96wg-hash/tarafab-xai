@@ -131,6 +131,7 @@ const ko: DeepPartial<typeof en> = {
       noQuote: '현재 시세 없음',
     },
     footer: {
+      privacy: "개인정보 처리방침",
       tagline: "디지털 자산 포트폴리오 및 투자 플랫폼.",
       platform: "플랫폼",
       account: "계정",
