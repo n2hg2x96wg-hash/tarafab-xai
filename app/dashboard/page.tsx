@@ -57,7 +57,7 @@ import { feedStatus } from '@/lib/marketStatus'
 import { useAssets } from '@/components/markets/assetStore'
 import { effectiveState } from '@/lib/marketStatus'
 import { isAccountCredit, MANUAL_PROFIT_CATEGORIES, txCategory, txSign, type TxCategory } from '@/lib/txCategory'
-import { hideChat } from '@/lib/chatAside'
+import { hideChat, useHideChat } from '@/lib/chatAside'
 import { BankAccountPanel, BankAccountSheet, BankGlyph, useBankAccounts } from '@/components/dashboard/BankDestination'
 import { SupportButton } from '@/components/dashboard/SupportAction'
 import { BANK_STATUS_TEXT, bankMasked, bankTitle, countryName, ROUTE_NAMES, type SavedBankAccount } from '@/lib/bankRoutes'
@@ -322,6 +322,9 @@ export default function DashboardPage() {
     document.documentElement.classList.add('dash-violet')
     return () => { document.body.classList.remove('has-bottom-nav'); document.documentElement.classList.remove('dash-violet') }
   }, [])
+  // The phone menu is a layer over the page: the support chat steps aside
+  // while it is open (lib/chatAside), so it never covers the menu's rows.
+  useHideChat(sidebarOpen)
   const toggleCollapsed = () => setCollapsed(c => {
     try { localStorage.setItem('tarafab.sidebarCollapsed', c ? '0' : '1') } catch { /* ignore */ }
     return !c
