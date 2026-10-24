@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
 import { createClient } from '@/lib/supabase/client'
-import { AuthShell, FormError, PasswordInput, Spinner, useSingleFlight } from '@/components/AuthShell'
+import { AuthShell, FieldError, FormError, IconMail, LockoutNotice, Notice, PasswordInput, ResendVerification, Spinner, isEmail, useAuthLock, useSingleFlight } from '@/components/AuthShell'
 import { PhoneInput } from '@/components/PhoneInput'
 import { guessCountry, normalizePhone } from '@/lib/phone'
 
@@ -44,6 +44,10 @@ export default function SignUpPage() {
   const riskRef = useRef<HTMLInputElement>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  // Inline messages under the field they belong to.
+  const [fieldErr, setFieldErr] = useState<{ name?: string; email?: string; password?: string; confirm?: string }>({})
+  const clearField = (k: keyof typeof fieldErr) => setFieldErr(f => (f[k] ? { ...f, [k]: undefined } : f))
+  const lock = useAuthLock('signup')
   const [success, setSuccess] = useState(false)
   const router = useRouter()
   const supabase = createClient()
@@ -60,24 +64,24 @@ export default function SignUpPage() {
     e.preventDefault()
     return once(async () => {
       setError('')
+      if (lock.locked) return
 
-      if (!fullName.trim()) { setError(t('auth.errName')); return }
+      const f: typeof fieldErr = {}
+      if (!fullName.trim()) f.name = t('auth.errName')
+      if (!email.trim()) f.email = t('authx.errEmail')
+      else if (!isEmail(email)) f.email = t('authx.errEmailFormat')
       const ph = normalizePhone(phone, phoneCountry)
-      if (!ph.ok) { setPhoneError(phoneMessage(ph.error)); document.getElementById('phone')?.focus(); return }
-      setPhoneError('')
-      if (password.length < 8) { setError(t('auth.errLength')); return }
-      if (password !== confirmPassword) { setError(t('auth.errMatch')); return }
-      if (!ageOk || !riskOk) {
-        setConsentTried(true)
-        ;(!ageOk ? ageRef : riskRef).current?.focus()
-        return
-      }
+      if (password.length < 8) f.password = t('auth.errLength')
+      else if (password.replace(/[^\x20-\x7E]/g, '') !== password) f.password = t('auth.errChars')
+      if (!f.password && password !== confirmPassword) f.confirm = t('auth.errMatch')
+      setFieldErr(f)
+      setPhoneError(ph.ok ? '' : phoneMessage(ph.error))
+      if (!ageOk || !riskOk) setConsentTried(true)
+      const first = f.name ? 'name' : f.email ? 'email' : !ph.ok ? 'phone' : f.password ? 'password' : f.confirm ? 'confirm' : null
+      if (first) { document.getElementById(first)?.focus(); return }
+      if (!ageOk || !riskOk) { (!ageOk ? ageRef : riskRef).current?.focus(); return }
 
       const cleanEmail = email.trim().replace(/[^\x20-\x7E]/g, '')
-      if (password.replace(/[^\x20-\x7E]/g, '') !== password) {
-        setError(t('auth.errChars'))
-        return
-      }
 
       setLoading(true)
       try {
@@ -86,12 +90,17 @@ export default function SignUpPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: cleanEmail, password, fullName: fullName.trim(), phone, phoneCountry, consent: { age: ageOk, risk: riskOk }, extra, formMs: Date.now() - openedAt.current }),
         })
-        const data = await res.json()
+        const data = await res.json().catch(() => ({}))
         if (!res.ok) {
           // The server checks the number with the same rules.
-          if (data.field === 'phone') { setPhoneError(phoneMessage(data.code === 'missing' || data.code === 'country' ? data.code : 'invalid')); return }
+          if (data.field === 'phone') { setPhoneError(phoneMessage(data.code === 'missing' || data.code === 'country' ? data.code : 'invalid')); document.getElementById('phone')?.focus(); return }
+          if (res.status === 429) {
+            if (typeof data.retryAfter === 'number' && data.retryAfter > 0) lock.lock(data.retryAfter)
+            else setError(t('authx.signupLimitedUnknown'))
+            return
+          }
           const msg: string = data.error || t('auth.signUpFailed')
-          setError(msg.toLowerCase().includes('already registered') ? t('auth.errExists') : msg)
+          setError(msg.toLowerCase().includes('already registered') ? t('auth.errExists') : res.status >= 500 ? t('authx.serverDown') : msg)
           return
         }
         if (data.needsVerification) {
@@ -111,10 +120,11 @@ export default function SignUpPage() {
   if (success) {
     return (
       <AuthShell title={t('auth.checkEmail')} subtitle={t('auth.sentConfirm', { email: email.trim() })}>
-        <p className="text-[15px] text-fg-muted leading-relaxed">
-          {t('auth.sentConfirmBody')}
-        </p>
+        <Notice tone="warning" icon={IconMail} title={t('authx.verifyTitle')} data-signup-sent>{t('auth.sentConfirmBody')}</Notice>
         <Link href="/sign-in" className="btn btn-solid w-full mt-6">{t('auth.goToSignIn')}</Link>
+        <div className="mt-4 text-center text-sm text-fg-muted">
+          <span>{t('authx.noEmail')} </span><ResendVerification email={email} />
+        </div>
       </AuthShell>
     )
   }
@@ -123,11 +133,12 @@ export default function SignUpPage() {
     <AuthShell
       title={t('common.openAccount')}
       subtitle={t('auth.signUpSubtitle')}
-      footer={<>{t('auth.haveAccount')} <Link href="/sign-in" className="text-fg underline underline-offset-4 hover:text-accent">{t('common.signIn')}</Link>
+      footer={<>{t('auth.haveAccount')} <Link href="/sign-in" className="auth-footer-link">{t('common.signIn')}</Link>
         <span className="block mt-2"><Link href="/privacy" className="text-fg-muted underline underline-offset-4 hover:text-fg" data-privacy-link>{t('landing.footer.privacy')}</Link></span></>}
     >
       <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-        {error && <FormError message={error} />}
+        {lock.locked ? <LockoutNotice seconds={lock.left} title={t('authx.signupLockTitle')} body={t('authx.signupLockBody')} />
+          : error ? <FormError message={error} /> : null}
         <div aria-hidden="true" className="absolute -left-[10000px] top-auto w-px h-px overflow-hidden">
           <label htmlFor="su-extra">Leave this field empty</label>
           <input id="su-extra" name="company_website_extra" type="text" tabIndex={-1} autoComplete="off" value={extra} onChange={e => setExtra(e.target.value)} />
@@ -135,12 +146,16 @@ export default function SignUpPage() {
 
         <div>
           <label htmlFor="name" className="field-label">{t('common.fullName')}</label>
-          <input id="name" type="text" value={fullName} onChange={e => setFullName(e.target.value)} required autoComplete="name" className="field" disabled={loading} />
+          <input id="name" type="text" value={fullName} onChange={e => { setFullName(e.target.value); clearField('name') }} required autoComplete="name"
+            className={`field ${fieldErr.name ? 'field-error' : ''}`} disabled={loading} aria-invalid={fieldErr.name ? true : undefined} aria-describedby={fieldErr.name ? 'name-error' : undefined} />
+          {fieldErr.name && <FieldError id="name-error" message={fieldErr.name} />}
         </div>
 
         <div>
           <label htmlFor="email" className="field-label">{t('common.email')}</label>
-          <input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" className="field" disabled={loading} />
+          <input id="email" type="email" inputMode="email" value={email} onChange={e => { setEmail(e.target.value); clearField('email') }} required autoComplete="email"
+            className={`field ${fieldErr.email ? 'field-error' : ''}`} disabled={loading} aria-invalid={fieldErr.email ? true : undefined} aria-describedby={fieldErr.email ? 'email-error' : undefined} />
+          {fieldErr.email && <FieldError id="email-error" message={fieldErr.email} />}
         </div>
 
         <div>
@@ -152,7 +167,9 @@ export default function SignUpPage() {
 
         <div>
           <label htmlFor="password" className="field-label">{t('common.password')}</label>
-          <PasswordInput id="password" value={password} onChange={setPassword} autoComplete="new-password" disabled={loading} visible={showPassword} onToggle={() => setShowPassword(s => !s)} describedBy="pw-help" />
+          <PasswordInput id="password" value={password} onChange={v => { setPassword(v); clearField('password') }} autoComplete="new-password" disabled={loading} visible={showPassword} onToggle={() => setShowPassword(s => !s)}
+            invalid={!!fieldErr.password} describedBy={fieldErr.password ? 'password-error pw-help' : 'pw-help'} />
+          {fieldErr.password && <FieldError id="password-error" message={fieldErr.password} />}
           <div id="pw-help" className="mt-2">
             {password ? (
               <div className="flex items-center gap-3">
@@ -163,7 +180,7 @@ export default function SignUpPage() {
                 </div>
                 <span className="text-xs text-fg-muted min-w-12 text-right">{t(strength.label)}</span>
               </div>
-            ) : (
+            ) : !fieldErr.password && (
               <p className="text-xs text-fg-faint">{t('auth.atLeast8')}</p>
             )}
           </div>
@@ -171,8 +188,9 @@ export default function SignUpPage() {
 
         <div>
           <label htmlFor="confirm" className="field-label">{t('auth.confirmPassword')}</label>
-          <PasswordInput id="confirm" value={confirmPassword} onChange={setConfirmPassword} autoComplete="new-password" disabled={loading} visible={showPassword} onToggle={() => setShowPassword(s => !s)} invalid={mismatch} describedBy={mismatch ? 'confirm-error' : undefined} />
-          {mismatch && <p id="confirm-error" className="text-xs text-danger-400 mt-1.5">{t('auth.mismatch')}</p>}
+          <PasswordInput id="confirm" value={confirmPassword} onChange={v => { setConfirmPassword(v); clearField('confirm') }} autoComplete="new-password" disabled={loading} visible={showPassword} onToggle={() => setShowPassword(s => !s)}
+            invalid={mismatch || !!fieldErr.confirm} describedBy={mismatch || fieldErr.confirm ? 'confirm-error' : undefined} />
+          {(mismatch || fieldErr.confirm) && <FieldError id="confirm-error" message={fieldErr.confirm || t('auth.mismatch')} />}
         </div>
 
         <fieldset className="consent" data-consent>
@@ -181,7 +199,7 @@ export default function SignUpPage() {
           <ConsentBox id="consent-risk" inputRef={riskRef} checked={riskOk} onChange={setRiskOk} disabled={loading} text={t('auth.consentRisk')} error={consentTried && !riskOk ? t('auth.errConsentRisk') : ''} />
         </fieldset>
 
-        <button type="submit" disabled={loading} className="btn btn-solid w-full min-h-12" aria-busy={loading}>
+        <button type="submit" disabled={loading || lock.locked} className="btn btn-solid w-full min-h-12" aria-busy={loading} data-signup-submit>
           {loading ? <><Spinner />{t('auth.creatingAccount')}</> : t('auth.createAccount')}
         </button>
       </form>

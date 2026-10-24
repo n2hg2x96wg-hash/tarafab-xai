@@ -26,7 +26,7 @@ export function rateLimited(key: string, limit: number, windowMs: number): NextR
   if (b.count <= limit) return null
   const retryAfter = Math.ceil((b.resetAt - now) / 1000)
   return NextResponse.json(
-    { error: `Too many attempts. Please wait ${retryAfter < 60 ? `${retryAfter} seconds` : `${Math.ceil(retryAfter / 60)} minutes`} and try again.` },
+    { error: `Too many attempts. Please wait ${retryAfter < 60 ? `${retryAfter} seconds` : `${Math.ceil(retryAfter / 60)} minutes`} and try again.`, code: 'RATE_LIMITED', retryAfter },
     { status: 429, headers: { 'Retry-After': String(retryAfter) } },
   )
 }

@@ -41,7 +41,11 @@ export async function POST(request: NextRequest) {
     if (error) {
       // Recorded for admins (Security events); never shown to the client.
       if (error.status !== 429) await recordSecurityEvent('failed_login', null, clientIp(request), { email: email.toLowerCase().slice(0, 120) })
-      return NextResponse.json({ error: error.status === 429 ? 'Too many attempts. Please wait a moment and try again.' : error.message }, { status: error.status === 429 ? 429 : 401 })
+      // A stable code for the page; Supabase's own limit gives no timing.
+      const code = error.status === 429 ? 'RATE_LIMITED'
+        : error.code === 'email_not_confirmed' || /email not confirmed/i.test(error.message) ? 'EMAIL_NOT_CONFIRMED'
+        : error.code === 'invalid_credentials' || /invalid login|credentials/i.test(error.message) ? 'INVALID_CREDENTIALS' : 'SIGNIN_FAILED'
+      return NextResponse.json({ error: error.status === 429 ? 'Too many attempts. Please wait a moment and try again.' : error.message, code }, { status: error.status === 429 ? 429 : 401 })
     }
 
     let role = 'customer'

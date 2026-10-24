@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useCallback, useRef, type ReactNode } from 'react'
-import { IconAlert, IconEye, IconEyeOff, IconHistory, IconLock, IconShield, Logo } from '@/components/Icons'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { IconAlert, IconCheck, IconEye, IconEyeOff, IconHistory, IconInfo, IconLock, IconMail, IconShield, Logo } from '@/components/Icons'
 import { LanguageSelector } from '@/components/LanguageSelector'
 import { ThemeSelector } from '@/components/ThemeSelector'
 import { useI18n } from '@/lib/i18n/I18nProvider'
@@ -26,7 +26,7 @@ export function AuthShell({ title, subtitle, children, footer }: { title: string
       <div className="auth-backdrop" aria-hidden="true" />
 
       <header className="relative z-30 h-16 flex items-center justify-between gap-4 px-4 sm:px-6 border-b border-ink-700/70 glass-bar safe-top">
-        <Link href="/" aria-label={t('common.home')} className="rounded-md"><Logo /></Link>
+        <Link href="/" aria-label={t('common.home')} className="rounded-md auth-brand"><Logo /></Link>
         <div className="flex items-center gap-2">
           <ThemeSelector />
           <LanguageSelector />
@@ -50,7 +50,7 @@ export function AuthShell({ title, subtitle, children, footer }: { title: string
           </aside>
 
           <div className="min-w-0">
-            <div className="auth-card glass-panel rise-in" data-chat-avoid>
+            <div className="auth-card rise-in" data-chat-avoid>
               <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.02em] text-fg">{title}</h1>
               {subtitle && <p className="mt-2 text-[15px] leading-relaxed text-fg-muted">{subtitle}</p>}
               <div className="mt-7">{children}</div>
@@ -70,13 +70,117 @@ export function AuthShell({ title, subtitle, children, footer }: { title: string
 }
 
 export function FormError({ message }: { message: string }) {
+  return <Notice tone="danger" icon={IconAlert} role="alert">{message}</Notice>
+}
+
+// One notice style for every authentication message: a solid tinted
+// surface, an icon, an optional title and body, and an optional action.
+type NoticeIcon = (p: { width?: number; height?: number; className?: string }) => ReactNode
+export function Notice({ tone, icon: Icon, title, children, action, role = 'status', ...rest }: {
+  tone: 'warning' | 'danger' | 'success' | 'info'
+  icon: NoticeIcon
+  title?: ReactNode
+  children?: ReactNode
+  action?: ReactNode
+  role?: 'status' | 'alert'
+} & Record<`data-${string}`, string | boolean | undefined>) {
   return (
-    <div role="alert" className="alert alert-danger rise-in">
-      <IconAlert className="shrink-0 mt-px" width={16} height={16} />
-      <span>{message}</span>
+    <div role={role} className={`auth-notice is-${tone} rise-in`} {...rest}>
+      <span className="auth-notice-icon" aria-hidden="true"><Icon width={17} height={17} /></span>
+      <div className="min-w-0 flex-1">
+        {title && <p className="auth-notice-title">{title}</p>}
+        {children && <div className={title ? 'auth-notice-body' : 'auth-notice-text'}>{children}</div>}
+        {action && <div className="mt-2.5">{action}</div>}
+      </div>
     </div>
   )
 }
+
+// Inline message under a field (linked with aria-describedby).
+export function FieldError({ id, message }: { id: string; message: string }) {
+  return <p id={id} className="field-error-text" role="alert">{message}</p>
+}
+
+export const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())
+
+// "4:58" for a number of seconds.
+export const clockText = (s: number) => `${Math.floor(s / 60)}:${String(Math.max(0, s % 60)).padStart(2, '0')}`
+
+// Temporary sign-in restriction reported by the server (HTTP 429 with the
+// exact seconds left). The server enforces it; this only shows it. The end
+// time is kept for this browser tab so a refresh keeps showing the same
+// countdown; a new attempt after it ends is checked by the server again.
+const LOCK_KEY = 'tarafab.authLock'
+export function useAuthLock(scope: string) {
+  const key = `${LOCK_KEY}.${scope}`
+  const [until, setUntil] = useState(0)
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    try { const v = Number(sessionStorage.getItem(key) || 0); if (v > Date.now()) setUntil(v) } catch { /* storage blocked */ }
+  }, [key])
+  useEffect(() => {
+    if (!until) return
+    const tick = () => {
+      const n = Date.now(); setNow(n)
+      if (n >= until) { setUntil(0); try { sessionStorage.removeItem(key) } catch { /* ignore */ } }
+    }
+    tick()
+    const t = setInterval(tick, 1000)
+    return () => clearInterval(t)
+  }, [until, key])
+  const lock = (seconds: number) => {
+    const u = Date.now() + seconds * 1000
+    setUntil(u); setNow(Date.now())
+    try { sessionStorage.setItem(key, String(u)) } catch { /* ignore */ }
+  }
+  const left = until ? Math.max(0, Math.ceil((until - now) / 1000)) : 0
+  return { locked: left > 0, left, lock }
+}
+
+export function LockoutNotice({ seconds, title, body }: { seconds: number | null; title: string; body: string }) {
+  const { t } = useI18n()
+  return (
+    <Notice tone="warning" icon={IconHistory} title={title} data-lockout={seconds ?? 'unknown'}>
+      {seconds != null
+        ? <>{body} <span className="whitespace-nowrap">{t('authx.tryAgainIn')} <strong className="tabular-nums font-semibold text-fg" aria-live="off">{clockText(seconds)}</strong>.</span></>
+        : body}
+    </Notice>
+  )
+}
+
+// "Resend confirmation email" for an address that has not been confirmed.
+// One request at a time; after a send it waits 60 seconds before another
+// (the server limits it per address and per IP as well).
+export function ResendVerification({ email, variant = 'link' }: { email: string; variant?: 'link' | 'button' }) {
+  const { t } = useI18n()
+  const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'failed' | 'limited'>('idle')
+  const [msg, setMsg] = useState('')
+  const lock = useAuthLock('resend')
+  const once = useSingleFlight()
+  const send = () => once(async () => {
+    setState('sending'); setMsg('')
+    try {
+      const r = await fetch('/api/auth/resend', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email.trim() }) })
+      const d = await r.json().catch(() => ({}))
+      if (r.ok) { setState('sent'); lock.lock(60); return }
+      if (r.status === 429) { setState('limited'); if (typeof d.retryAfter === 'number') lock.lock(d.retryAfter); setMsg(t('authx.resendLimited')); return }
+      setState('failed'); setMsg(typeof d.error === 'string' ? d.error : t('authx.resendFailed'))
+    } catch { setState('failed'); setMsg(t('errors.network')) }
+  })
+  const label = state === 'sending' ? <><Spinner />{t('authx.resending')}</>
+    : lock.locked ? <>{t('authx.resendIn', { time: clockText(lock.left) })}</>
+    : t('authx.resend')
+  return (
+    <div data-resend={state}>
+      <button type="button" onClick={send} disabled={state === 'sending' || lock.locked} aria-busy={state === 'sending'}
+        className={variant === 'button' ? 'btn btn-outline w-full gap-2' : 'auth-link-btn'} data-resend-btn>{label}</button>
+      {state === 'sent' && <p className="auth-inline-ok" role="status"><IconCheck width={14} height={14} aria-hidden="true" />{t('authx.resendSent', { email: email.trim() })}</p>}
+      {(state === 'failed' || state === 'limited') && <p className="field-error-text" role="alert">{msg}</p>}
+    </div>
+  )
+}
+
+export { IconMail, IconInfo }
 
 export function Spinner() {
   return <span className="w-4 h-4 rounded-full border-2 border-current border-r-transparent animate-spin" aria-hidden="true" />
