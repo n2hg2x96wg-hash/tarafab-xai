@@ -1639,25 +1639,30 @@ html.dash-violet .inv2-done-ring.is-pending { color: #fcd34d; box-shadow: inset 
 @keyframes dvRise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
 /* ---------------------------------------------------------------------------
-   Landing page opening scene: the supplied rotating particle globe
-   (components/landing/GlobeIntro). Always a dark scene; it fades into the
-   page colour at the bottom so the hero continues straight on. Decorative:
-   it never takes clicks or focus.
+   Landing page globe passage (components/landing/GlobeScroll). The section
+   is taller than the screen; its stage stays pinned while it scrolls past,
+   and the WebGL scene follows the scroll. --gp is the scene's eased scroll
+   progress (0–1). Always a dark scene; decorative, never takes clicks.
    ------------------------------------------------------------------------ */
-.globe-intro { position: relative; isolation: isolate; overflow: hidden; background: #050407;
-  height: clamp(420px, calc(100svh - 100px), 1000px); pointer-events: none; }
-@media (max-width: 639px) { .globe-intro { height: clamp(360px, 72svh, 640px); } }
-.globe-intro-media { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 100%; user-select: none; }
-.globe-intro-video { opacity: 0; transition: opacity .9s ease; }
-.globe-intro-video.is-on { opacity: 1; }
-.globe-intro-shade { position: absolute; inset: 0; z-index: 1;
+.gx { position: relative; height: 260svh; background: #040306; pointer-events: none; }
+@media (max-width: 639px) { .gx { height: 220svh; } }
+.gx.gx-still { height: auto; }
+.gx-stage { --gp: 0; position: sticky; top: 0; height: 100svh; overflow: hidden; isolation: isolate; }
+.gx-still .gx-stage { position: relative; height: clamp(360px, 78svh, 820px); }
+.gx-still-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 100%; }
+.gx-canvas { position: absolute; inset: 0; opacity: 0; transition: opacity .8s ease; }
+.gx-canvas.is-on { opacity: 1; }
+/* Top: continues from the hero; bottom: hands over to the next section. */
+.gx-shade { position: absolute; inset: 0; z-index: 1;
   background:
-    linear-gradient(180deg, #050407 0%, rgb(5 4 7 / .55) 9%, transparent 26%),
-    linear-gradient(0deg, rgb(var(--ink-950)) 0%, rgb(var(--ink-950) / .75) 7%, transparent 24%),
-    radial-gradient(120% 90% at 50% 100%, transparent 55%, rgb(5 4 7 / .45) 100%); }
-.globe-intro-cue { position: absolute; z-index: 2; left: 50%; bottom: clamp(18px, 4svh, 34px); transform: translateX(-50%);
-  display: flex; flex-direction: column; align-items: center; gap: 4px; color: rgb(255 255 255 / .72); }
-.globe-intro-mouse { width: 22px; height: 34px; border-radius: 12px; border: 1.5px solid currentColor; display: flex; justify-content: center; padding-top: 6px; }
-.globe-intro-mouse > span { width: 3px; height: 7px; border-radius: 2px; background: currentColor; animation: globeCue 1.8s ease-in-out infinite; }
-@keyframes globeCue { 0% { transform: translateY(0); opacity: 1 } 70% { transform: translateY(8px); opacity: 0 } 100% { transform: translateY(0); opacity: 0 } }
-@media (prefers-reduced-motion: reduce) { .globe-intro-video { transition: none; } .globe-intro-mouse > span { animation: none; } }
+    linear-gradient(180deg, rgb(var(--ink-950)) 0%, rgb(4 3 6 / .6) 10%, transparent 24%),
+    linear-gradient(0deg, rgb(var(--ink-950)) 0%, rgb(var(--ink-950) / .7) 8%, transparent 22%),
+    radial-gradient(130% 95% at 50% 60%, transparent 55%, rgb(4 3 6 / .55) 100%); }
+.gx-cue { position: absolute; z-index: 2; left: 50%; bottom: clamp(22px, 5svh, 40px); transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 4px; color: rgb(255 255 255 / .7);
+  opacity: calc(1 - max(0, var(--gp) - 0.42) * 7); transition: opacity .2s linear; }
+.gx-still .gx-cue { display: none; }
+.gx-mouse { width: 22px; height: 34px; border-radius: 12px; border: 1.5px solid currentColor; display: flex; justify-content: center; padding-top: 6px; }
+.gx-mouse > span { width: 3px; height: 7px; border-radius: 2px; background: currentColor; animation: gxCue 1.8s ease-in-out infinite; }
+@keyframes gxCue { 0% { transform: translateY(0); opacity: 1 } 70% { transform: translateY(8px); opacity: 0 } 100% { transform: translateY(0); opacity: 0 } }
+@media (prefers-reduced-motion: reduce) { .gx-canvas { transition: none; } .gx-mouse > span { animation: none; } }
