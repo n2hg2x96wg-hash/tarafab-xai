@@ -132,3 +132,57 @@
   --shadow-strength: .12;
   color-scheme: light;
 }
+
+/* Client dashboard palette (html.dash-violet, set while /dashboard is open):
+   near-black surfaces with a violet primary action and lavender-grey text.
+   Status colours are unchanged, so gains, losses and pending states keep
+   their meaning. Contrast on cards (#15111E): fg 17.6:1, muted 7.0:1,
+   faint 4.6:1; white on the violet button 6.2:1. */
+:root.dash-violet:not([data-theme="light"]) {
+  --ink-950: 8 7 12;        /* #08070C page */
+  --ink-900: 21 17 30;      /* #15111E cards, sidebar */
+  --ink-850: 26 21 37;
+  --ink-800: 32 26 46;
+  --ink-700: 43 35 60;      /* borders */
+  --ink-600: 58 47 80;
+  --ink-500: 80 66 106;
+  --fg: 248 247 251;        /* #F8F7FB */
+  --fg-muted: 164 155 175;  /* #A49BAF */
+  --fg-faint: 132 123 146;
+  --fg-disabled: 88 80 102;
+  --fg-label: 214 208 224;
+  --accent: 139 25 245;     /* #8B19F5 */
+  --accent-hover: 179 106 255; /* #B36AFF */
+  --accent-ink: 255 255 255;
+  --accent-text: 186 120 255;
+  --brand-200: 233 214 255;
+  --brand-300: 214 182 255;
+  --brand-400: 195 148 255;
+  --brand-500: 179 106 255;
+  --brand-600: 139 25 245;
+  --brand-700: 108 16 196;
+  --focus: 186 120 255;
+}
+:root.dash-violet[data-theme="light"] {
+  --ink-950: 246 244 250;
+  --ink-850: 249 247 253;
+  --ink-800: 240 236 248;
+  --ink-700: 228 222 239;
+  --ink-600: 209 200 226;
+  --ink-500: 170 158 192;
+  --fg: 20 14 33;
+  --fg-muted: 76 66 95;
+  --fg-faint: 96 86 115;
+  --fg-label: 44 36 60;
+  --accent: 124 22 222;
+  --accent-hover: 139 25 245;
+  --accent-ink: 255 255 255;
+  --accent-text: 104 16 190;
+  --brand-200: 70 14 130;
+  --brand-300: 86 16 160;
+  --brand-400: 104 16 190;
+  --brand-500: 124 22 222;
+  --brand-600: 112 18 205;
+  --brand-700: 90 14 170;
+  --focus: 104 16 190;
+}

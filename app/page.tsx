@@ -16,6 +16,7 @@ import { SUPPORT_EMAIL } from '@/lib/support'
 import LazyOnView from '@/components/markets/LazyOnView'
 import HashSettle from '@/components/landing/HashSettle'
 import HeroScene from '@/components/landing/HeroScene'
+import GlobeScroll from '@/components/landing/GlobeScroll'
 
 // Decorative canvas: its code is fetched only once the browser is idle, so it
 // never competes with the page becoming interactive.
@@ -222,6 +223,10 @@ export default function LandingPage() {
           <HowItWorks />
         </div>
       </section>
+
+      {/* The particle globe: a scroll-driven 3D passage between the hero and
+          the information below. */}
+      <GlobeScroll />
 
       {/* What the platform does day to day, right under the hero. */}
       <section className="intro-glow relative overflow-hidden border-b border-ink-700" aria-labelledby="intro-title" data-landing-intro>
