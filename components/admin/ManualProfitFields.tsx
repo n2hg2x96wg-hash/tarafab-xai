@@ -30,13 +30,12 @@ export function dateRules(d: DateState, openedAt: string) {
   return { today, opened, backdated: !!d.date && d.date < today, preOpening: !!d.date && d.date < opened }
 }
 
-export function validateDate(d: DateState, openedAt: string, support: SupportState): string {
+export function validateDate(d: DateState, openedAt: string, _support?: SupportState): string {
   const r = dateRules(d, openedAt)
   if (!/^\d{4}-\d{2}-\d{2}$/.test(d.date)) return 'Choose an effective date.'
   if (d.date > r.today) return 'The effective date cannot be in the future.'
   if (d.date < '2000-01-01') return 'Check the effective date.'
   if (r.backdated && d.backdate.trim().length < 10) return 'Explain why this entry applies to an earlier date (at least 10 characters).'
-  if (r.backdated && !support.reference.trim() && !support.evidence) return 'A historical entry needs a supporting reference or an evidence file.'
   if (r.preOpening && (!d.exceptionAck || d.basis.trim().length < 20)) {
     return `The effective date is before this client’s account was opened (${longDate(r.opened)}). Confirm the pre-opening exception and explain the accounting basis (at least 20 characters), or record the entry against the correct account.`
   }
@@ -78,7 +77,7 @@ export function EffectiveDateFields({ prefix, value, onChange, openedAt, busy, k
           <label htmlFor={`${prefix}-backdate`} className="block text-xs font-medium text-amber-300 mb-1.5">Why does this {kind} apply to an earlier date?</label>
           <textarea id={`${prefix}-backdate`} rows={2} maxLength={500} value={value.backdate} disabled={busy}
             onChange={e => set('backdate')(e.target.value)} placeholder="e.g. Approved on this date, recorded late after month-end review" className="input-field resize-none text-sm" />
-          <p className="text-[11px] text-slate-500 mt-1">At least 10 characters, plus a reference or evidence file. Audit log only.</p>
+          <p className="text-[11px] text-slate-500 mt-1">At least 10 characters. Audit log only.</p>
         </div>
       )}
 

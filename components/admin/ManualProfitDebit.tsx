@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { authFetch, errorText, newRequestKey, readJson, RequestError } from '@/lib/authFetch'
 import {
-  AMOUNT, blankDate, blankSupport, ConfirmSheet, dateBody, dateRules, DateSummary, EffectiveDateFields, fmtDate, fmtDateTime, Row,
+  AMOUNT, blankDate, blankSupport, ConfirmSheet, dateBody, DateSummary, EffectiveDateFields, fmtDate, fmtDateTime, Row,
   supportBody, SupportFields, SupportSummary, usd, validateDate, type DateState, type SupportState,
 } from '@/components/admin/ManualProfitFields'
 import type { CreditClient } from '@/components/admin/ManualProfitCredit'
@@ -103,7 +103,7 @@ export function ManualProfitDebitForm({ client, snapshot, snapshotError, onPoste
   const valid = AMOUNT.test(amount.trim()) && n > 0
   const available = snapshot ? Number(snapshot.available_for_debit) : null
   const over = valid && available !== null && n > available
-  const needsSupport = !!cat?.needsSupport || dateRules(d, client.created_at).backdated
+  const needsSupport = !!cat?.needsSupport
 
   const validate = () => {
     if (!snapshot) return 'The client’s profit balance has not loaded yet.'

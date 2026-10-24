@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { authFetch, errorText, newRequestKey, readJson, RequestError } from '@/lib/authFetch'
 import {
-  AMOUNT, blankDate, blankSupport, ConfirmSheet, dateBody, dateRules, DateSummary, EffectiveDateFields, fmtDate, fmtDateTime, Row,
+  AMOUNT, blankDate, blankSupport, ConfirmSheet, dateBody, DateSummary, EffectiveDateFields, fmtDate, fmtDateTime, Row,
   supportBody, SupportFields, SupportSummary, usd, validateDate, type DateState, type SupportState,
 } from '@/components/admin/ManualProfitFields'
 import type { ProfitSnapshot } from '@/components/admin/ManualProfitPanel'
@@ -265,7 +265,7 @@ export function ManualProfitCreditForm({ client, profitBalance, snapshot, onPost
             onChange={e => setDescription(e.target.value)} placeholder="e.g. Q3 profit distribution" className="input-field resize-none text-sm" />
         </div>
 
-        <SupportFields prefix="mpc" value={s} onChange={setS} busy={busy} required={dateRules(d, client.created_at).backdated} onError={setError} />
+        <SupportFields prefix="mpc" value={s} onChange={setS} busy={busy} required={false} onError={setError} />
       </div>
 
       <button type="button" onClick={review} disabled={busy || !amount || !classification || !description.trim()} data-mpc-review
