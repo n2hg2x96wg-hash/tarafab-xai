@@ -16,6 +16,7 @@ import { SUPPORT_EMAIL } from '@/lib/support'
 import LazyOnView from '@/components/markets/LazyOnView'
 import HashSettle from '@/components/landing/HashSettle'
 import HeroScene from '@/components/landing/HeroScene'
+import GlobeIntro from '@/components/landing/GlobeIntro'
 
 // Decorative canvas: its code is fetched only once the browser is idle, so it
 // never competes with the page becoming interactive.
@@ -154,6 +155,9 @@ export default function LandingPage() {
       <div className="pt-16">
         <ErrorBoundary label={t('trust.marketData')}><LiveTickerBar /></ErrorBoundary>
       </div>
+
+      {/* Opening scene: the rotating globe, then the hero beneath it. */}
+      <GlobeIntro />
 
       {/* Hero */}
       <section ref={heroRef} className="relative border-b border-ink-700 overflow-hidden">

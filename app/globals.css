@@ -1637,3 +1637,27 @@ html.dash-violet .inv2-done-ring.is-pending { color: #fcd34d; box-shadow: inset 
   html.dash-violet .ovx > *:nth-child(n+5) { animation-delay: .16s; }
 }
 @keyframes dvRise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* ---------------------------------------------------------------------------
+   Landing page opening scene: the supplied rotating particle globe
+   (components/landing/GlobeIntro). Always a dark scene; it fades into the
+   page colour at the bottom so the hero continues straight on. Decorative:
+   it never takes clicks or focus.
+   ------------------------------------------------------------------------ */
+.globe-intro { position: relative; isolation: isolate; overflow: hidden; background: #050407;
+  height: clamp(420px, calc(100svh - 100px), 1000px); pointer-events: none; }
+@media (max-width: 639px) { .globe-intro { height: clamp(360px, 72svh, 640px); } }
+.globe-intro-media { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 100%; user-select: none; }
+.globe-intro-video { opacity: 0; transition: opacity .9s ease; }
+.globe-intro-video.is-on { opacity: 1; }
+.globe-intro-shade { position: absolute; inset: 0; z-index: 1;
+  background:
+    linear-gradient(180deg, #050407 0%, rgb(5 4 7 / .55) 9%, transparent 26%),
+    linear-gradient(0deg, rgb(var(--ink-950)) 0%, rgb(var(--ink-950) / .75) 7%, transparent 24%),
+    radial-gradient(120% 90% at 50% 100%, transparent 55%, rgb(5 4 7 / .45) 100%); }
+.globe-intro-cue { position: absolute; z-index: 2; left: 50%; bottom: clamp(18px, 4svh, 34px); transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 4px; color: rgb(255 255 255 / .72); }
+.globe-intro-mouse { width: 22px; height: 34px; border-radius: 12px; border: 1.5px solid currentColor; display: flex; justify-content: center; padding-top: 6px; }
+.globe-intro-mouse > span { width: 3px; height: 7px; border-radius: 2px; background: currentColor; animation: globeCue 1.8s ease-in-out infinite; }
+@keyframes globeCue { 0% { transform: translateY(0); opacity: 1 } 70% { transform: translateY(8px); opacity: 0 } 100% { transform: translateY(0); opacity: 0 } }
+@media (prefers-reduced-motion: reduce) { .globe-intro-video { transition: none; } .globe-intro-mouse > span { animation: none; } }
