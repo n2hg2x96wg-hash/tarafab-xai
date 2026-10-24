@@ -128,6 +128,7 @@ const fr: DeepPartial<typeof en> = {
       noQuote: 'Aucune cotation actuelle',
     },
     footer: {
+      privacy: "Politique de confidentialité",
       tagline: "Plateforme de portefeuille et d'investissement en actifs numériques.",
       platform: "Plateforme",
       account: "Compte",

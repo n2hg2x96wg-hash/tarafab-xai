@@ -10,7 +10,7 @@ import { SITE_URL } from '@/lib/site'
 // otherwise runs the URLs together as plain text); crawlers ignore it.
 export const dynamic = 'force-static'
 
-const PUBLIC_PAGES = ['/', '/sign-up', '/sign-in'] as const
+const PUBLIC_PAGES = ['/', '/sign-up', '/sign-in', '/privacy'] as const
 
 const xmlEscape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;')
 
