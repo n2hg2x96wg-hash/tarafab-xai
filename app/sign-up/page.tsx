@@ -146,8 +146,7 @@ export default function SignUpPage() {
           <label htmlFor="phone" className="field-label">{t('auth.phone')}</label>
           <PhoneInput id="phone" country={phoneCountry} onCountry={c => { setPhoneCountry(c); setPhoneError('') }}
             number={phone} onNumber={v => { setPhone(v); if (phoneError) setPhoneError('') }}
-            disabled={loading} error={phoneError} describedBy="phone-help" />
-          <p id="phone-help" className="text-xs text-fg-faint mt-2">{t('auth.phoneHelp')}</p>
+            disabled={loading} error={phoneError} />
         </div>
 
         <div>
