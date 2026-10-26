@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useI18n } from '@/lib/i18n/I18nProvider'
+import { IconAlert } from '@/components/Icons'
 import { createClient } from '@/lib/supabase/client'
 import {
   AuthShell, FieldError, FormError, IconInfo, IconMail, LockoutNotice, Notice, PasswordInput, ResendVerification, Spinner,
@@ -12,7 +13,7 @@ import {
 
 // What the last attempt ran into, shown as one notice above the form.
 type Problem = null
-  | { kind: 'error'; message: string }
+  | { kind: 'error'; message: string; attemptsLeft?: number }
   | { kind: 'unverified'; email: string }
   | { kind: 'limited-unknown' } // Supabase's own limit: no timing is given
 
@@ -67,7 +68,7 @@ export default function SignInPage() {
           }
           const msg = String(data.error || '')
           if (data.code === 'EMAIL_NOT_CONFIRMED' || /email not confirmed/i.test(msg)) setProblem({ kind: 'unverified', email: email.trim() })
-          else if (data.code === 'INVALID_CREDENTIALS' || /invalid login|credentials/i.test(msg)) setProblem({ kind: 'error', message: t('authx.wrongCredentials') })
+          else if (data.code === 'INVALID_CREDENTIALS' || /invalid login|credentials/i.test(msg)) setProblem({ kind: 'error', message: t('authx.wrongCredentials'), attemptsLeft: typeof data.attemptsLeft === 'number' ? data.attemptsLeft : undefined })
           else if (res.status >= 500) setProblem({ kind: 'error', message: t('authx.serverDown') })
           else setProblem({ kind: 'error', message: msg || t('auth.signInFailed') })
           return
@@ -105,7 +106,13 @@ export default function SignInPage() {
             {t('authx.verifyBody', { email: problem.email })}
           </Notice>
         ) : problem?.kind === 'error' ? (
-          <FormError message={problem.message} />
+          // From the third wrong password on, the attempts left before the pause.
+          problem.attemptsLeft != null && problem.attemptsLeft > 0 && problem.attemptsLeft <= 2 ? (
+            <Notice tone="danger" icon={IconAlert} role="alert" data-attempts-left={String(problem.attemptsLeft)}>
+              {problem.message}
+              <span className="block mt-1.5 font-semibold">{problem.attemptsLeft === 1 ? t('authx.attemptsLeftOne') : t('authx.attemptsLeftMany', { n: problem.attemptsLeft })}</span>
+            </Notice>
+          ) : <FormError message={problem.message} />
         ) : expired ? (
           <Notice tone="info" icon={IconInfo} data-session-expired>{t('authx.sessionEnded')}</Notice>
         ) : null}

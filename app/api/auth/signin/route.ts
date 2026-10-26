@@ -5,6 +5,18 @@ import { getSupabaseEnv } from '@/lib/supabase/env'
 import { clientIp, rateLimited } from '@/lib/rateLimit'
 import { recordSecurityEvent } from '@/lib/securityEvents'
 import { limitAnon } from '@/lib/anonRateLimit'
+import { SIGNIN_MAX_FAILS, attemptState, clearFailures, recordFailure, secondsLeft } from '@/lib/signinAttempts'
+
+// Sign-in is paused after SIGNIN_MAX_FAILS wrong passwords in a row (see
+// lib/signinAttempts). The page shows the attempts left and the countdown.
+const paused = (lockedUntil: number) => {
+  const retryAfter = secondsLeft(lockedUntil)
+  const wait = Math.ceil(retryAfter / 60)
+  return NextResponse.json(
+    { error: `Too many attempts. Please wait ${wait} minute${wait === 1 ? '' : 's'} and try again.`, code: 'RATE_LIMITED', retryAfter, attemptsLeft: 0 },
+    { status: 429, headers: { 'Retry-After': String(retryAfter) } },
+  )
+}
 
 export async function POST(request: NextRequest) {
   const { url, anonKey: key } = getSupabaseEnv()
@@ -35,6 +47,11 @@ export async function POST(request: NextRequest) {
       if (shared) return shared
     }
 
+    // While paused, the password is not even checked.
+    const ip = clientIp(request)
+    const before = await attemptState(email, ip)
+    if (before?.lockedUntil) return paused(before.lockedUntil)
+
     const supabase = createClient(url, key, { global: { fetch: noStoreFetch } })
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
@@ -45,8 +62,16 @@ export async function POST(request: NextRequest) {
       const code = error.status === 429 ? 'RATE_LIMITED'
         : error.code === 'email_not_confirmed' || /email not confirmed/i.test(error.message) ? 'EMAIL_NOT_CONFIRMED'
         : error.code === 'invalid_credentials' || /invalid login|credentials/i.test(error.message) ? 'INVALID_CREDENTIALS' : 'SIGNIN_FAILED'
+      // Only a wrong email/password counts towards the pause (an unconfirmed
+      // email means the password was right).
+      if (code === 'INVALID_CREDENTIALS') {
+        const after = await recordFailure(email, ip)
+        if (after?.lockedUntil) return paused(after.lockedUntil)
+        if (after) return NextResponse.json({ error: error.message, code, attemptsLeft: Math.max(0, SIGNIN_MAX_FAILS - after.fails) }, { status: 401 })
+      }
       return NextResponse.json({ error: error.status === 429 ? 'Too many attempts. Please wait a moment and try again.' : error.message, code }, { status: error.status === 429 ? 429 : 401 })
     }
+    await clearFailures(email, ip)
 
     let role = 'customer'
     if (data.session) {

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { clockText, useAuthLock } from '@/components/AuthShell'
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState('')
@@ -12,9 +13,13 @@ export default function AdminLoginPage() {
   const [error, setError] = useState('')
   const router = useRouter()
   const supabase = createClient()
+  // Paused after 5 wrong passwords in a row (server-side); the countdown
+  // survives a reload of this tab.
+  const lock = useAuthLock('admin')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (lock.locked) return
     setError('')
     setLoading(true)
     try {
@@ -26,8 +31,13 @@ export default function AdminLoginPage() {
       const data = await res.json()
       if (!res.ok) {
         const msg: string = data.error || 'Sign in failed'
-        if (msg.toLowerCase().includes('invalid') || msg.toLowerCase().includes('credentials')) {
-          setError('Incorrect email or password.')
+        if (res.status === 429 && typeof data.retryAfter === 'number' && data.retryAfter > 0) {
+          lock.lock(data.retryAfter)
+        } else if (msg.toLowerCase().includes('invalid') || msg.toLowerCase().includes('credentials')) {
+          const left = typeof data.attemptsLeft === 'number' ? data.attemptsLeft : null
+          setError(left != null && left > 0 && left <= 2
+            ? `Incorrect email or password. ${left} attempt${left === 1 ? '' : 's'} left before sign-in is paused for 5 minutes.`
+            : 'Incorrect email or password.')
         } else {
           setError(msg)
         }
@@ -67,7 +77,12 @@ export default function AdminLoginPage() {
           <p className="text-slate-500 text-xs text-center mb-6">Restricted to administrators only</p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
+            {lock.locked && (
+              <div role="status" className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-200 text-sm" data-lockout={lock.left}>
+                Too many sign-in attempts. For your security, sign-in is paused. Try again in <strong className="tabular-nums">{clockText(lock.left)}</strong>.
+              </div>
+            )}
+            {error && !lock.locked && (
               <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-start gap-2">
                 <span>⚠</span>
                 <span>{error}</span>
@@ -114,7 +129,7 @@ export default function AdminLoginPage() {
 
             <button
               type="submit"
-              disabled={loading || !email || !password}
+              disabled={loading || lock.locked || !email || !password}
               className="w-full py-3 text-sm font-semibold text-accent-ink bg-accent rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_0_20px_rgba(247,147,26,0.3)] flex items-center justify-center gap-2 mt-2"
             >
               {loading ? (

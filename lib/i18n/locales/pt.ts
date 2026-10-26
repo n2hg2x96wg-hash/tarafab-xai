@@ -340,6 +340,8 @@ const pt: DeepPartial<typeof en> = {
     errEmailFormat: "Introduza um email válido, por exemplo nome@exemplo.com.",
     errPassword: "Introduza a sua palavra-passe.",
     wrongCredentials: "O email ou a palavra-passe estão incorretos. Verifique ambos e tente novamente.",
+    attemptsLeftMany: "Restam {n} tentativas. Depois disso, o acesso será pausado por 5 minutos.",
+    attemptsLeftOne: "Resta 1 tentativa. Depois disso, o acesso será pausado por 5 minutos.",
     serverDown: "O serviço está temporariamente indisponível. Tente novamente dentro de alguns minutos.",
     lockTitle: "Demasiadas tentativas de início de sessão",
     lockBody: "Para sua segurança, o início de sessão está em pausa.",
