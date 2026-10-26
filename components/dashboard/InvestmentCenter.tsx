@@ -8,7 +8,7 @@ import { fmt } from '@/components/dashboard/shared'
 import { projection } from '@/lib/returns'
 import { EnginePanel } from '@/components/automation/EnginePanel'
 import { parseInvestmentSummary, type InvestmentSummary } from '@/lib/investmentSummary'
-import { useHideChat } from '@/lib/chatAside'
+import { AppScreen } from '@/components/AppScreen'
 
 // The client's Investment Center. Everything shown is read from real records
 // through /api/client/investments, which runs under row level security.
@@ -346,27 +346,13 @@ export function InvestmentCenter({ go, focusId, onFocusDone, onAccountChanged }:
   )
 }
 
+// Plan details, the invest flow and an investment's details open as app
+// screens: full screen on phones (Back closes them), a dialog on desktop.
 function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  const { t } = useI18n()
-  useHideChat()
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    document.addEventListener('keydown', onKey)
-    return () => { document.body.style.overflow = prev; document.removeEventListener('keydown', onKey) }
-  }, [onClose])
   return (
-    <div className="fixed inset-0 z-[55] flex items-end sm:items-center justify-center sm:p-4" role="dialog" aria-modal="true" aria-label={title}>
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] backdrop-in" onClick={onClose} aria-hidden="true" />
-      <div className="relative w-full sm:max-w-xl max-h-[92dvh] overflow-y-auto overscroll-contain glass-panel rounded-t-2xl sm:rounded-2xl rise-in safe-bottom">
-        <div className="sticky top-0 z-10 flex items-center justify-between gap-3 px-5 sm:px-6 h-14 border-b border-ink-700 glass-bar">
-          <h2 className="text-base font-semibold text-fg truncate">{title}</h2>
-          <button onClick={onClose} className="-mr-2 w-10 h-10 rounded-md flex items-center justify-center text-fg-muted hover:text-fg" aria-label={t('common.closeMenu')}><IconClose /></button>
-        </div>
-        <div className="p-5 sm:p-6">{children}</div>
-      </div>
-    </div>
+    <AppScreen title={title} onClose={onClose} attrs={{ 'data-inv-sheet': '' }}>
+      <div className="p-5 sm:p-6">{children}</div>
+    </AppScreen>
   )
 }
 

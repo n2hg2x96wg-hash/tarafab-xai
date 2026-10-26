@@ -19,6 +19,8 @@ import {
   type Account, type Tx, type UserInfo,
 } from './shared'
 import { isAccountCredit, PROFIT_BALANCE_CATEGORIES, txCategory, txSign } from '@/lib/txCategory'
+import { AppScreen } from '@/components/AppScreen'
+import { TxReceipt } from '@/components/dashboard/TxReceipt'
 
 const money = (n: number) => `$${fmt(n)}`
 
@@ -307,12 +309,22 @@ const NOTICE_TONE: Record<TeamNotice['type'], string> = {
   investment: 'text-accent border-accent/30',
 }
 
+const Chevron = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-1 shrink-0 text-fg-faint" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+)
+
+// Every notification is a row you tap: a team message opens on its own screen
+// (and counts as read once opened), an activity entry opens its receipt.
 export function NotificationsTab({ notices, seenAt, team, onRead, go }: {
   notices: Notice[]; seenAt: string | null; team: TeamNotice[]; onRead: (ids: string[]) => void; go: (id: string, investmentId?: string | null) => void
 }) {
   const { t, intl } = useI18n()
+  const [openId, setOpenId] = useState<string | null>(null)
+  const [receipt, setReceipt] = useState<Tx | null>(null)
+  const openNotice = team.find(n => n.id === openId) || null
   const unreadIds = team.filter(n => !n.read).map(n => n.id)
   const when = (d: string) => new Date(d).toLocaleString(intl, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+  const open = (n: TeamNotice) => { setOpenId(n.id); if (!n.read) onRead([n.id]) }
   return (
     <div className="max-w-2xl space-y-6 panel-in">
 
@@ -324,25 +336,20 @@ export function NotificationsTab({ notices, seenAt, team, onRead, go }: {
           </div>
           <ul className="dep-surface !p-0 overflow-hidden divide-y divide-[rgb(var(--contrast)/.07)]">
             {team.map(n => (
-              <li key={n.id} className={`px-4 py-3.5 transition-colors ${n.read ? '' : 'bg-accent/[0.035]'}`} data-notice={n.read ? 'read' : 'unread'}>
-                <div className="flex items-start gap-3">
+              <li key={n.id} data-notice={n.read ? 'read' : 'unread'}>
+                <button type="button" onClick={() => open(n)} className={`tap w-full text-left flex items-start gap-3 px-4 py-3.5 ${n.read ? '' : 'bg-accent/[0.035]'}`} data-notice-open={n.id}>
                   <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.read ? 'bg-transparent' : 'bg-accent'}`} aria-hidden="true" />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                  <span className="min-w-0 flex-1">
+                    <span className="flex flex-wrap items-center gap-2 mb-1">
                       <span className={`tag ${NOTICE_TONE[n.type]}`}>{t(`notif.types.${n.type}`)}</span>
                       {!n.read && <span className="sr-only">{t('notif.unread')}</span>}
                       <span className="text-xs text-fg-faint">{when(n.created_at)}</span>
-                    </div>
-                    <p className={`text-[14px] ${n.read ? 'text-fg-muted' : 'font-semibold text-fg'}`}>{n.title}</p>
-                    {n.body && <p className="text-[13.5px] text-fg-muted mt-0.5 whitespace-pre-line break-words">{n.body}</p>}
-                    <div className="flex flex-wrap gap-2 mt-2.5 empty:hidden">
-                      {n.cta_label && n.cta_target && (
-                        <button onClick={() => { onRead([n.id]); go(n.cta_target!.slice(1), n.investment_id) }} className="btn btn-brand btn-sm">{n.cta_label}</button>
-                      )}
-                      {!n.read && <button onClick={() => onRead([n.id])} className="btn btn-ghost btn-sm">{t('notif.markRead')}</button>}
-                    </div>
-                  </div>
-                </div>
+                    </span>
+                    <span className={`block text-[14px] ${n.read ? 'text-fg-muted' : 'font-semibold text-fg'}`}>{n.title}</span>
+                    {n.body && <span className="block text-[13.5px] text-fg-muted mt-0.5 line-clamp-2 break-words">{n.body}</span>}
+                  </span>
+                  <Chevron />
+                </button>
               </li>
             ))}
           </ul>
@@ -357,22 +364,50 @@ export function NotificationsTab({ notices, seenAt, team, onRead, go }: {
               const isNew = !seenAt || n.at > seenAt
               const text = t(`notices.${n.kind}`, { type: txLabel(n.tx, t), amount: money(Number(n.tx.amount)) })
               return (
-                <li key={n.id + n.kind} className="flex items-start gap-3 px-4 py-3">
-                  <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${isNew && n.kind !== 'pending' ? 'bg-accent' : 'bg-transparent'}`} aria-hidden="true" />
-                  <div className="min-w-0 flex-1">
-                    <p className={`text-[14px] ${isNew && n.kind !== 'pending' ? 'text-fg font-medium' : 'text-fg-muted'}`}>{text}</p>
-                    {/* A profit-balance entry carries the admin's reason, as on Transactions. */}
-                    {PROFIT_BALANCE_CATEGORIES.includes(txCategory(n.tx)) && <p className="text-[13px] text-fg-muted break-words" data-tx-desc>{txDescription(n.tx, t)}</p>}
-                    <p className="text-xs text-fg-faint">{when(n.at)}{n.tx.reference ? ` · ${n.tx.reference}` : ''}</p>
-                  </div>
-                  <StatusTag status={n.tx.status} />
+                <li key={n.id + n.kind}>
+                  <button type="button" onClick={() => setReceipt(n.tx)} className="tap w-full text-left flex items-start gap-3 px-4 py-3" aria-label={`${text} — ${t('rcpt.open')}`} data-activity-open={n.tx.id}>
+                    <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${isNew && n.kind !== 'pending' ? 'bg-accent' : 'bg-transparent'}`} aria-hidden="true" />
+                    <span className="min-w-0 flex-1">
+                      <span className={`block text-[14px] ${isNew && n.kind !== 'pending' ? 'text-fg font-medium' : 'text-fg-muted'}`}>{text}</span>
+                      {/* A profit-balance entry carries the admin's reason, as on Transactions. */}
+                      {PROFIT_BALANCE_CATEGORIES.includes(txCategory(n.tx)) && <span className="block text-[13px] text-fg-muted break-words" data-tx-desc>{txDescription(n.tx, t)}</span>}
+                      <span className="block text-xs text-fg-faint">{when(n.at)}{n.tx.reference ? ` · ${n.tx.reference}` : ''}</span>
+                    </span>
+                    <StatusTag status={n.tx.status} />
+                    <Chevron />
+                  </button>
                 </li>
               )
             })}
           </ul>
         )}
       </section>
+
+      {openNotice && <NoticeScreen n={openNotice} onClose={() => setOpenId(null)} go={go} />}
+      {receipt && <TxReceipt tx={receipt} onClose={() => setReceipt(null)} />}
     </div>
+  )
+}
+
+// One team message on its own screen: the full text and its button.
+function NoticeScreen({ n, onClose, go }: { n: TeamNotice; onClose: () => void; go: (id: string, investmentId?: string | null) => void }) {
+  const { t, intl } = useI18n()
+  return (
+    <AppScreen title={t('notif.detail')} onClose={onClose} attrs={{ 'data-notice-screen': n.id }}>
+      {dismiss => (
+        <article className="px-5 sm:px-6 pt-5 pb-6">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`tag ${NOTICE_TONE[n.type]}`}>{t(`notif.types.${n.type}`)}</span>
+            <time dateTime={n.created_at} className="text-[12.5px] text-fg-faint">{new Date(n.created_at).toLocaleString(intl, { dateStyle: 'medium', timeStyle: 'short' })}</time>
+          </div>
+          <h3 className="mt-3 text-[20px] leading-snug font-semibold tracking-[-0.01em] text-fg break-words">{n.title}</h3>
+          {n.body && <p className="mt-3 text-[15px] leading-relaxed text-fg-muted whitespace-pre-line break-words">{n.body}</p>}
+          {n.cta_label && n.cta_target && (
+            <button type="button" onClick={() => dismiss(() => go(n.cta_target!.slice(1), n.investment_id))} className="btn btn-solid w-full sm:w-auto min-h-12 mt-6" data-notice-cta>{n.cta_label}</button>
+          )}
+        </article>
+      )}
+    </AppScreen>
   )
 }
 

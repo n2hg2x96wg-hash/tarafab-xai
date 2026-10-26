@@ -927,6 +927,7 @@ const it: DeepPartial<typeof en> = {
     markAllRead: 'Segna tutto come letto',
     markRead: 'Segna come letto',
     unread: 'Da leggere',
+    detail: "Notifica",
     types: {
       investment: "Investimento",
       market: "Mercato",

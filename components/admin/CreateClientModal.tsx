@@ -65,7 +65,7 @@ export default function CreateClientModal({ onClose, onCreated }: { onClose: () 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:px-4" role="dialog" aria-modal="true" aria-labelledby="create-client-title">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => { if (!busy) onClose() }} />
-      <div className="relative z-10 glass w-full sm:max-w-md max-h-[92vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl border border-white/[0.1] p-5 sm:p-6" style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}>
+      <div className="relative z-10 glass w-full sm:max-w-md max-h-[92vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl border border-white/[0.1] p-5 sm:p-6 adm-sheet" style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}>
         {created ? (
           <div>
             <div className="w-10 h-10 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center text-lg mb-3" aria-hidden="true">✓</div>

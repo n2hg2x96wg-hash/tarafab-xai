@@ -1,17 +1,17 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { useState } from 'react'
 import { useI18n } from '@/lib/i18n/I18nProvider'
 import { statusLabel } from '@/lib/i18n/format'
 import { isAccountCredit, MANUAL_PROFIT_CATEGORIES, txCategory, txSign } from '@/lib/txCategory'
-import { IconCheck, IconClose, IconCopy } from '@/components/Icons'
+import { IconCheck, IconCopy } from '@/components/Icons'
+import { AppScreen } from '@/components/AppScreen'
 import { StatusTag, fmt, methodLabel, signedAmount, txDescription, txLabel, type Tx } from '@/components/dashboard/shared'
-import { hideChat } from '@/lib/chatAside'
 
 /* A receipt for one of the client's own transactions: every line comes from
    that transaction record (nothing is recalculated). It can be shared as an
-   image through the device's share sheet, saved, or copied as text. */
+   image through the device's share sheet, saved, or copied as text. On
+   phones it opens as a full app screen (Back closes it). */
 
 type Line = [string, string]
 
@@ -101,22 +101,11 @@ export function TxReceipt({ tx, onClose }: { tx: Tx; onClose: () => void }) {
   const [busy, setBusy] = useState<'' | 'share' | 'save'>('')
   const [copied, setCopied] = useState(false)
   const [msg, setMsg] = useState('')
-  const closeRef = useRef<HTMLButtonElement>(null)
   const { label, lines } = receiptLines(tx, t, intl)
   const amount = signedAmount(tx)
   const note = t('rcpt.note')
   const fileName = `tarafab-receipt-${(tx.reference || tx.id).replace(/[^A-Za-z0-9-]/g, '')}.png`
   const text = [`Tarafab.XAi — ${t('rcpt.title')}`, `${label}: ${amount}`, ...lines.slice(1).map(([k, v]) => `${k}: ${v}`)].join('\n')
-
-  useEffect(() => {
-    closeRef.current?.focus()
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    const showChat = hideChat()
-    document.addEventListener('keydown', onKey)
-    return () => { document.body.style.overflow = prev; showChat(); document.removeEventListener('keydown', onKey) }
-  }, [onClose])
 
   const save = (blob: Blob) => {
     const url = URL.createObjectURL(blob)
@@ -144,16 +133,11 @@ export function TxReceipt({ tx, onClose }: { tx: Tx; onClose: () => void }) {
     try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1800) } catch { setMsg(t('rcpt.failed')) }
   }
 
-  return createPortal(
-    <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="rcpt-title" data-tx-receipt={tx.id}>
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-[3px]" onClick={onClose} aria-hidden="true" />
-      <div className="dep-sheet rcpt relative w-full sm:max-w-[440px] max-h-[92dvh] overflow-y-auto rounded-t-3xl sm:rounded-3xl" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-        <div className="rcpt-head relative px-6 pt-6 pb-5">
-          <div className="flex items-center justify-between gap-3">
-            <p id="rcpt-title" className="text-[11.5px] font-semibold uppercase tracking-[0.14em] text-accent">{t('rcpt.title')}</p>
-            <button ref={closeRef} onClick={onClose} className="w-9 h-9 -mr-2 rounded-xl grid place-items-center text-fg-muted hover:text-fg hover:bg-[rgb(var(--contrast)/.06)]" aria-label={t('rcpt.close')}><IconClose width={18} height={18} /></button>
-          </div>
-          <p className={`mt-3 text-[34px] leading-none font-semibold tracking-[-0.02em] tabular-nums break-words ${txSign(tx) > 0 ? 'price-up' : 'text-fg'}`} data-rcpt-amount>{amount}</p>
+  return (
+    <AppScreen title={t('rcpt.title')} titleId="rcpt-title" onClose={onClose} closeLabel={t('rcpt.close')} width="sm" z={70} attrs={{ 'data-tx-receipt': tx.id }}>
+      <div className="rcpt">
+        <div className="rcpt-head relative px-6 pt-5 pb-5">
+          <p className={`text-[34px] leading-none font-semibold tracking-[-0.02em] tabular-nums break-words ${txSign(tx) > 0 ? 'price-up' : 'text-fg'}`} data-rcpt-amount>{amount}</p>
           <div className="mt-3 flex flex-wrap items-center gap-2"><span className="text-[14px] text-fg">{label}</span><StatusTag status={tx.status} /></div>
         </div>
         <dl className="px-6 py-4 space-y-3 border-t border-[rgb(var(--contrast)/.07)]">
@@ -172,7 +156,6 @@ export function TxReceipt({ tx, onClose }: { tx: Tx; onClose: () => void }) {
           {msg && <p role="status" className="col-span-2 text-[12.5px] text-fg-muted text-center">{msg}</p>}
         </div>
       </div>
-    </div>,
-    document.body,
+    </AppScreen>
   )
 }

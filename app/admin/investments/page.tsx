@@ -561,7 +561,7 @@ function ReviewPanel({ inv, client, productCode, onClose, onDone }: { inv: Inv; 
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/70" role="dialog" aria-modal="true" aria-label="Investment review">
-      <div className="panel w-full sm:max-w-lg max-h-[92dvh] overflow-y-auto p-5 sm:p-6 space-y-4 rounded-b-none sm:rounded-b-xl">
+      <div className="panel w-full sm:max-w-lg max-h-[92dvh] overflow-y-auto p-5 sm:p-6 space-y-4 rounded-b-none sm:rounded-b-xl adm-sheet">
         <div className="flex items-start justify-between gap-3">
           <div><h2 className="text-lg font-semibold text-white">{inv.reference || 'Investment'}</h2><p className="text-xs text-slate-500">{productCode}</p></div>
           <button onClick={onClose} className="btn btn-sm btn-ghost" aria-label="Close">✕</button>

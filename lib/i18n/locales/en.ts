@@ -937,6 +937,7 @@ const en = {
     markAllRead: 'Mark all as read',
     markRead: 'Mark as read',
     unread: 'Unread',
+    detail: "Notification",
     types: {
       investment: "Investment",
       market: "Market",

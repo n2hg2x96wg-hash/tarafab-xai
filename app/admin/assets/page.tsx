@@ -112,7 +112,7 @@ export default function AdminAssetsPage() {
       {edit && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:px-4" role="dialog" aria-modal="true" aria-labelledby="asset-edit">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => !busy && setEdit(null)} />
-          <div className="relative z-10 glass w-full sm:max-w-md max-h-[92vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl border border-white/[0.1] p-5 sm:p-6" style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}>
+          <div className="relative z-10 glass w-full sm:max-w-md max-h-[92vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl border border-white/[0.1] p-5 sm:p-6 adm-sheet" style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}>
             <h3 id="asset-edit" className="text-base font-bold text-white">{edit.id} · {edit.provider}</h3>
             <p className="text-[11px] text-slate-500 mb-4">Symbol and data source are fixed; the settings below change what clients see. Saved with an audit entry.</p>
             <label className="block text-xs text-slate-400 mb-1">Name</label><input value={edit.name} maxLength={80} onChange={e => setEdit({ ...edit, name: e.target.value })} className="input-field w-full text-sm mb-3" />

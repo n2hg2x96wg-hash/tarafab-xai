@@ -930,6 +930,7 @@ const ko: DeepPartial<typeof en> = {
     markAllRead: '모두 읽음으로 표시',
     markRead: '읽음으로 표시',
     unread: '읽지 않음',
+    detail: "알림",
     types: {
       investment: "투자",
       market: "시장",
