@@ -1291,6 +1291,13 @@ const en = {
   premium: {
     nav: "Premium",
   },
+  installApp: {
+    title: 'Get the Tarafab app',
+    body: 'Add Tarafab to your home screen to open your account in one tap, full screen.',
+    install: 'Install app',
+    ios: 'On iPhone or iPad, tap the Share button, then Add to Home Screen. Your account then opens in one tap, full screen.',
+    later: 'Not now',
+  },
 }
 
 export default en

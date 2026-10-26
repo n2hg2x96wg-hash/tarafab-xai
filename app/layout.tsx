@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import SmartsuppWidget from '@/components/SmartsuppWidget'
 import ChatwayWidget from '@/components/ChatwayWidget'
 import SessionGuard from '@/components/SessionGuard'
+import { ServiceWorkerRegister } from '@/components/InstallApp'
 import { ToastProvider } from '@/components/Toast'
 import { I18nProvider } from '@/lib/i18n/I18nProvider'
 import { DEFAULT_LOCALE, LOCALE_COOKIE, isLocale } from '@/lib/i18n/config'
@@ -20,13 +21,17 @@ export const metadata: Metadata = {
   description: 'Deposit Bitcoin, upload your transfer receipt, and track your balance and transaction history in one dashboard.',
   icons: {
     icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="80" font-size="80">₿</text></svg>',
+    apple: '/app/apple-touch-icon.png',
   },
+  // Home-screen app on iPhone/iPad (the web app manifest covers the others).
+  appleWebApp: { capable: true, title: 'Tarafab', statusBarStyle: 'black' },
 }
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
+  themeColor: '#080a0e',
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
@@ -55,6 +60,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <SmartsuppWidget />
             <ChatwayWidget />
             <SessionGuard />
+            <ServiceWorkerRegister />
           </I18nProvider>
         </ThemeProvider>
       </body>

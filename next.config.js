@@ -27,6 +27,8 @@ const nextConfig = {
       { source: '/:path*', headers: security },
       // The walkthrough video, poster and captions: public, cached for a day.
       { source: '/media/:path*', headers: [{ key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' }] },
+      // Installed app: the service worker is always re-checked so updates reach phones.
+      { source: '/sw.js', headers: [{ key: 'Cache-Control', value: 'no-cache' }] },
       { source: '/api/client/:path*', headers: privateNoStore },
       { source: '/api/admin/:path*', headers: privateNoStore },
       { source: '/api/auth/:path*', headers: privateNoStore },

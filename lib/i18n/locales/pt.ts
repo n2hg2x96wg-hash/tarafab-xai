@@ -1280,6 +1280,13 @@ const pt: DeepPartial<typeof en> = {
   premium: {
     nav: "Premium",
   },
+  installApp: {
+    title: 'Instale a app Tarafab',
+    body: 'Adicione a Tarafab ao seu ecrã principal para abrir a sua conta com um toque, em ecrã inteiro.',
+    install: 'Instalar app',
+    ios: 'No iPhone ou iPad, toque no botão Partilhar e depois em Adicionar ao ecrã principal. A sua conta abre com um toque, em ecrã inteiro.',
+    later: 'Agora não',
+  },
 }
 
 export default pt

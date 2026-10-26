@@ -1280,6 +1280,13 @@ const it: DeepPartial<typeof en> = {
   premium: {
     nav: "Premium",
   },
+  installApp: {
+    title: 'Installa l’app Tarafab',
+    body: 'Aggiungi Tarafab alla schermata Home per aprire il tuo conto con un tocco, a schermo intero.',
+    install: 'Installa app',
+    ios: 'Su iPhone o iPad, tocca il pulsante Condividi, poi Aggiungi alla schermata Home. Il tuo conto si apre con un tocco, a schermo intero.',
+    later: 'Non ora',
+  },
 }
 
 export default it
