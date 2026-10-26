@@ -3,9 +3,9 @@
 // and account pages are never stale and one person's data is never stored on
 // the device. The only thing kept is a small offline page, shown when a page
 // can't be opened because there is no connection.
-const CACHE = 'tf-offline-v1'
+const CACHE = 'tf-offline-v2'
 const OFFLINE = '/offline.html'
-const PRECACHE = [OFFLINE, '/app/icon-192.png']
+const PRECACHE = [OFFLINE, '/app/icon-192.png?v=2']
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(PRECACHE)).then(() => self.skipWaiting()))

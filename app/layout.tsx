@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   description: 'Deposit Bitcoin, upload your transfer receipt, and track your balance and transaction history in one dashboard.',
   icons: {
     icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="80" font-size="80">₿</text></svg>',
-    apple: '/app/apple-touch-icon.png',
+    apple: '/app/apple-touch-icon.png?v=2',
   },
   // Home-screen app on iPhone/iPad (the web app manifest covers the others).
   appleWebApp: { capable: true, title: 'Tarafab', statusBarStyle: 'black' },

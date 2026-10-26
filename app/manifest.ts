@@ -16,11 +16,13 @@ export default function manifest(): MetadataRoute.Manifest {
     background_color: '#080a0e',
     theme_color: '#080a0e',
     categories: ['finance', 'business'],
+    // Light tile with the Tarafab gold coin (the site's logo mark). ?v= changes
+    // whenever the images change, so installed apps pick up the new icon.
     icons: [
-      { src: '/app/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-      { src: '/app/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-      { src: '/app/maskable-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
-      { src: '/app/maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      { src: '/app/icon-192.png?v=2', sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: '/app/icon-512.png?v=2', sizes: '512x512', type: 'image/png', purpose: 'any' },
+      { src: '/app/maskable-192.png?v=2', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+      { src: '/app/maskable-512.png?v=2', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
     ],
   }
 }
