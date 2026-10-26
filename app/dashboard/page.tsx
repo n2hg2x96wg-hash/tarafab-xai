@@ -48,7 +48,7 @@ import { InvestmentCenter } from '@/components/dashboard/InvestmentCenter'
 import { HeroChips, NextSteps, OverviewHero } from '@/components/dashboard/OverviewParts'
 import { AutomationStatusPanel, BtcMarketPanel, WatchlistPanel, useClockText } from '@/components/dashboard/OverviewPro'
 import { ConfirmModal } from '@/components/ConfirmModal'
-import { InstallAppCard } from '@/components/InstallApp'
+import { GetAppMenuButton, InstallAppCard } from '@/components/InstallApp'
 import { CommandSearch, type CommandItem } from '@/components/dashboard/CommandSearch'
 import { TxReceipt } from '@/components/dashboard/TxReceipt'
 import { MarketActivityTab, PriceHistoryTab } from '@/components/dashboard/MarketTabs'
@@ -555,6 +555,7 @@ export default function DashboardPage() {
             <LanguageSelector align="left" direction="up" />
             <ThemeSelector align="left" direction="up" />
           </div>
+          <GetAppMenuButton onOpen={closeDrawer} className="cc-getapp" />
           <button onClick={handleSignOut} disabled={signingOut} aria-busy={signingOut} title={collapsed ? t('common.signOut') : undefined}
             className={`cc-logout ${collapsed ? 'lg:justify-center lg:px-0' : ''}`} data-signout>
             <span className="cc-logout-icon" aria-hidden="true">{signingOut ? <Spinner /> : <IconLogOut width={16} height={16} />}</span>

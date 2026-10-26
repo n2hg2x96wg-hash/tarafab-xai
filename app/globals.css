@@ -1010,6 +1010,16 @@ button.ovx-row:focus-visible { outline: none; box-shadow: inset 0 0 0 2px rgb(va
 .cc-logout:active:not(:disabled) { transform: scale(.985); }
 .cc-logout:focus-visible { outline: none; box-shadow: 0 0 0 2px rgb(var(--ink-950)), 0 0 0 4px rgb(var(--danger-400) / .6); }
 .cc-logout:disabled { cursor: progress; opacity: .75; }
+/* "Get the app" (phone menu, components/InstallApp.tsx): same row shape as Sign out, in the accent colour. */
+.cc-getapp { width: 100%; min-height: 44px; display: flex; align-items: center; gap: 12px; padding: 0 10px; margin: 0; border-radius: 12px;
+  font-size: 14px; font-weight: 500; color: rgb(var(--accent-text)); border: 1px solid rgb(var(--accent) / .2); background: rgb(var(--accent) / .06);
+  transition: background-color .15s ease, border-color .15s ease, transform .12s ease; }
+.cc-getapp:hover { background: rgb(var(--accent) / .11); border-color: rgb(var(--accent) / .34); }
+.cc-getapp:active { transform: scale(.985); }
+.cc-getapp:focus-visible { outline: none; box-shadow: 0 0 0 2px rgb(var(--ink-950)), 0 0 0 4px rgb(var(--accent) / .6); }
+.cc-getapp .cc-logout-icon { background: rgb(var(--accent) / .12); }
+.cc-getapp .cc-logout-icon svg { width: 16px; height: 16px; }
+@media (min-width: 1024px) { .cc-getapp { display: none; } }
 .cc-logout-icon { width: 28px; height: 28px; flex-shrink: 0; border-radius: 8px; display: grid; place-items: center; background: rgb(var(--danger-400) / .1); }
 @media (prefers-reduced-motion: reduce) { .cc-logout:active:not(:disabled) { transform: none; } }
 
