@@ -4,7 +4,7 @@ import { cookies } from 'next/headers'
 import SmartsuppWidget from '@/components/SmartsuppWidget'
 import ChatwayWidget from '@/components/ChatwayWidget'
 import SessionGuard from '@/components/SessionGuard'
-import { ServiceWorkerRegister } from '@/components/InstallApp'
+import { InstallGuideHost, ServiceWorkerRegister } from '@/components/InstallApp'
 import { ToastProvider } from '@/components/Toast'
 import { I18nProvider } from '@/lib/i18n/I18nProvider'
 import { DEFAULT_LOCALE, LOCALE_COOKIE, isLocale } from '@/lib/i18n/config'
@@ -61,6 +61,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <ChatwayWidget />
             <SessionGuard />
             <ServiceWorkerRegister />
+            <InstallGuideHost />
           </I18nProvider>
         </ThemeProvider>
       </body>
