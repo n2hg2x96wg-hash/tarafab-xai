@@ -101,7 +101,7 @@ function Head({ id, lead }: { id: string; lead: TKey }) {
   return (
     <div className="flex items-center gap-3.5">
       {/* eslint-disable-next-line @next/next/no-img-element -- next/image is off for this site (next.config.js) */}
-      <img src="/app/icon-192.png" alt="" width={52} height={52} className="rounded-[13px] shrink-0" />
+      <img src="/app/icon-192.png?v=2" alt="" width={52} height={52} className="rounded-[13px] shrink-0" />
       <div className="min-w-0">
         <h3 id={id} className="text-[16px] font-semibold text-fg">{t('installApp.title')}</h3>
         <p className="mt-1 text-[13.5px] leading-relaxed text-fg-muted">{t(lead)}</p>
