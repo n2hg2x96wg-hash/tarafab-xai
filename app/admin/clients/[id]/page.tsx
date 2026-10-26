@@ -396,8 +396,14 @@ export default function ClientDetailPage() {
 
   return (
     <AdminLayout>
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-xs text-slate-500 mb-5">
+      {/* On phones the client opens like an app screen: it slides in, with a
+          back link to the list in place of the breadcrumb. */}
+      <div className="adm-screen-in">
+      <Link href="/admin/clients" className="sm:hidden -ml-2 mb-3 inline-flex items-center gap-1 min-h-11 px-2 rounded-lg text-sm text-slate-300 active:bg-white/[0.06]" data-client-back>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
+        Clients
+      </Link>
+      <nav className="hidden sm:flex items-center gap-2 text-xs text-slate-500 mb-5">
         <Link href="/admin" className="hover:text-white transition-colors">Admin</Link>
         <span className="text-slate-700">/</span>
         <Link href="/admin/clients" className="hover:text-white transition-colors">Clients</Link>
@@ -958,6 +964,7 @@ export default function ClientDetailPage() {
           </div>
         </div>
       )}
+      </div>
     </AdminLayout>
   )
 }

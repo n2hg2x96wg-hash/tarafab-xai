@@ -241,7 +241,8 @@ export default function ClientsPage() {
                     </span>
                   </div>
                   {client.accounts && (
-                    <div className="grid grid-cols-2 gap-2 mb-3">
+                    // Tapping the figures opens the client, like a row in an app.
+                    <Link href={`/admin/clients/${client.id}`} className="tap grid grid-cols-2 gap-2 mb-3 rounded-lg" aria-label={`Open ${client.full_name || 'client'}`} data-client-tap>
                       {[
                         { label: 'Account Balance', value: client.accounts.available_balance },
                         { label: 'Profit', value: client.accounts.profit_balance },
@@ -253,7 +254,7 @@ export default function ClientsPage() {
                           <p className="text-xs font-semibold text-white">${(item.value || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                         </div>
                       ))}
-                    </div>
+                    </Link>
                   )}
                   {client.email && (
                     <button
@@ -266,7 +267,7 @@ export default function ClientsPage() {
                   )}
                   <Link
                     href={`/admin/clients/${client.id}`}
-                    className="w-full text-center text-xs text-accent border border-accent/30 px-3 py-2 rounded-lg hover:bg-accent/10 transition-colors block"
+                    className="tap w-full text-center text-xs text-accent border border-accent/30 px-3 py-2 rounded-lg hover:bg-accent/10 transition-colors block"
                   >
                     Manage Client →
                   </Link>

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { parseEffective, toLocalInput } from '@/lib/effectiveDate'
+import { BackCloseLayer } from '@/lib/backClose'
 
 // Admin: change the effective (business) date of an existing transaction.
 // The database checks the admin role, validates the date, keeps the amount,
@@ -32,7 +33,9 @@ export function EffectiveDateModal({ tx, onClose, onSaved }: {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:px-4" role="dialog" aria-modal="true" aria-labelledby="eff-title">
+    // Above a transaction's detail screen, which it can be opened from.
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:px-4" role="dialog" aria-modal="true" aria-labelledby="eff-title">
+      <BackCloseLayer onClose={() => { if (!busy) onClose() }} />
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => !busy && onClose()} />
       <div className="relative z-10 glass w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl border border-white/[0.1] p-5 sm:p-6" style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}>
         <h3 id="eff-title" className="text-base font-bold text-white">Change effective date</h3>

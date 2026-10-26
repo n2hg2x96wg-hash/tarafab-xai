@@ -3,12 +3,15 @@
 import { useEffect, useState } from 'react'
 import { adminTxLabel, isAccountCredit, txCategory, type TxCategory } from '@/lib/txCategory'
 import { useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import AdminLayout from '@/components/AdminLayout'
 import { AdminLoadError } from '@/components/AdminLoadError'
 import { authFetch, errorText, readJson, RequestError } from '@/lib/authFetch'
 import { EffectiveDateModal } from '@/components/admin/EffectiveDateModal'
 import { BankReviewPanel } from '@/components/admin/BankReviewPanel'
+import { AppScreen } from '@/components/AppScreen'
+import { BackCloseLayer } from '@/lib/backClose'
 
 type Tx = {
   id: string
@@ -67,6 +70,10 @@ const typeKey = (tx: Pick<Tx, 'type' | 'method' | 'direction' | 'source'>): Admi
 const typeText = (tx: Pick<Tx, 'type' | 'method' | 'direction' | 'source'>) => adminTxLabel(tx)
 const KNOWN_STATUSES = ['pending', 'pending_review', 'pending_verification', 'pending_blockchain_confirmation', 'requested', 'under_review', 'approved', 'processing', 'completed', 'rejected', 'failed', 'cancelled']
 
+const Chevron = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-slate-600" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+)
+
 export default function TransactionsPage() {
   const supabase = createClient()
   const [txs, setTxs] = useState<Tx[]>([])
@@ -79,6 +86,8 @@ export default function TransactionsPage() {
   const [filterType, setFilterType] = useState(typeParam === 'deposit' || typeParam === 'withdrawal' ? typeParam : '')
   useEffect(() => { setFilterType(typeParam === 'deposit' || typeParam === 'withdrawal' ? typeParam : '') }, [typeParam])
   const [reviewingId, setReviewingId] = useState<string | null>(null)
+  // The transaction opened on its own screen (tap a row or card).
+  const [openId, setOpenId] = useState<string | null>(null)
   const [dating, setDating] = useState<Tx | null>(null)
   const [reviewAction, setReviewAction] = useState<'approve' | 'reject' | null>(null)
   const [reviewReason, setReviewReason] = useState('')
@@ -158,6 +167,7 @@ export default function TransactionsPage() {
   const isPending = (status: string) => ['pending_review', 'pending', 'requested', 'under_review'].includes(status)
   const canReview = (tx: Tx) => isPending(tx.status) && (tx.type === 'deposit' || tx.type === 'withdrawal')
   const reviewingTx = txs.find(t => t.id === reviewingId)
+  const openTx = openId ? txs.find(t => t.id === openId) || null : null
   const reviewNoun = reviewingTx?.type === 'withdrawal' ? 'Withdrawal' : 'Deposit'
   const reviewIsBank = reviewingTx?.type === 'withdrawal' && !!reviewingTx.bank_account_id
   const receiptPath = (notes: string | null) => notes?.match(/receipt:([0-9a-f-]{36}\/[\w.-]+)/i)?.[1] || null
@@ -199,8 +209,11 @@ export default function TransactionsPage() {
       {loadError && <AdminLoadError message={loadError} onRetry={() => setReload(n => n + 1)} />}
       {/* Review Modal */}
       {reviewingId && reviewAction && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={() => { setReviewingId(null); setReviewAction(null) }}>
-          <div className="glass rounded-2xl p-6 border border-white/[0.08] max-w-md w-full max-h-[90dvh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        // Above the transaction's own screen; full height on phones.
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 sm:px-4" role="dialog" aria-modal="true" aria-label={reviewAction === 'approve' ? `Approve ${reviewNoun}` : `Reject ${reviewNoun}`}
+          onClick={() => { if (!reviewLoading) { setReviewingId(null); setReviewAction(null) } }} data-tx-review>
+          <BackCloseLayer onClose={() => { if (!reviewLoading) { setReviewingId(null); setReviewAction(null) } }} />
+          <div className="glass rounded-t-2xl sm:rounded-2xl p-6 border border-white/[0.08] max-w-md w-full max-h-[90dvh] overflow-y-auto adm-sheet" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }} onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-white mb-1">
               {reviewAction === 'approve' ? `Approve ${reviewNoun}` : `Reject ${reviewNoun}`}{reviewIsBank ? ' · Bank transfer' : ''}
             </h3>
@@ -299,7 +312,10 @@ export default function TransactionsPage() {
                 </thead>
                 <tbody>
                   {filtered.map((tx, i) => (
-                    <tr key={tx.id} className={`border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors ${i % 2 === 1 ? 'bg-white/[0.01]' : ''}`}>
+                    <tr key={tx.id} className={`border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors cursor-pointer ${i % 2 === 1 ? 'bg-white/[0.01]' : ''}`}
+                      onClick={e => { if (!(e.target as HTMLElement).closest('button,a')) setOpenId(tx.id) }}
+                      onKeyDown={e => { if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { e.preventDefault(); setOpenId(tx.id) } }}
+                      tabIndex={0} aria-label={`${tx.profiles?.full_name || 'Unknown'} · ${typeText(tx)} · $${(tx.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} — open details`} data-admin-tx-row={tx.id}>
                       <td className="px-5 py-4">
                         <p className="text-sm font-medium text-white whitespace-nowrap">{tx.profiles?.full_name || 'Unknown'}</p>
                         <p className="text-[10px] text-slate-600 font-mono">{tx.user_id.slice(0, 12)}…</p>
@@ -359,31 +375,33 @@ export default function TransactionsPage() {
             <div className="sm:hidden divide-y divide-white/[0.04]">
               {filtered.map(tx => (
                 <div key={tx.id} className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div>
-                      <p className="text-sm font-medium text-white">{tx.profiles?.full_name || 'Unknown'}</p>
-                      <p className="text-xs text-slate-500 capitalize">{typeText(tx)}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-bold text-white">${(tx.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium capitalize ${STATUS_STYLE[tx.status] || 'bg-slate-800 text-slate-400 border-white/[0.06]'}`}>
-                        {tx.status.replace(/_/g, ' ')}
+                  <button type="button" onClick={() => setOpenId(tx.id)} className="tap block w-full text-left -m-2 p-2 rounded-xl" data-admin-tx-open={tx.id}>
+                    <span className="flex items-center justify-between gap-3 mb-2">
+                      <span className="min-w-0">
+                        <span className="block text-sm font-medium text-white truncate">{tx.profiles?.full_name || 'Unknown'}</span>
+                        <span className="block text-xs text-slate-500 capitalize">{typeText(tx)}</span>
                       </span>
-                    </div>
-                  </div>
-                  {tx.method && <p className="text-[11px] text-slate-500">{sourceLabel(tx)}</p>}
-                  {tx.address && <p className="text-[11px] text-slate-400 font-mono break-all select-all">{tx.address}</p>}
-                  {tx.bank_account_id && tx.tx_hash && <p className="text-[11px] text-slate-500 break-all" data-bank-ref>Bank ref: {tx.tx_hash}</p>}
-                  {tx.reference && <p className="text-xs font-mono text-slate-400">{tx.reference}</p>}
-                  {noteText(tx.notes) && <p className="text-xs text-slate-500 truncate">{noteText(tx.notes)}</p>}
-                  {receiptPath(tx.notes) && (
-                    <button onClick={() => openReceipt(receiptPath(tx.notes)!)} className="mt-1 text-xs font-medium text-sky-400 hover:text-sky-300 underline underline-offset-2">View receipt</button>
-                  )}
-                  <p className="text-[10px] text-slate-500 mt-1">
-                    {new Date(tx.effective_at || tx.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
-                    {tx.effective_at && tx.effective_at !== tx.created_at && <span className="text-slate-600"> · recorded {new Date(tx.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
-                    {' · '}<button onClick={() => setDating({ ...tx, effective_at: tx.effective_at || tx.created_at })} className="text-accent hover:text-accent-hover">Change date</button>
-                  </p>
+                      <span className="flex items-center gap-2 shrink-0">
+                        <span className="text-right">
+                          <span className="block text-sm font-bold text-white">${(tx.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                          <span className={`inline-block text-[10px] px-2 py-0.5 rounded-full border font-medium capitalize ${STATUS_STYLE[tx.status] || 'bg-slate-800 text-slate-400 border-white/[0.06]'}`}>
+                            {tx.status.replace(/_/g, ' ')}
+                          </span>
+                        </span>
+                        <Chevron />
+                      </span>
+                    </span>
+                    {tx.method && <span className="block text-[11px] text-slate-500">{sourceLabel(tx)}</span>}
+                    {tx.address && <span className="block text-[11px] text-slate-400 font-mono break-all">{tx.address}</span>}
+                    {tx.bank_account_id && tx.tx_hash && <span className="block text-[11px] text-slate-500 break-all" data-bank-ref>Bank ref: {tx.tx_hash}</span>}
+                    {tx.reference && <span className="block text-xs font-mono text-slate-400">{tx.reference}</span>}
+                    {noteText(tx.notes) && <span className="block text-xs text-slate-500 truncate">{noteText(tx.notes)}</span>}
+                    <span className="block text-[10px] text-slate-500 mt-1">
+                      {new Date(tx.effective_at || tx.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                      {tx.effective_at && tx.effective_at !== tx.created_at && <span className="text-slate-600"> · recorded {new Date(tx.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
+                      {receiptPath(tx.notes) && <span className="text-sky-400"> · receipt attached</span>}
+                    </span>
+                  </button>
                   {canReview(tx) && (
                     <div className="flex gap-2 mt-3">
                       <button onClick={() => { setReviewingId(tx.id); setReviewAction('approve'); setReviewError('') }}
@@ -411,6 +429,45 @@ export default function TransactionsPage() {
           </div>
         )}
       </div>
+      {openTx && (
+        <AppScreen title="Transaction" onClose={() => setOpenId(null)} attrs={{ 'data-admin-tx-screen': openTx.id }}>
+          <div className="px-5 sm:px-6 pt-5 pb-6">
+            <p className="text-xs text-slate-500 capitalize">{typeText(openTx)}</p>
+            <p className="mt-1 text-[30px] leading-none font-semibold tracking-[-0.02em] text-white tabular-nums break-words">${(openTx.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+            <span className={`mt-3 inline-block text-[11px] px-2 py-0.5 rounded-full border font-medium capitalize ${STATUS_STYLE[openTx.status] || 'bg-slate-800 text-slate-400 border-white/[0.06]'}`}>{openTx.status.replace(/_/g, ' ')}</span>
+            <dl className="mt-5 divide-y divide-white/[0.05] text-sm">
+              {([
+                ['Client', <Link key="c" href={`/admin/clients/${openTx.user_id}`} className="text-accent hover:text-accent-hover">{openTx.profiles?.full_name || 'Unknown'} →</Link>],
+                ['Client ID', <span key="u" className="font-mono text-xs select-all break-all">{openTx.user_id}</span>],
+                openTx.method ? ['Method', <span key="m" className="capitalize">{sourceLabel(openTx)}</span>] : null,
+                openTx.fee ? ['Fee', `$${openTx.fee.toLocaleString('en-US', { minimumFractionDigits: 2 })}`] : null,
+                openTx.address ? ['Address', <span key="a" className="font-mono text-xs select-all break-all">{openTx.address}</span>] : null,
+                openTx.bank_account_id && openTx.tx_hash ? ['Bank ref', <span key="b" className="break-all">{openTx.tx_hash}</span>] : null,
+                openTx.reference ? ['Reference', <span key="r" className="font-mono text-xs select-all break-all">{openTx.reference}</span>] : null,
+                noteText(openTx.notes) ? ['Notes', <span key="n" className="break-words whitespace-pre-line">{noteText(openTx.notes)}</span>] : null,
+                ['Effective date', new Date(openTx.effective_at || openTx.created_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })],
+                openTx.effective_at && openTx.effective_at !== openTx.created_at ? ['Recorded', new Date(openTx.created_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })] : null,
+                ['Transaction ID', <span key="i" className="font-mono text-xs select-all break-all">{openTx.id}</span>],
+              ] as ([string, React.ReactNode] | null)[]).filter(Boolean).map(r => (
+                <div key={r![0]} className="grid grid-cols-[7.5rem_1fr] gap-3 py-2.5">
+                  <dt className="text-slate-500">{r![0]}</dt><dd className="text-slate-200 min-w-0">{r![1]}</dd>
+                </div>
+              ))}
+            </dl>
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              {receiptPath(openTx.notes) && <button onClick={() => openReceipt(receiptPath(openTx.notes)!)} className="btn btn-outline col-span-2" data-screen-receipt>View receipt</button>}
+              <button onClick={() => setDating({ ...openTx, effective_at: openTx.effective_at || openTx.created_at })} className="btn btn-outline col-span-2">Change date</button>
+              {canReview(openTx) && (
+                <>
+                  <button onClick={() => { setReviewingId(openTx.id); setReviewAction('approve'); setReviewError('') }} className="min-h-11 rounded-xl text-sm font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20" data-screen-approve>Approve</button>
+                  <button onClick={() => { setReviewingId(openTx.id); setReviewAction('reject'); setReviewError('') }} className="min-h-11 rounded-xl text-sm font-semibold text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20" data-screen-reject>Reject</button>
+                </>
+              )}
+            </div>
+            {receiptError && <p role="alert" className="mt-3 text-sm text-red-400">{receiptError}</p>}
+          </div>
+        </AppScreen>
+      )}
       {dating && <EffectiveDateModal tx={dating} onClose={() => setDating(null)} onSaved={() => { setDating(null); setReload(n => n + 1) }} />}
     </AdminLayout>
   )

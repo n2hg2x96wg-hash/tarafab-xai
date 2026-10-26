@@ -904,7 +904,7 @@ function OverviewTab({ name, account, txs, go, can, labelOf, whatsNew, onOpenAss
       ) : (
         <ul className="px-2 pb-2">
           {recentTxs.map(tx => (
-            <li key={tx.id} className="ovx-row flex items-center justify-between gap-3 rounded-xl px-2.5 sm:px-3 py-2.5 cursor-pointer" onClick={() => setReceipt(tx)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setReceipt(tx) } }} tabIndex={0} aria-label={`${txLabel(tx, t)} ${signedAmount(tx)} — ${t('rcpt.open')}`} data-tx-open={tx.id}>
+            <li key={tx.id} className="ovx-row tap flex items-center justify-between gap-3 rounded-xl px-2.5 sm:px-3 py-2.5 cursor-pointer" onClick={() => setReceipt(tx)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setReceipt(tx) } }} tabIndex={0} aria-label={`${txLabel(tx, t)} ${signedAmount(tx)} — ${t('rcpt.open')}`} data-tx-open={tx.id}>
               <div className="flex items-center gap-3 min-w-0">
                 <TxIcon type={tx.type} tx={tx} />
                 <div className="min-w-0">
@@ -1170,7 +1170,7 @@ function TransactionsTab({ txs }: { txs: Tx[] }) {
                   <h3 className="px-4 pt-3 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-faint">{day}</h3>
                   <ul className="divide-y divide-[rgb(var(--contrast)/.06)]">
                     {list.map(tx => (
-                      <li key={tx.id} className="flex items-center gap-3 px-4 py-3 cursor-pointer active:bg-[rgb(var(--contrast)/.03)]" data-tx-row={tx.status} data-tx-open={tx.id} onClick={() => setReceipt(tx)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setReceipt(tx) } }} tabIndex={0} aria-label={`${txLabel(tx, t)} ${signedAmount(tx)} — ${t('rcpt.open')}`}>
+                      <li key={tx.id} className="tap flex items-center gap-3 px-4 py-3" data-tx-row={tx.status} data-tx-open={tx.id} onClick={() => setReceipt(tx)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setReceipt(tx) } }} tabIndex={0} aria-label={`${txLabel(tx, t)} ${signedAmount(tx)} — ${t('rcpt.open')}`}>
                         <TxIcon type={tx.type} tx={tx} />
                         <div className="min-w-0 flex-1">
                           <p className="text-[14px] leading-snug text-fg line-clamp-2 break-words">{txLabel(tx, t)}{isAccountCredit(tx) && <span className="text-fg-faint"> · {t('dash.txType.accountCredit')}</span>}</p>

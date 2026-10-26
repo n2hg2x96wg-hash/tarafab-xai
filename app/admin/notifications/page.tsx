@@ -7,6 +7,7 @@ import { AdminLoadError } from '@/components/AdminLoadError'
 import { createClient } from '@/lib/supabase/client'
 import { authFetch, errorText, readJson } from '@/lib/authFetch'
 import { useI18n, type TKey } from '@/lib/i18n/I18nProvider'
+import { AppScreen } from '@/components/AppScreen'
 
 type NoticeType = 'account' | 'deposit' | 'withdrawal' | 'security' | 'announcement' | 'investment' | 'release'
 const TYPES: NoticeType[] = ['account', 'deposit', 'withdrawal', 'security', 'announcement', 'investment', 'release']
@@ -42,6 +43,8 @@ export default function AdminNotificationsPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [ok, setOk] = useState('')
+  // A sent notification opened on its own screen (tap a row).
+  const [openId, setOpenId] = useState<string | null>(null)
 
   // Optional: link the notification to one of the chosen client's investments.
   useEffect(() => {
@@ -70,6 +73,7 @@ export default function AdminNotificationsPage() {
   }, [t])
   useEffect(() => { load() }, [load])
 
+  const openSent = openId ? sent?.find(n => n.id === openId) || null : null
   const clientName = (id: string | null) => {
     if (!id) return t('adminNotif.allClients')
     const c = clients.find(x => x.id === id)
@@ -189,16 +193,16 @@ export default function AdminNotificationsPage() {
               {sent?.map(n => (
                 <li key={n.id} className={`py-3.5 ${n.archived_at ? 'opacity-50' : ''}`}>
                   <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 mb-1">
+                    <button type="button" onClick={() => setOpenId(n.id)} className="tap min-w-0 flex-1 text-left -m-2 p-2 rounded-xl" data-sent-open={n.id}>
+                      <span className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 mb-1">
                         <span className="border border-white/[0.1] rounded px-1.5 py-0.5">{t(`notif.types.${n.type}`)}</span>
                         <span>{clientName(n.user_id)}</span>
                         <span>{new Date(n.created_at).toLocaleString(intl, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
                         <span>{t('adminNotif.readCount', { n: n.read_count })}</span>
-                      </div>
-                      <p className="text-sm font-medium text-white break-words">{n.title}</p>
-                      {n.body && <p className="text-xs text-slate-400 mt-0.5 line-clamp-2 break-words">{n.body}</p>}
-                    </div>
+                      </span>
+                      <span className="block text-sm font-medium text-white break-words">{n.title}</span>
+                      {n.body && <span className="block text-xs text-slate-400 mt-0.5 line-clamp-2 break-words">{n.body}</span>}
+                    </button>
                     {n.archived_at
                       ? <span className="text-[11px] text-slate-500 shrink-0">{t('adminNotif.archived')}</span>
                       : <button onClick={() => archive(n.id)} className="shrink-0 text-xs text-slate-400 hover:text-red-400 border border-white/[0.1] rounded-lg px-2.5 min-h-8">{t('adminNotif.archive')}</button>}
@@ -209,6 +213,30 @@ export default function AdminNotificationsPage() {
           )}
         </section>
       </div>
+      {openSent && (
+        <AppScreen title={t('notif.detail')} onClose={() => setOpenId(null)} attrs={{ 'data-sent-screen': openSent.id }}>
+          <article className="px-5 sm:px-6 pt-5 pb-6">
+            <div className="flex flex-wrap items-center gap-2 text-[12px] text-slate-500">
+              <span className="border border-white/[0.1] rounded px-1.5 py-0.5">{t(`notif.types.${openSent.type}`)}</span>
+              <span>{clientName(openSent.user_id)}</span>
+              <span>{new Date(openSent.created_at).toLocaleString(intl, { dateStyle: 'medium', timeStyle: 'short' })}</span>
+              <span>{t('adminNotif.readCount', { n: openSent.read_count })}</span>
+              {openSent.archived_at && <span className="text-slate-400">{t('adminNotif.archived')}</span>}
+            </div>
+            <h3 className="mt-3 text-[20px] leading-snug font-semibold text-white break-words">{openSent.title}</h3>
+            {openSent.body && <p className="mt-3 text-[15px] leading-relaxed text-slate-300 whitespace-pre-line break-words">{openSent.body}</p>}
+            {openSent.cta_label && openSent.cta_target && (
+              <p className="mt-5 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                <span className="rounded-lg border border-accent/30 text-accent px-3 py-1.5 text-sm">{openSent.cta_label}</span>
+                → {(() => { const tg = TARGETS.find(x => `#${x.id}` === openSent.cta_target); return tg ? t(tg.label) : openSent.cta_target })()}
+              </p>
+            )}
+            {!openSent.archived_at && (
+              <button onClick={() => archive(openSent.id)} className="mt-6 w-full sm:w-auto min-h-11 px-4 rounded-xl text-sm text-slate-300 hover:text-red-400 border border-white/[0.1]" data-sent-archive>{t('adminNotif.archive')}</button>
+            )}
+          </article>
+        </AppScreen>
+      )}
     </AdminLayout>
   )
 }

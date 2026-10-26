@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import AdminLayout from '@/components/AdminLayout'
+import { AppScreen } from '@/components/AppScreen'
 import { AdminLoadError } from '@/components/AdminLoadError'
 import { authFetch, errorText, newRequestKey, readJson } from '@/lib/authFetch'
 import { projection, validRatePct } from '@/lib/returns'
@@ -444,7 +445,7 @@ function InvestmentsTab() {
           <ul className="md:hidden space-y-2">
             {rows.map(r => (
               <li key={r.id}>
-                <button onClick={() => setOpen(r)} className="panel p-4 w-full text-left">
+                <button onClick={() => setOpen(r)} className="tap panel p-4 w-full text-left">
                   <div className="flex justify-between gap-2"><span className="text-white truncate">{names[r.user_id] || r.user_id.slice(0, 8)}</span><span className={`text-[11px] px-2 py-0.5 rounded-full border capitalize shrink-0 ${STATUS_STYLE[r.status] || ''}`}>{label(r.status)}</span></div>
                   <p className="text-xs text-slate-500 mt-1 font-mono">{r.reference || r.id.slice(0, 8)} · {code(r.product_id)}{r.is_historical && <span className="ml-1.5 font-sans text-[10px] px-1.5 py-0.5 rounded border border-sky-400/30 text-sky-300" data-hist-badge>Historical</span>}</p>
                   <p className="text-sm text-white tabular-nums mt-1">{money(r.principal)} <span className={`text-xs ${pClass(profitOf(r))}`}>{signedMoney(profitOf(r))}</span> <span className="text-xs text-slate-500">· {d(r.created_at)}</span></p>
@@ -560,12 +561,10 @@ function ReviewPanel({ inv, client, productCode, onClose, onDone }: { inv: Inv; 
   const row = (k: string, v: React.ReactNode) => <div className="flex justify-between gap-3 py-1.5 border-b border-white/[0.04] text-sm"><span className="text-slate-500 shrink-0">{k}</span><span className="text-white text-right break-all">{v}</span></div>
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/70" role="dialog" aria-modal="true" aria-label="Investment review">
-      <div className="panel w-full sm:max-w-lg max-h-[92dvh] overflow-y-auto p-5 sm:p-6 space-y-4 rounded-b-none sm:rounded-b-xl">
-        <div className="flex items-start justify-between gap-3">
-          <div><h2 className="text-lg font-semibold text-white">{inv.reference || 'Investment'}</h2><p className="text-xs text-slate-500">{productCode}</p></div>
-          <button onClick={onClose} className="btn btn-sm btn-ghost" aria-label="Close">✕</button>
-        </div>
+    // Opens as an app screen: full screen on phones (Back closes it).
+    <AppScreen title={inv.reference || 'Investment'} onClose={() => { if (!busy) onClose() }} attrs={{ 'data-inv-review': inv.id, 'aria-label': 'Investment review' }}>
+      <div className="p-5 sm:p-6 space-y-4">
+        <p className="text-xs text-slate-500 -mt-1">{productCode}</p>
         <div>
           {row('Client', client || '—')}
           {row('Client email', info ? info.email || '—' : '…')}
@@ -712,7 +711,7 @@ function ReviewPanel({ inv, client, productCode, onClose, onDone }: { inv: Inv; 
           </div>
         )}
       </div>
-    </div>
+    </AppScreen>
   )
 }
 
