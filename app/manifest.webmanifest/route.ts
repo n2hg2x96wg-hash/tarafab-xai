@@ -1,10 +1,12 @@
-import type { MetadataRoute } from 'next'
+import { NextResponse } from 'next/server'
 
 // Installable app (Add to Home Screen): opens full screen on the dashboard,
 // which sends signed-out visitors to sign in as usual. Served at
-// /manifest.webmanifest; Next.js links it from every page.
-export default function manifest(): MetadataRoute.Manifest {
-  return {
+// /manifest.webmanifest and linked from the root layout's metadata (a plain
+// route rather than app/manifest.ts, so the admin pages can link their own
+// app instead: app/admin-app.webmanifest).
+export function GET() {
+  return NextResponse.json({
     id: '/dashboard',
     name: 'Tarafab.XAi',
     short_name: 'Tarafab',
@@ -24,5 +26,5 @@ export default function manifest(): MetadataRoute.Manifest {
       { src: '/app/maskable-192.png?v=2', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
       { src: '/app/maskable-512.png?v=2', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
     ],
-  }
+  }, { headers: { 'Content-Type': 'application/manifest+json', 'Cache-Control': 'public, max-age=3600' } })
 }
