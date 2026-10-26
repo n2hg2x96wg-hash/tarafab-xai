@@ -343,6 +343,8 @@ const ko: DeepPartial<typeof en> = {
     errEmailFormat: "올바른 이메일 주소를 입력하세요 (예: name@example.com).",
     errPassword: "비밀번호를 입력하세요.",
     wrongCredentials: "이메일 또는 비밀번호가 올바르지 않습니다. 확인 후 다시 시도하세요.",
+    attemptsLeftMany: "{n}번 더 시도할 수 있습니다. 이후 로그인이 5분간 일시 중지됩니다.",
+    attemptsLeftOne: "1번 더 시도할 수 있습니다. 이후 로그인이 5분간 일시 중지됩니다.",
     serverDown: "서비스를 일시적으로 사용할 수 없습니다. 몇 분 후 다시 시도하세요.",
     lockTitle: "로그인 시도가 너무 많습니다",
     lockBody: "보안을 위해 로그인이 일시 중지되었습니다.",

@@ -340,6 +340,8 @@ const de: DeepPartial<typeof en> = {
     errEmailFormat: "Geben Sie eine gültige E-Mail-Adresse ein, z. B. name@beispiel.de.",
     errPassword: "Geben Sie Ihr Passwort ein.",
     wrongCredentials: "E-Mail oder Passwort ist falsch. Prüfen Sie beides und versuchen Sie es erneut.",
+    attemptsLeftMany: "Noch {n} Versuche. Danach wird die Anmeldung für 5 Minuten pausiert.",
+    attemptsLeftOne: "Noch 1 Versuch. Danach wird die Anmeldung für 5 Minuten pausiert.",
     serverDown: "Der Dienst ist vorübergehend nicht verfügbar. Bitte versuchen Sie es in ein paar Minuten erneut.",
     lockTitle: "Zu viele Anmeldeversuche",
     lockBody: "Zu Ihrer Sicherheit ist die Anmeldung pausiert.",

@@ -343,6 +343,8 @@ const en = {
     errEmailFormat: "Enter a valid email address, like name@example.com.",
     errPassword: "Enter your password.",
     wrongCredentials: "The email or password is incorrect. Check both and try again.",
+    attemptsLeftMany: "{n} attempts left. After that, sign-in is paused for 5 minutes.",
+    attemptsLeftOne: "1 attempt left. After that, sign-in is paused for 5 minutes.",
     serverDown: "The service is temporarily unavailable. Please try again in a few minutes.",
     lockTitle: "Too many sign-in attempts",
     lockBody: "For your security, sign-in is paused.",
