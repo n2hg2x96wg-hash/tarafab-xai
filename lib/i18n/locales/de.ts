@@ -1280,6 +1280,13 @@ const de: DeepPartial<typeof en> = {
   premium: {
     nav: "Premium",
   },
+  installApp: {
+    title: 'Tarafab als App',
+    body: 'Fügen Sie Tarafab zu Ihrem Home-Bildschirm hinzu, um Ihr Konto mit einem Tippen im Vollbild zu öffnen.',
+    install: 'App installieren',
+    ios: 'Auf iPhone oder iPad tippen Sie auf Teilen und dann auf Zum Home-Bildschirm. Ihr Konto öffnet sich dann mit einem Tippen im Vollbild.',
+    later: 'Nicht jetzt',
+  },
 }
 
 export default de

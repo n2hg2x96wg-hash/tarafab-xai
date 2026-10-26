@@ -1283,6 +1283,13 @@ const ko: DeepPartial<typeof en> = {
   premium: {
     nav: "Premium",
   },
+  installApp: {
+    title: 'Tarafab 앱 설치',
+    body: '홈 화면에 Tarafab을 추가하면 한 번의 탭으로 계정을 전체 화면으로 열 수 있습니다.',
+    install: '앱 설치',
+    ios: 'iPhone 또는 iPad에서 공유 버튼을 누른 다음 \'홈 화면에 추가\'를 선택하세요. 이후 한 번의 탭으로 계정이 전체 화면으로 열립니다.',
+    later: '나중에',
+  },
 }
 
 export default ko

@@ -48,6 +48,7 @@ import { InvestmentCenter } from '@/components/dashboard/InvestmentCenter'
 import { HeroChips, NextSteps, OverviewHero } from '@/components/dashboard/OverviewParts'
 import { AutomationStatusPanel, BtcMarketPanel, WatchlistPanel, useClockText } from '@/components/dashboard/OverviewPro'
 import { ConfirmModal } from '@/components/ConfirmModal'
+import { InstallAppCard } from '@/components/InstallApp'
 import { CommandSearch, type CommandItem } from '@/components/dashboard/CommandSearch'
 import { TxReceipt } from '@/components/dashboard/TxReceipt'
 import { MarketActivityTab, PriceHistoryTab } from '@/components/dashboard/MarketTabs'
@@ -615,6 +616,7 @@ export default function DashboardPage() {
           {current && INTRO_SUB[activeNav] !== undefined && <PageIntro title={labelOf(current)} sub={INTRO_SUB[activeNav] ? t(INTRO_SUB[activeNav] as TKey) : undefined} icon={<current.icon width={20} height={20} />} />}
           <ErrorBoundary key={activeNav} label={current ? labelOf(current) : undefined}>
             {activeNav === 'overview' && <OverviewTab onOpenAsset={id => { setMarketAsset(id); go('markets') }} whatsNew={whatsNewNode} name={displayName} account={account} txs={txs} go={go} can={id => !hiddenNav.includes(id)} labelOf={labelOf} />}
+            {activeNav === 'overview' && <InstallAppCard />}
             {activeNav === 'markets' && <div className="space-y-6"><AssetCenter openAsset={marketAsset} onOpened={() => setMarketAsset(null)} onAutomate={id => { setAutoAsset(id); go('automations') }} /><MarketsTab /></div>}
             {soon(activeNav) && <StateView state="unavailable" title={pt('ft.soon')} body={pt('ft.comingSoon')} />}
             {activeNav === 'automations' && !soon('automations') && !hiddenNav.includes('automations') && <AutomationCenter presetAsset={autoAsset} onPresetUsed={() => setAutoAsset(null)} />}

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#080a0e">
+  <meta name="robots" content="noindex">
+  <title>No connection | Tarafab.XAi</title>
+  <link rel="icon" href="/app/icon-192.png" type="image/png">
+  <style>
+    :root { color-scheme: dark; --bg: #080a0e; --text: #f5f6f8; --muted: #9aa1ad; --accent: #f7931a; }
+    @media (prefers-color-scheme: light) { :root { color-scheme: light; --bg: #f7f7f8; --text: #0b0d12; --muted: #4b5260; } }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; background: var(--bg); color: var(--text);
+      font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; text-align: center; }
+    main { max-width: 360px; }
+    img { width: 72px; height: 72px; border-radius: 18px; }
+    h1 { font-size: 1.35rem; margin: 20px 0 8px; }
+    p { color: var(--muted); margin: 0 0 24px; }
+    button { font: inherit; font-weight: 600; color: #0b0d12; background: var(--accent); border: 0; border-radius: 12px; padding: 12px 28px; cursor: pointer; }
+    button:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+  </style>
+</head>
+<body>
+  <main>
+    <img src="/app/icon-192.png" alt="">
+    <h1>You're offline</h1>
+    <p>Tarafab.XAi needs an internet connection to show your account. Check your connection and try again.</p>
+    <button type="button" onclick="location.reload()">Try again</button>
+  </main>
+  <script>addEventListener("online", function () { location.reload(); });</script>
+</body>
+</html>
