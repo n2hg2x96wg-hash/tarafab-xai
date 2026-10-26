@@ -70,3 +70,10 @@ export function useBackClose(onClose: () => void) {
     if (after) setTimeout(after, 0)
   }, [])
 }
+
+/** For a dialog written inline in a page: render it inside the dialog so the
+ *  phone's Back button closes it. Closing it any other way drops its entry. */
+export function BackCloseLayer({ onClose }: { onClose: () => void }) {
+  useBackClose(onClose)
+  return null
+}

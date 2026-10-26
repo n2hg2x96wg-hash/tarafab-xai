@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import AdminLayout from '@/components/AdminLayout'
 import { AdminLoadError } from '@/components/AdminLoadError'
 import { authFetch, errorText, readJson } from '@/lib/authFetch'
+import { AppScreen } from '@/components/AppScreen'
+import { BackCloseLayer } from '@/lib/backClose'
 
 type Submission = {
   id: string | null
@@ -64,6 +66,8 @@ export default function VerificationPage() {
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
   const [reviewError, setReviewError] = useState('')
+  // The request opened on its own screen (tap a card).
+  const [openKey, setOpenKey] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -136,6 +140,53 @@ export default function VerificationPage() {
   })
 
   const date = (iso: string | null) => iso ? new Date(iso).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : '—'
+  const keyOf = (r: Submission) => r.id || r.user_id
+  const details = (r: Submission) => (
+    <>
+              <dl className="grid sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-2 mt-4 text-xs">
+                <div><dt className="text-slate-600">Legal name</dt><dd className="text-slate-300">{r.full_legal_name}</dd></div>
+                <div><dt className="text-slate-600">Document</dt><dd className="text-slate-300">{r.document_type ? `${DOC_LABEL[r.document_type] || r.document_type}${r.document_number ? ` · ${r.document_number}` : ''}` : '—'}</dd></div>
+                <div><dt className="text-slate-600">Date of birth</dt><dd className="text-slate-300">{r.date_of_birth || '—'}</dd></div>
+                <div><dt className="text-slate-600">Country</dt><dd className="text-slate-300">{r.country || '—'}</dd></div>
+                <div className="sm:col-span-2"><dt className="text-slate-600">Address</dt><dd className="text-slate-300 break-words">{r.address || '—'}</dd></div>
+                <div><dt className="text-slate-600">Submitted</dt><dd className="text-slate-300">{date(r.submitted_at)}</dd></div>
+                {r.reviewed_at && <div><dt className="text-slate-600">Reviewed</dt><dd className="text-slate-300">{date(r.reviewed_at)}</dd></div>}
+                {r.rejection_reason && <div className="sm:col-span-2 lg:col-span-3"><dt className="text-slate-600">Reason given</dt><dd className="text-slate-300 break-words">{r.rejection_reason}</dd></div>}
+              </dl>
+
+    </>
+  )
+  const actionButtons = (r: Submission) => (
+    <>
+              <div className="flex flex-wrap gap-2 mt-4">
+                {r.document_path && (
+                  <button onClick={() => openDocument(r.document_path!, 'document')} className="btn btn-sm btn-outline">View document</button>
+                )}
+                {r.selfie_path && (
+                  <button onClick={() => openDocument(r.selfie_path!, 'selfie')} className="btn btn-sm btn-outline">View selfie</button>
+                )}
+                {!r.legacy && (r.status === 'pending' || r.status === 'under_review') && (
+                  <>
+                    {r.status === 'pending' && (
+                      <button
+                        onClick={() => { setReviewing(r); setAction('review'); setReason(''); setReviewError('') }}
+                        className="btn btn-sm bg-sky-500/10 text-sky-400 border border-sky-500/20 hover:bg-sky-500/20"
+                      >Mark under review</button>
+                    )}
+                    <button
+                      onClick={() => { setReviewing(r); setAction('verify'); setReason(''); setReviewError('') }}
+                      className="btn btn-sm bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20"
+                    >Approve KYC</button>
+                    <button
+                      onClick={() => { setReviewing(r); setAction('reject'); setReason(''); setReviewError('') }}
+                      className="btn btn-sm bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20"
+                    >Reject KYC</button>
+                  </>
+                )}
+              </div>
+    </>
+  )
+  const openRow = openKey ? rows.find(r => keyOf(r) === openKey) || null : null
   const openCount = rows.filter(r => r.status === 'pending' || r.status === 'under_review').length
 
   return (
@@ -182,7 +233,7 @@ export default function VerificationPage() {
         <div className="space-y-3">
           {filtered.map(r => (
             <div key={r.id || r.user_id} className="panel p-4 sm:p-5">
-              <div className="flex flex-wrap items-start justify-between gap-3">
+              <button type="button" onClick={() => setOpenKey(keyOf(r))} className="tap w-full text-left flex flex-wrap items-start justify-between gap-3 -m-2 p-2 rounded-xl" data-kyc-open={keyOf(r)}>
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-white whitespace-nowrap">{r.client_name || r.full_legal_name}</p>
                   <p className="text-xs text-slate-500 break-all">{r.client_email || '—'}</p>
@@ -191,7 +242,8 @@ export default function VerificationPage() {
                 <span className={`inline-block whitespace-nowrap text-[10px] px-2 py-1 rounded-full border font-medium ${STATUS_STYLE[r.status] || 'bg-slate-800 text-slate-400 border-white/[0.06]'}`}>
                   {STATUS_LABEL[r.status] || r.status}
                 </span>
-              </div>
+                <span className="sm:hidden w-full flex items-center justify-between text-xs text-slate-500">Submitted {date(r.submitted_at)}<span className="text-accent">Open ›</span></span>
+              </button>
 
               {r.legacy && (
                 <p className="mt-3 text-xs text-amber-400/90">
@@ -200,51 +252,38 @@ export default function VerificationPage() {
                 </p>
               )}
 
-              <dl className="grid sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-2 mt-4 text-xs">
-                <div><dt className="text-slate-600">Legal name</dt><dd className="text-slate-300">{r.full_legal_name}</dd></div>
-                <div><dt className="text-slate-600">Document</dt><dd className="text-slate-300">{r.document_type ? `${DOC_LABEL[r.document_type] || r.document_type}${r.document_number ? ` · ${r.document_number}` : ''}` : '—'}</dd></div>
-                <div><dt className="text-slate-600">Date of birth</dt><dd className="text-slate-300">{r.date_of_birth || '—'}</dd></div>
-                <div><dt className="text-slate-600">Country</dt><dd className="text-slate-300">{r.country || '—'}</dd></div>
-                <div className="sm:col-span-2"><dt className="text-slate-600">Address</dt><dd className="text-slate-300 break-words">{r.address || '—'}</dd></div>
-                <div><dt className="text-slate-600">Submitted</dt><dd className="text-slate-300">{date(r.submitted_at)}</dd></div>
-                {r.reviewed_at && <div><dt className="text-slate-600">Reviewed</dt><dd className="text-slate-300">{date(r.reviewed_at)}</dd></div>}
-                {r.rejection_reason && <div className="sm:col-span-2 lg:col-span-3"><dt className="text-slate-600">Reason given</dt><dd className="text-slate-300 break-words">{r.rejection_reason}</dd></div>}
-              </dl>
-
-              <div className="flex flex-wrap gap-2 mt-4">
-                {r.document_path && (
-                  <button onClick={() => openDocument(r.document_path!, 'document')} className="btn btn-sm btn-outline">View document</button>
-                )}
-                {r.selfie_path && (
-                  <button onClick={() => openDocument(r.selfie_path!, 'selfie')} className="btn btn-sm btn-outline">View selfie</button>
-                )}
-                {!r.legacy && (r.status === 'pending' || r.status === 'under_review') && (
-                  <>
-                    {r.status === 'pending' && (
-                      <button
-                        onClick={() => { setReviewing(r); setAction('review'); setReason(''); setReviewError('') }}
-                        className="btn btn-sm bg-sky-500/10 text-sky-400 border border-sky-500/20 hover:bg-sky-500/20"
-                      >Mark under review</button>
-                    )}
-                    <button
-                      onClick={() => { setReviewing(r); setAction('verify'); setReason(''); setReviewError('') }}
-                      className="btn btn-sm bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20"
-                    >Approve KYC</button>
-                    <button
-                      onClick={() => { setReviewing(r); setAction('reject'); setReason(''); setReviewError('') }}
-                      className="btn btn-sm bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20"
-                    >Reject KYC</button>
-                  </>
-                )}
+              {/* Phones: the card is a summary; the full request opens on its own screen. */}
+              <div className="hidden sm:block">
+                {details(r)}
+                {actionButtons(r)}
               </div>
             </div>
           ))}
         </div>
       )}
 
+      {openRow && (
+        <AppScreen title="KYC request" onClose={() => setOpenKey(null)} attrs={{ 'data-kyc-screen': keyOf(openRow) }}>
+          <div className="px-5 sm:px-6 pt-5 pb-6">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-base font-semibold text-white break-words">{openRow.client_name || openRow.full_legal_name}</p>
+                <p className="text-xs text-slate-500 break-all">{openRow.client_email || '—'}</p>
+                <p className="text-[10px] text-slate-600 font-mono mt-0.5 break-all">{openRow.user_id}</p>
+              </div>
+              <span className={`inline-block whitespace-nowrap text-[10px] px-2 py-1 rounded-full border font-medium ${STATUS_STYLE[openRow.status] || 'bg-slate-800 text-slate-400 border-white/[0.06]'}`}>{STATUS_LABEL[openRow.status] || openRow.status}</span>
+            </div>
+            {details(openRow)}
+            {actionButtons(openRow)}
+            {reviewError && !reviewing && <p role="alert" className="text-xs text-red-400 mt-3">{reviewError}</p>}
+          </div>
+        </AppScreen>
+      )}
+
       {reviewing && action && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" role="dialog" aria-modal="true">
-          <div className="panel p-6 w-full max-w-md">
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4 bg-black/70" role="dialog" aria-modal="true" data-kyc-review>
+          <BackCloseLayer onClose={() => { if (!busy) { setReviewing(null); setAction(null) } }} />
+          <div className="panel p-6 w-full sm:max-w-md rounded-b-none sm:rounded-b-xl" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
             <h2 className="text-lg font-semibold text-white mb-2">
               {action === 'verify' ? 'Approve this KYC request' : action === 'reject' ? 'Reject this KYC request' : 'Mark as under review'}
             </h2>

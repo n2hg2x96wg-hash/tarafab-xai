@@ -23,7 +23,8 @@ export function AppScreen({ title, onClose, children, closeLabel, width = 'md', 
   closeLabel?: string
   width?: keyof typeof WIDTH
   z?: number
-  /** data-* attributes for the dialog element (tests and styling hooks). */
+  /** data-* attributes for the dialog element (tests and styling hooks); an
+   *  aria-label here names the dialog instead of its title. */
   attrs?: Record<string, string | undefined>
   titleId?: string
   headClassName?: string
@@ -81,7 +82,7 @@ export function AppScreen({ title, onClose, children, closeLabel, width = 'md', 
   if (!mounted) return null
   return createPortal(
     <div ref={rootRef} className={`app-screen-root fixed inset-0 flex sm:items-center sm:justify-center sm:p-4 ${leaving ? 'is-leaving' : ''}`} style={{ zIndex: z }}
-      role="dialog" aria-modal="true" aria-labelledby={id} onKeyDown={onKey} data-app-screen={leaving ? 'leaving' : 'open'} {...attrs}>
+      role="dialog" aria-modal="true" aria-labelledby={attrs?.['aria-label'] ? undefined : id} onKeyDown={onKey} data-app-screen={leaving ? 'leaving' : 'open'} {...attrs}>
       <div className="app-screen-backdrop absolute inset-0 bg-black/60 backdrop-blur-[3px]" onClick={() => dismiss()} aria-hidden="true" />
       <div className={`app-screen relative flex flex-col w-full h-full sm:h-auto sm:max-h-[90dvh] ${WIDTH[width]} sm:rounded-2xl overflow-hidden`}>
         <div className={`app-screen-bar shrink-0 flex items-center gap-1.5 h-14 pl-1.5 pr-4 sm:pl-5 sm:pr-2.5 ${headClassName}`}>

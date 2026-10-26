@@ -356,7 +356,8 @@ export default function AdminPage() {
             {/* Mobile cards */}
             <div className="sm:hidden divide-y divide-white/[0.04]">
               {(search ? filtered : recentClients).map(client => (
-                <div key={client.id} className="p-4 flex items-center gap-3">
+                // The whole row opens the client (slides in like an app screen on phones).
+                <Link key={client.id} href={`/admin/clients/${client.id}`} className="tap p-4 flex items-center gap-3" data-home-client={client.id}>
                   <div className="w-9 h-9 rounded-full bg-accent/15 border border-accent/30 text-accent flex items-center justify-center text-sm font-bold shrink-0">
                     {(client.full_name || '?').charAt(0).toUpperCase()}
                   </div>
@@ -366,13 +367,10 @@ export default function AdminPage() {
                       {client.accounts ? `$${(client.accounts.available_balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : 'No account'}
                     </p>
                   </div>
-                  <Link
-                    href={`/admin/clients/${client.id}`}
-                    className="text-[13px] text-accent border border-accent/30 px-3.5 min-h-10 inline-flex items-center rounded-lg hover:bg-accent/10 transition-colors shrink-0"
-                  >
+                  <span className="text-[13px] text-accent border border-accent/30 px-3.5 min-h-10 inline-flex items-center rounded-lg shrink-0">
                     Manage
-                  </Link>
-                </div>
+                  </span>
+                </Link>
               ))}
             </div>
           </>
